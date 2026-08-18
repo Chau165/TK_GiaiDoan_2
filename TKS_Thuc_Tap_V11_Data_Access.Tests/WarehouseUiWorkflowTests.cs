@@ -13,10 +13,10 @@ public sealed class WarehouseUiWorkflowTests
         var source = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
         var infoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
-        Assert.Contains("private bool m_bMasterEditing;", source);
         Assert.Contains("private bool m_bDocumentEditing;", source);
         Assert.Contains("private bool m_bDetailEditing;", source);
-        Assert.Contains("@if (m_bMasterEditing)", source);
+        Assert.Contains("@if (r_bIs_Show_Edit)", source);
+        Assert.Contains("@if (r_bIs_Show_Info)", source);
         Assert.Contains("@if (m_bDocumentEditing)", source);
         Assert.Contains("@if (m_bDetailEditing)", source);
         Assert.Contains("Thêm sản phẩm", infoSource);

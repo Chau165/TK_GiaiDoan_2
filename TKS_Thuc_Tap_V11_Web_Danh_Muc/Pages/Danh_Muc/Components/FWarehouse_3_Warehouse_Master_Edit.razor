@@ -1,0 +1,28 @@
+@inherits FBase_Edit
+
+<div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; padding-left: 0px; background-color: rgba(10, 10, 10, .8);">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">Hiệu chỉnh danh mục</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick="Cancel_Async"></button>
+            </div>
+            <div class="modal-body">
+                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Master" m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrWarehouse" OnSave_Master="OnSave_Master" OnCancel="Cancel_Async" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string m_strMaster_Type { get; set; } = "";
+    [Parameter] public CWarehouseMaster m_objMaster { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrCategory { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
+    [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
+    private Task Cancel_Async()
+    {
+        return OnClose.InvokeAsync(new CEvent_Call_Back { Message_ID = (int)EModal_Result.Close_Cancel });
+    }
+}
