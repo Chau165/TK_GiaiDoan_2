@@ -1,0 +1,90 @@
+@inherits FBase
+
+<div class="card border mt-3">
+    <div class="card-body">
+        @if (m_strEditor_Type == "Master")
+        {
+            <EditForm Model="@m_objMaster" OnValidSubmit="Save_Master_Async">
+                <DataAnnotationsValidator />
+                <div class="row g-3 align-items-end">
+                    @if (m_strMaster_Type is "LoaiSanPham" or "SanPham" or "NCC")
+                    {
+                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objMaster.Code" /></div>
+                    }
+                    @if (m_strMaster_Type == "KhoUser")
+                    {
+                        <div class="col-md-4"><label class="form-label">Mã đăng nhập</label><InputText class="form-control" @bind-Value="m_objMaster.Login_Name" /></div>
+                        <div class="col-md-4"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrWarehouse" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
+                    }
+                    else
+                    {
+                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objMaster.Name" /></div>
+                    }
+                    @if (m_strMaster_Type == "SanPham")
+                    {
+                        <div class="col-md-3"><label class="form-label">Loại sản phẩm</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn loại --" /></div>
+                        <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objMaster.Related_ID_2" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
+                    }
+                    @if (m_strMaster_Type != "KhoUser")
+                    {
+                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objMaster.Ghi_Chu" /></div>
+                    }
+                    <div class="col-md-2 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objMaster.Auto_ID == 0 ? "Thêm" : "Lưu")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                </div>
+            </EditForm>
+        }
+        else if (m_strEditor_Type == "Document")
+        {
+            <EditForm Model="@m_objDocument" OnValidSubmit="Save_Document_Async">
+                <DataAnnotationsValidator />
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3"><label class="form-label">Số phiếu</label><InputText class="form-control" @bind-Value="m_objDocument.So_Phieu" /></div>
+                    <div class="col-md-3"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrWarehouse" @bind-Value="m_objDocument.Kho_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
+                    @if (m_bIs_Receipt)
+                    {
+                        <div class="col-md-3"><label class="form-label">Nhà cung cấp</label><TelerikDropDownList Data="@m_arrSupplier" @bind-Value="m_objDocument.NCC_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn NCC --" /></div>
+                    }
+                    <div class="col-md-2"><label class="form-label">Ngày</label><TelerikDatePicker @bind-Value="m_objDocument.Ngay_Chung_Tu" Format="@CConfig.Date_Format_String" /></div>
+                    <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objDocument.Ghi_Chu" /></div>
+                    <div class="col-md-3 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objDocument.Auto_ID == 0 ? "Lưu phiếu" : "Cập nhật")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                </div>
+            </EditForm>
+        }
+        else if (m_strEditor_Type == "Detail")
+        {
+            <EditForm Model="@m_objDetail" OnValidSubmit="Save_Detail_Async">
+                <DataAnnotationsValidator />
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4"><label class="form-label">Sản phẩm</label><TelerikDropDownList Data="@m_arrProduct" @bind-Value="m_objDetail.San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn sản phẩm --" Enabled="@(m_objDetail.Auto_ID == 0)" /></div>
+                    <div class="col-md-2"><label class="form-label">Số lượng</label><InputNumber class="form-control" @bind-Value="m_objDetail.So_Luong" step="0.001" /></div>
+                    <div class="col-md-2"><label class="form-label">Đơn giá</label><InputNumber class="form-control" @bind-Value="m_objDetail.Don_Gia" step="0.01" /></div>
+                    <div class="col-md-3"><label class="form-label">Trị giá</label><input class="form-control" value="@m_objDetail.Tri_Gia" disabled /></div>
+                    <div class="col-md-1 d-flex gap-2"><button type="submit" class="btn btn-success">Lưu</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string m_strEditor_Type { get; set; } = "";
+    [Parameter] public string m_strMaster_Type { get; set; } = "";
+    [Parameter] public bool m_bIs_Receipt { get; set; }
+    [Parameter] public CWarehouseMaster m_objMaster { get; set; } = new();
+    [Parameter] public CWarehouseDocument m_objDocument { get; set; } = new();
+    [Parameter] public CWarehouseDocumentDetail m_objDetail { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrCategory { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
+    [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
+    [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
+    [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Task Save_Master_Async() => OnSave_Master.InvokeAsync(m_objMaster);
+    private Task Save_Document_Async() => OnSave_Document.InvokeAsync(m_objDocument);
+    private Task Save_Detail_Async() => OnSave_Detail.InvokeAsync(m_objDetail);
+    private Task Cancel_Async() => OnCancel.InvokeAsync();
+}

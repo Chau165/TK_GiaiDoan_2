@@ -1,0 +1,67 @@
+@inherits FBase
+
+@if (m_objDocument != null)
+{
+    <div id="warehouse-print" class="card border mt-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5>@(m_bIs_Receipt ? "PHIẾU NHẬP KHO" : "PHIẾU XUẤT KHO") - @m_objDocument.So_Phieu</h5>
+                <div class="d-flex gap-2 no-print">
+                    @if (m_bCan_Add)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="OnAdd_Detail">Thêm sản phẩm</button>
+                    }
+                    @if (m_bCan_Export)
+                    {
+                        <button type="button" class="btn btn-primary" @onclick="OnPrint">In phiếu</button>
+                    }
+                </div>
+            </div>
+            <p>Ngày: @m_objDocument.Ngay_Chung_Tu.ToString("dd/MM/yyyy") | Kho: @m_objDocument.Ten_Kho @if (m_bIs_Receipt) { <text>| NCC: @m_objDocument.Ten_NCC</text> }</p>
+
+            <TelerikGrid Data="@m_arrDetail" Height="320px" Resizable="true" Reorderable="true" @ref="m_grdDetail">
+                <GridExport>
+                    <GridExcelExport FileName="Warehouse_Detail_Export" AllPages="true" />
+                    <GridCsvExport FileName="Warehouse_Detail_Export" AllPages="true" />
+                </GridExport>
+                <GridColumns>
+                    <GridColumn Field="Ma_San_Pham" Title="Mã" />
+                    <GridColumn Field="Ten_San_Pham" Title="Tên sản phẩm" />
+                    <GridColumn Field="So_Luong" Title="SL" />
+                    <GridColumn Field="Don_Gia" Title="Đơn giá" />
+                    <GridColumn Field="Tri_Gia" Title="Trị giá" />
+                    <GridColumn Title="">
+                        <Template Context="v_objContext">
+                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
+                            @if (m_bCan_Edit)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => OnEdit_Detail.InvokeAsync(v_objDetail!))">Sửa</button>
+                            }
+                            @if (m_bCan_Delete)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => OnDelete_Detail.InvokeAsync(v_objDetail!.Auto_ID))">Xóa</button>
+                            }
+                        </Template>
+                    </GridColumn>
+                </GridColumns>
+            </TelerikGrid>
+            <div class="text-end fw-bold mt-2">Tổng trị giá: @m_arrDetail.Sum(x => x.Tri_Gia)</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public CWarehouseDocument? m_objDocument { get; set; }
+    [Parameter] public List<CWarehouseDocumentDetail> m_arrDetail { get; set; } = new();
+    [Parameter] public bool m_bIs_Receipt { get; set; }
+    [Parameter] public bool m_bCan_Add { get; set; }
+    [Parameter] public bool m_bCan_Edit { get; set; }
+    [Parameter] public bool m_bCan_Delete { get; set; }
+    [Parameter] public bool m_bCan_Export { get; set; }
+    [Parameter] public EventCallback OnAdd_Detail { get; set; }
+    [Parameter] public EventCallback<CWarehouseDocumentDetail> OnEdit_Detail { get; set; }
+    [Parameter] public EventCallback<long> OnDelete_Detail { get; set; }
+    [Parameter] public EventCallback OnPrint { get; set; }
+
+    private TelerikGrid<CWarehouseDocumentDetail> m_grdDetail = new();
+}

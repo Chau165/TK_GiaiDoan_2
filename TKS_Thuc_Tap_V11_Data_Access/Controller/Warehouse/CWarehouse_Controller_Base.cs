@@ -1,52 +1,41 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 
 public abstract class CWarehouse_Controller_Base
 {
-    protected static SqlConnection CreateConnection() => new(CConfig.TKS_Thuc_Tap_V11_Conn_String);
-
-    protected static async Task ExecuteAsync(string p_strProcedure, Action<SqlCommand> p_objAdd)
+    protected static List<T> List_From_Procedure<T>(string p_strProcedure, params object[] p_arrValue) where T : new()
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(p_strProcedure, connection) { CommandType = CommandType.StoredProcedure };
-        p_objAdd(command);
-        await command.ExecuteNonQueryAsync();
+        using var v_dtData = new DataTable();
+        CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dtData, p_strProcedure, p_arrValue);
+
+        var v_arrRes = new List<T>();
+        foreach (DataRow v_row in v_dtData.Rows)
+            v_arrRes.Add(CUtility.Map_Row_To_Entity<T>(v_row));
+
+        return v_arrRes;
     }
 
-    protected static async Task<List<T>> ReadAsync<T>(string p_strSql, Func<SqlDataReader, T> p_objMap, Action<SqlCommand>? p_objAdd = null)
+    protected static long Scalar_ID(string p_strProcedure, params object[] p_arrValue)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(p_strSql, connection);
-        p_objAdd?.Invoke(command);
-        await using var reader = await command.ExecuteReaderAsync();
-
-        var result = new List<T>();
-        while (await reader.ReadAsync())
-            result.Add(p_objMap(reader));
-
-        return result;
+        return Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue));
     }
 
-    protected static async Task<List<T>> ReadProcedureAsync<T>(string p_strProcedure, Func<SqlDataReader, T> p_objMap, Action<SqlCommand> p_objAdd)
+    protected static void Execute_Procedure(string p_strProcedure, params object[] p_arrValue)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(p_strProcedure, connection) { CommandType = CommandType.StoredProcedure };
-        p_objAdd(command);
-        await using var reader = await command.ExecuteReaderAsync();
-
-        var result = new List<T>();
-        while (await reader.ReadAsync())
-            result.Add(p_objMap(reader));
-
-        return result;
+        CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue);
     }
 
-    protected static void Add(SqlCommand p_objCommand, string p_strName, object? p_objValue) =>
-        p_objCommand.Parameters.AddWithValue(p_strName, p_objValue ?? DBNull.Value);
+    protected static long Scalar_ID(SqlConnection p_conn, SqlTransaction p_trans, string p_strProcedure, params object[] p_arrValue)
+    {
+        return Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue));
+    }
+
+    protected static void Execute_Procedure(SqlConnection p_conn, SqlTransaction p_trans, string p_strProcedure, params object[] p_arrValue)
+    {
+        CSqlHelper.ExecuteNonquery(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue);
+    }
 }

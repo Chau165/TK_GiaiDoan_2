@@ -7,7 +7,8 @@ public sealed class WarehouseUiWorkflowTests
     [Fact]
     public void Warehouse_page_only_renders_editors_when_the_user_starts_an_editing_action()
     {
-        var source = File.ReadAllText(FindWarehousePage());
+        var source = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var infoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
         Assert.Contains("private bool m_bMasterEditing;", source);
         Assert.Contains("private bool m_bDocumentEditing;", source);
@@ -15,10 +16,10 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("@if (m_bMasterEditing)", source);
         Assert.Contains("@if (m_bDocumentEditing)", source);
         Assert.Contains("@if (m_bDetailEditing)", source);
-        Assert.Contains("Thêm sản phẩm", source);
-        Assert.Contains("var documentId=m_objDocument.Auto_ID;", source);
-        Assert.Contains("var saved=m_arrDocument.FirstOrDefault", source);
-        Assert.Contains("m_objDetail.Document_ID=m_objSelectedDocument.Auto_ID;", source);
+        Assert.Contains("Thêm sản phẩm", infoSource);
+        Assert.Contains("var v_objSaved =", source);
+        Assert.Contains("Select_Document_Async(v_objSaved)", source);
+        Assert.Contains("p_objData.Document_ID = m_objSelectedDocument.Auto_ID;", source);
     }
 
     [Fact]
@@ -45,7 +46,8 @@ public sealed class WarehouseUiWorkflowTests
         var master = File.ReadAllText(Path.Combine(controllerDirectory, "CWarehouseMaster_Controller.cs"));
         var document = File.ReadAllText(Path.Combine(controllerDirectory, "CWarehouseDocument_Controller.cs"));
         var report = File.ReadAllText(Path.Combine(controllerDirectory, "CWarehouseReport_Controller.cs"));
-        var source = master + document + report;
+        var baseController = File.ReadAllText(Path.Combine(controllerDirectory, "CWarehouse_Controller_Base.cs"));
+        var source = master + document + report + baseController;
 
         Assert.DoesNotContain("SELECT ", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CSqlHelper.FillDataTable", source);
