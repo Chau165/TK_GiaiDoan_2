@@ -135,6 +135,7 @@
     private bool m_bDetailEditing;
     private bool Is_Receipt => m_strSection == "Receipt";
     private TelerikGrid<CWarehouseMaster> m_grdMaster = new();
+    private TelerikGrid<CWarehouseMaster> m_objFormattedMasterGrid = new();
     private TelerikGrid<CWarehouseDocument> m_grdDocument = new();
     private TelerikGrid<CWarehouseDetailReport> m_grdReportDetail = new();
     private TelerikGrid<CWarehouseInventoryReport> m_grdInventory = new();
@@ -149,6 +150,19 @@
     {
         r_strError = "";
         m_strSuccess = "";
+        Format_Grid(m_grdMaster);
+        m_objFormattedMasterGrid = m_grdMaster;
+    }
+
+    protected override Task After_Render_Async(bool firstRender)
+    {
+        if (m_strSection == "Master" && !ReferenceEquals(m_objFormattedMasterGrid, m_grdMaster))
+        {
+            m_objFormattedMasterGrid = m_grdMaster;
+            Format_Grid(m_grdMaster);
+        }
+
+        return Task.CompletedTask;
     }
 
     protected override async Task Load_Data_Async()

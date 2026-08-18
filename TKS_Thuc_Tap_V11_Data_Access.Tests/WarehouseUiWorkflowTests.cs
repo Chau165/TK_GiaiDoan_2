@@ -62,6 +62,25 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_master_action_column_uses_common_grid_formatting_for_dropdown_visibility()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("Format_Grid(m_grdMaster);", list);
+    }
+
+    [Fact]
+    public void Warehouse_master_grid_is_reformatted_when_returning_to_master_section()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var baseComponent = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
+
+        Assert.Contains("protected override Task After_Render_Async(bool firstRender)", list);
+        Assert.Contains("m_objFormattedMasterGrid", list);
+        Assert.Contains("await After_Render_Async(firstRender);", baseComponent);
+    }
+
+    [Fact]
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var controllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");

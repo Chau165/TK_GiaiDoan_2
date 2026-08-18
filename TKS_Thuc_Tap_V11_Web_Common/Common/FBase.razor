@@ -248,8 +248,15 @@
             catch (Exception) { }
         }
 
+        await After_Render_Async(firstRender);
+
         //await g_jsRuntime.InvokeVoidAsync("setModalDraggableAndResizable");
         await base.OnAfterRenderAsync(firstRender);
+    }
+
+    protected virtual Task After_Render_Async(bool firstRender)
+    {
+        return Task.CompletedTask;
     }
 
     #region Hàm inherit
