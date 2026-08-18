@@ -1,3 +1,6 @@
+using System.Data;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
@@ -69,6 +72,22 @@ public sealed class WarehouseUiWorkflowTests
             Assert.Contains(field, schema);
             Assert.Contains(field, procedures);
         }
+    }
+
+    [Fact]
+    public void Warehouse_report_mapping_converts_double_columns_to_decimal_properties()
+    {
+        var v_dtData = new DataTable();
+        v_dtData.Columns.Add("So_Luong", typeof(double));
+        v_dtData.Columns.Add("Don_Gia", typeof(double));
+        v_dtData.Columns.Add("Tri_Gia", typeof(double));
+        var v_row = v_dtData.Rows.Add(1.5d, 12.25d, 18.375d);
+
+        var v_objReport = CUtility.Map_Row_To_Entity<CWarehouseDetailReport>(v_row);
+
+        Assert.Equal(1.5m, v_objReport.So_Luong);
+        Assert.Equal(12.25m, v_objReport.Don_Gia);
+        Assert.Equal(18.375m, v_objReport.Tri_Gia);
     }
 
     private static string FindWarehousePage()
