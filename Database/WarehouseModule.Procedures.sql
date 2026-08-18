@@ -361,7 +361,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay>@Den_Ngay THROW 51200,N'Khoảng ngày báo cáo không hợp lệ.',1;
-    SELECT h.Ngay_Nhap_Kho,h.So_Phieu_Nhap_Kho,n.Ma_NCC,n.Ten_NCC,p.Ma_San_Pham,p.Ten_San_Pham,d.SL_Nhap,d.Don_Gia_Nhap,CAST(d.SL_Nhap*d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia
+    SELECT h.Ngay_Nhap_Kho AS Ngay,h.So_Phieu_Nhap_Kho AS So_Phieu,n.Ten_NCC AS Nha_Cung_Cap,p.Ma_San_Pham,p.Ten_San_Pham,d.SL_Nhap AS So_Luong,d.Don_Gia_Nhap AS Don_Gia,CAST(d.SL_Nhap*d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia
     FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID=h.NCC_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID=d.San_Pham_ID
     WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay ORDER BY h.Ngay_Nhap_Kho,h.So_Phieu_Nhap_Kho;
 END
@@ -372,7 +372,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay>@Den_Ngay THROW 51200,N'Khoảng ngày báo cáo không hợp lệ.',1;
-    SELECT h.Ngay_Xuat_Kho,h.So_Phieu_Xuat_Kho,p.Ma_San_Pham,p.Ten_San_Pham,d.SL_Xuat,d.Don_Gia_Xuat,CAST(d.SL_Xuat*d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia
+    SELECT h.Ngay_Xuat_Kho AS Ngay,h.So_Phieu_Xuat_Kho AS So_Phieu,CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,p.Ma_San_Pham,p.Ten_San_Pham,d.SL_Xuat AS So_Luong,d.Don_Gia_Xuat AS Don_Gia,CAST(d.SL_Xuat*d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia
     FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID=d.San_Pham_ID
     WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay ORDER BY h.Ngay_Xuat_Kho,h.So_Phieu_Xuat_Kho;
 END
