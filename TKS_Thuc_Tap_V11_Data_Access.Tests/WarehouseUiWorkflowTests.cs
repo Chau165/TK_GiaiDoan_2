@@ -43,6 +43,20 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_master_actions_use_the_common_info_edit_modal_lifecycle()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("r_bIs_Show_Info", list);
+        Assert.Contains("r_bIs_Show_Edit", list);
+        Assert.Contains("<FWarehouse_2_Warehouse_Master_Info", list);
+        Assert.Contains("<FWarehouse_3_Warehouse_Master_Edit", list);
+        Assert.Contains("r_bIs_Show_Info = true", list);
+        Assert.Contains("r_bIs_Show_Edit = true", list);
+        Assert.Contains("aria-expanded=\"false\"", list);
+    }
+
+    [Fact]
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var controllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
