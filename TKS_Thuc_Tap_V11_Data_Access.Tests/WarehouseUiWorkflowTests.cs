@@ -53,11 +53,12 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("<FWarehouse_3_Warehouse_Master_Edit", list);
         Assert.Contains("r_bIs_Show_Info = true", list);
         Assert.Contains("r_bIs_Show_Edit = true", list);
-        Assert.Contains("aria-expanded=\"@(m_lngMasterAction_ID == v_objMaster.Auto_ID)\"", list);
-        Assert.Contains("Toggle_Master_Actions", list);
-        Assert.Contains("m_lngMasterAction_ID", list);
-        Assert.Contains("class=\"dropdown\"", list);
-        Assert.Contains("class=\"dropdown-menu @(m_lngMasterAction_ID == v_objMaster.Auto_ID ? \"show\" : \"\")\"", list);
+        Assert.Contains("data-bs-toggle=\"dropdown\" aria-expanded=\"false\"", list);
+        Assert.Contains("Open_Master_Info((context as CWarehouseMaster))", list);
+        Assert.Contains("Edit_Master((context as CWarehouseMaster))", list);
+        Assert.Contains("Delete_Master_Async((context as CWarehouseMaster).Auto_ID)", list);
+        Assert.DoesNotContain("Toggle_Master_Actions", list);
+        Assert.DoesNotContain("m_lngMasterAction_ID", list);
     }
 
     [Fact]
