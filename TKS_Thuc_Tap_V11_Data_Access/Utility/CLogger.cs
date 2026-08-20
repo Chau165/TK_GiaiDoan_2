@@ -51,7 +51,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 
             if (!File.Exists(strFileExtend))
             {
-                Directory.CreateDirectory(strFileExtend.Substring(0, strFileExtend.LastIndexOf("\\")));
+                string strDir = strFileExtend.LastIndexOf("\\") >= 0 ? strFileExtend.Substring(0, strFileExtend.LastIndexOf("\\")) : Path.GetDirectoryName(strFileExtend);
+                if (!string.IsNullOrEmpty(strDir)) Directory.CreateDirectory(strDir);
             } // End if
 
             try

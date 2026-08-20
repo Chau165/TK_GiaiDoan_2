@@ -146,6 +146,16 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_tbl_XNK_Nhap_Kho_So_P
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_tbl_XNK_Xuat_Kho_So_Phieu') CREATE UNIQUE INDEX UX_tbl_XNK_Xuat_Kho_So_Phieu ON dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Kho_Ngay ON dbo.tbl_XNK_Nhap_Kho(Kho_ID, Ngay_Nhap_Kho);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Kho_Ngay ON dbo.tbl_XNK_Xuat_Kho(Kho_ID, Ngay_Xuat_Kho);
+
+/* Performance indexes (benchmark-driven, 2026): raw-detail lookups drive document detail and
+   Chi Tiet Nhap/Xuat reports; date columns drive date-range report filtering; San_Pham_ID drives
+   the Xuat Nhap Ton aggregation join. */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Raw_NhapKho_ID') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Raw_NhapKho_ID ON dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID) INCLUDE (San_Pham_ID, SL_Nhap, Don_Gia_Nhap);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Raw_XuatKho_ID') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Raw_XuatKho_ID ON dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID) INCLUDE (San_Pham_ID, SL_Xuat, Don_Gia_Xuat);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Ngay ON dbo.tbl_XNK_Nhap_Kho(Ngay_Nhap_Kho) INCLUDE (Kho_ID, NCC_ID);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Ngay ON dbo.tbl_XNK_Xuat_Kho(Ngay_Xuat_Kho) INCLUDE (Kho_ID);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Raw_SanPham_ID') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Raw_SanPham_ID ON dbo.tbl_XNK_Nhap_Kho_Raw_Data(San_Pham_ID) INCLUDE (SL_Nhap, Don_Gia_Nhap);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Raw_SanPham_ID') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Raw_SanPham_ID ON dbo.tbl_XNK_Xuat_Kho_Raw_Data(San_Pham_ID) INCLUDE (SL_Xuat, Don_Gia_Xuat);
 GO
 
 /* Warehouse audit contract. Existing databases are upgraded idempotently. */
