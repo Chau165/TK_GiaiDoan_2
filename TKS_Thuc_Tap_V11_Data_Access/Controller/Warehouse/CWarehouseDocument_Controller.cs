@@ -9,6 +9,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
         return Task.FromResult(List_From_Procedure<CWarehouseDocument>("sp_XNK_Document_List", p_bIs_Receipt));
     }
 
+    public Task<CWarehousePagedResult<CWarehouseDocument>> List_Documents_Page_Async(bool p_bIs_Receipt, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "")
+    {
+        return Task.FromResult(Page_From_Procedure<CWarehouseDocument>("sp_XNK_Document_Page", p_bIs_Receipt, p_iPage_Number, p_iPage_Size, p_strSearch_Text));
+    }
+
     public Task Save_Document_Async(CWarehouseDocument p_objData,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
     {

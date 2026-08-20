@@ -20,8 +20,8 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("@if (m_bDocumentEditing)", source);
         Assert.Contains("@if (m_bDetailEditing)", source);
         Assert.Contains("Thêm sản phẩm", infoSource);
-        Assert.Contains("var v_objSaved =", source);
-        Assert.Contains("Select_Document_Async(v_objSaved)", source);
+        Assert.Contains("m_grdDocument.Rebind()", source);
+        Assert.Contains("Select_Document_Async(p_objData)", source);
         Assert.Contains("p_objData.Document_ID = m_objSelectedDocument.Auto_ID;", source);
     }
 
@@ -78,6 +78,50 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("protected override Task After_Render_Async(bool firstRender)", list);
         Assert.Contains("m_objFormattedMasterGrid", list);
         Assert.Contains("await After_Render_Async(firstRender);", baseComponent);
+    }
+
+    [Fact]
+    public void Warehouse_document_print_uses_a_dedicated_receipt_template()
+    {
+        var info = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
+        var css = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web", "wwwroot", "assets", "css", "tks.css"));
+
+        Assert.Contains("warehouse-print-document", info);
+        Assert.Contains("PHIẾU NHẬP KHO", info);
+        Assert.Contains("PHIẾU XUẤT KHO", info);
+        Assert.Contains("Mã hàng", info);
+        Assert.Contains("Tổng số lượng", info);
+        Assert.Contains("m_arrDetail.Sum(x => x.Tri_Gia)", info);
+        Assert.Contains("@media print", css);
+        Assert.Contains(".warehouse-print-document", css);
+        Assert.Contains("body *", css);
+    }
+
+    [Fact]
+    public void Warehouse_lists_use_server_side_ten_record_paging()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var masterController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+        var documentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var reportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
+        var controllerBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouse_Controller_Base.cs"));
+        var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+
+        Assert.Contains("OnRead=\"Read_Master_Async\"", list);
+        Assert.Contains("OnRead=\"Read_Document_Async\"", list);
+        Assert.Contains("OnRead=\"Read_Report_Detail_Async\"", list);
+        Assert.Contains("OnRead=\"Read_Inventory_Async\"", list);
+        Assert.Contains("PageSize=\"10\"", list);
+        Assert.Contains("List_Master_Page_Async", masterController);
+        Assert.Contains("List_Lookup_Page_Async", masterController);
+        Assert.Contains("List_Documents_Page_Async", documentController);
+        Assert.Contains("Detail_Report_Page_Async", reportController);
+        Assert.Contains("Inventory_Report_Page_Async", reportController);
+        Assert.Contains("Page_From_Procedure", controllerBase);
+        Assert.Contains("sp_DM_Master_Page", procedures);
+        Assert.Contains("sp_XNK_Document_Page", procedures);
+        Assert.Contains("sp_BC_Chi_Tiet_Nhap_Page", procedures);
+        Assert.Contains("OFFSET (@Page_Number - 1) * @Page_Size ROWS", procedures);
     }
 
     [Fact]

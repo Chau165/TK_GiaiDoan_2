@@ -27,7 +27,7 @@
                 </div>
             </div>
             <h5 class="mt-3">Danh sách @((m_strMaster_Type == "KhoUser") ? "phân quyền kho - user" : "danh mục")</h5>
-            <TelerikGrid Data="@m_arrMaster" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" @ref="m_grdMaster">
+            <TelerikGrid Data="@m_arrMaster" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Master_Async" @ref="m_grdMaster">
                 <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
                 <GridColumns>
                     <GridColumn Width="70px">
@@ -72,7 +72,7 @@
             {
                 <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Document" m_bIs_Receipt="@Is_Receipt" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
             }
-            <TelerikGrid Data="@m_arrDocument" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" @ref="m_grdDocument">
+            <TelerikGrid Data="@m_arrDocument" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Document_Async" @ref="m_grdDocument">
                 <GridExport><GridExcelExport FileName="Warehouse_Document_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Document_Export" AllPages="true" /></GridExport>
                 <GridColumns>
                     <GridColumn Field="Ngay_Chung_Tu" Title="Ngày" Width="120px" /><GridColumn Field="So_Phieu" Title="Số phiếu" Width="160px" /><GridColumn Field="Ten_Kho" Title="Kho" Width="180px" />@if (Is_Receipt){<GridColumn Field="Ten_NCC" Title="NCC" Width="180px" />}<GridColumn Field="Ghi_Chu" Title="Ghi chú" />
@@ -91,11 +91,11 @@
             <div class="row g-3 align-items-end"><div class="col-md-3"><label class="form-label">Báo cáo</label><select class="form-select" @bind="m_strReport_Type"><option value="Receipt">Chi tiết hàng nhập</option><option value="Issue">Chi tiết hàng xuất</option><option value="Inventory">Xuất nhập tồn</option></select></div><div class="col-md-3"><label class="form-label">Từ ngày</label><TelerikDatePicker @bind-Value="m_dtmFrom" Format="@CConfig.Date_Format_String" /></div><div class="col-md-3"><label class="form-label">Đến ngày</label><TelerikDatePicker @bind-Value="m_dtmTo" Format="@CConfig.Date_Format_String" /></div><div class="col-md-2"><button class="btn btn-primary" @onclick="Load_Report_Async">Xem báo cáo</button></div></div>
             @if (m_strReport_Type == "Inventory")
             {
-                <TelerikGrid Data="@m_arrInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" @ref="m_grdInventory"><GridExport><GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ten_Kho" Title="Kho" /><GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="SL_Dau_Ky" Title="SL đầu kỳ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dau_Ky))</Template></GridColumn><GridColumn Field="SL_Nhap" Title="SL nhập"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Nhap))</Template></GridColumn><GridColumn Field="SL_Xuat" Title="SL xuất"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Xuat))</Template></GridColumn><GridColumn Field="SL_Cuoi_Ky" Title="SL cuối kỳ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Cuoi_Ky))</Template></GridColumn></GridColumns></TelerikGrid>
+                <TelerikGrid Data="@m_arrInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory"><GridExport><GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ten_Kho" Title="Kho" /><GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="SL_Dau_Ky" Title="SL đầu kỳ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dau_Ky))</Template></GridColumn><GridColumn Field="SL_Nhap" Title="SL nhập"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Nhap))</Template></GridColumn><GridColumn Field="SL_Xuat" Title="SL xuất"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Xuat))</Template></GridColumn><GridColumn Field="SL_Cuoi_Ky" Title="SL cuối kỳ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Cuoi_Ky))</Template></GridColumn></GridColumns></TelerikGrid>
             }
             else
             {
-                <TelerikGrid Data="@m_arrDetailReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" @ref="m_grdReportDetail"><GridExport><GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ngay" Title="Ngày" /><GridColumn Field="So_Phieu" Title="Số phiếu" />@if(m_strReport_Type=="Receipt"){<GridColumn Field="Nha_Cung_Cap" Title="NCC" />}<GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn><GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn><GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn></GridColumns></TelerikGrid>
+                <TelerikGrid Data="@m_arrDetailReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Report_Detail_Async" @ref="m_grdReportDetail"><GridExport><GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ngay" Title="Ngày" /><GridColumn Field="So_Phieu" Title="Số phiếu" />@if(m_strReport_Type=="Receipt"){<GridColumn Field="Nha_Cung_Cap" Title="NCC" />}<GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn><GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn><GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn></GridColumns></TelerikGrid>
             }
             @if (r_objChuc_Nang.Is_Have_Export_Permission)
             {
@@ -192,7 +192,7 @@
 
     private async Task Load_Master_Async()
     {
-        try { Clear_Message(); m_arrMaster = await m_objMasterController.List_Master_Async(m_strMaster_Type); Cancel_Master(); }
+        try { Clear_Message(); Cancel_Master(); m_grdMaster.Rebind(); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -215,13 +215,13 @@
 
     private void New_Document() { m_objDocument = New_Document_Model(); m_objSelectedDocument = null; m_arrDetail.Clear(); m_objDetail = new(); m_bDocumentEditing = true; m_bDetailEditing = false; Clear_Message(); }
     private CWarehouseDocument New_Document_Model() => new() { Is_Receipt = Is_Receipt, Ngay_Chung_Tu = DateTime.Today };
-    private async Task Load_Documents_Async() { try { m_arrDocument = await m_objDocumentController.List_Documents_Async(Is_Receipt); } catch (Exception ex) { Set_Error(ex); } }
+    private async Task Load_Documents_Async() { try { m_grdDocument.Rebind(); } catch (Exception ex) { Set_Error(ex); } }
     private void Cancel_Document() { m_bDocumentEditing = false; m_objDocument = New_Document_Model(); }
     private void Edit_Document(CWarehouseDocument p_objData) { m_objDocument = Clone_Document(p_objData); m_objSelectedDocument = null; m_arrDetail.Clear(); m_bDocumentEditing = true; m_bDetailEditing = false; Clear_Message(); }
 
     private async Task Save_Document_Async(CWarehouseDocument p_objData)
     {
-        try { var v_iAuto_ID = p_objData.Auto_ID; if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; p_objData.Is_Receipt = Is_Receipt; await m_objDocumentController.Save_Document_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code); CCommon_Controller.FCommon_Insert_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse document " + p_objData.So_Phieu); var v_objSaved = (await m_objDocumentController.List_Documents_Async(Is_Receipt)).FirstOrDefault(x => x.Auto_ID == p_objData.Auto_ID); if (v_objSaved == null) throw new InvalidOperationException("Không tìm thấy phiếu vừa lưu."); m_arrDocument = await m_objDocumentController.List_Documents_Async(Is_Receipt); await Select_Document_Async(v_objSaved); Set_Success("Đã lưu phiếu."); }
+        try { var v_iAuto_ID = p_objData.Auto_ID; if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; p_objData.Is_Receipt = Is_Receipt; await m_objDocumentController.Save_Document_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code); CCommon_Controller.FCommon_Insert_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse document " + p_objData.So_Phieu); m_grdDocument.Rebind(); await Select_Document_Async(p_objData); Set_Success("Đã lưu phiếu."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -255,8 +255,48 @@
 
     private async Task Load_Report_Async()
     {
-        try { Clear_Message(); if (m_strReport_Type == "Inventory") m_arrInventoryReport = await m_objReportController.Inventory_Report_Async(m_dtmFrom, m_dtmTo); else m_arrDetailReport = await m_objReportController.Detail_Report_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo); }
+        try { Clear_Message(); if (m_strReport_Type == "Inventory") m_grdInventory.Rebind(); else m_grdReportDetail.Rebind(); }
         catch (Exception ex) { Set_Error(ex); }
+    }
+
+    private async Task Read_Master_Async(GridReadEventArgs args)
+    {
+        try
+        {
+            var v_objResult = await m_objMasterController.List_Master_Page_Async(m_strMaster_Type, args.Request.Page, args.Request.PageSize);
+            m_arrMaster = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+        }
+        catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseMaster>(); args.Total = 0; }
+    }
+
+    private async Task Read_Document_Async(GridReadEventArgs args)
+    {
+        try
+        {
+            var v_objResult = await m_objDocumentController.List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize);
+            m_arrDocument = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+        }
+        catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseDocument>(); args.Total = 0; }
+    }
+
+    private async Task Read_Report_Detail_Async(GridReadEventArgs args)
+    {
+        try
+        {
+            var v_objResult = await m_objReportController.Detail_Report_Page_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize);
+            m_arrDetailReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+        }
+        catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseDetailReport>(); args.Total = 0; }
+    }
+
+    private async Task Read_Inventory_Async(GridReadEventArgs args)
+    {
+        try
+        {
+            var v_objResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize);
+            m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+        }
+        catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseInventoryReport>(); args.Total = 0; }
     }
 
     private Task Print_Async() => r_objChuc_Nang.Is_Have_Export_Permission ? g_jsRuntime.InvokeVoidAsync("print").AsTask() : Task.CompletedTask;

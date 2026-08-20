@@ -508,6 +508,165 @@ BEGIN
 END
 GO
 
+/* Server-side paging variants of the canonical lists/reports. Each returns two result
+   sets: Total_Count first, then the requested page (OFFSET/FETCH). Page_From_Procedure
+   in CWarehouse_Controller_Base consumes them; TelerikGrid OnRead drives the page number. */
+CREATE OR ALTER PROCEDURE dbo.sp_DM_Master_Page
+    @Entity NVARCHAR(30), @Page_Number INT, @Page_Size INT, @Search_Text NVARCHAR(100)=N''
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Page_Number<1 SET @Page_Number=1;
+    IF @Page_Size<1 SET @Page_Size=10;
+    DECLARE @Filter NVARCHAR(260)=N'%' + @Search_Text + N'%';
+    IF @Entity=N'DonViTinh'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Don_Vi_Tinh WHERE @Search_Text=N'' OR Ten_Don_Vi_Tinh LIKE @Filter;
+        SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Don_Vi_Tinh AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Don_Vi_Tinh WHERE @Search_Text=N'' OR Ten_Don_Vi_Tinh LIKE @Filter ORDER BY Ten_Don_Vi_Tinh OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'LoaiSanPham'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Loai_San_Pham WHERE @Search_Text=N'' OR Ma_LSP LIKE @Filter OR Ten_LSP LIKE @Filter;
+        SELECT Auto_ID, Ma_LSP AS Code, Ten_LSP AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Loai_San_Pham WHERE @Search_Text=N'' OR Ma_LSP LIKE @Filter OR Ten_LSP LIKE @Filter ORDER BY Ma_LSP OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'SanPham'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_San_Pham WHERE @Search_Text=N'' OR Ma_San_Pham LIKE @Filter OR Ten_San_Pham LIKE @Filter;
+        SELECT Auto_ID, Ma_San_Pham AS Code, Ten_San_Pham AS Name, Loai_San_Pham_ID AS Related_ID, Don_Vi_Tinh_ID AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_San_Pham WHERE @Search_Text=N'' OR Ma_San_Pham LIKE @Filter OR Ten_San_Pham LIKE @Filter ORDER BY Ma_San_Pham OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'NCC'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_NCC WHERE @Search_Text=N'' OR Ma_NCC LIKE @Filter OR Ten_NCC LIKE @Filter;
+        SELECT Auto_ID, Ma_NCC AS Code, Ten_NCC AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_NCC WHERE @Search_Text=N'' OR Ma_NCC LIKE @Filter OR Ten_NCC LIKE @Filter ORDER BY Ma_NCC OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'Kho'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Kho WHERE @Search_Text=N'' OR Ten_Kho LIKE @Filter;
+        SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Kho AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Kho WHERE @Search_Text=N'' OR Ten_Kho LIKE @Filter ORDER BY Ten_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'KhoUser'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Kho_User u WHERE @Search_Text=N'' OR u.Ma_Dang_Nhap LIKE @Filter;
+        SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, CAST(N'' AS NVARCHAR(255)) AS Name, u.Kho_ID AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, u.Ma_Dang_Nhap AS Login_Name, CAST(N'' AS NVARCHAR(1000)) AS Ghi_Chu FROM dbo.tbl_DM_Kho_User u WHERE @Search_Text=N'' OR u.Ma_Dang_Nhap LIKE @Filter ORDER BY u.Ma_Dang_Nhap, u.Kho_ID OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE THROW 51060, N'Loại danh mục không hợp lệ.', 1;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_DM_Lookup_Page
+    @Entity NVARCHAR(30), @Page_Number INT, @Page_Size INT, @Search_Text NVARCHAR(100)=N''
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Page_Number<1 SET @Page_Number=1;
+    IF @Page_Size<1 SET @Page_Size=10;
+    DECLARE @Filter NVARCHAR(260)=N'%' + @Search_Text + N'%';
+    IF @Entity=N'DonViTinh'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Don_Vi_Tinh WHERE @Search_Text=N'' OR Ten_Don_Vi_Tinh LIKE @Filter;
+        SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Don_Vi_Tinh AS Name FROM dbo.tbl_DM_Don_Vi_Tinh WHERE @Search_Text=N'' OR Ten_Don_Vi_Tinh LIKE @Filter ORDER BY Ten_Don_Vi_Tinh OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'LoaiSanPham'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Loai_San_Pham WHERE @Search_Text=N'' OR Ma_LSP LIKE @Filter OR Ten_LSP LIKE @Filter;
+        SELECT Auto_ID, Ma_LSP AS Code, Ten_LSP AS Name FROM dbo.tbl_DM_Loai_San_Pham WHERE @Search_Text=N'' OR Ma_LSP LIKE @Filter OR Ten_LSP LIKE @Filter ORDER BY Ma_LSP OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'SanPham'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_San_Pham WHERE @Search_Text=N'' OR Ma_San_Pham LIKE @Filter OR Ten_San_Pham LIKE @Filter;
+        SELECT Auto_ID, Ma_San_Pham AS Code, Ten_San_Pham AS Name FROM dbo.tbl_DM_San_Pham WHERE @Search_Text=N'' OR Ma_San_Pham LIKE @Filter OR Ten_San_Pham LIKE @Filter ORDER BY Ma_San_Pham OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'NCC'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_NCC WHERE @Search_Text=N'' OR Ma_NCC LIKE @Filter OR Ten_NCC LIKE @Filter;
+        SELECT Auto_ID, Ma_NCC AS Code, Ten_NCC AS Name FROM dbo.tbl_DM_NCC WHERE @Search_Text=N'' OR Ma_NCC LIKE @Filter OR Ten_NCC LIKE @Filter ORDER BY Ma_NCC OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE IF @Entity=N'Kho'
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Kho WHERE @Search_Text=N'' OR Ten_Kho LIKE @Filter;
+        SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Kho AS Name FROM dbo.tbl_DM_Kho WHERE @Search_Text=N'' OR Ten_Kho LIKE @Filter ORDER BY Ten_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE THROW 51060, N'Loại danh mục không hợp lệ.', 1;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Page
+    @Is_Receipt BIT, @Page_Number INT, @Page_Size INT, @Search_Text NVARCHAR(100)=N''
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Page_Number<1 SET @Page_Number=1;
+    IF @Page_Size<1 SET @Page_Size=10;
+    DECLARE @Filter NVARCHAR(260)=N'%' + @Search_Text + N'%';
+    IF @Is_Receipt=1
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_DM_Kho k ON k.Auto_ID=h.Kho_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID=h.NCC_ID WHERE @Search_Text=N'' OR h.So_Phieu_Nhap_Kho LIKE @Filter OR k.Ten_Kho LIKE @Filter OR n.Ten_NCC LIKE @Filter;
+        SELECT h.Auto_ID, CAST(1 AS BIT) AS Is_Receipt, h.So_Phieu_Nhap_Kho AS So_Phieu, h.Kho_ID, k.Ten_Kho, h.NCC_ID, n.Ten_NCC, h.Ngay_Nhap_Kho AS Ngay_Chung_Tu, h.Ghi_Chu FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_DM_Kho k ON k.Auto_ID=h.Kho_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID=h.NCC_ID WHERE @Search_Text=N'' OR h.So_Phieu_Nhap_Kho LIKE @Filter OR k.Ten_Kho LIKE @Filter OR n.Ten_NCC LIKE @Filter ORDER BY h.Ngay_Nhap_Kho DESC, h.Auto_ID DESC OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+    ELSE
+    BEGIN
+        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_DM_Kho k ON k.Auto_ID=h.Kho_ID WHERE @Search_Text=N'' OR h.So_Phieu_Xuat_Kho LIKE @Filter OR k.Ten_Kho LIKE @Filter;
+        SELECT h.Auto_ID, CAST(0 AS BIT) AS Is_Receipt, h.So_Phieu_Xuat_Kho AS So_Phieu, h.Kho_ID, k.Ten_Kho, CAST(0 AS BIGINT) AS NCC_ID, CAST(N'' AS NVARCHAR(255)) AS Ten_NCC, h.Ngay_Xuat_Kho AS Ngay_Chung_Tu, h.Ghi_Chu FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_DM_Kho k ON k.Auto_ID=h.Kho_ID WHERE @Search_Text=N'' OR h.So_Phieu_Xuat_Kho LIKE @Filter OR k.Ten_Kho LIKE @Filter ORDER BY h.Ngay_Xuat_Kho DESC, h.Auto_ID DESC OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    END
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Nhap_Page @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay>@Den_Ngay THROW 51200,N'Khoảng ngày báo cáo không hợp lệ.',1;
+    IF @Page_Number<1 SET @Page_Number=1;
+    IF @Page_Size<1 SET @Page_Size=10;
+    SELECT COUNT(*) AS Total_Count FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay;
+    SELECT h.Ngay_Nhap_Kho AS Ngay,h.So_Phieu_Nhap_Kho AS So_Phieu,n.Ten_NCC AS Nha_Cung_Cap,p.Ma_San_Pham,p.Ten_San_Pham,d.SL_Nhap AS So_Luong,d.Don_Gia_Nhap AS Don_Gia,CAST(d.SL_Nhap*d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia
+    FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID=h.NCC_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID=d.San_Pham_ID
+    WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay ORDER BY h.Ngay_Nhap_Kho,h.So_Phieu_Nhap_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Xuat_Page @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay>@Den_Ngay THROW 51200,N'Khoảng ngày báo cáo không hợp lệ.',1;
+    IF @Page_Number<1 SET @Page_Number=1;
+    IF @Page_Size<1 SET @Page_Size=10;
+    SELECT COUNT(*) AS Total_Count FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay;
+    SELECT h.Ngay_Xuat_Kho AS Ngay,h.So_Phieu_Xuat_Kho AS So_Phieu,CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,p.Ma_San_Pham,p.Ten_San_Pham,d.SL_Xuat AS So_Luong,d.Don_Gia_Xuat AS Don_Gia,CAST(d.SL_Xuat*d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia
+    FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID=d.San_Pham_ID
+    WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay ORDER BY h.Ngay_Xuat_Kho,h.So_Phieu_Xuat_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay>@Den_Ngay THROW 51200,N'Khoảng ngày báo cáo không hợp lệ.',1;
+    IF @Page_Number<1 SET @Page_Number=1;
+    IF @Page_Size<1 SET @Page_Size=10;
+    ;WITH Movements AS
+    (
+        SELECT h.Kho_ID,d.San_Pham_ID,h.Ngay_Nhap_Kho AS MovementDate,CAST(d.SL_Nhap AS DECIMAL(18,3)) AS InQuantity,CAST(0 AS DECIMAL(18,3)) AS OutQuantity FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID
+        UNION ALL
+        SELECT h.Kho_ID,d.San_Pham_ID,h.Ngay_Xuat_Kho,CAST(0 AS DECIMAL(18,3)),CAST(d.SL_Xuat AS DECIMAL(18,3)) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID
+    )
+    SELECT m.Kho_ID,m.San_Pham_ID,p.Ma_San_Pham,p.Ten_San_Pham,
+           SUM(CASE WHEN m.MovementDate<@Tu_Ngay THEN m.InQuantity-m.OutQuantity ELSE 0 END) AS SL_Dau_Ky,
+           SUM(CASE WHEN m.MovementDate>=@Tu_Ngay AND m.MovementDate<=@Den_Ngay THEN m.InQuantity ELSE 0 END) AS SL_Nhap,
+           SUM(CASE WHEN m.MovementDate>=@Tu_Ngay AND m.MovementDate<=@Den_Ngay THEN m.OutQuantity ELSE 0 END) AS SL_Xuat,
+           SUM(CASE WHEN m.MovementDate<=@Den_Ngay THEN m.InQuantity-m.OutQuantity ELSE 0 END) AS SL_Cuoi_Ky
+    INTO #Aggregated
+    FROM Movements m JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID=m.San_Pham_ID
+    WHERE m.MovementDate<=@Den_Ngay GROUP BY m.Kho_ID,m.San_Pham_ID,p.Ma_San_Pham,p.Ten_San_Pham;
+
+    SELECT COUNT(*) AS Total_Count FROM #Aggregated;
+    SELECT Kho_ID,San_Pham_ID,Ma_San_Pham,Ten_San_Pham,SL_Dau_Ky,SL_Nhap,SL_Xuat,SL_Cuoi_Ky FROM #Aggregated ORDER BY Ma_San_Pham,Kho_ID OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    DROP TABLE #Aggregated;
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_DM_Don_Vi_Tinh_Save
     @Auto_ID BIGINT OUTPUT, @Ten_Don_Vi_Tinh NVARCHAR(200), @Ghi_Chu NVARCHAR(1000)=NULL,
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,

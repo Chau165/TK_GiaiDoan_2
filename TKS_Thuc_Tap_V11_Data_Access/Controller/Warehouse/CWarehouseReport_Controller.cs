@@ -10,6 +10,12 @@ public class CWarehouseReport_Controller : CWarehouse_Controller_Base
         return Task.FromResult(List_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date));
     }
 
+    public Task<CWarehousePagedResult<CWarehouseDetailReport>> Detail_Report_Page_Async(bool p_bIs_Receipt, DateTime p_dtmFrom, DateTime p_dtmTo, int p_iPage_Number, int p_iPage_Size)
+    {
+        var v_strProcedure = p_bIs_Receipt ? "sp_BC_Chi_Tiet_Nhap_Page" : "sp_BC_Chi_Tiet_Xuat_Page";
+        return Task.FromResult(Page_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size));
+    }
+
     public Task<List<CWarehouseInventoryReport>> Inventory_Report_Async(DateTime p_dtmFrom, DateTime p_dtmTo)
     {
         var v_arrRes = List_From_Procedure<CWarehouseInventoryReport>("sp_BC_Xuat_Nhap_Ton", p_dtmFrom.Date, p_dtmTo.Date);
@@ -18,5 +24,10 @@ public class CWarehouseReport_Controller : CWarehouse_Controller_Base
             v_objData.Ten_Kho = v_arrWarehouse.GetValueOrDefault(v_objData.Kho_ID, "");
 
         return Task.FromResult(v_arrRes);
+    }
+
+    public Task<CWarehousePagedResult<CWarehouseInventoryReport>> Inventory_Report_Page_Async(DateTime p_dtmFrom, DateTime p_dtmTo, int p_iPage_Number, int p_iPage_Size)
+    {
+        return Task.FromResult(Page_From_Procedure<CWarehouseInventoryReport>("sp_BC_Xuat_Nhap_Ton_Page", p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size));
     }
 }

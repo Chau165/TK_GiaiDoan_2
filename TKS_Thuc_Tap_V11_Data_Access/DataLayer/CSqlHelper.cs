@@ -199,6 +199,18 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
             }
         }
 
+        public static void FillDataSet(string p_strConnStr, DataSet p_dsData, string p_strSPname, params object[] p_arrValue)
+        {
+            SqlParameter[] arrSQLParameter = null;
+            if ((p_arrValue != null) && (p_arrValue.Length > 0))
+            {
+                arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(p_strConnStr, p_strSPname);
+                AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+            }
+
+            FillDataSet(p_strConnStr, p_dsData, p_strSPname, arrSQLParameter);
+        }
+
 		public static void FillDataTable_Cmd(string p_strConnStr, DataTable p_dtData, string p_strCmd)
 		{
 			SqlConnection conn = new SqlConnection(p_strConnStr);
@@ -446,6 +458,16 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
                 CLogger.Trace("CSqlHelper", "ExecuteScalar", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString("###,###0.######"));
 
             return result;
+        }
+
+        private static void FillDataSet(string p_strConnStr, DataSet p_dsData, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
+        {
+            using SqlConnection conn = new SqlConnection(p_strConnStr);
+            using SqlCommand cmd = new SqlCommand();
+            using SqlDataAdapter da = new SqlDataAdapter(cmd);
+
+            PrepareCommand(cmd, conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
+            da.Fill(p_dsData);
         }
 
         private static void FillDataTable(string p_strConnStr, DataTable p_dtData, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)

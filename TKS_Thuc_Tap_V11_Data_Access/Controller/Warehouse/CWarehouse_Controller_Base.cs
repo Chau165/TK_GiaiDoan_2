@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
@@ -17,6 +18,25 @@ public abstract class CWarehouse_Controller_Base
             v_arrRes.Add(CUtility.Map_Row_To_Entity<T>(v_row));
 
         return v_arrRes;
+    }
+
+    protected static CWarehousePagedResult<T> Page_From_Procedure<T>(string p_strProcedure, params object[] p_arrValue) where T : new()
+    {
+        using var v_dsData = new DataSet();
+        CSqlHelper.FillDataSet(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dsData, p_strProcedure, p_arrValue);
+
+        if (v_dsData.Tables.Count < 2 || v_dsData.Tables[0].Rows.Count == 0)
+            throw new InvalidOperationException($"{p_strProcedure} must return total count and page data.");
+
+        var v_objResult = new CWarehousePagedResult<T>
+        {
+            Total_Count = Convert.ToInt32(v_dsData.Tables[0].Rows[0]["Total_Count"])
+        };
+
+        foreach (DataRow v_row in v_dsData.Tables[1].Rows)
+            v_objResult.Items.Add(CUtility.Map_Row_To_Entity<T>(v_row));
+
+        return v_objResult;
     }
 
     protected static long Scalar_ID(string p_strProcedure, params object[] p_arrValue)

@@ -9,9 +9,19 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         return Task.FromResult(List_From_Procedure<CWarehouseMaster>("sp_DM_Master_List", p_strMaster_Type));
     }
 
+    public Task<CWarehousePagedResult<CWarehouseMaster>> List_Master_Page_Async(string p_strMaster_Type, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "")
+    {
+        return Task.FromResult(Page_From_Procedure<CWarehouseMaster>("sp_DM_Master_Page", p_strMaster_Type, p_iPage_Number, p_iPage_Size, p_strSearch_Text));
+    }
+
     public Task<List<CWarehouseLookup>> List_Lookup_Async(string p_strMaster_Type)
     {
         return Task.FromResult(List_From_Procedure<CWarehouseLookup>("sp_DM_Lookup_List", p_strMaster_Type));
+    }
+
+    public Task<CWarehousePagedResult<CWarehouseLookup>> List_Lookup_Page_Async(string p_strMaster_Type, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "")
+    {
+        return Task.FromResult(Page_From_Procedure<CWarehouseLookup>("sp_DM_Lookup_Page", p_strMaster_Type, p_iPage_Number, p_iPage_Size, p_strSearch_Text));
     }
 
     public Task Save_Master_Async(string p_strMaster_Type, CWarehouseMaster p_objData,
