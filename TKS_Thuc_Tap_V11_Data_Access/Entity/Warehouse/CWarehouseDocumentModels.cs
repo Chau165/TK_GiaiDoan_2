@@ -31,6 +31,7 @@ public class CWarehouseDocumentDetail
     public long San_Pham_ID { get; set; }
     public string Ma_San_Pham { get; set; } = "";
     public string Ten_San_Pham { get; set; } = "";
+    public string Ten_Don_Vi_Tinh { get; set; } = "";
     [Range(typeof(decimal), "0.0001", "79228162514264337593543950335")]
     public decimal So_Luong { get; set; }
     [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]

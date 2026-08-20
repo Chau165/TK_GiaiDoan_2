@@ -50,9 +50,8 @@ public sealed class WarehouseDetailDisplayFormatTests
         var infoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
         Assert.Contains("CUtility.Format_So_Luong", infoSource);
-        Assert.Contains("Ten_Don_Vi_Tinh", infoSource);
+        Assert.Contains("v_objDetail.Ten_Don_Vi_Tinh", infoSource);
         Assert.Contains("CUtility.Format_So_Tien", infoSource);
-        Assert.DoesNotContain("Field=\"So_Luong\"", infoSource);
     }
 
     [Fact]

@@ -27,9 +27,24 @@
                 <GridColumns>
                     <GridColumn Field="Ma_San_Pham" Title="Mã" />
                     <GridColumn Field="Ten_San_Pham" Title="Tên sản phẩm" />
-                    <GridColumn Field="So_Luong" Title="SL" />
-                    <GridColumn Field="Don_Gia" Title="Đơn giá" />
-                    <GridColumn Field="Tri_Gia" Title="Trị giá" />
+                    <GridColumn Field="So_Luong" Title="SL">
+                        <Template Context="v_objContext">
+                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
+                            @(CUtility.Format_So_Luong(v_objDetail!.So_Luong)) (@v_objDetail.Ten_Don_Vi_Tinh)
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="Don_Gia" Title="Đơn giá">
+                        <Template Context="v_objContext">
+                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
+                            @(CUtility.Format_So_Tien(v_objDetail!.Don_Gia))
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="Tri_Gia" Title="Trị giá">
+                        <Template Context="v_objContext">
+                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
+                            @(CUtility.Format_So_Tien(v_objDetail!.Tri_Gia))
+                        </Template>
+                    </GridColumn>
                     <GridColumn Title="">
                         <Template Context="v_objContext">
                             @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
@@ -45,7 +60,7 @@
                     </GridColumn>
                 </GridColumns>
             </TelerikGrid>
-            <div class="text-end fw-bold mt-2">Tổng trị giá: @m_arrDetail.Sum(x => x.Tri_Gia)</div>
+            <div class="text-end fw-bold mt-2">Tổng trị giá: @(CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia)))</div>
         </div>
     </div>
 }

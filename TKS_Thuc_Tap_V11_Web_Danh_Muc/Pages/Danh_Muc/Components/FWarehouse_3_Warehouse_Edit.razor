@@ -58,7 +58,7 @@
                     <div class="col-md-4"><label class="form-label">Sản phẩm</label><TelerikDropDownList Data="@m_arrProduct" @bind-Value="m_objDetail.San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn sản phẩm --" Enabled="@(m_objDetail.Auto_ID == 0)" /></div>
                     <div class="col-md-2"><label class="form-label">Số lượng</label><InputNumber class="form-control" @bind-Value="m_objDetail.So_Luong" step="0.001" /></div>
                     <div class="col-md-2"><label class="form-label">Đơn giá</label><InputNumber class="form-control" @bind-Value="m_objDetail.Don_Gia" step="0.01" /></div>
-                    <div class="col-md-3"><label class="form-label">Trị giá</label><input class="form-control" value="@m_objDetail.Tri_Gia" disabled /></div>
+                    <div class="col-md-3"><label class="form-label">Trị giá</label><input class="form-control" value="@(CUtility.Format_So_Tien(m_objDetail.Tri_Gia))" disabled /></div>
                     <div class="col-md-1 d-flex gap-2"><button type="submit" class="btn btn-success">Lưu</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
                 </div>
             </EditForm>

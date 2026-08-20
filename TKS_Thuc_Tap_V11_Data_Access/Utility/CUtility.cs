@@ -1080,5 +1080,17 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
             //ví dụ 200000000 sẽ là 200.000.000
             return v_strnumberString;
         }
+
+        public static string Format_So_Tien(decimal p_decGia_Tri)
+        {
+            // Hiển thị theo mệnh giá tiền Việt Nam, ví dụ 6200 -> 6.200, 372000 -> 372.000
+            return p_decGia_Tri.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+        }
+
+        public static string Format_So_Luong(decimal p_decSo_Luong)
+        {
+            // Hiển thị số lượng 2 chữ số thập phân, ví dụ 60 -> 60.00
+            return p_decSo_Luong.ToString("0.00", CultureInfo.InvariantCulture);
+        }
     }
 }
