@@ -2,7 +2,9 @@
 
 ## Scope
 
-The CodeGraph index covers the whole solution (687 files, including 165 C# and 202 Razor files). Runtime benchmarking is focused on the high-volume Warehouse data path because it is the part of the solution with the representative multi-table joins, reports, CRUD procedures, and existing server-side paging contracts.
+The CodeGraph index covers the whole solution (687 files, including 167 C# and 202 Razor files). A source inventory found 73 data-access controllers: 33 Cache, 32 Sys, 5 Warehouse, 2 Common, and 1 DM controller. Runtime benchmarking is focused on the high-volume Warehouse data path because it is the part of the solution with the representative multi-table joins, reports, CRUD procedures, and existing server-side paging contracts.
+
+This is therefore a two-layer benchmark: the whole solution is covered by the CodeGraph/static audit, while the 100k/1M synthetic database workload exercises the representative high-volume data plane. The Cache/Sys/DM/Log controllers are mostly configuration, security, sequence, and audit tables; they need separate domain-valid seed contracts before a 1M-row write benchmark can be considered representative. The harness intentionally does not mutate those production-shaped tables.
 
 User journeys were derived during this TDD run:
 
