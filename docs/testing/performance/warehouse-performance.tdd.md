@@ -46,18 +46,19 @@ Selected application/controller measurements:
 
 | Scale / scenario | p50 | p95 | Allocation observed | Notes |
 |---|---:|---:|---:|---|
-| 100k `InventoryReportPaged` | 295.51 ms | 306.92 ms | 0.18 MB across 3 calls | Only 10 rows returned per call. |
-| 100k `DetailReportFullLoad` | 373.57 ms | 446.61 ms | 200.18 MB across 3 calls | Full `DataTable` + entity mapping path. |
-| 100k `InventoryReportFullLoad` | 183.61 ms | 217.76 ms | 48.31 MB across 3 calls | Report aggregates then maps a full list and loads warehouse lookup. |
+| 100k `InventoryReportPaged` | 300.12 ms | 315.26 ms | 1.02 MB across 3 calls | Only 10 rows returned per call. |
+| 100k `DetailReportFullLoad` | 374.11 ms | 450.67 ms | 200.10 MB across 3 calls | Full `DataTable` + entity mapping path. |
+| 100k `InventoryReportFullLoad` | 188.63 ms | 283.75 ms | 48.31 MB across 3 calls | Report aggregates then maps a full list and loads warehouse lookup. |
 | 1M `InventoryReportPaged` | 267.75 ms | 286.41 ms | 0.28 MB across 5 calls | Page size remains 10, but SQL aggregation still scales with movement volume. |
 | 1M `ConcurrentMixedWorkload` | 46.07 ms | 84.74 ms | 2.39 MB across 40 calls | 8 workers, mixed master/document/report page requests. |
 | 1M `Crud_Master_Save_Update` | 9.80 ms | 10.08 ms | 0.08 MB across 5 calls | Current master save/update path executed successfully. |
 
 Database storage at the end of the run was approximately 190.9 MB used data and 478.2 MB allocated log for the 1M-row isolated database. These are database-file measurements, not a claim about production disk capacity.
 
-SQL Server `STATISTICS IO/TIME` for 1M rows confirmed the inventory page bottleneck:
+SQL Server `STATISTICS IO/TIME` for both scales confirmed the inventory page bottleneck:
 
-- `sp_BC_Xuat_Nhap_Ton_Page`: about 686–702 ms CPU and 268–280 ms elapsed; the movement inputs reported 3,156 logical reads each for receipt/issue raw tables, 466 each for their headers, and 625 for the product table before returning the 10-row page.
+- At 100k, `sp_BC_Xuat_Nhap_Ton_Page` used about 903 ms CPU and 281 ms elapsed; the movement inputs reported 895 logical reads each for receipt/issue raw tables, 49 each for their headers, and 625 for the product table before returning the 10-row page.
+- At 1M, `sp_BC_Xuat_Nhap_Ton_Page` used about 686–702 ms CPU and 268–280 ms elapsed; the movement inputs reported 3,156 logical reads each for receipt/issue raw tables, 466 each for their headers, and 625 for the product table before returning the 10-row page.
 - `sp_BC_Chi_Tiet_Nhap_Page`: 500,000 total rows counted, about 63 ms CPU and 65 ms elapsed in the probe; the page query still performs the count separately from the page query.
 - `sp_DM_Master_Page`: 10,000 total products, about 23 logical reads for the page query in the warm-cache probe.
 
