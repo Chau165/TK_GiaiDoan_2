@@ -140,6 +140,28 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_inventory_page_returns_the_warehouse_name_for_the_grid_contract()
+    {
+        var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+
+        Assert.Contains("JOIN dbo.tbl_DM_Kho k ON k.Auto_ID=m.Kho_ID", procedures);
+        Assert.Contains("k.Ten_Kho AS Ten_Kho", procedures);
+        Assert.Contains("GROUP BY m.Kho_ID,m.San_Pham_ID,k.Ten_Kho", procedures);
+        Assert.Contains("SELECT Kho_ID,Ten_Kho,San_Pham_ID", procedures);
+    }
+
+    [Fact]
+    public void Warehouse_report_grid_is_recreated_when_the_report_type_changes()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("<option value=\"Receipt\">Chi tiết hàng nhập</option>", list);
+        Assert.Contains("<option value=\"Issue\">Chi tiết hàng xuất</option>", list);
+        Assert.Contains("@key=\"m_strReport_Type\"", list);
+        Assert.Contains("Detail_Report_Page_Async(m_strReport_Type == \"Receipt\"", list);
+    }
+
+    [Fact]
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var controllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
