@@ -153,6 +153,35 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Id;", BigInt("@Id", v_objIssue.Auto_ID)));
     }
 
+    [Fact]
+    public async Task Delete_validation_failure_does_not_rollback_a_caller_owned_transaction()
+    {
+        var v_objController = new CWarehouseDocument_Controller();
+        var v_objReceipt = Receipt("R3", m_iWarehouseAId, new DateTime(2026, 3, 1));
+        await v_objController.Save_Document_Async(v_objReceipt);
+        await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 5m, 100m));
+
+        var v_objIssue = Issue("I3", m_iWarehouseAId, new DateTime(2026, 3, 2));
+        await v_objController.Save_Document_Async(v_objIssue);
+        await v_objController.Save_Document_Detail_Async(false, Detail(v_objIssue.Auto_ID, m_iProductId, 5m, 150m));
+
+        using var v_objConnection = new SqlConnection(ConnectionString);
+        await v_objConnection.OpenAsync();
+        using var v_objTransaction = v_objConnection.BeginTransaction();
+        using var v_objDelete = new SqlCommand("dbo.sp_XNK_Nhap_Kho_Delete_Header", v_objConnection, v_objTransaction)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        v_objDelete.Parameters.Add(BigInt("@Auto_ID", v_objReceipt.Auto_ID));
+
+        var v_objError = await Assert.ThrowsAsync<SqlException>(async () => await v_objDelete.ExecuteNonQueryAsync());
+        Assert.Equal(51120, v_objError.Number);
+
+        using var v_objTransactionCount = new SqlCommand("SELECT @@TRANCOUNT;", v_objConnection);
+        Assert.Equal(1L, Convert.ToInt64(await v_objTransactionCount.ExecuteScalarAsync()));
+        v_objTransaction.Rollback();
+    }
+
     private CWarehouseDocument Receipt(string p_strSuffix, long p_iWarehouseId, DateTime p_dtmDate) => new()
     {
         Is_Receipt = true,
