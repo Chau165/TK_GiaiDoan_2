@@ -719,3 +719,115 @@ ul {
 .k-multiselect {
     max-height: 50px;
 }
+
+.warehouse-print-document {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 12mm;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    .warehouse-print-document,
+    .warehouse-print-document * {
+        visibility: visible !important;
+    }
+
+    .warehouse-print-document {
+        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        color: #000 !important;
+        font-family: "Times New Roman", serif !important;
+        font-size: 12pt !important;
+        line-height: 1.25 !important;
+    }
+
+    .warehouse-print-header {
+        display: grid !important;
+        grid-template-columns: 1fr 1.6fr 1fr !important;
+        gap: 8mm !important;
+        margin-bottom: 5mm !important;
+    }
+
+    .warehouse-print-title {
+        text-align: center !important;
+    }
+
+    .warehouse-print-title h1 {
+        margin: 0 0 2mm !important;
+        font-size: 18pt !important;
+    }
+
+    .warehouse-print-number {
+        text-align: right !important;
+    }
+
+    .warehouse-print-summary,
+    .warehouse-print-totals {
+        margin: 3mm 0 !important;
+    }
+
+    .warehouse-print-summary div,
+    .warehouse-print-totals div {
+        margin-bottom: 1mm !important;
+    }
+
+    .warehouse-print-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+    }
+
+    .warehouse-print-table th,
+    .warehouse-print-table td {
+        border: 1px solid #000 !important;
+        padding: 1.5mm !important;
+        vertical-align: top !important;
+    }
+
+    .warehouse-print-table th {
+        background: #e7e7e7 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        text-align: center !important;
+    }
+
+    .warehouse-print-table th:nth-child(1) { width: 7% !important; }
+    .warehouse-print-table th:nth-child(2) { width: 13% !important; }
+    .warehouse-print-table th:nth-child(3) { width: 28% !important; }
+    .warehouse-print-table th:nth-child(4) { width: 10% !important; }
+    .warehouse-print-table th:nth-child(5) { width: 12% !important; }
+    .warehouse-print-table th:nth-child(6) { width: 14% !important; }
+    .warehouse-print-table th:nth-child(7) { width: 16% !important; }
+
+    .warehouse-print-center { text-align: center !important; }
+    .warehouse-print-right { text-align: right !important; }
+    .warehouse-print-number-cell { text-align: right !important; white-space: nowrap !important; }
+
+    .warehouse-print-signatures {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 4mm !important;
+        margin-top: 12mm !important;
+        text-align: center !important;
+    }
+
+    .warehouse-print-signatures strong,
+    .warehouse-print-signatures span {
+        display: block !important;
+    }
+
+    .warehouse-print-signatures span {
+        margin-top: 3mm !important;
+        font-style: italic !important;
+    }
+}

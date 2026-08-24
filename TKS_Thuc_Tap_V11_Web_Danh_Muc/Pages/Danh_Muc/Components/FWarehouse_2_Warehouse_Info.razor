@@ -7,7 +7,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h5>@(m_bIs_Receipt ? "PHIẾU NHẬP KHO" : "PHIẾU XUẤT KHO") - @m_objDocument.So_Phieu</h5>
                 <div class="d-flex gap-2 no-print">
-                    @if (m_bCan_Add)
+                    @if (m_bCan_Add && !m_objDocument.Is_Posted)
                     {
                         <button type="button" class="btn btn-primary" @onclick="OnAdd_Detail">Thêm sản phẩm</button>
                     }
@@ -48,11 +48,11 @@
                     <GridColumn Title="">
                         <Template Context="v_objContext">
                             @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @if (m_bCan_Edit)
+                            @if (m_bCan_Edit && !m_objDocument.Is_Posted)
                             {
                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => OnEdit_Detail.InvokeAsync(v_objDetail!))">Sửa</button>
                             }
-                            @if (m_bCan_Delete)
+                            @if (m_bCan_Delete && !m_objDocument.Is_Posted)
                             {
                                 <button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => OnDelete_Detail.InvokeAsync(v_objDetail!.Auto_ID))">Xóa</button>
                             }
@@ -63,6 +63,85 @@
             <div class="text-end fw-bold mt-2">Tổng trị giá: @(CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia)))</div>
         </div>
     </div>
+
+    <section class="warehouse-print-document">
+        <header class="warehouse-print-header">
+            <div>
+                <div><strong>Đơn vị:</strong> @m_objDocument.Ten_Kho</div>
+                <div><strong>Kho:</strong> @m_objDocument.Ten_Kho</div>
+                @if (m_bIs_Receipt)
+                {
+                    <div><strong>Nhà cung cấp:</strong> @m_objDocument.Ten_NCC</div>
+                }
+            </div>
+            <div class="warehouse-print-title">
+                <h1>@(m_bIs_Receipt ? "PHIẾU NHẬP KHO" : "PHIẾU XUẤT KHO")</h1>
+                <div>Ngày @m_objDocument.Ngay_Chung_Tu.ToString("dd") tháng @m_objDocument.Ngay_Chung_Tu.ToString("MM") năm @m_objDocument.Ngay_Chung_Tu.ToString("yyyy")</div>
+                <div><strong>Số: @m_objDocument.So_Phieu</strong></div>
+            </div>
+            <div class="warehouse-print-number">
+                <div><strong>Số phiếu:</strong> @m_objDocument.So_Phieu</div>
+                <div><strong>Ngày chứng từ:</strong> @m_objDocument.Ngay_Chung_Tu.ToString("dd/MM/yyyy")</div>
+            </div>
+        </header>
+
+        <section class="warehouse-print-summary">
+            <div><strong>Kho @(m_bIs_Receipt ? "nhập" : "xuất"):</strong> @m_objDocument.Ten_Kho</div>
+            <div><strong>Ghi chú:</strong> @m_objDocument.Ghi_Chu</div>
+        </section>
+
+        <table class="warehouse-print-table">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Mã hàng</th>
+                    <th>Tên hàng</th>
+                    <th>ĐVT</th>
+                    <th>Số lượng</th>
+                    <th>Đơn giá</th>
+                    <th>Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v_objLine in m_arrDetail.Select((p_objDetail, p_iIndex) => new { Detail = p_objDetail, Index = p_iIndex + 1 }))
+                {
+                    <tr>
+                        <td class="warehouse-print-center">@v_objLine.Index</td>
+                        <td>@v_objLine.Detail.Ma_San_Pham</td>
+                        <td>@v_objLine.Detail.Ten_San_Pham</td>
+                        <td class="warehouse-print-center">@v_objLine.Detail.Ten_Don_Vi_Tinh</td>
+                        <td class="warehouse-print-number-cell">@CUtility.Format_So_Luong(v_objLine.Detail.So_Luong)</td>
+                        <td class="warehouse-print-number-cell">@CUtility.Format_So_Tien(v_objLine.Detail.Don_Gia)</td>
+                        <td class="warehouse-print-number-cell">@CUtility.Format_So_Tien(v_objLine.Detail.Tri_Gia)</td>
+                    </tr>
+                }
+                @if (m_arrDetail.Count == 0)
+                {
+                    <tr><td colspan="7" class="warehouse-print-center">Chưa có sản phẩm.</td></tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4" class="warehouse-print-right">Tổng</th>
+                    <th class="warehouse-print-number-cell">@CUtility.Format_So_Luong(m_arrDetail.Sum(x => x.So_Luong))</th>
+                    <th></th>
+                    <th class="warehouse-print-number-cell">@CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia))</th>
+                </tr>
+            </tfoot>
+        </table>
+
+        <section class="warehouse-print-totals">
+            <div><strong>Tổng số lượng:</strong> @CUtility.Format_So_Luong(m_arrDetail.Sum(x => x.So_Luong))</div>
+            <div><strong>Tổng trị giá:</strong> @CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia))</div>
+        </section>
+
+        <footer class="warehouse-print-signatures">
+            <div><strong>Người lập phiếu</strong><span>(Ký, họ tên)</span></div>
+            <div><strong>@(m_bIs_Receipt ? "Người giao hàng" : "Người nhận hàng")</strong><span>(Ký, họ tên)</span></div>
+            <div><strong>@(m_bIs_Receipt ? "Thủ kho" : "Điều phối")</strong><span>(Ký, họ tên)</span></div>
+            <div><strong>@(m_bIs_Receipt ? "Kế toán" : "Giám đốc")</strong><span>(Ký, họ tên)</span></div>
+        </footer>
+    </section>
 }
 
 @code {
