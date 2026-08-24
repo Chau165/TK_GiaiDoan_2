@@ -182,6 +182,31 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         v_objTransaction.Rollback();
     }
 
+    [Fact]
+    public async Task Post_makes_a_draft_document_a_movement_and_rolls_back_an_insufficient_issue()
+    {
+        var v_objController = new CWarehouseDocument_Controller();
+        var v_objReceipt = Receipt("POST-R", m_iWarehouseAId, new DateTime(2026, 4, 1));
+        await v_objController.Save_Document_Async(v_objReceipt);
+        await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 10m, 100m));
+
+        Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));
+
+        await v_objController.Post_Document_Async(true, v_objReceipt.Auto_ID, "tdd-user", "tdd-function");
+
+        Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Id AND Is_Posted = 1;", BigInt("@Id", v_objReceipt.Auto_ID)));
+        Assert.Equal(10L, await ScalarLongAsync("SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));
+
+        var v_objIssue = Issue("POST-I", m_iWarehouseAId, new DateTime(2026, 4, 2));
+        await v_objController.Save_Document_Async(v_objIssue);
+        await v_objController.Save_Document_Detail_Async(false, Detail(v_objIssue.Auto_ID, m_iProductId, 11m, 150m));
+
+        var v_objPostError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Post_Document_Async(false, v_objIssue.Auto_ID, "tdd-user", "tdd-function"));
+        Assert.Equal(51120, v_objPostError.Number);
+        Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Id AND Is_Posted = 1;", BigInt("@Id", v_objIssue.Auto_ID)));
+        Assert.Equal(10L, await ScalarLongAsync("SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));
+    }
+
     private CWarehouseDocument Receipt(string p_strSuffix, long p_iWarehouseId, DateTime p_dtmDate) => new()
     {
         Is_Receipt = true,
