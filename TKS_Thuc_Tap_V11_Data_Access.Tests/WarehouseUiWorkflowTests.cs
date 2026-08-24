@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.RegularExpressions;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
@@ -122,6 +123,20 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("sp_XNK_Document_Page", procedures);
         Assert.Contains("sp_BC_Chi_Tiet_Nhap_Page", procedures);
         Assert.Contains("OFFSET (@Page_Number - 1) * @Page_Size ROWS", procedures);
+    }
+
+    [Fact]
+    public void Warehouse_server_read_grids_do_not_mix_data_binding_with_on_read()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var gridTags = Regex.Matches(list, "<TelerikGrid\\b[^>]*>", RegexOptions.Singleline);
+
+        Assert.NotEmpty(gridTags);
+        foreach (Match gridTag in gridTags)
+        {
+            if (gridTag.Value.Contains("OnRead=", StringComparison.Ordinal))
+                Assert.DoesNotContain("Data=", gridTag.Value, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
