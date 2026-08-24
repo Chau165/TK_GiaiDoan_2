@@ -19,7 +19,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
             return conn;
         }
 
-        public static int ExecuteNonquery(string p_strConnStr, string p_strSPname, params object[] p_arrValue)
+		public static int ExecuteNonquery(string p_strConnStr, string p_strSPname, params object[] p_arrValue)
         {
             //long v_iSTT = CUtility_Queue_DB.Add_Queue(p_strSPname);
             //long v_iCurrent_Queue = CUtility_Queue_DB.Get_Current_Queue(p_strSPname);
@@ -96,6 +96,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 				throw;
 			}
 		}
+
+        public static int ExecuteNonquery(string p_strConnStr, string p_strSPname, params SqlParameter[] p_arrSQLParameter)
+        {
+            return ExecuteNonQuery(p_strConnStr, p_strSPname, p_arrSQLParameter);
+        }
 
         public static object ExecuteScalar(string p_strConnStr, string p_strSPname, params object[] p_arrValue)
         {
@@ -390,7 +395,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
             return result;
         }
 
-        private static object ExecuteScalar(string p_strConnStr, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
+		public static object ExecuteScalar(string p_strConnStr, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
         {
             DateTime v_dtStart = DateTime.Now;
 

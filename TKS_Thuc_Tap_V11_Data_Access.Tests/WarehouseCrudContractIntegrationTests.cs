@@ -91,6 +91,14 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
 
         var v_objSecondReceiptDetail = Detail(v_objReceipt.Auto_ID, m_iSecondProductId, 15m, 80m);
         await v_objController.Save_Document_Detail_Async(true, v_objSecondReceiptDetail);
+        await v_objController.Delete_Document_Detail_Async(true, v_objSecondReceiptDetail.Auto_ID, "tdd-user", "tdd-function");
+        Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Id;", BigInt("@Id", v_objSecondReceiptDetail.Auto_ID)));
+        v_objSecondReceiptDetail.Auto_ID = 0;
+        await v_objController.Save_Document_Detail_Async(true, v_objSecondReceiptDetail);
+
+        var v_objIssueStockReceipt = Receipt("R-ISSUE", m_iWarehouseAId, new DateTime(2026, 1, 1));
+        await v_objController.Save_Document_Async(v_objIssueStockReceipt);
+        await v_objController.Save_Document_Detail_Async(true, Detail(v_objIssueStockReceipt.Auto_ID, m_iProductId, 20m, 100m));
 
         var v_objIssue = Issue("I1", m_iWarehouseAId, new DateTime(2026, 1, 3));
         await v_objController.Save_Document_Async(v_objIssue);
@@ -109,6 +117,10 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         v_objIssueDetail.Don_Gia = 160m;
         await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID = @Id AND SL_Xuat = 6 AND Don_Gia_Xuat = 160;", BigInt("@Id", v_objIssueDetail.Auto_ID)));
+        await v_objController.Delete_Document_Detail_Async(false, v_objIssueDetail.Auto_ID, "tdd-user", "tdd-function");
+        Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID = @Id;", BigInt("@Id", v_objIssueDetail.Auto_ID)));
+        v_objIssueDetail.Auto_ID = 0;
+        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail);
 
         await v_objController.Delete_Document_Async(false, v_objIssue.Auto_ID, "tdd-user", "tdd-function");
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Id;", BigInt("@Id", v_objIssue.Auto_ID)));

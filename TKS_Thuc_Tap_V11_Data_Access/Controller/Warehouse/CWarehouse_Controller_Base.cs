@@ -44,9 +44,19 @@ public abstract class CWarehouse_Controller_Base
         return Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue));
     }
 
+    protected static long Scalar_ID(string p_strProcedure, params SqlParameter[] p_arrParameters)
+    {
+        return Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrParameters));
+    }
+
     protected static void Execute_Procedure(string p_strProcedure, params object[] p_arrValue)
     {
         CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue);
+    }
+
+    protected static void Execute_Procedure(string p_strProcedure, params SqlParameter[] p_arrParameters)
+    {
+        CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrParameters);
     }
 
     protected static long Scalar_ID(SqlConnection p_conn, SqlTransaction p_trans, string p_strProcedure, params object[] p_arrValue)

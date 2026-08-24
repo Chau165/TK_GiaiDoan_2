@@ -274,6 +274,7 @@ BEGIN
         IF @OwnTransaction=1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH IF @OwnTransaction=1 AND @@TRANCOUNT>0 ROLLBACK TRANSACTION; THROW; END CATCH
+    SELECT @Auto_ID AS Auto_ID;
 END
 GO
 
@@ -293,6 +294,7 @@ BEGIN
         EXEC dbo.sp_XNK_Validate_All_Balances; IF @OwnTransaction=1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH IF @OwnTransaction=1 AND @@TRANCOUNT>0 ROLLBACK TRANSACTION; THROW; END CATCH
+    SELECT @Auto_ID AS Auto_ID;
 END
 GO
 
@@ -313,6 +315,7 @@ BEGIN
         EXEC dbo.sp_XNK_Validate_All_Balances; IF @OwnTransaction=1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH IF @OwnTransaction=1 AND @@TRANCOUNT>0 ROLLBACK TRANSACTION; THROW; END CATCH
+    SELECT @Auto_ID AS Auto_ID;
 END
 GO
 
@@ -332,6 +335,7 @@ BEGIN
         EXEC dbo.sp_XNK_Validate_All_Balances; IF @OwnTransaction=1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH IF @OwnTransaction=1 AND @@TRANCOUNT>0 ROLLBACK TRANSACTION; THROW; END CATCH
+    SELECT @Auto_ID AS Auto_ID;
 END
 GO
 
