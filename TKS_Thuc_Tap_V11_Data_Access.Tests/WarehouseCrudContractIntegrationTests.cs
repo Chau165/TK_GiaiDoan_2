@@ -177,7 +177,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         var v_objError = await Assert.ThrowsAsync<SqlException>(async () => await v_objDelete.ExecuteNonQueryAsync());
         Assert.Equal(51120, v_objError.Number);
 
-        using var v_objTransactionCount = new SqlCommand("SELECT @@TRANCOUNT;", v_objConnection);
+        using var v_objTransactionCount = new SqlCommand("SELECT @@TRANCOUNT;", v_objConnection, v_objTransaction);
         Assert.Equal(1L, Convert.ToInt64(await v_objTransactionCount.ExecuteScalarAsync()));
         v_objTransaction.Rollback();
     }
