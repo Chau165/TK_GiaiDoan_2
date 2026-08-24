@@ -82,6 +82,8 @@ CREATE TABLE dbo.tbl_XNK_Nhap_Kho
     Kho_ID BIGINT NOT NULL,
     NCC_ID BIGINT NOT NULL,
     Ngay_Nhap_Kho DATE NOT NULL,
+    Is_Posted BIT NOT NULL CONSTRAINT DF_tbl_XNK_Nhap_Kho_Is_Posted DEFAULT 0,
+    Posted_At DATETIME2 NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_XNK_Nhap_Kho_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_XNK_Nhap_Kho_Last_Updated DEFAULT SYSUTCDATETIME(),
@@ -112,6 +114,8 @@ CREATE TABLE dbo.tbl_XNK_Xuat_Kho
     So_Phieu_Xuat_Kho NVARCHAR(100) NOT NULL,
     Kho_ID BIGINT NOT NULL,
     Ngay_Xuat_Kho DATE NOT NULL,
+    Is_Posted BIT NOT NULL CONSTRAINT DF_tbl_XNK_Xuat_Kho_Is_Posted DEFAULT 0,
+    Posted_At DATETIME2 NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_XNK_Xuat_Kho_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_XNK_Xuat_Kho_Last_Updated DEFAULT SYSUTCDATETIME(),
@@ -169,6 +173,38 @@ IF COL_LENGTH(N'dbo.tbl_XNK_Nhap_Kho', N'Created_By') IS NULL ALTER TABLE dbo.tb
 IF COL_LENGTH(N'dbo.tbl_XNK_Nhap_Kho_Raw_Data', N'Created') IS NULL ALTER TABLE dbo.tbl_XNK_Nhap_Kho_Raw_Data ADD Created DATETIME2 NULL, Last_Updated DATETIME2 NULL, Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
 IF COL_LENGTH(N'dbo.tbl_XNK_Xuat_Kho', N'Created_By') IS NULL ALTER TABLE dbo.tbl_XNK_Xuat_Kho ADD Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
 IF COL_LENGTH(N'dbo.tbl_XNK_Xuat_Kho_Raw_Data', N'Created') IS NULL ALTER TABLE dbo.tbl_XNK_Xuat_Kho_Raw_Data ADD Created DATETIME2 NULL, Last_Updated DATETIME2 NULL, Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
+GO
+
+/* A document remains a draft until it is explicitly posted. Existing documents
+   predate this lifecycle and are therefore preserved as posted movements. */
+IF COL_LENGTH(N'dbo.tbl_XNK_Nhap_Kho', N'Is_Posted') IS NULL
+BEGIN
+    ALTER TABLE dbo.tbl_XNK_Nhap_Kho ADD Is_Posted BIT NOT NULL CONSTRAINT DF_tbl_XNK_Nhap_Kho_Is_Posted DEFAULT 1 WITH VALUES, Posted_At DATETIME2 NULL;
+END
+GO
+IF COL_LENGTH(N'dbo.tbl_XNK_Xuat_Kho', N'Is_Posted') IS NULL
+BEGIN
+    ALTER TABLE dbo.tbl_XNK_Xuat_Kho ADD Is_Posted BIT NOT NULL CONSTRAINT DF_tbl_XNK_Xuat_Kho_Is_Posted DEFAULT 1 WITH VALUES, Posted_At DATETIME2 NULL;
+END
+GO
+
+IF OBJECT_ID(N'dbo.InventoryBalance_Current', N'U') IS NULL
+CREATE TABLE dbo.InventoryBalance_Current
+(
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    CurrentQuantity DECIMAL(18,3) NOT NULL,
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_InventoryBalance_Current_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    RowVersion ROWVERSION NOT NULL,
+    CONSTRAINT PK_InventoryBalance_Current PRIMARY KEY (Kho_ID, San_Pham_ID),
+    CONSTRAINT CK_InventoryBalance_Current_NonNegative CHECK (CurrentQuantity >= 0),
+    CONSTRAINT FK_InventoryBalance_Current_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_InventoryBalance_Current_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Posted_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Posted_Kho_Ngay ON dbo.tbl_XNK_Nhap_Kho(Is_Posted, Kho_ID, Ngay_Nhap_Kho);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Posted_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Posted_Kho_Ngay ON dbo.tbl_XNK_Xuat_Kho(Is_Posted, Kho_ID, Ngay_Xuat_Kho);
 GO
 
 /* The assignment uses tbl_DM_* in Bài 7/11 and tbl_XNK_* in Bài 8/12. XNK is canonical; synonyms retain both documented names. */

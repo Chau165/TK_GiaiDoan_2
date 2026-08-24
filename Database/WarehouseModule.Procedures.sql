@@ -15,6 +15,168 @@ BEGIN
 END
 GO
 
+/* Draft/Post lifecycle. Raw-data rows are document details; only posted headers
+   contribute movements. Posting is the sole transition that updates the current
+   balance projection, and it owns one SQL Server transaction. */
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Validate_All_Balances
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @HasNegative BIT=0;
+    ;WITH Movements AS
+    (
+        SELECT h.Kho_ID,d.San_Pham_ID,h.Ngay_Nhap_Kho AS MovementDate,CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Delta
+        FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID WHERE h.Is_Posted=1
+        UNION ALL
+        SELECT h.Kho_ID,d.San_Pham_ID,h.Ngay_Xuat_Kho,CAST(-d.SL_Xuat AS DECIMAL(18,3))
+        FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID WHERE h.Is_Posted=1
+    ), Daily AS
+    (
+        SELECT Kho_ID,San_Pham_ID,MovementDate,SUM(Delta) AS Delta FROM Movements GROUP BY Kho_ID,San_Pham_ID,MovementDate
+    ), Running AS
+    (
+        SELECT SUM(Delta) OVER(PARTITION BY Kho_ID,San_Pham_ID ORDER BY MovementDate ROWS UNBOUNDED PRECEDING) AS Balance FROM Daily
+    )
+    SELECT @HasNegative=CASE WHEN MIN(Balance)<0 THEN 1 ELSE 0 END FROM Running;
+    IF @HasNegative=1 THROW 51120,N'Không thể Post vì tồn kho sẽ âm tại một thời điểm trong lịch sử.',1;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Save_Header
+    @Auto_ID BIGINT OUTPUT, @So_Phieu_Nhap_Kho NVARCHAR(100), @Kho_ID BIGINT, @NCC_ID BIGINT, @Ngay_Nhap_Kho DATE, @Ghi_Chu NVARCHAR(1000)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    SET @So_Phieu_Nhap_Kho=LTRIM(RTRIM(ISNULL(@So_Phieu_Nhap_Kho,N'')));
+    IF @So_Phieu_Nhap_Kho=N'' THROW 51100,N'Số phiếu nhập không được để trống.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho=@So_Phieu_Nhap_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51101,N'Số phiếu nhập đã tồn tại.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID=@Kho_ID) THROW 51102,N'Kho không hợp lệ.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_NCC WHERE Auto_ID=@NCC_ID) THROW 51103,N'Nhà cung cấp không hợp lệ.',1;
+    IF @Ngay_Nhap_Kho IS NULL THROW 51104,N'Ngày nhập kho không được để trống.',1;
+    IF ISNULL(@Auto_ID,0)=0
+    BEGIN
+        INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho,Kho_ID,NCC_ID,Ngay_Nhap_Kho,Is_Posted,Ghi_Chu) VALUES(@So_Phieu_Nhap_Kho,@Kho_ID,@NCC_ID,@Ngay_Nhap_Kho,0,@Ghi_Chu);
+        SET @Auto_ID=SCOPE_IDENTITY();
+    END
+    ELSE
+    BEGIN
+        IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Auto_ID) THROW 51105,N'Phiếu nhập không tồn tại.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Auto_ID AND Is_Posted=1) THROW 51163,N'Không được sửa phiếu đã Post.',1;
+        UPDATE dbo.tbl_XNK_Nhap_Kho SET So_Phieu_Nhap_Kho=@So_Phieu_Nhap_Kho,Kho_ID=@Kho_ID,NCC_ID=@NCC_ID,Ngay_Nhap_Kho=@Ngay_Nhap_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Auto_ID;
+    END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Save_Header
+    @Auto_ID BIGINT OUTPUT, @So_Phieu_Xuat_Kho NVARCHAR(100), @Kho_ID BIGINT, @Ngay_Xuat_Kho DATE, @Ghi_Chu NVARCHAR(1000)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    SET @So_Phieu_Xuat_Kho=LTRIM(RTRIM(ISNULL(@So_Phieu_Xuat_Kho,N'')));
+    IF @So_Phieu_Xuat_Kho=N'' THROW 51130,N'Số phiếu xuất không được để trống.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho=@So_Phieu_Xuat_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51131,N'Số phiếu xuất đã tồn tại.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID=@Kho_ID) THROW 51132,N'Kho không hợp lệ.',1;
+    IF @Ngay_Xuat_Kho IS NULL THROW 51133,N'Ngày xuất kho không được để trống.',1;
+    IF ISNULL(@Auto_ID,0)=0
+    BEGIN
+        INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho,Kho_ID,Ngay_Xuat_Kho,Is_Posted,Ghi_Chu) VALUES(@So_Phieu_Xuat_Kho,@Kho_ID,@Ngay_Xuat_Kho,0,@Ghi_Chu);
+        SET @Auto_ID=SCOPE_IDENTITY();
+    END
+    ELSE
+    BEGIN
+        IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Auto_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Auto_ID AND Is_Posted=1) THROW 51163,N'Không được sửa phiếu đã Post.',1;
+        UPDATE dbo.tbl_XNK_Xuat_Kho SET So_Phieu_Xuat_Kho=@So_Phieu_Xuat_Kho,Kho_ID=@Kho_ID,Ngay_Xuat_Kho=@Ngay_Xuat_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Auto_ID;
+    END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Save_Detail
+    @Auto_ID BIGINT OUTPUT, @Nhap_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Nhap DECIMAL(18,3), @Don_Gia_Nhap DECIMAL(18,2)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Nhap_Kho_ID) THROW 51105,N'Phiếu nhập không tồn tại.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Nhap_Kho_ID AND Is_Posted=1) THROW 51163,N'Không được sửa chi tiết của phiếu đã Post.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@San_Pham_ID) THROW 51106,N'Sản phẩm không hợp lệ.',1;
+    IF @SL_Nhap<=0 THROW 51107,N'Số lượng nhập phải lớn hơn 0.',1;
+    IF @Don_Gia_Nhap<=0 THROW 51108,N'Đơn giá nhập phải lớn hơn 0.',1;
+    IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID,San_Pham_ID,SL_Nhap,Don_Gia_Nhap) VALUES(@Nhap_Kho_ID,@San_Pham_ID,@SL_Nhap,@Don_Gia_Nhap); SET @Auto_ID=SCOPE_IDENTITY(); END
+    ELSE BEGIN IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID=@Auto_ID AND (Nhap_Kho_ID<>@Nhap_Kho_ID OR San_Pham_ID<>@San_Pham_ID)) THROW 51110,N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.',1; UPDATE dbo.tbl_XNK_Nhap_Kho_Raw_Data SET SL_Nhap=@SL_Nhap,Don_Gia_Nhap=@Don_Gia_Nhap WHERE Auto_ID=@Auto_ID; END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Save_Detail
+    @Auto_ID BIGINT OUTPUT, @Xuat_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Xuat DECIMAL(18,3), @Don_Gia_Xuat DECIMAL(18,2)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Xuat_Kho_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Xuat_Kho_ID AND Is_Posted=1) THROW 51163,N'Không được sửa chi tiết của phiếu đã Post.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@San_Pham_ID) THROW 51135,N'Sản phẩm không hợp lệ.',1;
+    IF @SL_Xuat<=0 THROW 51136,N'Số lượng xuất phải lớn hơn 0.',1;
+    IF @Don_Gia_Xuat<=0 THROW 51137,N'Đơn giá xuất phải lớn hơn 0.',1;
+    IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID,San_Pham_ID,SL_Xuat,Don_Gia_Xuat) VALUES(@Xuat_Kho_ID,@San_Pham_ID,@SL_Xuat,@Don_Gia_Xuat); SET @Auto_ID=SCOPE_IDENTITY(); END
+    ELSE BEGIN IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID=@Auto_ID AND (Xuat_Kho_ID<>@Xuat_Kho_ID OR San_Pham_ID<>@San_Pham_ID)) THROW 51138,N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.',1; UPDATE dbo.tbl_XNK_Xuat_Kho_Raw_Data SET SL_Xuat=@SL_Xuat,Don_Gia_Xuat=@Don_Gia_Xuat WHERE Auto_ID=@Auto_ID; END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Post @Is_Receipt BIT, @Document_ID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON; SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        CREATE TABLE #Delta(Kho_ID BIGINT NOT NULL, San_Pham_ID BIGINT NOT NULL, Delta DECIMAL(18,3) NOT NULL, PRIMARY KEY(Kho_ID,San_Pham_ID));
+        IF @Is_Receipt=1
+        BEGIN
+            IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID) THROW 51105,N'Phiếu nhập không tồn tại.',1;
+            IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID AND Is_Posted=1) THROW 51162,N'Phiếu đã Post.',1;
+            IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID=@Document_ID) THROW 51161,N'Không thể Post phiếu không có chi tiết.',1;
+            INSERT #Delta SELECT h.Kho_ID,d.San_Pham_ID,SUM(CAST(d.SL_Nhap AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID WHERE h.Auto_ID=@Document_ID GROUP BY h.Kho_ID,d.San_Pham_ID;
+            UPDATE dbo.tbl_XNK_Nhap_Kho SET Is_Posted=1,Posted_At=SYSUTCDATETIME(),Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Document_ID;
+        END
+        ELSE
+        BEGIN
+            IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1;
+            IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID AND Is_Posted=1) THROW 51162,N'Phiếu đã Post.',1;
+            IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID=@Document_ID) THROW 51161,N'Không thể Post phiếu không có chi tiết.',1;
+            INSERT #Delta SELECT h.Kho_ID,d.San_Pham_ID,SUM(CAST(-d.SL_Xuat AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID WHERE h.Auto_ID=@Document_ID GROUP BY h.Kho_ID,d.San_Pham_ID;
+            UPDATE dbo.tbl_XNK_Xuat_Kho SET Is_Posted=1,Posted_At=SYSUTCDATETIME(),Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Document_ID;
+        END
+        IF EXISTS(SELECT 1 FROM #Delta d LEFT JOIN dbo.InventoryBalance_Current b WITH (UPDLOCK,HOLDLOCK) ON b.Kho_ID=d.Kho_ID AND b.San_Pham_ID=d.San_Pham_ID WHERE ISNULL(b.CurrentQuantity,0)+d.Delta<0) THROW 51120,N'Không thể Post vì tồn kho không đủ.',1;
+        UPDATE b SET CurrentQuantity=b.CurrentQuantity+d.Delta,UpdatedAt=SYSUTCDATETIME() FROM dbo.InventoryBalance_Current b WITH (UPDLOCK,HOLDLOCK) JOIN #Delta d ON d.Kho_ID=b.Kho_ID AND d.San_Pham_ID=b.San_Pham_ID;
+        INSERT dbo.InventoryBalance_Current(Kho_ID,San_Pham_ID,CurrentQuantity) SELECT d.Kho_ID,d.San_Pham_ID,d.Delta FROM #Delta d WHERE NOT EXISTS(SELECT 1 FROM dbo.InventoryBalance_Current b WITH (UPDLOCK,HOLDLOCK) WHERE b.Kho_ID=d.Kho_ID AND b.San_Pham_ID=d.San_Pham_ID);
+        EXEC dbo.sp_XNK_Validate_All_Balances;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_InventoryBalance_Rebuild
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    BEGIN TRANSACTION;
+    DELETE FROM dbo.InventoryBalance_Current;
+    ;WITH Delta AS
+    (
+        SELECT h.Kho_ID,d.San_Pham_ID,CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Amount FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID WHERE h.Is_Posted=1
+        UNION ALL SELECT h.Kho_ID,d.San_Pham_ID,CAST(-d.SL_Xuat AS DECIMAL(18,3)) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID WHERE h.Is_Posted=1
+    )
+    INSERT dbo.InventoryBalance_Current(Kho_ID,San_Pham_ID,CurrentQuantity) SELECT Kho_ID,San_Pham_ID,SUM(Amount) FROM Delta GROUP BY Kho_ID,San_Pham_ID;
+    COMMIT TRANSACTION;
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_DM_Loai_San_Pham_Save
     @Auto_ID BIGINT OUTPUT, @Ma_LSP NVARCHAR(100), @Ten_LSP NVARCHAR(200), @Ghi_Chu NVARCHAR(1000) = NULL
 AS
@@ -85,6 +247,86 @@ BEGIN
     IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap=@Ma_Dang_Nhap AND Kho_ID=@Kho_ID AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51052,N'User đã được phân quyền kho này.',1;
     IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap,Kho_ID) VALUES(@Ma_Dang_Nhap,@Kho_ID); SET @Auto_ID=SCOPE_IDENTITY(); END
     ELSE UPDATE dbo.tbl_DM_Kho_User SET Ma_Dang_Nhap=@Ma_Dang_Nhap,Kho_ID=@Kho_ID WHERE Auto_ID=@Auto_ID;
+END
+GO
+
+/* Final Draft/Post overrides: this file contains legacy procedure definitions
+   above, so lifecycle definitions must remain last. */
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Validate_All_Balances
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @HasNegative BIT=0;
+    ;WITH Movements AS
+    (
+        SELECT h.Kho_ID,d.San_Pham_ID,h.Ngay_Nhap_Kho AS MovementDate,CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Delta FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID WHERE h.Is_Posted=1
+        UNION ALL
+        SELECT h.Kho_ID,d.San_Pham_ID,h.Ngay_Xuat_Kho,CAST(-d.SL_Xuat AS DECIMAL(18,3)) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID WHERE h.Is_Posted=1
+    ), Daily AS (SELECT Kho_ID,San_Pham_ID,MovementDate,SUM(Delta) AS Delta FROM Movements GROUP BY Kho_ID,San_Pham_ID,MovementDate),
+    Running AS (SELECT SUM(Delta) OVER(PARTITION BY Kho_ID,San_Pham_ID ORDER BY MovementDate ROWS UNBOUNDED PRECEDING) AS Balance FROM Daily)
+    SELECT @HasNegative=CASE WHEN MIN(Balance)<0 THEN 1 ELSE 0 END FROM Running;
+    IF @HasNegative=1 THROW 51120,N'Không thể Post vì tồn kho sẽ âm tại một thời điểm trong lịch sử.',1;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Save_Header
+    @Auto_ID BIGINT OUTPUT, @So_Phieu_Nhap_Kho NVARCHAR(100), @Kho_ID BIGINT, @NCC_ID BIGINT, @Ngay_Nhap_Kho DATE, @Ghi_Chu NVARCHAR(1000)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON; SET @So_Phieu_Nhap_Kho=LTRIM(RTRIM(ISNULL(@So_Phieu_Nhap_Kho,N'')));
+    IF @So_Phieu_Nhap_Kho=N'' THROW 51100,N'Số phiếu nhập không được để trống.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho=@So_Phieu_Nhap_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51101,N'Số phiếu nhập đã tồn tại.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID=@Kho_ID) THROW 51102,N'Kho không hợp lệ.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_NCC WHERE Auto_ID=@NCC_ID) THROW 51103,N'Nhà cung cấp không hợp lệ.',1;
+    IF @Ngay_Nhap_Kho IS NULL THROW 51104,N'Ngày nhập kho không được để trống.',1;
+    IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho,Kho_ID,NCC_ID,Ngay_Nhap_Kho,Is_Posted,Ghi_Chu) VALUES(@So_Phieu_Nhap_Kho,@Kho_ID,@NCC_ID,@Ngay_Nhap_Kho,0,@Ghi_Chu); SET @Auto_ID=SCOPE_IDENTITY(); END
+    ELSE BEGIN IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Auto_ID) THROW 51105,N'Phiếu nhập không tồn tại.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Auto_ID AND Is_Posted=1) THROW 51163,N'Không được sửa phiếu đã Post.',1; UPDATE dbo.tbl_XNK_Nhap_Kho SET So_Phieu_Nhap_Kho=@So_Phieu_Nhap_Kho,Kho_ID=@Kho_ID,NCC_ID=@NCC_ID,Ngay_Nhap_Kho=@Ngay_Nhap_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Auto_ID; END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Save_Header
+    @Auto_ID BIGINT OUTPUT, @So_Phieu_Xuat_Kho NVARCHAR(100), @Kho_ID BIGINT, @Ngay_Xuat_Kho DATE, @Ghi_Chu NVARCHAR(1000)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON; SET @So_Phieu_Xuat_Kho=LTRIM(RTRIM(ISNULL(@So_Phieu_Xuat_Kho,N'')));
+    IF @So_Phieu_Xuat_Kho=N'' THROW 51130,N'Số phiếu xuất không được để trống.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho=@So_Phieu_Xuat_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51131,N'Số phiếu xuất đã tồn tại.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID=@Kho_ID) THROW 51132,N'Kho không hợp lệ.',1;
+    IF @Ngay_Xuat_Kho IS NULL THROW 51133,N'Ngày xuất kho không được để trống.',1;
+    IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho,Kho_ID,Ngay_Xuat_Kho,Is_Posted,Ghi_Chu) VALUES(@So_Phieu_Xuat_Kho,@Kho_ID,@Ngay_Xuat_Kho,0,@Ghi_Chu); SET @Auto_ID=SCOPE_IDENTITY(); END
+    ELSE BEGIN IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Auto_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Auto_ID AND Is_Posted=1) THROW 51163,N'Không được sửa phiếu đã Post.',1; UPDATE dbo.tbl_XNK_Xuat_Kho SET So_Phieu_Xuat_Kho=@So_Phieu_Xuat_Kho,Kho_ID=@Kho_ID,Ngay_Xuat_Kho=@Ngay_Xuat_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Auto_ID; END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Save_Detail
+    @Auto_ID BIGINT OUTPUT, @Nhap_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Nhap DECIMAL(18,3), @Don_Gia_Nhap DECIMAL(18,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Nhap_Kho_ID) THROW 51105,N'Phiếu nhập không tồn tại.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID=@Nhap_Kho_ID AND Is_Posted=1) THROW 51163,N'Không được sửa chi tiết của phiếu đã Post.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@San_Pham_ID) THROW 51106,N'Sản phẩm không hợp lệ.',1;
+    IF @SL_Nhap<=0 THROW 51107,N'Số lượng nhập phải lớn hơn 0.',1; IF @Don_Gia_Nhap<=0 THROW 51108,N'Đơn giá nhập phải lớn hơn 0.',1;
+    IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID,San_Pham_ID,SL_Nhap,Don_Gia_Nhap) VALUES(@Nhap_Kho_ID,@San_Pham_ID,@SL_Nhap,@Don_Gia_Nhap); SET @Auto_ID=SCOPE_IDENTITY(); END
+    ELSE BEGIN IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID=@Auto_ID AND (Nhap_Kho_ID<>@Nhap_Kho_ID OR San_Pham_ID<>@San_Pham_ID)) THROW 51110,N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.',1; UPDATE dbo.tbl_XNK_Nhap_Kho_Raw_Data SET SL_Nhap=@SL_Nhap,Don_Gia_Nhap=@Don_Gia_Nhap WHERE Auto_ID=@Auto_ID; END
+    SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Save_Detail
+    @Auto_ID BIGINT OUTPUT, @Xuat_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Xuat DECIMAL(18,3), @Don_Gia_Xuat DECIMAL(18,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Xuat_Kho_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Xuat_Kho_ID AND Is_Posted=1) THROW 51163,N'Không được sửa chi tiết của phiếu đã Post.',1;
+    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@San_Pham_ID) THROW 51135,N'Sản phẩm không hợp lệ.',1;
+    IF @SL_Xuat<=0 THROW 51136,N'Số lượng xuất phải lớn hơn 0.',1; IF @Don_Gia_Xuat<=0 THROW 51137,N'Đơn giá xuất phải lớn hơn 0.',1;
+    IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID,San_Pham_ID,SL_Xuat,Don_Gia_Xuat) VALUES(@Xuat_Kho_ID,@San_Pham_ID,@SL_Xuat,@Don_Gia_Xuat); SET @Auto_ID=SCOPE_IDENTITY(); END
+    ELSE BEGIN IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID=@Auto_ID AND (Xuat_Kho_ID<>@Xuat_Kho_ID OR San_Pham_ID<>@San_Pham_ID)) THROW 51138,N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.',1; UPDATE dbo.tbl_XNK_Xuat_Kho_Raw_Data SET SL_Xuat=@SL_Xuat,Don_Gia_Xuat=@Don_Gia_Xuat WHERE Auto_ID=@Auto_ID; END
+    SELECT @Auto_ID AS Auto_ID;
 END
 GO
 

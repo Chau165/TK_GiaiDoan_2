@@ -14,6 +14,8 @@ public class CWarehouseDocument
     public long NCC_ID { get; set; }
     public string Ten_NCC { get; set; } = "";
     public DateTime Ngay_Chung_Tu { get; set; } = DateTime.Today;
+    public bool Is_Posted { get; set; }
+    public DateTime? Posted_At { get; set; }
     public string Ghi_Chu { get; set; } = "";
     public DateTime? Created { get; set; }
     public string Created_By { get; set; } = "";

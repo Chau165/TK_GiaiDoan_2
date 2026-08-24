@@ -17,6 +17,7 @@ public sealed class CWarehouse_Controller
     public Task<List<CWarehouseDocument>> List_Documents_Async(bool p_bReceipt) => m_objDocumentController.List_Documents_Async(p_bReceipt);
     public Task Save_Document_Async(CWarehouseDocument p_objData, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Save_Document_Async(p_objData, p_strUser, p_strFunction);
     public Task Delete_Document_Async(bool p_bReceipt, long p_iAuto_ID, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Delete_Document_Async(p_bReceipt, p_iAuto_ID, p_strUser, p_strFunction);
+    public Task Post_Document_Async(bool p_bReceipt, long p_iAuto_ID, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Post_Document_Async(p_bReceipt, p_iAuto_ID, p_strUser, p_strFunction);
     public Task<List<CWarehouseDocumentDetail>> List_Document_Details_Async(bool p_bReceipt, long p_iDocument_ID) => m_objDocumentController.List_Document_Details_Async(p_bReceipt, p_iDocument_ID);
     public Task Save_Document_Detail_Async(bool p_bReceipt, CWarehouseDocumentDetail p_objData, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Save_Document_Detail_Async(p_bReceipt, p_objData, p_strUser, p_strFunction);
     public Task Delete_Document_Detail_Async(bool p_bReceipt, long p_iAuto_ID, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Delete_Document_Detail_Async(p_bReceipt, p_iAuto_ID, p_strUser, p_strFunction);

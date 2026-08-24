@@ -49,6 +49,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        await ExecuteAsync("DELETE dbo.InventoryBalance_Current WHERE San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@ProductId", m_iProductId), BigInt("@SecondProductId", m_iSecondProductId));
         await ExecuteAsync("DELETE dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
         await ExecuteAsync("DELETE dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
         await ExecuteAsync("DELETE dbo.tbl_DM_San_Pham WHERE Auto_ID IN (@ProductId, @SecondProductId);", BigInt("@ProductId", m_iProductId), BigInt("@SecondProductId", m_iSecondProductId));
@@ -148,13 +149,15 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         var v_objIssue = Issue("I2", m_iWarehouseBId, new DateTime(2026, 2, 2));
         await v_objController.Save_Document_Async(v_objIssue);
         var v_objNegativeIssue = Detail(v_objIssue.Auto_ID, m_iProductId, 1m, 150m);
-        var v_objNegativeIssueError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(false, v_objNegativeIssue));
+        await v_objController.Save_Document_Detail_Async(false, v_objNegativeIssue);
+        var v_objNegativeIssueError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Post_Document_Async(false, v_objIssue.Auto_ID));
         Assert.Equal(51120, v_objNegativeIssueError.Number);
-        Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Id;", BigInt("@Id", v_objIssue.Auto_ID)));
+        Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Id;", BigInt("@Id", v_objIssue.Auto_ID)));
+        Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Id AND Is_Posted = 1;", BigInt("@Id", v_objIssue.Auto_ID)));
     }
 
     [Fact]
-    public async Task Delete_validation_failure_does_not_rollback_a_caller_owned_transaction()
+    public async Task Delete_draft_does_not_commit_a_caller_owned_transaction()
     {
         var v_objController = new CWarehouseDocument_Controller();
         var v_objReceipt = Receipt("R3", m_iWarehouseAId, new DateTime(2026, 3, 1));
@@ -174,12 +177,12 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         };
         v_objDelete.Parameters.Add(BigInt("@Auto_ID", v_objReceipt.Auto_ID));
 
-        var v_objError = await Assert.ThrowsAsync<SqlException>(async () => await v_objDelete.ExecuteNonQueryAsync());
-        Assert.Equal(51120, v_objError.Number);
+        await v_objDelete.ExecuteNonQueryAsync();
 
         using var v_objTransactionCount = new SqlCommand("SELECT @@TRANCOUNT;", v_objConnection, v_objTransaction);
         Assert.Equal(1L, Convert.ToInt64(await v_objTransactionCount.ExecuteScalarAsync()));
         v_objTransaction.Rollback();
+        Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Id;", BigInt("@Id", v_objReceipt.Auto_ID)));
     }
 
     [Fact]

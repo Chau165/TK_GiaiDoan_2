@@ -55,6 +55,13 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
         return Task.CompletedTask;
     }
 
+    public Task Post_Document_Async(bool p_bIs_Receipt, long p_iAuto_ID,
+        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
+    {
+        Execute_Procedure("sp_XNK_Document_Post", Bit("@Is_Receipt", p_bIs_Receipt), BigInt("@Document_ID", p_iAuto_ID));
+        return Task.CompletedTask;
+    }
+
     public Task<List<CWarehouseDocumentDetail>> List_Document_Details_Async(bool p_bIs_Receipt, long p_iDocument_ID)
     {
         return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("sp_XNK_Document_Detail_List", p_bIs_Receipt, p_iDocument_ID));
@@ -99,6 +106,8 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     }
 
     private static SqlParameter BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt) { Value = p_iValue };
+
+    private static SqlParameter Bit(string p_strName, bool p_bValue) => new(p_strName, SqlDbType.Bit) { Value = p_bValue };
 
     private static SqlParameter InputOutput_BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt)
     {
