@@ -13,7 +13,7 @@
                     }
                     @if (m_strMaster_Type == "KhoUser")
                     {
-                        <div class="col-md-4"><label class="form-label">Mã đăng nhập</label><InputText class="form-control" @bind-Value="m_objMaster.Login_Name" /></div>
+                        <div class="col-md-4"><label class="form-label">Mã đăng nhập / user</label><TelerikDropDownList Data="@m_arrUser" @bind-Value="m_objMaster.Login_Name" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn user --" /></div>
                         <div class="col-md-4"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrWarehouse" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
                     }
                     else
@@ -78,6 +78,7 @@
     [Parameter] public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
     [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
     [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
     [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }

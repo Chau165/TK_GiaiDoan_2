@@ -6,18 +6,18 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 
 public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
 {
-    public Task<List<CWarehouseDocument>> List_Documents_Async(bool p_bIs_Receipt)
+    public Task<List<CWarehouseDocument>> List_Documents_Async(bool p_bIs_Receipt, string p_strCurrent_Login = "")
     {
-        return Task.FromResult(List_From_Procedure<CWarehouseDocument>("sp_XNK_Document_List", p_bIs_Receipt));
+        return Task.FromResult(List_From_Procedure<CWarehouseDocument>("sp_XNK_Document_List", p_bIs_Receipt, p_strCurrent_Login));
     }
 
-    public Task<CWarehousePagedResult<CWarehouseDocument>> List_Documents_Page_Async(bool p_bIs_Receipt, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "")
+    public Task<CWarehousePagedResult<CWarehouseDocument>> List_Documents_Page_Async(bool p_bIs_Receipt, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "", string p_strCurrent_Login = "")
     {
-        return Task.FromResult(Page_From_Procedure<CWarehouseDocument>("sp_XNK_Document_Page", p_bIs_Receipt, p_iPage_Number, p_iPage_Size, p_strSearch_Text));
+        return Task.FromResult(Page_From_Procedure<CWarehouseDocument>("sp_XNK_Document_Page", p_bIs_Receipt, p_iPage_Number, p_iPage_Size, p_strSearch_Text, p_strCurrent_Login));
     }
 
     public Task Save_Document_Async(CWarehouseDocument p_objData,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
+        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
         p_objData.Last_Updated_By = p_strLast_Updated_By;
         p_objData.Last_Updated_By_Function = p_strLast_Updated_By_Function;
@@ -32,7 +32,8 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@Kho_ID", p_objData.Kho_ID),
                 BigInt("@NCC_ID", p_objData.NCC_ID),
                 Date("@Ngay_Nhap_Kho", p_objData.Ngay_Chung_Tu),
-                NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000));
+                NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         }
         else
         {
@@ -41,34 +42,36 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 NVarChar("@So_Phieu_Xuat_Kho", p_objData.So_Phieu, 100),
                 BigInt("@Kho_ID", p_objData.Kho_ID),
                 Date("@Ngay_Xuat_Kho", p_objData.Ngay_Chung_Tu),
-                NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000));
+                NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         }
 
         return Task.CompletedTask;
     }
 
     public Task Delete_Document_Async(bool p_bIs_Receipt, long p_iAuto_ID,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
+        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
         Execute_Procedure(p_bIs_Receipt ? "sp_XNK_Nhap_Kho_Delete_Header" : "sp_XNK_Xuat_Kho_Delete_Header",
-            BigInt("@Auto_ID", p_iAuto_ID));
+            BigInt("@Auto_ID", p_iAuto_ID),
+            NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         return Task.CompletedTask;
     }
 
     public Task Post_Document_Async(bool p_bIs_Receipt, long p_iAuto_ID,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
+        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
-        Execute_Procedure("sp_XNK_Document_Post", Bit("@Is_Receipt", p_bIs_Receipt), BigInt("@Document_ID", p_iAuto_ID));
+        Execute_Procedure("sp_XNK_Document_Post", Bit("@Is_Receipt", p_bIs_Receipt), BigInt("@Document_ID", p_iAuto_ID), NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         return Task.CompletedTask;
     }
 
-    public Task<List<CWarehouseDocumentDetail>> List_Document_Details_Async(bool p_bIs_Receipt, long p_iDocument_ID)
+    public Task<List<CWarehouseDocumentDetail>> List_Document_Details_Async(bool p_bIs_Receipt, long p_iDocument_ID, string p_strCurrent_Login = "")
     {
-        return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("sp_XNK_Document_Detail_List", p_bIs_Receipt, p_iDocument_ID));
+        return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("sp_XNK_Document_Detail_List", p_bIs_Receipt, p_iDocument_ID, p_strCurrent_Login));
     }
 
     public Task Save_Document_Detail_Async(bool p_bIs_Receipt, CWarehouseDocumentDetail p_objData,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
+        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
         p_objData.Last_Updated_By = p_strLast_Updated_By;
         p_objData.Last_Updated_By_Function = p_strLast_Updated_By_Function;
@@ -82,7 +85,8 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@Nhap_Kho_ID", p_objData.Document_ID),
                 BigInt("@San_Pham_ID", p_objData.San_Pham_ID),
                 Decimal("@SL_Nhap", p_objData.So_Luong, 18, 3),
-                Decimal("@Don_Gia_Nhap", p_objData.Don_Gia, 18, 2));
+                Decimal("@Don_Gia_Nhap", p_objData.Don_Gia, 18, 2),
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         }
         else
         {
@@ -91,17 +95,19 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@Xuat_Kho_ID", p_objData.Document_ID),
                 BigInt("@San_Pham_ID", p_objData.San_Pham_ID),
                 Decimal("@SL_Xuat", p_objData.So_Luong, 18, 3),
-                Decimal("@Don_Gia_Xuat", p_objData.Don_Gia, 18, 2));
+                Decimal("@Don_Gia_Xuat", p_objData.Don_Gia, 18, 2),
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         }
 
         return Task.CompletedTask;
     }
 
     public Task Delete_Document_Detail_Async(bool p_bIs_Receipt, long p_iAuto_ID,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
+        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
         Execute_Procedure(p_bIs_Receipt ? "sp_XNK_Nhap_Kho_Delete_Detail" : "sp_XNK_Xuat_Kho_Delete_Detail",
-            BigInt("@Auto_ID", p_iAuto_ID));
+            BigInt("@Auto_ID", p_iAuto_ID),
+            NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         return Task.CompletedTask;
     }
 

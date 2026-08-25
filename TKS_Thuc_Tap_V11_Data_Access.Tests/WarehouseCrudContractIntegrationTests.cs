@@ -19,10 +19,16 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     private long m_iSupplierId;
     private long m_iWarehouseAId;
     private long m_iWarehouseBId;
+    private string m_strLogin = "";
+    private long m_iUserId;
 
     public async Task InitializeAsync()
     {
         CConfig.TKS_Thuc_Tap_V11_Conn_String = ConnectionString;
+        m_strLogin = $"{m_strTag}-login";
+        m_iUserId = await InsertIdAsync(
+            "DECLARE @UserId BIGINT = CONVERT(BIGINT, ABS(CHECKSUM(NEWID()))); INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, Trang_Thai_ID, deleted) OUTPUT INSERTED.Auto_ID VALUES (@UserId, @Login, @Name, 1, 0);",
+            NVarChar("@Login", m_strLogin, 100), NVarChar("@Name", $"{m_strTag}-User", 200));
 
         m_iUnitId = await InsertIdAsync(
             "INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
@@ -45,6 +51,12 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         m_iWarehouseBId = await InsertIdAsync(
             "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
             NVarChar("@Name", $"{m_strTag}-Warehouse-B", 255));
+        await ExecuteAsync(
+            "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
+            NVarChar("@Login", m_strLogin, 100), BigInt("@WarehouseId", m_iWarehouseAId));
+        await ExecuteAsync(
+            "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
+            NVarChar("@Login", m_strLogin, 100), BigInt("@WarehouseId", m_iWarehouseBId));
     }
 
     public async Task DisposeAsync()
@@ -52,11 +64,13 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         await ExecuteAsync("DELETE dbo.InventoryBalance_Current WHERE San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@ProductId", m_iProductId), BigInt("@SecondProductId", m_iSecondProductId));
         await ExecuteAsync("DELETE dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
         await ExecuteAsync("DELETE dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
+        await ExecuteAsync("DELETE dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap = @Login;", NVarChar("@Login", m_strLogin, 100));
         await ExecuteAsync("DELETE dbo.tbl_DM_San_Pham WHERE Auto_ID IN (@ProductId, @SecondProductId);", BigInt("@ProductId", m_iProductId), BigInt("@SecondProductId", m_iSecondProductId));
         await ExecuteAsync("DELETE dbo.tbl_DM_NCC WHERE Auto_ID = @SupplierId;", BigInt("@SupplierId", m_iSupplierId));
         await ExecuteAsync("DELETE dbo.tbl_DM_Kho WHERE Auto_ID IN (@WarehouseAId, @WarehouseBId);", BigInt("@WarehouseAId", m_iWarehouseAId), BigInt("@WarehouseBId", m_iWarehouseBId));
         await ExecuteAsync("DELETE dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID = @CategoryId;", BigInt("@CategoryId", m_iCategoryId));
         await ExecuteAsync("DELETE dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID = @UnitId;", BigInt("@UnitId", m_iUnitId));
+        await ExecuteAsync("DELETE dbo.tbl_Sys_Thanh_Vien WHERE Auto_ID = @UserId;", BigInt("@UserId", m_iUserId));
     }
 
     [Fact]
@@ -65,68 +79,68 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         var v_objController = new CWarehouseDocument_Controller();
         var v_objReceipt = Receipt("R1", m_iWarehouseAId, new DateTime(2026, 1, 1));
 
-        await v_objController.Save_Document_Async(v_objReceipt, "tdd-user", "tdd-function");
+        await v_objController.Save_Document_Async(v_objReceipt, "tdd-user", "tdd-function", m_strLogin);
         Assert.True(v_objReceipt.Auto_ID > 0);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Id;", BigInt("@Id", v_objReceipt.Auto_ID)));
 
         v_objReceipt.Kho_ID = m_iWarehouseBId;
         v_objReceipt.Ngay_Chung_Tu = new DateTime(2026, 1, 2);
         v_objReceipt.Ghi_Chu = "updated receipt header";
-        await v_objController.Save_Document_Async(v_objReceipt, "tdd-user", "tdd-function");
+        await v_objController.Save_Document_Async(v_objReceipt, "tdd-user", "tdd-function", m_strLogin);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Id AND Kho_ID = @WarehouseId AND Ngay_Nhap_Kho = @Date;", BigInt("@Id", v_objReceipt.Auto_ID), BigInt("@WarehouseId", m_iWarehouseBId), Date("@Date", v_objReceipt.Ngay_Chung_Tu)));
 
         var v_objReceiptDetail = Detail(v_objReceipt.Auto_ID, m_iProductId, 30m, 100m);
-        await v_objController.Save_Document_Detail_Async(true, v_objReceiptDetail, "tdd-user", "tdd-function");
+        await v_objController.Save_Document_Detail_Async(true, v_objReceiptDetail, "tdd-user", "tdd-function", m_strLogin);
         Assert.True(v_objReceiptDetail.Auto_ID > 0);
 
         v_objReceiptDetail.So_Luong = 35m;
         v_objReceiptDetail.Don_Gia = 120m;
-        await v_objController.Save_Document_Detail_Async(true, v_objReceiptDetail, "tdd-user", "tdd-function");
+        await v_objController.Save_Document_Detail_Async(true, v_objReceiptDetail, "tdd-user", "tdd-function", m_strLogin);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Id AND SL_Nhap = 35 AND Don_Gia_Nhap = 120;", BigInt("@Id", v_objReceiptDetail.Auto_ID)));
 
         var v_objProductChange = Detail(v_objReceipt.Auto_ID, m_iSecondProductId, 35m, 120m);
         v_objProductChange.Auto_ID = v_objReceiptDetail.Auto_ID;
-        var v_objProductChangeError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(true, v_objProductChange));
+        var v_objProductChangeError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(true, v_objProductChange, "", "", m_strLogin));
         Assert.Equal(51110, v_objProductChangeError.Number);
         Assert.Equal(m_iProductId, await ScalarLongAsync("SELECT San_Pham_ID FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Id;", BigInt("@Id", v_objReceiptDetail.Auto_ID)));
 
         var v_objSecondReceiptDetail = Detail(v_objReceipt.Auto_ID, m_iSecondProductId, 15m, 80m);
-        await v_objController.Save_Document_Detail_Async(true, v_objSecondReceiptDetail);
-        await v_objController.Delete_Document_Detail_Async(true, v_objSecondReceiptDetail.Auto_ID, "tdd-user", "tdd-function");
+        await v_objController.Save_Document_Detail_Async(true, v_objSecondReceiptDetail, "", "", m_strLogin);
+        await v_objController.Delete_Document_Detail_Async(true, v_objSecondReceiptDetail.Auto_ID, "tdd-user", "tdd-function", m_strLogin);
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Id;", BigInt("@Id", v_objSecondReceiptDetail.Auto_ID)));
         v_objSecondReceiptDetail.Auto_ID = 0;
-        await v_objController.Save_Document_Detail_Async(true, v_objSecondReceiptDetail);
+        await v_objController.Save_Document_Detail_Async(true, v_objSecondReceiptDetail, "", "", m_strLogin);
 
         var v_objIssueStockReceipt = Receipt("R-ISSUE", m_iWarehouseAId, new DateTime(2026, 1, 1));
-        await v_objController.Save_Document_Async(v_objIssueStockReceipt);
-        await v_objController.Save_Document_Detail_Async(true, Detail(v_objIssueStockReceipt.Auto_ID, m_iProductId, 20m, 100m));
+        await v_objController.Save_Document_Async(v_objIssueStockReceipt, "", "", m_strLogin);
+        await v_objController.Save_Document_Detail_Async(true, Detail(v_objIssueStockReceipt.Auto_ID, m_iProductId, 20m, 100m), "", "", m_strLogin);
 
         var v_objIssue = Issue("I1", m_iWarehouseAId, new DateTime(2026, 1, 3));
-        await v_objController.Save_Document_Async(v_objIssue);
+        await v_objController.Save_Document_Async(v_objIssue, "", "", m_strLogin);
         Assert.True(v_objIssue.Auto_ID > 0);
 
         var v_objIssueDetail = Detail(v_objIssue.Auto_ID, m_iProductId, 5m, 150m);
-        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail);
+        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail, "", "", m_strLogin);
         Assert.True(v_objIssueDetail.Auto_ID > 0);
 
         v_objIssue.Kho_ID = m_iWarehouseBId;
         v_objIssue.Ngay_Chung_Tu = new DateTime(2026, 1, 4);
-        await v_objController.Save_Document_Async(v_objIssue);
+        await v_objController.Save_Document_Async(v_objIssue, "", "", m_strLogin);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Id AND Kho_ID = @WarehouseId AND Ngay_Xuat_Kho = @Date;", BigInt("@Id", v_objIssue.Auto_ID), BigInt("@WarehouseId", m_iWarehouseBId), Date("@Date", v_objIssue.Ngay_Chung_Tu)));
 
         v_objIssueDetail.So_Luong = 6m;
         v_objIssueDetail.Don_Gia = 160m;
-        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail);
+        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail, "", "", m_strLogin);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID = @Id AND SL_Xuat = 6 AND Don_Gia_Xuat = 160;", BigInt("@Id", v_objIssueDetail.Auto_ID)));
-        await v_objController.Delete_Document_Detail_Async(false, v_objIssueDetail.Auto_ID, "tdd-user", "tdd-function");
+        await v_objController.Delete_Document_Detail_Async(false, v_objIssueDetail.Auto_ID, "tdd-user", "tdd-function", m_strLogin);
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID = @Id;", BigInt("@Id", v_objIssueDetail.Auto_ID)));
         v_objIssueDetail.Auto_ID = 0;
-        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail);
+        await v_objController.Save_Document_Detail_Async(false, v_objIssueDetail, "", "", m_strLogin);
 
-        await v_objController.Delete_Document_Async(false, v_objIssue.Auto_ID, "tdd-user", "tdd-function");
+        await v_objController.Delete_Document_Async(false, v_objIssue.Auto_ID, "tdd-user", "tdd-function", m_strLogin);
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Id;", BigInt("@Id", v_objIssue.Auto_ID)));
 
-        await v_objController.Delete_Document_Async(true, v_objReceipt.Auto_ID, "tdd-user", "tdd-function");
+        await v_objController.Delete_Document_Async(true, v_objReceipt.Auto_ID, "tdd-user", "tdd-function", m_strLogin);
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @Id;", BigInt("@Id", v_objReceipt.Auto_ID)));
     }
 
@@ -135,22 +149,22 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     {
         var v_objController = new CWarehouseDocument_Controller();
         var v_objReceipt = Receipt("R2", m_iWarehouseAId, new DateTime(2026, 2, 1));
-        await v_objController.Save_Document_Async(v_objReceipt);
+        await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
 
         var v_objZeroQuantity = Detail(v_objReceipt.Auto_ID, m_iProductId, 0m, 100m);
-        var v_objZeroQuantityError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(true, v_objZeroQuantity));
+        var v_objZeroQuantityError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(true, v_objZeroQuantity, "", "", m_strLogin));
         Assert.Equal(51107, v_objZeroQuantityError.Number);
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @Id;", BigInt("@Id", v_objReceipt.Auto_ID)));
 
         var v_objMissingHeader = Detail(long.MaxValue, m_iProductId, 1m, 100m);
-        var v_objMissingHeaderError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(true, v_objMissingHeader));
+        var v_objMissingHeaderError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Save_Document_Detail_Async(true, v_objMissingHeader, "", "", m_strLogin));
         Assert.Equal(51105, v_objMissingHeaderError.Number);
 
         var v_objIssue = Issue("I2", m_iWarehouseBId, new DateTime(2026, 2, 2));
-        await v_objController.Save_Document_Async(v_objIssue);
+        await v_objController.Save_Document_Async(v_objIssue, "", "", m_strLogin);
         var v_objNegativeIssue = Detail(v_objIssue.Auto_ID, m_iProductId, 1m, 150m);
-        await v_objController.Save_Document_Detail_Async(false, v_objNegativeIssue);
-        var v_objNegativeIssueError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Post_Document_Async(false, v_objIssue.Auto_ID));
+        await v_objController.Save_Document_Detail_Async(false, v_objNegativeIssue, "", "", m_strLogin);
+        var v_objNegativeIssueError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Post_Document_Async(false, v_objIssue.Auto_ID, "", "", m_strLogin));
         Assert.Equal(51120, v_objNegativeIssueError.Number);
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Id;", BigInt("@Id", v_objIssue.Auto_ID)));
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Id AND Is_Posted = 1;", BigInt("@Id", v_objIssue.Auto_ID)));
@@ -161,12 +175,12 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     {
         var v_objController = new CWarehouseDocument_Controller();
         var v_objReceipt = Receipt("R3", m_iWarehouseAId, new DateTime(2026, 3, 1));
-        await v_objController.Save_Document_Async(v_objReceipt);
-        await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 5m, 100m));
+        await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
+        await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 5m, 100m), "", "", m_strLogin);
 
         var v_objIssue = Issue("I3", m_iWarehouseAId, new DateTime(2026, 3, 2));
-        await v_objController.Save_Document_Async(v_objIssue);
-        await v_objController.Save_Document_Detail_Async(false, Detail(v_objIssue.Auto_ID, m_iProductId, 5m, 150m));
+        await v_objController.Save_Document_Async(v_objIssue, "", "", m_strLogin);
+        await v_objController.Save_Document_Detail_Async(false, Detail(v_objIssue.Auto_ID, m_iProductId, 5m, 150m), "", "", m_strLogin);
 
         using var v_objConnection = new SqlConnection(ConnectionString);
         await v_objConnection.OpenAsync();
@@ -176,6 +190,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
             CommandType = CommandType.StoredProcedure
         };
         v_objDelete.Parameters.Add(BigInt("@Auto_ID", v_objReceipt.Auto_ID));
+        v_objDelete.Parameters.Add(NVarChar("@Ma_Dang_Nhap", m_strLogin, 100));
 
         await v_objDelete.ExecuteNonQueryAsync();
 
@@ -190,21 +205,21 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     {
         var v_objController = new CWarehouseDocument_Controller();
         var v_objReceipt = Receipt("POST-R", m_iWarehouseAId, new DateTime(2026, 4, 1));
-        await v_objController.Save_Document_Async(v_objReceipt);
-        await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 10m, 100m));
+        await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
+        await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 10m, 100m), "", "", m_strLogin);
 
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));
 
-        await v_objController.Post_Document_Async(true, v_objReceipt.Auto_ID, "tdd-user", "tdd-function");
+        await v_objController.Post_Document_Async(true, v_objReceipt.Auto_ID, "tdd-user", "tdd-function", m_strLogin);
 
         Assert.Equal(1L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Id AND Is_Posted = 1;", BigInt("@Id", v_objReceipt.Auto_ID)));
         Assert.Equal(10L, await ScalarLongAsync("SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));
 
         var v_objIssue = Issue("POST-I", m_iWarehouseAId, new DateTime(2026, 4, 2));
-        await v_objController.Save_Document_Async(v_objIssue);
-        await v_objController.Save_Document_Detail_Async(false, Detail(v_objIssue.Auto_ID, m_iProductId, 11m, 150m));
+        await v_objController.Save_Document_Async(v_objIssue, "", "", m_strLogin);
+        await v_objController.Save_Document_Detail_Async(false, Detail(v_objIssue.Auto_ID, m_iProductId, 11m, 150m), "", "", m_strLogin);
 
-        var v_objPostError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Post_Document_Async(false, v_objIssue.Auto_ID, "tdd-user", "tdd-function"));
+        var v_objPostError = await Assert.ThrowsAsync<SqlException>(async () => await v_objController.Post_Document_Async(false, v_objIssue.Auto_ID, "tdd-user", "tdd-function", m_strLogin));
         Assert.Equal(51120, v_objPostError.Number);
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Id AND Is_Posted = 1;", BigInt("@Id", v_objIssue.Auto_ID)));
         Assert.Equal(10L, await ScalarLongAsync("SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));

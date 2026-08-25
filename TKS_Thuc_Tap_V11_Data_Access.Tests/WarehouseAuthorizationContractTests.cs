@@ -23,7 +23,7 @@ public sealed class WarehouseAuthorizationContractTests
         Assert.Contains("sp_DM_Kho_User_Ensure_Access", source);
         Assert.Contains("@Ma_Dang_Nhap NVARCHAR(100)", source);
         Assert.Contains("sp_DM_Kho_User_List_Allowed", source);
-        Assert.Contains("ku.Ma_Dang_Nhap=@Ma_Dang_Nhap", source);
+        Assert.Contains("ku.Ma_Dang_Nhap = @Ma_Dang_Nhap", source);
     }
 
     [Fact]

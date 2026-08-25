@@ -8,7 +8,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick="Cancel_Async"></button>
             </div>
             <div class="modal-body">
-                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Master" m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrWarehouse" OnSave_Master="OnSave_Master" OnCancel="Cancel_Async" />
+                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Master" m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrWarehouse" m_arrUser="@m_arrUser" OnSave_Master="OnSave_Master" OnCancel="Cancel_Async" />
             </div>
         </div>
     </div>
@@ -20,6 +20,7 @@
     [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrCategory { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
     [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
     private Task Cancel_Async()
     {
