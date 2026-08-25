@@ -38,6 +38,15 @@ public sealed class WarehouseAuthorizationContractTests
         Assert.Contains("Họ tên", list);
     }
 
+    [Fact]
+    public void Warehouse_user_grid_hides_filter_buttons_after_switching_to_the_assignment_tab()
+    {
+        var list = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("ShowFilterCellButtons=\"false\"", list);
+        Assert.Contains("Format_Grid(m_grdMaster);", list);
+    }
+
     private static string FindRepositoryPath(params string[] parts)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
