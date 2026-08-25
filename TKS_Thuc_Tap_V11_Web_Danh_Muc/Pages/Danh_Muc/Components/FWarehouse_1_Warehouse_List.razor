@@ -55,7 +55,7 @@
                     </GridColumn>
                     @if (m_strMaster_Type == "KhoUser")
                     {
-                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" /><GridColumn Field="Name" Title="Họ tên" Width="240px" /><GridColumn Field="Ghi_Chu" Title="Tên kho" />
+                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" Filterable="false" ShowFilterCellButtons="false" /><GridColumn Field="Name" Title="Họ tên" Width="240px" Filterable="false" ShowFilterCellButtons="false" /><GridColumn Field="Ghi_Chu" Title="Tên kho" Filterable="false" ShowFilterCellButtons="false" />
                     }
                     else if (CCache_Grid_UI_Global.List_Data_By_Code("2010", "grdMaster").Count > 0)
                     {
@@ -140,6 +140,7 @@
     private bool Is_Receipt => m_strSection == "Receipt";
     private TelerikGrid<CWarehouseMaster> m_grdMaster = new();
     private TelerikGrid<CWarehouseMaster> m_objFormattedMasterGrid = new();
+    private string m_strFormattedMaster_Type = "";
     private TelerikGrid<CWarehouseDocument> m_grdDocument = new();
     private TelerikGrid<CWarehouseDetailReport> m_grdReportDetail = new();
     private TelerikGrid<CWarehouseInventoryReport> m_grdInventory = new();
@@ -160,9 +161,10 @@
 
     protected override Task After_Render_Async(bool firstRender)
     {
-        if (m_strSection == "Master" && !ReferenceEquals(m_objFormattedMasterGrid, m_grdMaster))
+        if (m_strSection == "Master" && (!ReferenceEquals(m_objFormattedMasterGrid, m_grdMaster) || m_strFormattedMaster_Type != m_strMaster_Type))
         {
             m_objFormattedMasterGrid = m_grdMaster;
+            m_strFormattedMaster_Type = m_strMaster_Type;
             Format_Grid(m_grdMaster);
         }
 
