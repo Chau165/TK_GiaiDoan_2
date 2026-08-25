@@ -3016,8 +3016,43 @@ BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1; IF @Page_Size < 1 SET @Page_Size = 10;
-    SELECT COUNT(*) AS Total_Count FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID);
-    SELECT h.Ngay_Nhap_Kho AS Ngay, h.So_Phieu_Nhap_Kho AS So_Phieu, n.Ten_NCC AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Nhap AS So_Luong, d.Don_Gia_Nhap AS Don_Gia, CAST(d.SL_Nhap * d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = h.NCC_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) ORDER BY h.Ngay_Nhap_Kho, h.So_Phieu_Nhap_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+
+    CREATE TABLE #AuthorizedWarehouse
+    (
+        Kho_ID BIGINT NOT NULL PRIMARY KEY
+    );
+
+    INSERT #AuthorizedWarehouse(Kho_ID)
+    SELECT DISTINCT Kho_ID
+    FROM dbo.tbl_DM_Kho_User
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+
+    SELECT d.Auto_ID AS Detail_ID,
+           h.Auto_ID AS Document_ID,
+           h.Kho_ID,
+           d.San_Pham_ID,
+           h.Ngay_Nhap_Kho AS Ngay,
+           h.So_Phieu_Nhap_Kho AS So_Phieu,
+           h.NCC_ID,
+           d.SL_Nhap AS So_Luong,
+           d.Don_Gia_Nhap AS Don_Gia
+    INTO #DetailScope
+    FROM dbo.tbl_XNK_Nhap_Kho h
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+    WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay
+      AND h.Is_Posted = 1;
+
+    SELECT COUNT(*) AS Total_Count FROM #DetailScope;
+
+    SELECT ds.Ngay, ds.So_Phieu, n.Ten_NCC AS Nha_Cung_Cap,
+           p.Ma_San_Pham, p.Ten_San_Pham, ds.So_Luong, ds.Don_Gia,
+           CAST(ds.So_Luong * ds.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
+    FROM #DetailScope ds
+    JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = ds.NCC_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ds.San_Pham_ID
+    ORDER BY ds.Ngay, ds.So_Phieu
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
 END
 GO
 
@@ -3028,8 +3063,41 @@ BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1; IF @Page_Size < 1 SET @Page_Size = 10;
-    SELECT COUNT(*) AS Total_Count FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID);
-    SELECT h.Ngay_Xuat_Kho AS Ngay, h.So_Phieu_Xuat_Kho AS So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Xuat AS So_Luong, d.Don_Gia_Xuat AS Don_Gia, CAST(d.SL_Xuat * d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) ORDER BY h.Ngay_Xuat_Kho, h.So_Phieu_Xuat_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+
+    CREATE TABLE #AuthorizedWarehouse
+    (
+        Kho_ID BIGINT NOT NULL PRIMARY KEY
+    );
+
+    INSERT #AuthorizedWarehouse(Kho_ID)
+    SELECT DISTINCT Kho_ID
+    FROM dbo.tbl_DM_Kho_User
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+
+    SELECT d.Auto_ID AS Detail_ID,
+           h.Auto_ID AS Document_ID,
+           h.Kho_ID,
+           d.San_Pham_ID,
+           h.Ngay_Xuat_Kho AS Ngay,
+           h.So_Phieu_Xuat_Kho AS So_Phieu,
+           d.SL_Xuat AS So_Luong,
+           d.Don_Gia_Xuat AS Don_Gia
+    INTO #DetailScope
+    FROM dbo.tbl_XNK_Xuat_Kho h
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+    WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay
+      AND h.Is_Posted = 1;
+
+    SELECT COUNT(*) AS Total_Count FROM #DetailScope;
+
+    SELECT ds.Ngay, ds.So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,
+           p.Ma_San_Pham, p.Ten_San_Pham, ds.So_Luong, ds.Don_Gia,
+           CAST(ds.So_Luong * ds.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
+    FROM #DetailScope ds
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ds.San_Pham_ID
+    ORDER BY ds.Ngay, ds.So_Phieu
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
 END
 GO
 
@@ -3988,38 +4056,65 @@ BEGIN
     ) m
     GROUP BY m.Kho_ID, m.San_Pham_ID;
 
-    SELECT Kho_ID, San_Pham_ID
-    INTO #ReportKeys
-    FROM #SnapshotBalance
-    UNION
-    SELECT Kho_ID, San_Pham_ID FROM #MovementAggregate
-    UNION
-    SELECT b.Kho_ID, b.San_Pham_ID
-    FROM dbo.InventoryBalance_Current b
-    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
-    WHERE @Is_Current_Report = 1;
+    CREATE TABLE #ReportKeys
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        SL_Dau_Ky DECIMAL(18,3) NOT NULL,
+        SL_Nhap DECIMAL(18,3) NOT NULL,
+        SL_Xuat DECIMAL(18,3) NOT NULL,
+        HistoricalClosing DECIMAL(18,3) NOT NULL,
+        CurrentQuantity DECIMAL(18,3) NULL,
+        ReservedQuantity DECIMAL(18,3) NULL,
+        PRIMARY KEY(Kho_ID, San_Pham_ID)
+    );
 
-    SELECT rk.Kho_ID, k.Ten_Kho, rk.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham,
-           CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
-           CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)) AS SL_Nhap,
-           CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.CurrentQuantity, 0) ELSE ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.CurrentQuantity, 0) ELSE ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.CurrentQuantity, 0) - ISNULL(b.ReservedQuantity, 0) ELSE ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) END AS DECIMAL(18,3)) AS SL_Kha_Dung
-    INTO #WarehouseScopeResult_Snapshot
+    ;WITH KeySet AS
+    (
+        SELECT Kho_ID, San_Pham_ID FROM #SnapshotBalance
+        UNION
+        SELECT Kho_ID, San_Pham_ID FROM #MovementAggregate
+        UNION
+        SELECT b.Kho_ID, b.San_Pham_ID
+        FROM dbo.InventoryBalance_Current b
+        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+        WHERE @Is_Current_Report = 1
+    )
+    INSERT #ReportKeys
+    (
+        Kho_ID, San_Pham_ID, SL_Dau_Ky, SL_Nhap, SL_Xuat,
+        HistoricalClosing, CurrentQuantity, ReservedQuantity
+    )
+    SELECT ks.Kho_ID,
+           ks.San_Pham_ID,
+           CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)),
+           CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)),
+           CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)),
+           CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) AS DECIMAL(18,3)),
+           b.CurrentQuantity,
+           b.ReservedQuantity
+    FROM KeySet ks
+    LEFT JOIN #SnapshotBalance sb ON sb.Kho_ID = ks.Kho_ID AND sb.San_Pham_ID = ks.San_Pham_ID
+    LEFT JOIN #MovementAggregate ma ON ma.Kho_ID = ks.Kho_ID AND ma.San_Pham_ID = ks.San_Pham_ID
+    LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = ks.Kho_ID AND b.San_Pham_ID = ks.San_Pham_ID;
+
+    SELECT COUNT(*) AS Total_Count FROM #ReportKeys;
+    SELECT rk.Kho_ID,
+           k.Ten_Kho,
+           rk.San_Pham_ID,
+           p.Ma_San_Pham,
+           p.Ten_San_Pham,
+           rk.SL_Dau_Ky,
+           rk.SL_Nhap,
+           rk.SL_Xuat,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.CurrentQuantity, 0) ELSE rk.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.CurrentQuantity, 0) ELSE rk.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.CurrentQuantity, 0) - ISNULL(rk.ReservedQuantity, 0) ELSE rk.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Kha_Dung
     FROM #ReportKeys rk
-    LEFT JOIN #SnapshotBalance sb ON sb.Kho_ID = rk.Kho_ID AND sb.San_Pham_ID = rk.San_Pham_ID
-    LEFT JOIN #MovementAggregate ma ON ma.Kho_ID = rk.Kho_ID AND ma.San_Pham_ID = rk.San_Pham_ID
-    LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = rk.Kho_ID AND b.San_Pham_ID = rk.San_Pham_ID
     JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = rk.Kho_ID
-    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = rk.San_Pham_ID;
-
-    SELECT COUNT(*) AS Total_Count FROM #WarehouseScopeResult_Snapshot;
-    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
-           SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
-    FROM #WarehouseScopeResult_Snapshot
-    ORDER BY Ten_Kho, Ma_San_Pham
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = rk.San_Pham_ID
+    ORDER BY k.Ten_Kho, p.Ma_San_Pham
     OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
 END
 GO
