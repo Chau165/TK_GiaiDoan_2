@@ -44,6 +44,7 @@ public sealed class WarehouseAuthorizationContractTests
         var list = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
         Assert.Contains("ShowFilterCellButtons=\"false\"", list);
+        Assert.DoesNotContain("Field=\"Login_Name\" Title=\"Mã đăng nhập\" Width=\"180px\" Filterable=\"false\"", list);
         Assert.Contains("Format_Grid(m_grdMaster);", list);
     }
 
