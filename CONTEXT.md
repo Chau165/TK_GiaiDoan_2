@@ -35,3 +35,19 @@ _Avoid_: treating a warehouse scope as a menu/function permission or as a client
 **User–Warehouse Assignment (Phân quyền kho - user)**:
 A unique assignment that connects an existing login identity `Ma_Dang_Nhap` to one warehouse `Kho_ID`.
 _Avoid_: calling `Ma_Dang_Nhap` a new permission code; it identifies the User and is not itself authorization.
+
+**On Hand (Tồn thực tế)**:
+The quantity physically available in a warehouse after posted receipt and issue movements; it changes only when a document is Posted.
+_Avoid_: treating a Draft issue as a physical movement.
+
+**Reserved (Đang giữ)**:
+The quantity committed to active Draft issue details in a warehouse; it remains physically present but cannot be promised to another issue.
+_Avoid_: subtracting Reserved from On Hand in the historical movement ledger.
+
+**Available (Khả dụng)**:
+The quantity that a new Draft issue may reserve, calculated as `On Hand - Reserved`.
+_Avoid_: using the historical period closing quantity as the current reservation limit.
+
+**Issue Reservation (Giữ chỗ phiếu xuất)**:
+An active allocation owned by one Draft issue detail. Saving, changing, deleting, moving, or Posting that detail must adjust its reservation atomically with the current balance.
+_Avoid_: calculating availability only in the browser or allowing two Draft issues to reserve the same stock.

@@ -23,4 +23,7 @@ public class CWarehouseInventoryReport
     public decimal SL_Nhap { get; set; }
     public decimal SL_Xuat { get; set; }
     public decimal SL_Cuoi_Ky { get; set; }
+    public decimal SL_Ton_Thuc_Te { get; set; }
+    public decimal SL_Dang_Giu { get; set; }
+    public decimal SL_Kha_Dung { get; set; }
 }

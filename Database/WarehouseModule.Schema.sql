@@ -213,3 +213,33 @@ IF OBJECT_ID(N'dbo.tbl_DM_Nhap_Kho_Raw_Data', N'SN') IS NULL EXEC(N'CREATE SYNON
 IF OBJECT_ID(N'dbo.tbl_DM_Xuat_Kho', N'SN') IS NULL EXEC(N'CREATE SYNONYM dbo.tbl_DM_Xuat_Kho FOR dbo.tbl_XNK_Xuat_Kho;');
 IF OBJECT_ID(N'dbo.tbl_DM_Xuat_Kho_Raw_Data', N'SN') IS NULL EXEC(N'CREATE SYNONYM dbo.tbl_DM_Xuat_Kho_Raw_Data FOR dbo.tbl_XNK_Xuat_Kho_Raw_Data;');
 GO
+
+/* Draft issue reservations. CurrentQuantity remains posted/on-hand stock;
+   ReservedQuantity is the active quantity held by draft issue details. */
+IF COL_LENGTH(N'dbo.InventoryBalance_Current', N'ReservedQuantity') IS NULL
+BEGIN
+    ALTER TABLE dbo.InventoryBalance_Current
+        ADD ReservedQuantity DECIMAL(18,3) NOT NULL
+            CONSTRAINT DF_InventoryBalance_Current_ReservedQuantity DEFAULT (0) WITH VALUES;
+END
+GO
+
+IF OBJECT_ID(N'dbo.InventoryReservation_Current', N'U') IS NULL
+CREATE TABLE dbo.InventoryReservation_Current
+(
+    Xuat_Kho_Detail_ID BIGINT NOT NULL,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    ReservedQuantity DECIMAL(18,3) NOT NULL,
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_InventoryReservation_Current_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_InventoryReservation_Current PRIMARY KEY (Xuat_Kho_Detail_ID),
+    CONSTRAINT CK_InventoryReservation_Current_Positive CHECK (ReservedQuantity > 0),
+    CONSTRAINT FK_InventoryReservation_Current_Detail FOREIGN KEY (Xuat_Kho_Detail_ID) REFERENCES dbo.tbl_XNK_Xuat_Kho_Raw_Data(Auto_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_InventoryReservation_Current_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_InventoryReservation_Current_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryReservation_Current_Kho_Product')
+    CREATE INDEX IX_InventoryReservation_Current_Kho_Product ON dbo.InventoryReservation_Current(Kho_ID, San_Pham_ID) INCLUDE (ReservedQuantity);
+GO

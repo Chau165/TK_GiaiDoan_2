@@ -2,7 +2,10 @@
 
 ## Scope and evidence
 
-This is an audit/design only. It creates no table, stored procedure, production code, or migration.
+This document records the pre-reservation architecture baseline. The approved
+incremental reservation change is documented in `docs/adr/0001-draft-issue-reservation.md`;
+the sections below that describe the former design remain useful for explaining
+why the browser request boundary matters.
 
 The Word exercise is business-requirement evidence, not a technical authority. It requires receipt/issue headers and details, header/detail editing, and historical XNT fields (opening, in, out, closing). Its note saying that the database has no foreign keys conflicts with the current schema: the deployed database has header/detail FKs with `ON DELETE CASCADE`. The source/deployed schema and procedures are therefore the technical source of truth.
 
@@ -11,7 +14,11 @@ Evidence inspected:
 - `Bai Tap Thuc Tap.docx`: exercises 7-17.
 - `CWarehouseDocument_Controller`, `CWarehouse_Controller_Base`, `CSqlHelper`, `FWarehouse_1_Warehouse_List`.
 - `WarehouseModule.Schema.sql`, `WarehouseModule.Procedures.sql`, current local database `TKS_Thuc_Tap_V11_GiaiDoan2`.
-- No adjustment, transfer, lot, serial, bin/location, reservation, or balance table exists in source or deployed database.
+- At the time of this audit, no adjustment, transfer, lot, serial, bin/location,
+  or reservation table existed. The current implementation now has
+  `InventoryBalance_Current.ReservedQuantity` and
+  `InventoryReservation_Current`; adjustment/transfer/lot/serial/bin remain
+  outside scope.
 
 ## A. Current transaction architecture
 
@@ -114,13 +121,22 @@ InventoryBalance_Current
   Kho_ID             BIGINT NOT NULL
   San_Pham_ID        BIGINT NOT NULL
   CurrentQuantity    DECIMAL(18,3) NOT NULL
+  ReservedQuantity   DECIMAL(18,3) NOT NULL DEFAULT 0
   UpdatedAt          DATETIME2 NOT NULL
   RowVersion         ROWVERSION NOT NULL
   PRIMARY KEY (Kho_ID, San_Pham_ID)
   CHECK (CurrentQuantity >= 0)
+  CHECK (ReservedQuantity >= 0 AND ReservedQuantity <= CurrentQuantity)
 ```
 
-The composite key is also the required concurrency key. Apply a grouped delta set in deterministic `(Kho_ID, San_Pham_ID)` order; take update/key locks on existing/missing keys and preserve the unique PK as the final race guard. Do not use a background worker or eventual consistency. Reconcile by recomputing the same signed ledger aggregate and comparing every key, including missing-on-one-side keys.
+The composite key is also the required concurrency key. `CurrentQuantity` is
+On Hand from Posted movements; `ReservedQuantity` is the active Draft issue
+allocation; Available is derived as `CurrentQuantity - ReservedQuantity`.
+Apply a grouped delta set in deterministic `(Kho_ID, San_Pham_ID)` order; take
+update/key locks on existing/missing keys and preserve the unique PK as the
+final race guard. Do not use a background worker or eventual consistency.
+Reconcile by recomputing the same signed ledger aggregate and rebuilding active
+Draft reservations with `sp_XNK_Reservation_Rebuild`.
 
 ## F. Migration and rollback plan
 
@@ -130,9 +146,11 @@ The composite key is also the required concurrency key. Apply a grouped delta se
 4. **Dual write:** deploy atomic document command, participant SP changes, delta apply, affected-bucket validation, and observability. Keep reads on ledger. Rollback: disable the new command/read feature; ledger remains authoritative; rebuild projection later.
 5. **Current-stock read cutover:** only a new explicit current-stock screen/query may read balance. Do not change historical XNT. Keep reconciliation and a feature flag.
 
-## G. TDD implementation contract (not yet executed)
+## G. TDD implementation contract (historical baseline)
 
-No RED/GREEN test is claimed because this audit makes no production change. The next phase must add these tests **before** implementation:
+The original atomic-save proposal below was not the selected incremental
+implementation. Current RED/GREEN evidence is recorded in
+`docs/testing/warehouse-issue-reservation.tdd.md`.
 
 | Guarantee | Test type |
 |---|---|

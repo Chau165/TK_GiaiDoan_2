@@ -15,6 +15,156 @@ BEGIN
 END
 GO
 
+/* FINAL DRAFT ISSUE RESERVATION OVERRIDES.
+   CurrentQuantity is posted/on-hand stock. ReservedQuantity is held by active
+   draft issue details; AvailableQuantity is derived as CurrentQuantity - ReservedQuantity. */
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Adjust
+    @Kho_ID BIGINT, @San_Pham_ID BIGINT, @Delta DECIMAL(18,3)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Delta = 0 RETURN;
+
+    DECLARE @CurrentQuantity DECIMAL(18,3), @ReservedQuantity DECIMAL(18,3);
+    SELECT @CurrentQuantity = CurrentQuantity, @ReservedQuantity = ReservedQuantity
+    FROM dbo.InventoryBalance_Current WITH (UPDLOCK, HOLDLOCK)
+    WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+
+    IF @CurrentQuantity IS NULL OR @Delta > 0 AND @CurrentQuantity - @ReservedQuantity < @Delta
+        THROW 51140, N'Tồn khả dụng không đủ để giữ cho phiếu xuất nháp.', 1;
+    IF @Delta < 0 AND @ReservedQuantity < -@Delta
+        THROW 51141, N'Dữ liệu giữ chỗ tồn kho không hợp lệ.', 1;
+
+    UPDATE dbo.InventoryBalance_Current
+    SET ReservedQuantity = ReservedQuantity + @Delta, UpdatedAt = SYSUTCDATETIME()
+    WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Move_Document
+    @Xuat_Kho_ID BIGINT, @Old_Kho_ID BIGINT, @New_Kho_ID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Old_Kho_ID = @New_Kho_ID RETURN;
+
+    DECLARE @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
+    DECLARE reservation_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT r.San_Pham_ID, SUM(r.ReservedQuantity)
+        FROM dbo.InventoryReservation_Current r
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.Kho_ID = @Old_Kho_ID
+        GROUP BY r.San_Pham_ID;
+
+    OPEN reservation_cursor;
+    FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @Delta = -@ReservedQuantity;
+        EXEC dbo.sp_XNK_Reservation_Adjust @Old_Kho_ID, @San_Pham_ID, @Delta;
+        EXEC dbo.sp_XNK_Reservation_Adjust @New_Kho_ID, @San_Pham_ID, @ReservedQuantity;
+        UPDATE r SET Kho_ID = @New_Kho_ID, UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.InventoryReservation_Current r
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.Kho_ID = @Old_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
+        FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+    END
+    CLOSE reservation_cursor;
+    DEALLOCATE reservation_cursor;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Release_Detail
+    @Xuat_Kho_Detail_ID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Kho_ID BIGINT, @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
+    SELECT @Kho_ID = Kho_ID, @San_Pham_ID = San_Pham_ID, @ReservedQuantity = ReservedQuantity
+    FROM dbo.InventoryReservation_Current WITH (UPDLOCK, HOLDLOCK)
+    WHERE Xuat_Kho_Detail_ID = @Xuat_Kho_Detail_ID;
+    IF @ReservedQuantity IS NULL RETURN;
+
+    SET @Delta = -@ReservedQuantity;
+    EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @Delta;
+    DELETE dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @Xuat_Kho_Detail_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Release_Document
+    @Xuat_Kho_ID BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
+    DECLARE reservation_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT r.San_Pham_ID, SUM(r.ReservedQuantity)
+        FROM dbo.InventoryReservation_Current r
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
+        GROUP BY r.San_Pham_ID;
+
+    OPEN reservation_cursor;
+    FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SELECT TOP (1) @Delta = -@ReservedQuantity;
+        DECLARE @Kho_ID BIGINT = (SELECT TOP (1) r.Kho_ID
+                                  FROM dbo.InventoryReservation_Current r
+                                  JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+                                  WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.San_Pham_ID = @San_Pham_ID);
+        EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @Delta;
+        DELETE r
+        FROM dbo.InventoryReservation_Current r
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
+        FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+    END
+    CLOSE reservation_cursor;
+    DEALLOCATE reservation_cursor;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Rebuild
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0 BEGIN TRANSACTION; SET @OwnTransaction = 1;
+    BEGIN TRY
+        DELETE FROM dbo.InventoryReservation_Current;
+        UPDATE dbo.InventoryBalance_Current SET ReservedQuantity = 0, UpdatedAt = SYSUTCDATETIME();
+        INSERT dbo.InventoryReservation_Current(Xuat_Kho_Detail_ID, Kho_ID, San_Pham_ID, ReservedQuantity)
+        SELECT d.Auto_ID, h.Kho_ID, d.San_Pham_ID, d.SL_Xuat
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        WHERE h.Is_Posted = 0;
+
+        IF EXISTS
+        (
+            SELECT 1
+            FROM (SELECT Kho_ID, San_Pham_ID, SUM(ReservedQuantity) AS ReservedQuantity
+                  FROM dbo.InventoryReservation_Current GROUP BY Kho_ID, San_Pham_ID) r
+            LEFT JOIN dbo.InventoryBalance_Current b WITH (UPDLOCK, HOLDLOCK)
+                ON b.Kho_ID = r.Kho_ID AND b.San_Pham_ID = r.San_Pham_ID
+            WHERE b.CurrentQuantity IS NULL OR b.CurrentQuantity < r.ReservedQuantity
+        ) THROW 51140, N'Tồn khả dụng không đủ cho các phiếu xuất nháp hiện có.', 1;
+
+        UPDATE b SET ReservedQuantity = r.ReservedQuantity, UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.InventoryBalance_Current b
+        JOIN (SELECT Kho_ID, San_Pham_ID, SUM(ReservedQuantity) AS ReservedQuantity
+              FROM dbo.InventoryReservation_Current GROUP BY Kho_ID, San_Pham_ID) r
+          ON r.Kho_ID = b.Kho_ID AND r.San_Pham_ID = b.San_Pham_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
 /* Draft/Post lifecycle. Raw-data rows are document details; only posted headers
    contribute movements. Posting is the sole transition that updates the current
    balance projection, and it owns one SQL Server transaction. */
@@ -1937,8 +2087,14 @@ BEGIN
     (
         SELECT Kho_ID, San_Pham_ID, SUM(CASE WHEN MovementDate < @Tu_Ngay THEN InQuantity - OutQuantity ELSE 0 END) AS SL_Dau_Ky, SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN InQuantity ELSE 0 END) AS SL_Nhap, SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN OutQuantity ELSE 0 END) AS SL_Xuat FROM Movements GROUP BY Kho_ID, San_Pham_ID
     )
-    SELECT a.Kho_ID, k.Ten_Kho, a.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, a.SL_Dau_Ky, a.SL_Nhap, a.SL_Xuat, a.SL_Dau_Ky + a.SL_Nhap - a.SL_Xuat AS SL_Cuoi_Ky
-    FROM Aggregated a JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = a.Kho_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = a.San_Pham_ID ORDER BY k.Ten_Kho, p.Ma_San_Pham;
+    SELECT a.Kho_ID, k.Ten_Kho, a.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, a.SL_Dau_Ky, a.SL_Nhap, a.SL_Xuat, a.SL_Dau_Ky + a.SL_Nhap - a.SL_Xuat AS SL_Cuoi_Ky,
+           ISNULL(b.CurrentQuantity, 0) AS SL_Ton_Thuc_Te, ISNULL(b.ReservedQuantity, 0) AS SL_Dang_Giu,
+           ISNULL(b.CurrentQuantity, 0) - ISNULL(b.ReservedQuantity, 0) AS SL_Kha_Dung
+    FROM Aggregated a
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = a.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = a.San_Pham_ID
+    LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = a.Kho_ID AND b.San_Pham_ID = a.San_Pham_ID
+    ORDER BY k.Ten_Kho, p.Ma_San_Pham;
 END
 GO
 
@@ -1982,10 +2138,16 @@ BEGIN
     (
         SELECT Kho_ID, San_Pham_ID, SUM(CASE WHEN MovementDate < @Tu_Ngay THEN InQuantity - OutQuantity ELSE 0 END) AS SL_Dau_Ky, SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN InQuantity ELSE 0 END) AS SL_Nhap, SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN OutQuantity ELSE 0 END) AS SL_Xuat FROM Movements GROUP BY Kho_ID, San_Pham_ID
     )
-    SELECT a.Kho_ID, k.Ten_Kho, a.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, a.SL_Dau_Ky, a.SL_Nhap, a.SL_Xuat, a.SL_Dau_Ky + a.SL_Nhap - a.SL_Xuat AS SL_Cuoi_Ky INTO #WarehouseScopeResult_Final
-    FROM Aggregated a JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = a.Kho_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = a.San_Pham_ID;
+    SELECT a.Kho_ID, k.Ten_Kho, a.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, a.SL_Dau_Ky, a.SL_Nhap, a.SL_Xuat, a.SL_Dau_Ky + a.SL_Nhap - a.SL_Xuat AS SL_Cuoi_Ky,
+           ISNULL(b.CurrentQuantity, 0) AS SL_Ton_Thuc_Te, ISNULL(b.ReservedQuantity, 0) AS SL_Dang_Giu,
+           ISNULL(b.CurrentQuantity, 0) - ISNULL(b.ReservedQuantity, 0) AS SL_Kha_Dung INTO #WarehouseScopeResult_Final
+    FROM Aggregated a
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = a.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = a.San_Pham_ID
+    LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = a.Kho_ID AND b.San_Pham_ID = a.San_Pham_ID;
     SELECT COUNT(*) AS Total_Count FROM #WarehouseScopeResult_Final;
-    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham, SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky FROM #WarehouseScopeResult_Final ORDER BY Ten_Kho, Ma_San_Pham OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham, SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+    FROM #WarehouseScopeResult_Final ORDER BY Ten_Kho, Ma_San_Pham OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
 END
 GO
 
@@ -2211,6 +2373,82 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Post
+    @Is_Receipt BIT, @Document_ID BIGINT, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON; SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        CREATE TABLE #Delta(Kho_ID BIGINT NOT NULL, San_Pham_ID BIGINT NOT NULL, Delta DECIMAL(18,3) NOT NULL, PRIMARY KEY(Kho_ID, San_Pham_ID));
+        IF @Is_Receipt = 1
+        BEGIN
+            DECLARE @ReceiptWarehouse BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Document_ID);
+            IF @ReceiptWarehouse IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+            EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @ReceiptWarehouse;
+            IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51162, N'Phiếu đã Post.', 1;
+            IF NOT EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @Document_ID) THROW 51161, N'Không thể Post phiếu không có chi tiết.', 1;
+            INSERT #Delta SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(d.SL_Nhap AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID WHERE h.Auto_ID = @Document_ID GROUP BY h.Kho_ID, d.San_Pham_ID;
+            UPDATE dbo.tbl_XNK_Nhap_Kho SET Is_Posted = 1, Posted_At = SYSUTCDATETIME(), Last_Updated = SYSUTCDATETIME() WHERE Auto_ID = @Document_ID;
+        END
+        ELSE
+        BEGIN
+            DECLARE @IssueWarehouse BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Document_ID);
+            IF @IssueWarehouse IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+            EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @IssueWarehouse;
+            IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51162, N'Phiếu đã Post.', 1;
+            IF NOT EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Document_ID) THROW 51161, N'Không thể Post phiếu không có chi tiết.', 1;
+            INSERT #Delta SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(-d.SL_Xuat AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID WHERE h.Auto_ID = @Document_ID GROUP BY h.Kho_ID, d.San_Pham_ID;
+            EXEC dbo.sp_XNK_Reservation_Release_Document @Document_ID;
+            UPDATE dbo.tbl_XNK_Xuat_Kho SET Is_Posted = 1, Posted_At = SYSUTCDATETIME(), Last_Updated = SYSUTCDATETIME() WHERE Auto_ID = @Document_ID;
+            IF EXISTS
+            (
+                SELECT 1 FROM #Delta d
+                LEFT JOIN dbo.InventoryBalance_Current b WITH (UPDLOCK, HOLDLOCK) ON b.Kho_ID = d.Kho_ID AND b.San_Pham_ID = d.San_Pham_ID
+                WHERE ISNULL(b.CurrentQuantity, 0) - ISNULL(b.ReservedQuantity, 0) < -d.Delta
+            ) THROW 51120, N'Không thể Post vì tồn khả dụng không đủ.', 1;
+        END
+        IF EXISTS (SELECT 1 FROM #Delta d LEFT JOIN dbo.InventoryBalance_Current b WITH (UPDLOCK, HOLDLOCK) ON b.Kho_ID = d.Kho_ID AND b.San_Pham_ID = d.San_Pham_ID WHERE ISNULL(b.CurrentQuantity, 0) + d.Delta < 0) THROW 51120, N'Không thể Post vì tồn kho không đủ.', 1;
+        UPDATE b SET CurrentQuantity = b.CurrentQuantity + d.Delta, UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.InventoryBalance_Current b WITH (UPDLOCK, HOLDLOCK) JOIN #Delta d ON d.Kho_ID = b.Kho_ID AND d.San_Pham_ID = b.San_Pham_ID;
+        INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity)
+        SELECT d.Kho_ID, d.San_Pham_ID, d.Delta, 0 FROM #Delta d
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.InventoryBalance_Current b WITH (UPDLOCK, HOLDLOCK) WHERE b.Kho_ID = d.Kho_ID AND b.San_Pham_ID = d.San_Pham_ID);
+        EXEC dbo.sp_XNK_Validate_All_Balances;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_InventoryBalance_Rebuild
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DELETE FROM dbo.InventoryBalance_Current;
+        ;WITH Delta AS
+        (
+            SELECT h.Kho_ID, d.San_Pham_ID, CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Amount FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID WHERE h.Is_Posted = 1
+            UNION ALL
+            SELECT h.Kho_ID, d.San_Pham_ID, CAST(-d.SL_Xuat AS DECIMAL(18,3)) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID WHERE h.Is_Posted = 1
+        )
+        INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity)
+        SELECT Kho_ID, San_Pham_ID, SUM(Amount), 0 FROM Delta GROUP BY Kho_ID, San_Pham_ID;
+        EXEC dbo.sp_XNK_Reservation_Rebuild;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_DM_Kho_User_Save
     @Auto_ID BIGINT OUTPUT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT,
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
@@ -2378,6 +2616,165 @@ BEGIN
     IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Kho(Ten_Kho,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Kho,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
     ELSE UPDATE dbo.tbl_DM_Kho SET Ten_Kho=@Ten_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
     IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Save_Header
+    @Auto_ID BIGINT OUTPUT, @So_Phieu_Xuat_Kho NVARCHAR(100), @Kho_ID BIGINT, @Ngay_Xuat_Kho DATE,
+    @Ghi_Chu NVARCHAR(1000)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0 BEGIN TRANSACTION; SET @OwnTransaction = 1;
+    BEGIN TRY
+        SET @So_Phieu_Xuat_Kho = LTRIM(RTRIM(ISNULL(@So_Phieu_Xuat_Kho, N'')));
+        IF @So_Phieu_Xuat_Kho = N'' THROW 51130, N'Số phiếu xuất không được để trống.', 1;
+        IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho = @So_Phieu_Xuat_Kho AND Auto_ID <> ISNULL(@Auto_ID, 0)) THROW 51131, N'Số phiếu xuất đã tồn tại.', 1;
+        IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID = @Kho_ID) THROW 51132, N'Kho không hợp lệ.', 1;
+        EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+        IF @Ngay_Xuat_Kho IS NULL THROW 51133, N'Ngày xuất kho không được để trống.', 1;
+
+        DECLARE @Old_Kho_ID BIGINT, @Is_Posted BIT;
+        IF ISNULL(@Auto_ID, 0) <> 0
+        BEGIN
+            SELECT @Old_Kho_ID = Kho_ID, @Is_Posted = Is_Posted FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Auto_ID;
+            IF @Old_Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+            IF @Is_Posted = 1 THROW 51163, N'Không được sửa phiếu đã Post.', 1;
+            IF @Old_Kho_ID <> @Kho_ID EXEC dbo.sp_XNK_Reservation_Move_Document @Auto_ID, @Old_Kho_ID, @Kho_ID;
+            UPDATE dbo.tbl_XNK_Xuat_Kho SET So_Phieu_Xuat_Kho = @So_Phieu_Xuat_Kho, Kho_ID = @Kho_ID, Ngay_Xuat_Kho = @Ngay_Xuat_Kho, Ghi_Chu = @Ghi_Chu, Last_Updated = SYSUTCDATETIME() WHERE Auto_ID = @Auto_ID;
+        END
+        ELSE
+            INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES(@So_Phieu_Xuat_Kho, @Kho_ID, @Ngay_Xuat_Kho, 0, @Ghi_Chu);
+        IF ISNULL(@Auto_ID, 0) = 0 SET @Auto_ID = SCOPE_IDENTITY();
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+        SELECT @Auto_ID AS Auto_ID;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Save_Detail
+    @Auto_ID BIGINT OUTPUT, @Xuat_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Xuat DECIMAL(18,3), @Don_Gia_Xuat DECIMAL(18,2), @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0 BEGIN TRANSACTION; SET @OwnTransaction = 1;
+    BEGIN TRY
+        DECLARE @Kho_ID BIGINT, @Old_San_Pham_ID BIGINT, @Old_ReservedQuantity DECIMAL(18,3) = 0, @Reservation_Kho_ID BIGINT;
+        SELECT @Kho_ID = Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Xuat_Kho_ID;
+        IF @Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+        IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Xuat_Kho_ID AND Is_Posted = 1) THROW 51163, N'Không được sửa chi tiết của phiếu đã Post.', 1;
+        IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID = @San_Pham_ID) THROW 51135, N'Sản phẩm không hợp lệ.', 1;
+        IF @SL_Xuat <= 0 THROW 51136, N'Số lượng xuất phải lớn hơn 0.', 1;
+        IF @Don_Gia_Xuat <= 0 THROW 51137, N'Đơn giá xuất phải lớn hơn 0.', 1;
+
+        IF ISNULL(@Auto_ID, 0) <> 0
+        BEGIN
+            SELECT @Old_San_Pham_ID = San_Pham_ID FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Auto_ID AND Xuat_Kho_ID = @Xuat_Kho_ID;
+            IF @Old_San_Pham_ID IS NULL
+            BEGIN
+                IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID = @Auto_ID) THROW 51138, N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.', 1;
+                THROW 51139, N'Chi tiết phiếu xuất không tồn tại.', 1;
+            END
+            IF @Old_San_Pham_ID <> @San_Pham_ID THROW 51138, N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.', 1;
+            SELECT @Old_ReservedQuantity = ReservedQuantity, @Reservation_Kho_ID = Kho_ID FROM dbo.InventoryReservation_Current WITH (UPDLOCK, HOLDLOCK) WHERE Xuat_Kho_Detail_ID = @Auto_ID;
+            IF @Reservation_Kho_ID IS NOT NULL AND @Reservation_Kho_ID <> @Kho_ID
+            BEGIN
+                DECLARE @ReleaseDelta DECIMAL(18,3) = -@Old_ReservedQuantity;
+                EXEC dbo.sp_XNK_Reservation_Adjust @Reservation_Kho_ID, @San_Pham_ID, @ReleaseDelta;
+                SET @Old_ReservedQuantity = 0;
+            END
+        END
+
+        DECLARE @ReservationDelta DECIMAL(18,3) = @SL_Xuat - @Old_ReservedQuantity;
+        EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @ReservationDelta;
+        IF ISNULL(@Auto_ID, 0) = 0
+        BEGIN
+            INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES(@Xuat_Kho_ID, @San_Pham_ID, @SL_Xuat, @Don_Gia_Xuat);
+            SET @Auto_ID = SCOPE_IDENTITY();
+            INSERT dbo.InventoryReservation_Current(Xuat_Kho_Detail_ID, Kho_ID, San_Pham_ID, ReservedQuantity) VALUES(@Auto_ID, @Kho_ID, @San_Pham_ID, @SL_Xuat);
+        END
+        ELSE
+        BEGIN
+            UPDATE dbo.tbl_XNK_Xuat_Kho_Raw_Data SET SL_Xuat = @SL_Xuat, Don_Gia_Xuat = @Don_Gia_Xuat WHERE Auto_ID = @Auto_ID;
+            IF EXISTS (SELECT 1 FROM dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @Auto_ID)
+                UPDATE dbo.InventoryReservation_Current SET Kho_ID = @Kho_ID, San_Pham_ID = @San_Pham_ID, ReservedQuantity = @SL_Xuat, UpdatedAt = SYSUTCDATETIME() WHERE Xuat_Kho_Detail_ID = @Auto_ID;
+            ELSE
+                INSERT dbo.InventoryReservation_Current(Xuat_Kho_Detail_ID, Kho_ID, San_Pham_ID, ReservedQuantity) VALUES(@Auto_ID, @Kho_ID, @San_Pham_ID, @SL_Xuat);
+        END
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+        SELECT @Auto_ID AS Auto_ID;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Delete_Detail
+    @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Kho_ID BIGINT, @Document_ID BIGINT;
+    SELECT @Kho_ID = h.Kho_ID, @Document_ID = h.Auto_ID FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = d.Nhap_Kho_ID WHERE d.Auto_ID = @Auto_ID;
+    IF @Kho_ID IS NULL THROW 51105, N'Chi tiết phiếu nhập không tồn tại.', 1;
+    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+    IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51163, N'Không được xóa chi tiết của phiếu đã Post.', 1;
+    DELETE dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Delete_Detail
+    @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @Kho_ID BIGINT, @Document_ID BIGINT;
+    SELECT @Kho_ID = h.Kho_ID, @Document_ID = h.Auto_ID FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = d.Xuat_Kho_ID WHERE d.Auto_ID = @Auto_ID;
+    IF @Kho_ID IS NULL THROW 51134, N'Chi tiết phiếu xuất không tồn tại.', 1;
+    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+    IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51163, N'Không được xóa chi tiết của phiếu đã Post.', 1;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        EXEC dbo.sp_XNK_Reservation_Release_Detail @Auto_ID;
+        DELETE dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID = @Auto_ID;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_XNK_Xuat_Kho_Delete_Header
+    @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @Kho_ID BIGINT, @Is_Posted BIT;
+    SELECT @Kho_ID = Kho_ID, @Is_Posted = Is_Posted FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Auto_ID;
+    IF @Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+    IF @Is_Posted = 1 THROW 51163, N'Không được xóa phiếu đã Post.', 1;
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        EXEC dbo.sp_XNK_Reservation_Release_Document @Auto_ID;
+        DELETE dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Auto_ID;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
