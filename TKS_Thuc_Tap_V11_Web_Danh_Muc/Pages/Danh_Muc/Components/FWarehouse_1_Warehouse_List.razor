@@ -55,7 +55,7 @@
                     </GridColumn>
                     @if (m_strMaster_Type == "KhoUser")
                     {
-                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" Filterable="false" ShowFilterCellButtons="false" /><GridColumn Field="Name" Title="Họ tên" Width="240px" Filterable="false" ShowFilterCellButtons="false" /><GridColumn Field="Ghi_Chu" Title="Tên kho" Filterable="false" ShowFilterCellButtons="false" />
+                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" ShowFilterCellButtons="false" /><GridColumn Field="Name" Title="Họ tên" Width="240px" ShowFilterCellButtons="false" /><GridColumn Field="Ghi_Chu" Title="Tên kho" ShowFilterCellButtons="false" />
                     }
                     else if (CCache_Grid_UI_Global.List_Data_By_Code("2010", "grdMaster").Count > 0)
                     {
