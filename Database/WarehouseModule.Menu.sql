@@ -1,4 +1,4 @@
-/* Adds one warehouse module item to the dynamic left menu and grants active groups access. */
+﻿/* Adds one warehouse module item to the dynamic left menu and grants active groups access. */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;

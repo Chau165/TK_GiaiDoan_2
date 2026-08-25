@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE [dbo].[FQ_526_NTVU_sp_del_Delete_By_ID]
+﻿CREATE OR ALTER PROCEDURE [dbo].[FQ_526_NTVU_sp_del_Delete_By_ID]
     @Auto_ID bigint,
     @Last_Updated_By nvarchar(50),
     @Last_Updated_By_Function nvarchar(50)

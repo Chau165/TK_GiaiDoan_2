@@ -1,4 +1,4 @@
-/* Run after WarehouseModule.Schema.sql and WarehouseModule.Procedures.sql. */
+﻿/* Run after WarehouseModule.Schema.sql and WarehouseModule.Procedures.sql. */
 SET NOCOUNT ON;
 GO
 

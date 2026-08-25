@@ -1,4 +1,4 @@
-/*
+﻿/*
     Integration test for the common action-history lookup used by the
     information dialogs. The transaction is always rolled back.
 */

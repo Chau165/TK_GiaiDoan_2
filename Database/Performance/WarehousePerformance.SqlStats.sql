@@ -1,4 +1,4 @@
-/* Read-only SQL Server probe for the same isolated benchmark database. */
+﻿/* Read-only SQL Server probe for the same isolated benchmark database. */
 SET NOCOUNT ON;
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;

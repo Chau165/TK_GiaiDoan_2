@@ -1,4 +1,4 @@
-/* Repairs the sample rows that were previously imported through an ANSI code page. */
+﻿/* Repairs the sample rows that were previously imported through an ANSI code page. */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;

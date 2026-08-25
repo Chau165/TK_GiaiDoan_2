@@ -1,4 +1,4 @@
-SET NOCOUNT ON;
+﻿SET NOCOUNT ON;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_DM_Don_Vi_Tinh_Save
@@ -8,7 +8,7 @@ BEGIN
     SET NOCOUNT ON;
     SET @Ten_Don_Vi_Tinh = LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh, N'')));
     IF @Ten_Don_Vi_Tinh = N'' THROW 51001, N'Tên đơn vị tính không được để trống.', 1;
-    IF EXISTS (SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh = @Ten_Don_Vi_Tinh AND Auto_ID <> ISNULL(@Auto_ID, 0)) THROW 51002, N'Tên đơn vị tính đã tồn tại.', 1;
+    IF EXISTS (SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI = @Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID <> ISNULL(@Auto_ID, 0)) THROW 51002, N'Tên đơn vị tính đã tồn tại.', 1;
     IF ISNULL(@Auto_ID, 0) = 0
     BEGIN INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu) VALUES (@Ten_Don_Vi_Tinh, @Ghi_Chu); SET @Auto_ID = SCOPE_IDENTITY(); END
     ELSE UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh = @Ten_Don_Vi_Tinh, Ghi_Chu = @Ghi_Chu, Last_Updated = SYSUTCDATETIME() WHERE Auto_ID = @Auto_ID;
@@ -945,7 +945,7 @@ AS
 BEGIN
     SET NOCOUNT ON; SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
     IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
-    IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh=@Ten_Don_Vi_Tinh AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
+    IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI=@Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
     IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Don_Vi_Tinh,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
     ELSE UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh=@Ten_Don_Vi_Tinh,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
     IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY();

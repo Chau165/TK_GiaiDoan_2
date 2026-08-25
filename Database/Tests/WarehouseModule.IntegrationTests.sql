@@ -1,4 +1,4 @@
-/*
+﻿/*
   Run:
   sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseModule.IntegrationTests.sql
 

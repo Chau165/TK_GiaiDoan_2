@@ -1,4 +1,4 @@
-/*
+﻿/*
     Shared history lookup used by system information dialogs.
     The caller provides the Auto_ID of the displayed entity as Ref_ID.
 */

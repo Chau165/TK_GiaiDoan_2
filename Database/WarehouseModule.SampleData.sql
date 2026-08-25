@@ -1,4 +1,4 @@
-/*
+﻿/*
    Sample data for the warehouse assignment.
    Safe to run repeatedly: each row is inserted only when its business key is absent.
    The dates intentionally include an opening balance before August 2026 and

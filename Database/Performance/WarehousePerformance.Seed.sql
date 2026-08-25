@@ -1,4 +1,4 @@
-/*
+﻿/*
    Seed only a dedicated performance database. The runner creates an isolated database
    and passes RecordCount through sqlcmd. Do not run this against the business database.
 */
