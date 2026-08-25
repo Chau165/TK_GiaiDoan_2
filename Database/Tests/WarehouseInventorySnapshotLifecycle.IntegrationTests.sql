@@ -10,9 +10,10 @@
      sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseInventorySnapshotLifecycle.IntegrationTests.sql
 */
 SET NOCOUNT ON;
+SET QUOTED_IDENTIFIER ON;
 SET XACT_ABORT ON;
 
-DECLARE @Tag NVARCHAR(40) = REPLACE(CONVERT(NVARCHAR(36), NEWID()), N'-', N'');
+DECLARE @Tag NVARCHAR(20) = LEFT(REPLACE(CONVERT(NVARCHAR(36), NEWID()), N'-', N''), 20);
 DECLARE @Login NVARCHAR(100) = CONCAT(N'__snapshot_lifecycle_', @Tag);
 DECLARE @WarehouseId BIGINT;
 DECLARE @OtherWarehouseId BIGINT;
@@ -22,6 +23,7 @@ DECLARE @SupplierId BIGINT;
 DECLARE @ReceiptId BIGINT;
 DECLARE @IssueId BIGINT;
 DECLARE @RollbackReceiptId BIGINT;
+DECLARE @MemberId BIGINT;
 DECLARE @Opening DECIMAL(18,3);
 DECLARE @Closing DECIMAL(18,3);
 
@@ -54,6 +56,11 @@ BEGIN TRY
 
     INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID)
     VALUES (@Login, @WarehouseId), (@Login, @OtherWarehouseId);
+
+    SELECT @MemberId = ISNULL(MAX(Auto_ID), 0) + 1
+    FROM dbo.tbl_Sys_Thanh_Vien WITH (TABLOCKX);
+    INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, deleted)
+    VALUES (@MemberId, @Login, N'Inventory snapshot lifecycle test', 0);
 
     INSERT dbo.InventoryBalance_Snapshot_Daily
     (

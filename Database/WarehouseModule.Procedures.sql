@@ -5,13 +5,583 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_Don_Vi_Tinh_Save
     @Auto_ID BIGINT OUTPUT, @Ten_Don_Vi_Tinh NVARCHAR(200), @Ghi_Chu NVARCHAR(1000) = NULL
 AS
 BEGIN
-    SET NOCOUNT ON;
+SET NOCOUNT ON;
+SET QUOTED_IDENTIFIER ON;
     SET @Ten_Don_Vi_Tinh = LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh, N'')));
     IF @Ten_Don_Vi_Tinh = N'' THROW 51001, N'Tên đơn vị tính không được để trống.', 1;
     IF EXISTS (SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI = @Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID <> ISNULL(@Auto_ID, 0)) THROW 51002, N'Tên đơn vị tính đã tồn tại.', 1;
     IF ISNULL(@Auto_ID, 0) = 0
     BEGIN INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu) VALUES (@Ten_Don_Vi_Tinh, @Ghi_Chu); SET @Auto_ID = SCOPE_IDENTITY(); END
     ELSE UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh = @Ten_Don_Vi_Tinh, Ghi_Chu = @Ghi_Chu, Last_Updated = SYSUTCDATETIME() WHERE Auto_ID = @Auto_ID;
+END
+GO
+
+/* ========================================================================
+   Inventory snapshot lifecycle (ERP production flow)
+
+   Posting only invalidates affected snapshot rows and enqueues a rebuild.
+   Rebuild is intentionally outside the posting transaction and is driven by
+   sp_Inventory_Snapshot_Process_RebuildQueue from SQL Agent or an equivalent
+   worker.
+   ======================================================================== */
+
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Apply_Invalidation
+    @Affected dbo.InventorySnapshotAffectedType READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    CREATE TABLE #AffectedScope
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        From_Date DATE NOT NULL,
+        InvalidReason NVARCHAR(100) NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID)
+    );
+
+    INSERT #AffectedScope(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT Kho_ID,
+           San_Pham_ID,
+           MIN(From_Date),
+           CASE WHEN MAX(CASE WHEN InvalidReason = N'BACK_DATE_POST' THEN 1 ELSE 0 END) = 1
+                THEN N'BACK_DATE_POST'
+                ELSE MAX(InvalidReason)
+           END
+    FROM @Affected
+    GROUP BY Kho_ID, San_Pham_ID;
+
+    DECLARE @InvalidatedAt DATETIME2 = SYSUTCDATETIME();
+
+    UPDATE s
+       SET IsValid = 0,
+           InvalidatedAt = @InvalidatedAt,
+           InvalidReason = a.InvalidReason
+    FROM dbo.InventoryBalance_Snapshot_Daily s
+    JOIN #AffectedScope a
+      ON a.Kho_ID = s.Kho_ID
+     AND a.San_Pham_ID = s.San_Pham_ID
+     AND s.Snapshot_Date >= a.From_Date;
+
+    /* Coalesce requests already covered by an earlier active request.  A new
+       earlier request is retained so the worker rebuilds from the earliest
+       affected date; the filtered unique index prevents duplicate active rows
+       for the same scope/date under normal concurrent posting. */
+    INSERT dbo.InventorySnapshot_RebuildQueue
+    (
+        Kho_ID, San_Pham_ID, From_Date, Status, CreatedAt, CompletedAt, ErrorMessage
+    )
+    SELECT a.Kho_ID, a.San_Pham_ID, a.From_Date, N'WAITING', @InvalidatedAt, NULL, NULL
+    FROM #AffectedScope a
+    WHERE NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
+        WHERE q.Kho_ID = a.Kho_ID
+          AND q.San_Pham_ID = a.San_Pham_ID
+          AND q.Status IN (N'WAITING', N'PROCESSING')
+          AND q.From_Date <= a.From_Date
+    );
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Create_Daily
+    @Snapshot_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Snapshot_Date IS NULL
+        THROW 51300, N'Ngày snapshot không được để trống.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+
+        UPDATE s
+           SET ClosingQuantity = b.CurrentQuantity,
+               IsValid = 1,
+               InvalidatedAt = NULL,
+               InvalidReason = NULL,
+               [Version] = ISNULL(s.[Version], 0) + 1
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN dbo.InventoryBalance_Current b
+          ON b.Kho_ID = s.Kho_ID
+         AND b.San_Pham_ID = s.San_Pham_ID
+        WHERE s.Snapshot_Date = @Snapshot_Date;
+
+        INSERT dbo.InventoryBalance_Snapshot_Daily
+        (
+            Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
+            IsValid, InvalidatedAt, InvalidReason, [Version], CreatedAt
+        )
+        SELECT @Snapshot_Date, b.Kho_ID, b.San_Pham_ID, b.CurrentQuantity,
+               1, NULL, NULL, 1, @Now
+        FROM dbo.InventoryBalance_Current b
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.Snapshot_Date = @Snapshot_Date
+              AND s.Kho_ID = b.Kho_ID
+              AND s.San_Pham_ID = b.San_Pham_ID
+        );
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Invalidate_From
+    @From_Date DATE,
+    @Kho_ID BIGINT = NULL,
+    @San_Pham_ID BIGINT = NULL,
+    @InvalidReason NVARCHAR(100) = N'BACK_DATE_POST'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @From_Date IS NULL
+        THROW 51301, N'Ngày bắt đầu invalidate không được để trống.', 1;
+    IF @InvalidReason IS NULL OR LTRIM(RTRIM(@InvalidReason)) = N''
+        SET @InvalidReason = N'BACK_DATE_POST';
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT DISTINCT Kho_ID, San_Pham_ID, @From_Date, @InvalidReason
+    FROM dbo.InventoryBalance_Snapshot_Daily
+    WHERE Snapshot_Date >= @From_Date
+      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+      AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Rebuild
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT,
+    @From_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Kho_ID IS NULL OR @San_Pham_ID IS NULL OR @From_Date IS NULL
+        THROW 51302, N'Kho, sản phẩm và ngày rebuild là bắt buộc.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DECLARE @To_Date DATE;
+        DECLARE @BaseSnapshot_Date DATE;
+        DECLARE @OpeningQuantity DECIMAL(18,3);
+
+        SELECT @To_Date = MAX(s.Snapshot_Date)
+        FROM dbo.InventoryBalance_Snapshot_Daily s WITH (UPDLOCK, HOLDLOCK)
+        WHERE s.Kho_ID = @Kho_ID
+          AND s.San_Pham_ID = @San_Pham_ID
+          AND s.Snapshot_Date >= @From_Date
+          AND s.IsValid = 0;
+
+        /* No invalid snapshot means there is nothing for this queue row to
+           materialize. This is normal when two back-dated events coalesce. */
+        IF @To_Date IS NULL
+        BEGIN
+            COMMIT TRANSACTION;
+            RETURN;
+        END
+
+        SELECT TOP (1)
+               @BaseSnapshot_Date = s.Snapshot_Date,
+               @OpeningQuantity = s.ClosingQuantity
+        FROM dbo.InventoryBalance_Snapshot_Daily s WITH (UPDLOCK, HOLDLOCK)
+        WHERE s.Kho_ID = @Kho_ID
+          AND s.San_Pham_ID = @San_Pham_ID
+          AND s.Snapshot_Date < @From_Date
+          AND s.IsValid = 1
+        ORDER BY s.Snapshot_Date DESC;
+
+        /* If no valid snapshot exists, the ledger is the authoritative base.
+           Sites with an opening balance must seed that opening balance as a
+           valid snapshot before using historical rebuilds. */
+        IF @BaseSnapshot_Date IS NULL
+        BEGIN
+            SELECT @OpeningQuantity = COALESCE(SUM(m.Quantity), 0)
+            FROM
+            (
+                SELECT CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Quantity
+                FROM dbo.tbl_XNK_Nhap_Kho h
+                JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+                WHERE h.Is_Posted = 1
+                  AND h.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND h.Ngay_Nhap_Kho < @From_Date
+                UNION ALL
+                SELECT CAST(-d.SL_Xuat AS DECIMAL(18,3))
+                FROM dbo.tbl_XNK_Xuat_Kho h
+                JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+                WHERE h.Is_Posted = 1
+                  AND h.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND h.Ngay_Xuat_Kho < @From_Date
+            ) m;
+        END
+        ELSE
+            SET @OpeningQuantity = ISNULL(@OpeningQuantity, 0);
+
+        CREATE TABLE #Rebuilt
+        (
+            Snapshot_Date DATE NOT NULL PRIMARY KEY,
+            ClosingQuantity DECIMAL(18,3) NOT NULL
+        );
+
+        ;WITH DateRange AS
+        (
+            SELECT @From_Date AS Snapshot_Date
+            UNION ALL
+            SELECT DATEADD(DAY, 1, Snapshot_Date)
+            FROM DateRange
+            WHERE Snapshot_Date < @To_Date
+        ), DailyMovement AS
+        (
+            SELECT m.MovementDate,
+                   SUM(m.Quantity) AS NetQuantity
+            FROM
+            (
+                SELECT h.Ngay_Nhap_Kho AS MovementDate,
+                       CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Quantity
+                FROM dbo.tbl_XNK_Nhap_Kho h
+                JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+                WHERE h.Is_Posted = 1
+                  AND h.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND h.Ngay_Nhap_Kho BETWEEN @From_Date AND @To_Date
+                UNION ALL
+                SELECT h.Ngay_Xuat_Kho,
+                       CAST(-d.SL_Xuat AS DECIMAL(18,3))
+                FROM dbo.tbl_XNK_Xuat_Kho h
+                JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+                WHERE h.Is_Posted = 1
+                  AND h.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND h.Ngay_Xuat_Kho BETWEEN @From_Date AND @To_Date
+            ) m
+            GROUP BY m.MovementDate
+        ), RunningBalance AS
+        (
+            SELECT d.Snapshot_Date,
+                   CAST
+                   (
+                       @OpeningQuantity
+                       + SUM(ISNULL(dm.NetQuantity, 0)) OVER
+                         (ORDER BY d.Snapshot_Date ROWS UNBOUNDED PRECEDING)
+                       AS DECIMAL(18,3)
+                   ) AS ClosingQuantity
+            FROM DateRange d
+            LEFT JOIN DailyMovement dm ON dm.MovementDate = d.Snapshot_Date
+        )
+        INSERT #Rebuilt(Snapshot_Date, ClosingQuantity)
+        SELECT Snapshot_Date, ClosingQuantity
+        FROM RunningBalance
+        OPTION (MAXRECURSION 0);
+
+        UPDATE s
+           SET ClosingQuantity = r.ClosingQuantity,
+               IsValid = 1,
+               InvalidatedAt = NULL,
+               InvalidReason = NULL,
+               [Version] = ISNULL(s.[Version], 0) + 1
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN #Rebuilt r ON r.Snapshot_Date = s.Snapshot_Date
+        WHERE s.Kho_ID = @Kho_ID
+          AND s.San_Pham_ID = @San_Pham_ID;
+
+        INSERT dbo.InventoryBalance_Snapshot_Daily
+        (
+            Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
+            IsValid, InvalidatedAt, InvalidReason, [Version]
+        )
+        SELECT r.Snapshot_Date, @Kho_ID, @San_Pham_ID, r.ClosingQuantity,
+               1, NULL, NULL, 1
+        FROM #Rebuilt r
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.Snapshot_Date = r.Snapshot_Date
+              AND s.Kho_ID = @Kho_ID
+              AND s.San_Pham_ID = @San_Pham_ID
+        );
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Process_RebuildQueue
+    @Batch_Size INT = 100
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Batch_Size IS NULL OR @Batch_Size < 1
+        THROW 51303, N'Batch size rebuild phải lớn hơn 0.', 1;
+
+    DECLARE @LockResult INT;
+    EXEC @LockResult = sys.sp_getapplock
+        @Resource = N'InventorySnapshotRebuildWorker',
+        @LockMode = N'Exclusive',
+        @LockOwner = N'Session',
+        @LockTimeout = 0;
+    IF @LockResult < 0
+        THROW 51304, N'Worker rebuild snapshot đang được xử lý bởi tiến trình khác.', 1;
+
+    BEGIN TRY
+        /* A worker crash can leave PROCESSING rows behind. The application
+           lock guarantees no worker is active while these rows are recovered. */
+        UPDATE dbo.InventorySnapshot_RebuildQueue
+           SET Status = N'WAITING',
+               ErrorMessage = N'Recovered by rebuild worker after an interrupted run.'
+        WHERE Status = N'PROCESSING';
+
+        CREATE TABLE #Claimed
+        (
+            ID BIGINT NOT NULL PRIMARY KEY,
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            From_Date DATE NOT NULL
+        );
+
+        ;WITH NextItems AS
+        (
+            SELECT TOP (@Batch_Size) ID, Kho_ID, San_Pham_ID, From_Date,
+                   Status, ErrorMessage, CompletedAt
+            FROM dbo.InventorySnapshot_RebuildQueue WITH (UPDLOCK, READPAST, ROWLOCK)
+            WHERE Status = N'WAITING'
+            ORDER BY CreatedAt, ID
+        )
+        UPDATE NextItems
+           SET Status = N'PROCESSING',
+               ErrorMessage = NULL,
+               CompletedAt = NULL
+        OUTPUT inserted.ID, inserted.Kho_ID, inserted.San_Pham_ID, inserted.From_Date
+        INTO #Claimed(ID, Kho_ID, San_Pham_ID, From_Date);
+
+        DECLARE @QueueId BIGINT;
+        DECLARE @Kho_ID BIGINT;
+        DECLARE @San_Pham_ID BIGINT;
+        DECLARE @From_Date DATE;
+
+        DECLARE QueueCursor CURSOR LOCAL FAST_FORWARD FOR
+            SELECT ID, Kho_ID, San_Pham_ID, From_Date
+            FROM #Claimed
+            ORDER BY ID;
+
+        OPEN QueueCursor;
+        FETCH NEXT FROM QueueCursor INTO @QueueId, @Kho_ID, @San_Pham_ID, @From_Date;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            BEGIN TRY
+                EXEC dbo.sp_Inventory_Snapshot_Rebuild
+                    @Kho_ID = @Kho_ID,
+                    @San_Pham_ID = @San_Pham_ID,
+                    @From_Date = @From_Date;
+
+                UPDATE dbo.InventorySnapshot_RebuildQueue
+                   SET Status = N'COMPLETED',
+                       CompletedAt = SYSUTCDATETIME(),
+                       ErrorMessage = NULL
+                WHERE ID = @QueueId;
+            END TRY
+            BEGIN CATCH
+                UPDATE dbo.InventorySnapshot_RebuildQueue
+                   SET Status = N'FAILED',
+                       CompletedAt = SYSUTCDATETIME(),
+                       ErrorMessage = LEFT(ERROR_MESSAGE(), 4000)
+                WHERE ID = @QueueId;
+            END CATCH;
+
+            FETCH NEXT FROM QueueCursor INTO @QueueId, @Kho_ID, @San_Pham_ID, @From_Date;
+        END
+        CLOSE QueueCursor;
+        DEALLOCATE QueueCursor;
+
+        EXEC sys.sp_releaseapplock
+            @Resource = N'InventorySnapshotRebuildWorker',
+            @LockOwner = N'Session';
+    END TRY
+    BEGIN CATCH
+        IF CURSOR_STATUS('local', 'QueueCursor') >= 0 CLOSE QueueCursor;
+        IF CURSOR_STATUS('local', 'QueueCursor') >= -1 DEALLOCATE QueueCursor;
+        EXEC sys.sp_releaseapplock
+            @Resource = N'InventorySnapshotRebuildWorker',
+            @LockOwner = N'Session';
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Post
+ON dbo.tbl_XNK_Nhap_Kho
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT UPDATE(Is_Posted) AND NOT UPDATE(Ngay_Nhap_Kho) RETURN;
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT i.Kho_ID,
+           r.San_Pham_ID,
+           CASE WHEN i.Ngay_Nhap_Kho <= d.Ngay_Nhap_Kho THEN i.Ngay_Nhap_Kho ELSE d.Ngay_Nhap_Kho END,
+           CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
+    FROM inserted i
+    JOIN deleted d ON d.Auto_ID = i.Auto_ID
+    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data r ON r.Nhap_Kho_ID = i.Auto_ID
+    WHERE (d.Is_Posted = 0 AND i.Is_Posted = 1)
+       OR (d.Is_Posted = 1 AND i.Is_Posted = 1 AND i.Ngay_Nhap_Kho <> d.Ngay_Nhap_Kho);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Post
+ON dbo.tbl_XNK_Xuat_Kho
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT UPDATE(Is_Posted) AND NOT UPDATE(Ngay_Xuat_Kho) RETURN;
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT i.Kho_ID,
+           r.San_Pham_ID,
+           CASE WHEN i.Ngay_Xuat_Kho <= d.Ngay_Xuat_Kho THEN i.Ngay_Xuat_Kho ELSE d.Ngay_Xuat_Kho END,
+           CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
+    FROM inserted i
+    JOIN deleted d ON d.Auto_ID = i.Auto_ID
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data r ON r.Xuat_Kho_ID = i.Auto_ID
+    WHERE (d.Is_Posted = 0 AND i.Is_Posted = 1)
+       OR (d.Is_Posted = 1 AND i.Is_Posted = 1 AND i.Ngay_Xuat_Kho <> d.Ngay_Xuat_Kho);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Delete
+ON dbo.tbl_XNK_Nhap_Kho
+AFTER DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT d.Kho_ID, r.San_Pham_ID, d.Ngay_Nhap_Kho, N'DOCUMENT_DELETE'
+    FROM deleted d
+    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data r ON r.Nhap_Kho_ID = d.Auto_ID
+    WHERE d.Is_Posted = 1;
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Delete
+ON dbo.tbl_XNK_Xuat_Kho
+AFTER DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT d.Kho_ID, r.San_Pham_ID, d.Ngay_Xuat_Kho, N'DOCUMENT_DELETE'
+    FROM deleted d
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data r ON r.Xuat_Kho_ID = d.Auto_ID
+    WHERE d.Is_Posted = 1;
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Detail
+ON dbo.tbl_XNK_Nhap_Kho_Raw_Data
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+
+    IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
+        FROM inserted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
+        WHERE h.Is_Posted = 1
+        UNION
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
+        FROM deleted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
+        WHERE h.Is_Posted = 1;
+    END
+    ELSE IF EXISTS (SELECT 1 FROM deleted)
+    BEGIN
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_DELETE'
+        FROM deleted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
+        WHERE h.Is_Posted = 1;
+    END
+    ELSE
+    BEGIN
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
+        FROM inserted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
+        WHERE h.Is_Posted = 1;
+    END
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Detail
+ON dbo.tbl_XNK_Xuat_Kho_Raw_Data
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+
+    IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
+        FROM inserted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
+        WHERE h.Is_Posted = 1
+        UNION
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
+        FROM deleted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
+        WHERE h.Is_Posted = 1;
+    END
+    ELSE IF EXISTS (SELECT 1 FROM deleted)
+    BEGIN
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_DELETE'
+        FROM deleted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
+        WHERE h.Is_Posted = 1;
+    END
+    ELSE
+    BEGIN
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
+        FROM inserted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
+        WHERE h.Is_Posted = 1;
+    END
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
 END
 GO
 
@@ -886,6 +1456,347 @@ BEGIN
     IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap=@Ma_Dang_Nhap AND Kho_ID=@Kho_ID AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51052,N'User đã được phân quyền kho này.',1;
     IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap,Kho_ID) VALUES(@Ma_Dang_Nhap,@Kho_ID); SET @Auto_ID=SCOPE_IDENTITY(); END
     ELSE UPDATE dbo.tbl_DM_Kho_User SET Ma_Dang_Nhap=@Ma_Dang_Nhap,Kho_ID=@Kho_ID WHERE Auto_ID=@Auto_ID;
+END
+GO
+
+/* Inventory reporting uses an end-of-day copy of the transactional current
+   balance as its historical baseline. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Create_Daily
+    @Snapshot_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @Snapshot_Date IS NULL
+        THROW 51210, N'Ngày snapshot không được để trống.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DELETE FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date = @Snapshot_Date;
+
+        INSERT dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity)
+        SELECT @Snapshot_Date, Kho_ID, San_Pham_ID, CurrentQuantity
+        FROM dbo.InventoryBalance_Current;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Invalidate_From
+    @From_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @From_Date IS NULL
+        THROW 51211, N'Ngày làm mất hiệu lực snapshot không được để trống.', 1;
+
+    DELETE FROM dbo.InventoryBalance_Snapshot_Daily
+    WHERE Snapshot_Date >= @From_Date;
+END
+GO
+
+/* Final snapshot-aware report overrides.  The date range after the latest
+   snapshot is the only part of the movement history that is scanned. */
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
+        THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+
+    DECLARE @Snapshot_Date DATE =
+    (
+        SELECT MAX(Snapshot_Date)
+        FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date < @Tu_Ngay
+    );
+    DECLARE @Movement_Start_Date DATE = ISNULL(DATEADD(DAY, 1, @Snapshot_Date), CONVERT(DATE, '19000101'));
+    DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
+
+    ;WITH AuthorizedWarehouse AS
+    (
+        SELECT DISTINCT Kho_ID
+        FROM dbo.tbl_DM_Kho_User
+        WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+    ), SnapshotBalance AS
+    (
+        SELECT s.Kho_ID, s.San_Pham_ID, s.ClosingQuantity
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
+        WHERE s.Snapshot_Date = @Snapshot_Date
+    ), Movements AS
+    (
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Nhap_Kho AS MovementDate,
+               CAST(d.SL_Nhap AS DECIMAL(18,3)) AS InQuantity,
+               CAST(0 AS DECIMAL(18,3)) AS OutQuantity
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Nhap_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
+        UNION ALL
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Xuat_Kho,
+               CAST(0 AS DECIMAL(18,3)),
+               CAST(d.SL_Xuat AS DECIMAL(18,3))
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Xuat_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
+    ), MovementAggregate AS
+    (
+        SELECT Kho_ID, San_Pham_ID,
+               SUM(CASE WHEN MovementDate < @Tu_Ngay THEN InQuantity - OutQuantity ELSE 0 END) AS OpeningDelta,
+               SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN InQuantity ELSE 0 END) AS Received,
+               SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN OutQuantity ELSE 0 END) AS Issued
+        FROM Movements
+        GROUP BY Kho_ID, San_Pham_ID
+    ), ReportKeys AS
+    (
+        SELECT Kho_ID, San_Pham_ID FROM SnapshotBalance
+        UNION
+        SELECT Kho_ID, San_Pham_ID FROM MovementAggregate
+        UNION
+        SELECT b.Kho_ID, b.San_Pham_ID
+        FROM dbo.InventoryBalance_Current b
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+        WHERE @Is_Current_Report = 1
+    ), Calculated AS
+    (
+        SELECT rk.Kho_ID, rk.San_Pham_ID,
+               CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
+               CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)) AS SL_Nhap,
+               CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
+               CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS HistoricalClosing,
+               b.CurrentQuantity, b.ReservedQuantity
+        FROM ReportKeys rk
+        LEFT JOIN SnapshotBalance sb ON sb.Kho_ID = rk.Kho_ID AND sb.San_Pham_ID = rk.San_Pham_ID
+        LEFT JOIN MovementAggregate ma ON ma.Kho_ID = rk.Kho_ID AND ma.San_Pham_ID = rk.San_Pham_ID
+        LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = rk.Kho_ID AND b.San_Pham_ID = rk.San_Pham_ID
+    )
+    SELECT c.Kho_ID, k.Ten_Kho, c.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham,
+           c.SL_Dau_Ky, c.SL_Nhap, c.SL_Xuat,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) - ISNULL(c.ReservedQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Kha_Dung
+    FROM Calculated c
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = c.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = c.San_Pham_ID
+    ORDER BY k.Ten_Kho, p.Ma_San_Pham;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
+        THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+    IF @Page_Number < 1 SET @Page_Number = 1;
+    IF @Page_Size < 1 SET @Page_Size = 10;
+
+    DECLARE @Snapshot_Date DATE =
+    (
+        SELECT MAX(Snapshot_Date)
+        FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date < @Tu_Ngay
+    );
+    DECLARE @Movement_Start_Date DATE = ISNULL(DATEADD(DAY, 1, @Snapshot_Date), CONVERT(DATE, '19000101'));
+    DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
+
+    ;WITH AuthorizedWarehouse AS
+    (
+        SELECT DISTINCT Kho_ID FROM dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+    ), SnapshotBalance AS
+    (
+        SELECT s.Kho_ID, s.San_Pham_ID, s.ClosingQuantity
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
+        WHERE s.Snapshot_Date = @Snapshot_Date
+    ), Movements AS
+    (
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Nhap_Kho AS MovementDate, CAST(d.SL_Nhap AS DECIMAL(18,3)) AS InQuantity, CAST(0 AS DECIMAL(18,3)) AS OutQuantity
+        FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1 AND h.Ngay_Nhap_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
+        UNION ALL
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Xuat_Kho, CAST(0 AS DECIMAL(18,3)), CAST(d.SL_Xuat AS DECIMAL(18,3))
+        FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1 AND h.Ngay_Xuat_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
+    ), MovementAggregate AS
+    (
+        SELECT Kho_ID, San_Pham_ID,
+               SUM(CASE WHEN MovementDate < @Tu_Ngay THEN InQuantity - OutQuantity ELSE 0 END) AS OpeningDelta,
+               SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN InQuantity ELSE 0 END) AS Received,
+               SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN OutQuantity ELSE 0 END) AS Issued
+        FROM Movements GROUP BY Kho_ID, San_Pham_ID
+    ), ReportKeys AS
+    (
+        SELECT Kho_ID, San_Pham_ID FROM SnapshotBalance
+        UNION SELECT Kho_ID, San_Pham_ID FROM MovementAggregate
+        UNION SELECT b.Kho_ID, b.San_Pham_ID FROM dbo.InventoryBalance_Current b JOIN AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID WHERE @Is_Current_Report = 1
+    ), Calculated AS
+    (
+        SELECT rk.Kho_ID, rk.San_Pham_ID,
+               CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
+               CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)) AS SL_Nhap,
+               CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
+               CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS HistoricalClosing,
+               b.CurrentQuantity, b.ReservedQuantity
+        FROM ReportKeys rk
+        LEFT JOIN SnapshotBalance sb ON sb.Kho_ID = rk.Kho_ID AND sb.San_Pham_ID = rk.San_Pham_ID
+        LEFT JOIN MovementAggregate ma ON ma.Kho_ID = rk.Kho_ID AND ma.San_Pham_ID = rk.San_Pham_ID
+        LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = rk.Kho_ID AND b.San_Pham_ID = rk.San_Pham_ID
+    )
+    SELECT c.Kho_ID, k.Ten_Kho, c.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham,
+           c.SL_Dau_Ky, c.SL_Nhap, c.SL_Xuat,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) - ISNULL(c.ReservedQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Kha_Dung
+    INTO #WarehouseScopeResult_Snapshot
+    FROM Calculated c
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = c.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = c.San_Pham_ID;
+
+    SELECT COUNT(*) AS Total_Count FROM #WarehouseScopeResult_Snapshot;
+    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham, SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+    FROM #WarehouseScopeResult_Snapshot
+    ORDER BY Ten_Kho, Ma_San_Pham
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+END
+GO
+
+/* Final definitions intentionally appear after the legacy duplicate procedure
+   blocks in this file. SQL Server executes the last CREATE OR ALTER definition
+   when the deployment script is applied. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Create_Daily
+    @Snapshot_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Snapshot_Date IS NULL
+        THROW 51300, N'Ngày snapshot không được để trống.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        UPDATE s
+           SET ClosingQuantity = b.CurrentQuantity,
+               IsValid = 1,
+               InvalidatedAt = NULL,
+               InvalidReason = NULL,
+               [Version] = ISNULL(s.[Version], 0) + 1
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN dbo.InventoryBalance_Current b
+          ON b.Kho_ID = s.Kho_ID
+         AND b.San_Pham_ID = s.San_Pham_ID
+        WHERE s.Snapshot_Date = @Snapshot_Date;
+
+        INSERT dbo.InventoryBalance_Snapshot_Daily
+        (
+            Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
+            IsValid, InvalidatedAt, InvalidReason, [Version]
+        )
+        SELECT @Snapshot_Date, b.Kho_ID, b.San_Pham_ID, b.CurrentQuantity,
+               1, NULL, NULL, 1
+        FROM dbo.InventoryBalance_Current b
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.Snapshot_Date = @Snapshot_Date
+              AND s.Kho_ID = b.Kho_ID
+              AND s.San_Pham_ID = b.San_Pham_ID
+        );
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Invalidate_From
+    @From_Date DATE,
+    @Kho_ID BIGINT = NULL,
+    @San_Pham_ID BIGINT = NULL,
+    @InvalidReason NVARCHAR(100) = N'BACK_DATE_POST'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @From_Date IS NULL
+        THROW 51301, N'Ngày bắt đầu invalidate không được để trống.', 1;
+    SET @InvalidReason = COALESCE(NULLIF(LTRIM(RTRIM(@InvalidReason)), N''), N'BACK_DATE_POST');
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT DISTINCT Kho_ID, San_Pham_ID, @From_Date, @InvalidReason
+    FROM dbo.InventoryBalance_Snapshot_Daily
+    WHERE Snapshot_Date >= @From_Date
+      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+      AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Post
+ON dbo.tbl_XNK_Nhap_Kho
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT UPDATE(Is_Posted) AND NOT UPDATE(Ngay_Nhap_Kho) RETURN;
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT i.Kho_ID,
+           r.San_Pham_ID,
+           CASE WHEN i.Ngay_Nhap_Kho <= d.Ngay_Nhap_Kho THEN i.Ngay_Nhap_Kho ELSE d.Ngay_Nhap_Kho END,
+           CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
+    FROM inserted i
+    JOIN deleted d ON d.Auto_ID = i.Auto_ID
+    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data r ON r.Nhap_Kho_ID = i.Auto_ID
+    WHERE (d.Is_Posted = 0 AND i.Is_Posted = 1)
+       OR (d.Is_Posted = 1 AND i.Is_Posted = 1 AND i.Ngay_Nhap_Kho <> d.Ngay_Nhap_Kho);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Post
+ON dbo.tbl_XNK_Xuat_Kho
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT UPDATE(Is_Posted) AND NOT UPDATE(Ngay_Xuat_Kho) RETURN;
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT i.Kho_ID,
+           r.San_Pham_ID,
+           CASE WHEN i.Ngay_Xuat_Kho <= d.Ngay_Xuat_Kho THEN i.Ngay_Xuat_Kho ELSE d.Ngay_Xuat_Kho END,
+           CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
+    FROM inserted i
+    JOIN deleted d ON d.Auto_ID = i.Auto_ID
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data r ON r.Xuat_Kho_ID = i.Auto_ID
+    WHERE (d.Is_Posted = 0 AND i.Is_Posted = 1)
+       OR (d.Is_Posted = 1 AND i.Is_Posted = 1 AND i.Ngay_Xuat_Kho <> d.Ngay_Xuat_Kho);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
 END
 GO
 
@@ -2792,3 +3703,324 @@ BEGIN
     IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
 END
 GO
+
+/* Keep this function as the single calculation contract for both report
+   procedures.  It starts from the nearest end-of-day snapshot before @Tu_Ngay
+   and only reads later posted movements. */
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Report_Snapshot
+(
+    @Tu_Ngay DATE,
+    @Den_Ngay DATE,
+    @Ma_Dang_Nhap NVARCHAR(100),
+    @Is_Current_Report BIT
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    WITH SnapshotDate AS
+    (
+        SELECT MAX(Snapshot_Date) AS Snapshot_Date
+        FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date < @Tu_Ngay
+          AND IsValid = 1
+    ), AuthorizedWarehouse AS
+    (
+        SELECT DISTINCT Kho_ID
+        FROM dbo.tbl_DM_Kho_User
+        WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+    ), SnapshotBalance AS
+    (
+        SELECT s.Kho_ID, s.San_Pham_ID, s.ClosingQuantity
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        CROSS JOIN SnapshotDate sd
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
+        WHERE s.Snapshot_Date = sd.Snapshot_Date
+          AND s.IsValid = 1
+    ), Movements AS
+    (
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Nhap_Kho AS MovementDate,
+               CAST(d.SL_Nhap AS DECIMAL(18,3)) AS InQuantity,
+               CAST(0 AS DECIMAL(18,3)) AS OutQuantity
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        CROSS JOIN SnapshotDate sd
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Nhap_Kho BETWEEN ISNULL(DATEADD(DAY, 1, sd.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
+        UNION ALL
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Xuat_Kho,
+               CAST(0 AS DECIMAL(18,3)),
+               CAST(d.SL_Xuat AS DECIMAL(18,3))
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        CROSS JOIN SnapshotDate sd
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Xuat_Kho BETWEEN ISNULL(DATEADD(DAY, 1, sd.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
+    ), MovementAggregate AS
+    (
+        SELECT Kho_ID, San_Pham_ID,
+               SUM(CASE WHEN MovementDate < @Tu_Ngay THEN InQuantity - OutQuantity ELSE 0 END) AS OpeningDelta,
+               SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN InQuantity ELSE 0 END) AS Received,
+               SUM(CASE WHEN MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN OutQuantity ELSE 0 END) AS Issued
+        FROM Movements
+        GROUP BY Kho_ID, San_Pham_ID
+    ), ReportKeys AS
+    (
+        SELECT Kho_ID, San_Pham_ID FROM SnapshotBalance
+        UNION
+        SELECT Kho_ID, San_Pham_ID FROM MovementAggregate
+        UNION
+        SELECT b.Kho_ID, b.San_Pham_ID
+        FROM dbo.InventoryBalance_Current b
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+        WHERE @Is_Current_Report = 1
+    ), Calculated AS
+    (
+        SELECT rk.Kho_ID, rk.San_Pham_ID,
+               CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
+               CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)) AS SL_Nhap,
+               CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
+               CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS HistoricalClosing,
+               b.CurrentQuantity, b.ReservedQuantity
+        FROM ReportKeys rk
+        LEFT JOIN SnapshotBalance sb ON sb.Kho_ID = rk.Kho_ID AND sb.San_Pham_ID = rk.San_Pham_ID
+        LEFT JOIN MovementAggregate ma ON ma.Kho_ID = rk.Kho_ID AND ma.San_Pham_ID = rk.San_Pham_ID
+        LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = rk.Kho_ID AND b.San_Pham_ID = rk.San_Pham_ID
+    )
+    SELECT c.Kho_ID, k.Ten_Kho, c.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham,
+           c.SL_Dau_Ky, c.SL_Nhap, c.SL_Xuat,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(c.CurrentQuantity, 0) - ISNULL(c.ReservedQuantity, 0) ELSE c.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Kha_Dung
+    FROM Calculated c
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = c.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = c.San_Pham_ID
+);
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
+        THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+        WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+          AND s.Snapshot_Date < @Tu_Ngay
+          AND s.IsValid = 1
+    )
+        INSERT dbo.InventorySnapshot_ReportFallbackLog
+        (ReportFromDate, ReportToDate, Ma_Dang_Nhap, SnapshotMissingReason)
+        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_BEFORE_PERIOD');
+
+    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
+           SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+    FROM dbo.fn_Inventory_Report_Snapshot(@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0))
+    ORDER BY Ten_Kho, Ma_San_Pham;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
+        THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+    IF @Page_Number < 1 SET @Page_Number = 1;
+    IF @Page_Size < 1 SET @Page_Size = 10;
+
+    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
+           SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+    INTO #WarehouseScopeResult_Snapshot
+    FROM dbo.fn_Inventory_Report_Snapshot(@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0));
+
+    SELECT COUNT(*) AS Total_Count FROM #WarehouseScopeResult_Snapshot;
+    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
+           SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+    FROM #WarehouseScopeResult_Snapshot
+    ORDER BY Ten_Kho, Ma_San_Pham
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+END
+GO
+
+/* Final header triggers: invalidate and enqueue only the affected
+   warehouse/product scope. No snapshot row is deleted. */
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Post
+ON dbo.tbl_XNK_Nhap_Kho
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT UPDATE(Is_Posted) AND NOT UPDATE(Ngay_Nhap_Kho) RETURN;
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT i.Kho_ID,
+           r.San_Pham_ID,
+           CASE WHEN i.Ngay_Nhap_Kho <= d.Ngay_Nhap_Kho THEN i.Ngay_Nhap_Kho ELSE d.Ngay_Nhap_Kho END,
+           CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
+    FROM inserted i
+    JOIN deleted d ON d.Auto_ID = i.Auto_ID
+    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data r ON r.Nhap_Kho_ID = i.Auto_ID
+    WHERE (d.Is_Posted = 0 AND i.Is_Posted = 1)
+       OR (d.Is_Posted = 1 AND i.Is_Posted = 1 AND i.Ngay_Nhap_Kho <> d.Ngay_Nhap_Kho);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Post
+ON dbo.tbl_XNK_Xuat_Kho
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT UPDATE(Is_Posted) AND NOT UPDATE(Ngay_Xuat_Kho) RETURN;
+
+    DECLARE @Affected dbo.InventorySnapshotAffectedType;
+    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    SELECT i.Kho_ID,
+           r.San_Pham_ID,
+           CASE WHEN i.Ngay_Xuat_Kho <= d.Ngay_Xuat_Kho THEN i.Ngay_Xuat_Kho ELSE d.Ngay_Xuat_Kho END,
+           CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
+    FROM inserted i
+    JOIN deleted d ON d.Auto_ID = i.Auto_ID
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data r ON r.Xuat_Kho_ID = i.Auto_ID
+    WHERE (d.Is_Posted = 0 AND i.Is_Posted = 1)
+       OR (d.Is_Posted = 1 AND i.Is_Posted = 1 AND i.Ngay_Xuat_Kho <> d.Ngay_Xuat_Kho);
+
+    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+END
+GO
+
+/* Materialize each input once.  The inline function remains the non-paged
+   contract; the UI hot path avoids its repeated CTE expansion. */
+SET QUOTED_IDENTIFIER ON;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
+        THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+    IF @Page_Number < 1 SET @Page_Number = 1;
+    IF @Page_Size < 1 SET @Page_Size = 10;
+
+    DECLARE @Snapshot_Date DATE =
+    (
+        SELECT MAX(Snapshot_Date)
+        FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date < @Tu_Ngay
+          AND IsValid = 1
+    );
+    DECLARE @Movement_Start_Date DATE = ISNULL(DATEADD(DAY, 1, @Snapshot_Date), CONVERT(DATE, '19000101'));
+    DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
+
+    IF @Snapshot_Date IS NULL
+        INSERT dbo.InventorySnapshot_ReportFallbackLog
+        (ReportFromDate, ReportToDate, Ma_Dang_Nhap, SnapshotMissingReason)
+        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_BEFORE_PERIOD');
+
+    CREATE TABLE #AuthorizedWarehouse(Kho_ID BIGINT NOT NULL PRIMARY KEY);
+    INSERT #AuthorizedWarehouse(Kho_ID)
+    SELECT DISTINCT Kho_ID
+    FROM dbo.tbl_DM_Kho_User
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+
+    CREATE TABLE #SnapshotBalance
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        ClosingQuantity DECIMAL(18,3) NOT NULL,
+        PRIMARY KEY(Kho_ID, San_Pham_ID)
+    );
+    INSERT #SnapshotBalance(Kho_ID, San_Pham_ID, ClosingQuantity)
+    SELECT s.Kho_ID, s.San_Pham_ID, s.ClosingQuantity
+    FROM dbo.InventoryBalance_Snapshot_Daily s
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
+    WHERE s.Snapshot_Date = @Snapshot_Date
+      AND s.IsValid = 1;
+
+    CREATE TABLE #MovementAggregate
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        OpeningDelta DECIMAL(18,3) NOT NULL,
+        Received DECIMAL(18,3) NOT NULL,
+        Issued DECIMAL(18,3) NOT NULL,
+        PRIMARY KEY(Kho_ID, San_Pham_ID)
+    );
+    INSERT #MovementAggregate(Kho_ID, San_Pham_ID, OpeningDelta, Received, Issued)
+    SELECT m.Kho_ID, m.San_Pham_ID,
+           SUM(CASE WHEN m.MovementDate < @Tu_Ngay THEN m.InQuantity - m.OutQuantity ELSE 0 END),
+           SUM(CASE WHEN m.MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.InQuantity ELSE 0 END),
+           SUM(CASE WHEN m.MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.OutQuantity ELSE 0 END)
+    FROM
+    (
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Nhap_Kho AS MovementDate,
+               CAST(d.SL_Nhap AS DECIMAL(18,3)) AS InQuantity,
+               CAST(0 AS DECIMAL(18,3)) AS OutQuantity
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Nhap_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
+        UNION ALL
+        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Xuat_Kho,
+               CAST(0 AS DECIMAL(18,3)),
+               CAST(d.SL_Xuat AS DECIMAL(18,3))
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Xuat_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
+    ) m
+    GROUP BY m.Kho_ID, m.San_Pham_ID;
+
+    SELECT Kho_ID, San_Pham_ID
+    INTO #ReportKeys
+    FROM #SnapshotBalance
+    UNION
+    SELECT Kho_ID, San_Pham_ID FROM #MovementAggregate
+    UNION
+    SELECT b.Kho_ID, b.San_Pham_ID
+    FROM dbo.InventoryBalance_Current b
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+    WHERE @Is_Current_Report = 1;
+
+    SELECT rk.Kho_ID, k.Ten_Kho, rk.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham,
+           CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
+           CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)) AS SL_Nhap,
+           CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.CurrentQuantity, 0) ELSE ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.CurrentQuantity, 0) ELSE ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(b.CurrentQuantity, 0) - ISNULL(b.ReservedQuantity, 0) ELSE ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) END AS DECIMAL(18,3)) AS SL_Kha_Dung
+    INTO #WarehouseScopeResult_Snapshot
+    FROM #ReportKeys rk
+    LEFT JOIN #SnapshotBalance sb ON sb.Kho_ID = rk.Kho_ID AND sb.San_Pham_ID = rk.San_Pham_ID
+    LEFT JOIN #MovementAggregate ma ON ma.Kho_ID = rk.Kho_ID AND ma.San_Pham_ID = rk.San_Pham_ID
+    LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = rk.Kho_ID AND b.San_Pham_ID = rk.San_Pham_ID
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = rk.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = rk.San_Pham_ID;
+
+    SELECT COUNT(*) AS Total_Count FROM #WarehouseScopeResult_Snapshot;
+    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
+           SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+    FROM #WarehouseScopeResult_Snapshot
+    ORDER BY Ten_Kho, Ma_San_Pham
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+END
+GO
+SET QUOTED_IDENTIFIER ON;

@@ -1,5 +1,6 @@
 ﻿/* Run against TKS_Thuc_Tap_V11_GiaiDoan2. */
 SET NOCOUNT ON;
+SET QUOTED_IDENTIFIER ON;
 
 IF OBJECT_ID(N'dbo.tbl_DM_Don_Vi_Tinh', N'U') IS NULL
 CREATE TABLE dbo.tbl_DM_Don_Vi_Tinh
@@ -201,6 +202,122 @@ CREATE TABLE dbo.InventoryBalance_Current
     CONSTRAINT FK_InventoryBalance_Current_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
     CONSTRAINT FK_InventoryBalance_Current_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
 );
+GO
+
+/* End-of-day on-hand balance used as the starting point for historical inventory reports.
+   The rows are immutable for a given business date; a later back-dated posting invalidates
+   affected dates through dbo.sp_Inventory_Snapshot_Invalidate_From. */
+IF OBJECT_ID(N'dbo.InventoryBalance_Snapshot_Daily', N'U') IS NULL
+CREATE TABLE dbo.InventoryBalance_Snapshot_Daily
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL,
+    Snapshot_Date DATE NOT NULL,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    ClosingQuantity DECIMAL(18,3) NOT NULL,
+    IsValid BIT NOT NULL CONSTRAINT DF_InventoryBalance_Snapshot_Daily_IsValid DEFAULT (1),
+    InvalidatedAt DATETIME2 NULL,
+    InvalidReason NVARCHAR(100) NULL,
+    [Version] INT NOT NULL CONSTRAINT DF_InventoryBalance_Snapshot_Daily_Version DEFAULT (1),
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_InventoryBalance_Snapshot_Daily_CreatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_InventoryBalance_Snapshot_Daily PRIMARY KEY (Snapshot_Date, Kho_ID, San_Pham_ID),
+    CONSTRAINT UQ_InventoryBalance_Snapshot_Daily_ID UNIQUE (ID),
+    CONSTRAINT FK_InventoryBalance_Snapshot_Daily_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_InventoryBalance_Snapshot_Daily_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+/* Snapshot lifecycle migration. Existing rows remain usable snapshots and are
+   upgraded as valid version 1 rows; later back-dated changes invalidate them
+   in place instead of deleting historical evidence. */
+IF COL_LENGTH(N'dbo.InventoryBalance_Snapshot_Daily', N'ID') IS NULL
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily ADD ID BIGINT IDENTITY(1,1) NOT NULL;
+IF COL_LENGTH(N'dbo.InventoryBalance_Snapshot_Daily', N'IsValid') IS NULL
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily ADD IsValid BIT NOT NULL CONSTRAINT DF_InventoryBalance_Snapshot_Daily_IsValid DEFAULT (1) WITH VALUES;
+IF COL_LENGTH(N'dbo.InventoryBalance_Snapshot_Daily', N'InvalidatedAt') IS NULL
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily ADD InvalidatedAt DATETIME2 NULL;
+IF COL_LENGTH(N'dbo.InventoryBalance_Snapshot_Daily', N'InvalidReason') IS NULL
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily ADD InvalidReason NVARCHAR(100) NULL;
+IF COL_LENGTH(N'dbo.InventoryBalance_Snapshot_Daily', N'Version') IS NULL
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily ADD [Version] INT NOT NULL CONSTRAINT DF_InventoryBalance_Snapshot_Daily_Version DEFAULT (1) WITH VALUES;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.key_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.InventoryBalance_Snapshot_Daily')
+      AND name = N'UQ_InventoryBalance_Snapshot_Daily_ID'
+)
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily
+        ADD CONSTRAINT UQ_InventoryBalance_Snapshot_Daily_ID UNIQUE (ID);
+GO
+
+IF OBJECT_ID(N'dbo.InventorySnapshot_RebuildQueue', N'U') IS NULL
+CREATE TABLE dbo.InventorySnapshot_RebuildQueue
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventorySnapshot_RebuildQueue PRIMARY KEY,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    From_Date DATE NOT NULL,
+    Status NVARCHAR(20) NOT NULL CONSTRAINT DF_InventorySnapshot_RebuildQueue_Status DEFAULT (N'WAITING'),
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_InventorySnapshot_RebuildQueue_CreatedAt DEFAULT SYSUTCDATETIME(),
+    CompletedAt DATETIME2 NULL,
+    ErrorMessage NVARCHAR(4000) NULL,
+    CONSTRAINT CK_InventorySnapshot_RebuildQueue_Status CHECK (Status IN (N'WAITING', N'PROCESSING', N'COMPLETED', N'FAILED')),
+    CONSTRAINT FK_InventorySnapshot_RebuildQueue_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_InventorySnapshot_RebuildQueue_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+/* Report fallback is deliberately observable without changing the existing
+   report result-set contract consumed by Blazor/Telerik. */
+IF OBJECT_ID(N'dbo.InventorySnapshot_ReportFallbackLog', N'U') IS NULL
+CREATE TABLE dbo.InventorySnapshot_ReportFallbackLog
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventorySnapshot_ReportFallbackLog PRIMARY KEY,
+    ReportFromDate DATE NOT NULL,
+    ReportToDate DATE NOT NULL,
+    Ma_Dang_Nhap NVARCHAR(100) NULL,
+    SnapshotMissingReason NVARCHAR(200) NOT NULL,
+    LoggedAt DATETIME2 NOT NULL CONSTRAINT DF_InventorySnapshot_ReportFallbackLog_LoggedAt DEFAULT SYSUTCDATETIME()
+);
+GO
+
+IF TYPE_ID(N'dbo.InventorySnapshotAffectedType') IS NULL
+    EXEC(N'CREATE TYPE dbo.InventorySnapshotAffectedType AS TABLE
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        From_Date DATE NOT NULL,
+        InvalidReason NVARCHAR(100) NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+    );');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_InventorySnapshot_RebuildQueue_Active_Scope')
+    CREATE UNIQUE INDEX UX_InventorySnapshot_RebuildQueue_Active_Scope
+    ON dbo.InventorySnapshot_RebuildQueue(Kho_ID, San_Pham_ID, From_Date)
+    WHERE Status IN (N'WAITING', N'PROCESSING');
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventorySnapshot_RebuildQueue_Status_CreatedAt')
+    CREATE INDEX IX_InventorySnapshot_RebuildQueue_Status_CreatedAt
+    ON dbo.InventorySnapshot_RebuildQueue(Status, CreatedAt, ID)
+    INCLUDE (Kho_ID, San_Pham_ID, From_Date, ErrorMessage);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryBalance_Snapshot_Daily_Scope')
+    CREATE INDEX IX_InventoryBalance_Snapshot_Daily_Scope
+    ON dbo.InventoryBalance_Snapshot_Daily(Kho_ID, San_Pham_ID, Snapshot_Date)
+    INCLUDE (ClosingQuantity, IsValid, InvalidatedAt, InvalidReason, [Version]);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryBalance_Snapshot_Daily_Valid_Date')
+    CREATE INDEX IX_InventoryBalance_Snapshot_Daily_Valid_Date
+    ON dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID)
+    INCLUDE (ClosingQuantity, [Version])
+    WHERE IsValid = 1;
+GO
+
+/* A historical report can legitimately be negative when a document is posted
+   later with an earlier accounting date.  Only the live current balance is
+   constrained to be non-negative. */
+IF OBJECT_ID(N'dbo.CK_InventoryBalance_Snapshot_Daily_NonNegative', N'C') IS NOT NULL
+    ALTER TABLE dbo.InventoryBalance_Snapshot_Daily DROP CONSTRAINT CK_InventoryBalance_Snapshot_Daily_NonNegative;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Posted_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Posted_Kho_Ngay ON dbo.tbl_XNK_Nhap_Kho(Is_Posted, Kho_ID, Ngay_Nhap_Kho);

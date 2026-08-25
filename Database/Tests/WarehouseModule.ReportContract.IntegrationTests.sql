@@ -26,13 +26,17 @@ VALUES
     (N'sp_BC_Chi_Tiet_Xuat', 7, N'Don_Gia'),
     (N'sp_BC_Chi_Tiet_Xuat', 8, N'Tri_Gia'),
     (N'sp_BC_Xuat_Nhap_Ton', 1, N'Kho_ID'),
-    (N'sp_BC_Xuat_Nhap_Ton', 2, N'San_Pham_ID'),
-    (N'sp_BC_Xuat_Nhap_Ton', 3, N'Ma_San_Pham'),
-    (N'sp_BC_Xuat_Nhap_Ton', 4, N'Ten_San_Pham'),
-    (N'sp_BC_Xuat_Nhap_Ton', 5, N'SL_Dau_Ky'),
-    (N'sp_BC_Xuat_Nhap_Ton', 6, N'SL_Nhap'),
-    (N'sp_BC_Xuat_Nhap_Ton', 7, N'SL_Xuat'),
-    (N'sp_BC_Xuat_Nhap_Ton', 8, N'SL_Cuoi_Ky');
+    (N'sp_BC_Xuat_Nhap_Ton', 2, N'Ten_Kho'),
+    (N'sp_BC_Xuat_Nhap_Ton', 3, N'San_Pham_ID'),
+    (N'sp_BC_Xuat_Nhap_Ton', 4, N'Ma_San_Pham'),
+    (N'sp_BC_Xuat_Nhap_Ton', 5, N'Ten_San_Pham'),
+    (N'sp_BC_Xuat_Nhap_Ton', 6, N'SL_Dau_Ky'),
+    (N'sp_BC_Xuat_Nhap_Ton', 7, N'SL_Nhap'),
+    (N'sp_BC_Xuat_Nhap_Ton', 8, N'SL_Xuat'),
+    (N'sp_BC_Xuat_Nhap_Ton', 9, N'SL_Cuoi_Ky'),
+    (N'sp_BC_Xuat_Nhap_Ton', 10, N'SL_Ton_Thuc_Te'),
+    (N'sp_BC_Xuat_Nhap_Ton', 11, N'SL_Dang_Giu'),
+    (N'sp_BC_Xuat_Nhap_Ton', 12, N'SL_Kha_Dung');
 
 DECLARE @Actual TABLE
 (
