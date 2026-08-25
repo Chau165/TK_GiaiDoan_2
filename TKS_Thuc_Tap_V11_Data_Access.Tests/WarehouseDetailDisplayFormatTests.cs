@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
@@ -32,6 +34,38 @@ public sealed class WarehouseDetailDisplayFormatTests
         var v_objDetail = new CWarehouseDocumentDetail { Ten_Don_Vi_Tinh = "Chai" };
 
         Assert.Equal("Chai", v_objDetail.Ten_Don_Vi_Tinh);
+    }
+
+    [Fact]
+    public void Detail_quantity_validation_accepts_decimal_value_under_vietnamese_culture()
+    {
+        var v_objPrevious_Culture = CultureInfo.CurrentCulture;
+        var v_objPrevious_Ui_Culture = CultureInfo.CurrentUICulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("vi-VN");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("vi-VN");
+
+            var v_objDetail = new CWarehouseDocumentDetail { So_Luong = 0.0001m };
+            var v_arrValidation_Result = new List<ValidationResult>();
+            var v_objValidation_Context = new ValidationContext(v_objDetail)
+            {
+                MemberName = nameof(CWarehouseDocumentDetail.So_Luong)
+            };
+
+            var v_bIs_Valid = Validator.TryValidateProperty(
+                v_objDetail.So_Luong,
+                v_objValidation_Context,
+                v_arrValidation_Result);
+
+            Assert.True(v_bIs_Valid, string.Join("; ", v_arrValidation_Result.Select(it => it.ErrorMessage)));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = v_objPrevious_Culture;
+            CultureInfo.CurrentUICulture = v_objPrevious_Ui_Culture;
+        }
     }
 
     [Fact]
