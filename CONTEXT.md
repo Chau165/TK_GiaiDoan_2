@@ -27,3 +27,11 @@ _Avoid_: Movement ledger, historical snapshot.
 **Inventory Delta**:
 The signed change to current inventory obtained by reversing an old effective movement and applying a new effective movement.
 _Avoid_: the new detail quantity alone.
+
+**Warehouse Scope (Phạm vi kho)**:
+The set of warehouses a signed-in User may read or mutate, defined by the User–Warehouse Assignment `(Ma_Dang_Nhap, Kho_ID)`.
+_Avoid_: treating a warehouse scope as a menu/function permission or as a client-only dropdown filter.
+
+**User–Warehouse Assignment (Phân quyền kho - user)**:
+A unique assignment that connects an existing login identity `Ma_Dang_Nhap` to one warehouse `Kho_ID`.
+_Avoid_: calling `Ma_Dang_Nhap` a new permission code; it identifies the User and is not itself authorization.
