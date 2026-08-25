@@ -102,6 +102,56 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task Document_page_returns_the_persisted_post_status()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var tag = $"TDD-DOCUMENT-STATUS-{Guid.NewGuid():N}";
+            var login = $"{tag}-login";
+            var supplierId = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_NCC(Ma_NCC, Ten_NCC, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, N'');",
+                Text("@Code", $"{tag}-supplier-code", 100), Text("@Name", $"{tag}-supplier", 200));
+            var warehouseId = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
+                Text("@Name", $"{tag}-warehouse", 255));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
+                Text("@Login", login, 100), BigInt("@WarehouseId", warehouseId));
+
+            await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 0, N'');",
+                Text("@Number", $"{tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
+            await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 1, N'');",
+                Text("@Number", $"{tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
+            await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-08-25', 0, N'');",
+                Text("@Number", $"{tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
+            await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-08-25', 1, N'');",
+                Text("@Number", $"{tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
+
+            var receiptRows = await ReadDocumentPageAsync(connection, transaction, true, login);
+            Assert.Equal(2, receiptRows.Count);
+            Assert.False(receiptRows.Single(row => row.DocumentNumber == $"{tag}-draft-receipt").IsPosted);
+            Assert.True(receiptRows.Single(row => row.DocumentNumber == $"{tag}-posted-receipt").IsPosted);
+
+            var issueRows = await ReadDocumentPageAsync(connection, transaction, false, login);
+            Assert.Equal(2, issueRows.Count);
+            Assert.False(issueRows.Single(row => row.DocumentNumber == $"{tag}-draft-issue").IsPosted);
+            Assert.True(issueRows.Single(row => row.DocumentNumber == $"{tag}-posted-issue").IsPosted);
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
     private static async Task<long> InsertIdAsync(SqlConnection connection, SqlTransaction transaction, string sql, params SqlParameter[] parameters)
     {
         await using var command = new SqlCommand(sql, connection, transaction);
@@ -133,6 +183,27 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
         var rows = new List<InventoryRow>();
         while (await reader.ReadAsync())
             rows.Add(new InventoryRow(reader.GetInt64(2), reader.GetDecimal(6), reader.GetDecimal(7), reader.GetDecimal(8)));
+        return rows;
+    }
+
+    private static async Task<List<DocumentRow>> ReadDocumentPageAsync(SqlConnection connection, SqlTransaction transaction, bool isReceipt, string login)
+    {
+        await using var command = new SqlCommand("sp_XNK_Document_Page", connection, transaction) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@Is_Receipt", SqlDbType.Bit) { Value = isReceipt });
+        command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
+        command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 100 });
+        command.Parameters.Add(Text("@Search_Text", "", 100));
+        command.Parameters.Add(Text("@Ma_Dang_Nhap", login, 100));
+
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(2, reader.GetInt32(0));
+        Assert.True(await reader.NextResultAsync());
+        var documentNumberOrdinal = reader.GetOrdinal("So_Phieu");
+        var statusOrdinal = reader.GetOrdinal("Is_Posted");
+        var rows = new List<DocumentRow>();
+        while (await reader.ReadAsync())
+            rows.Add(new DocumentRow(reader.GetString(documentNumberOrdinal), reader.GetBoolean(statusOrdinal)));
         return rows;
     }
 
@@ -183,4 +254,5 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
 
     private sealed record DetailRow(string DocumentNumber, decimal Quantity);
     private sealed record InventoryRow(long ProductId, decimal Received, decimal Issued, decimal Closing);
+    private sealed record DocumentRow(string DocumentNumber, bool IsPosted);
 }
