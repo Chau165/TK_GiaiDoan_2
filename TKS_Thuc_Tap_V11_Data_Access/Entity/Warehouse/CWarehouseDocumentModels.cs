@@ -34,9 +34,9 @@ public class CWarehouseDocumentDetail
     public string Ma_San_Pham { get; set; } = "";
     public string Ten_San_Pham { get; set; } = "";
     public string Ten_Don_Vi_Tinh { get; set; } = "";
-    [Range(typeof(decimal), "0.0001", "79228162514264337593543950335")]
+    [Range(0.0001, double.MaxValue)]
     public decimal So_Luong { get; set; }
-    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
+    [Range(0.01, double.MaxValue)]
     public decimal Don_Gia { get; set; }
     public decimal Tri_Gia => So_Luong * Don_Gia;
     public DateTime? Created { get; set; }
