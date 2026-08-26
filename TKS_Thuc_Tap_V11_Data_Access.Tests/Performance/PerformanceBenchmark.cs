@@ -573,9 +573,9 @@ public static class PerformanceBenchmark
         await using var v_command = p_connection.CreateCommand();
         v_command.CommandText = """
             SELECT
-                COALESCE(SUM(CASE WHEN type = 0 THEN size END), 0) * 8192,
-                COALESCE(SUM(CASE WHEN type = 0 THEN FILEPROPERTY(name, 'SpaceUsed') END), 0) * 8192,
-                COALESCE(SUM(CASE WHEN type = 1 THEN size END), 0) * 8192
+                COALESCE(SUM(CASE WHEN type = 0 THEN CAST(size AS bigint) END), CONVERT(bigint, 0)) * CONVERT(bigint, 8192),
+                COALESCE(SUM(CASE WHEN type = 0 THEN CAST(FILEPROPERTY(name, 'SpaceUsed') AS bigint) END), CONVERT(bigint, 0)) * CONVERT(bigint, 8192),
+                COALESCE(SUM(CASE WHEN type = 1 THEN CAST(size AS bigint) END), CONVERT(bigint, 0)) * CONVERT(bigint, 8192)
             FROM sys.database_files;
             """;
         await using var v_reader = await v_command.ExecuteReaderAsync();
