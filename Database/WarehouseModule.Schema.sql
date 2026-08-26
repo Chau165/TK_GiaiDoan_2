@@ -161,6 +161,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Ngay
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Ngay ON dbo.tbl_XNK_Xuat_Kho(Ngay_Xuat_Kho) INCLUDE (Kho_ID);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Raw_SanPham_ID') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Raw_SanPham_ID ON dbo.tbl_XNK_Nhap_Kho_Raw_Data(San_Pham_ID) INCLUDE (SL_Nhap, Don_Gia_Nhap);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Raw_SanPham_ID') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Raw_SanPham_ID ON dbo.tbl_XNK_Xuat_Kho_Raw_Data(San_Pham_ID) INCLUDE (SL_Xuat, Don_Gia_Xuat);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Report_Page') CREATE INDEX IX_tbl_XNK_Nhap_Kho_Report_Page ON dbo.tbl_XNK_Nhap_Kho(Ngay_Nhap_Kho, So_Phieu_Nhap_Kho, Auto_ID) INCLUDE (Kho_ID, NCC_ID) WHERE Is_Posted = 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Report_Page') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Report_Page ON dbo.tbl_XNK_Xuat_Kho(Ngay_Xuat_Kho, So_Phieu_Xuat_Kho, Auto_ID) INCLUDE (Kho_ID) WHERE Is_Posted = 1;
 GO
 
 /* Warehouse audit contract. Existing databases are upgraded idempotently. */

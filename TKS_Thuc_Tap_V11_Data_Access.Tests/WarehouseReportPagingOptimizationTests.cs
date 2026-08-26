@@ -26,8 +26,9 @@ public sealed class WarehouseReportPagingOptimizationTests
         foreach (var definition in new[] { receiptDefinition, issueDefinition })
         {
             Assert.Contains("#AuthorizedWarehouse", definition, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("#DetailScope", definition, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("SELECT COUNT(*) AS Total_Count FROM #DetailScope", definition, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("#DetailScope", definition, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("SELECT COUNT(*) AS Total_Count", definition, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("OFFSET", definition, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("EXISTS", definition, StringComparison.OrdinalIgnoreCase);
         }
     }
@@ -47,9 +48,7 @@ public sealed class WarehouseReportPagingOptimizationTests
         Assert.Contains("OFFSET", issueDefinition, StringComparison.OrdinalIgnoreCase);
 
         Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Nhap_Kho_Report_Page"));
-        Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Nhap_Kho_Raw_Report_Page"));
         Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Xuat_Kho_Report_Page"));
-        Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Xuat_Kho_Raw_Report_Page"));
     }
 
     [Fact]

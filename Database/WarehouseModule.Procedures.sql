@@ -3016,6 +3016,7 @@ BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1; IF @Page_Size < 1 SET @Page_Size = 10;
+    DECLARE @Offset BIGINT = CONVERT(BIGINT, @Page_Number - 1) * CONVERT(BIGINT, @Page_Size);
 
     CREATE TABLE #AuthorizedWarehouse
     (
@@ -3027,32 +3028,38 @@ BEGIN
     FROM dbo.tbl_DM_Kho_User
     WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
 
-    SELECT d.Auto_ID AS Detail_ID,
-           h.Auto_ID AS Document_ID,
-           h.Kho_ID,
-           d.San_Pham_ID,
-           h.Ngay_Nhap_Kho AS Ngay,
-           h.So_Phieu_Nhap_Kho AS So_Phieu,
-           h.NCC_ID,
-           d.SL_Nhap AS So_Luong,
-           d.Don_Gia_Nhap AS Don_Gia
-    INTO #DetailScope
+    SELECT COUNT(*) AS Total_Count
     FROM dbo.tbl_XNK_Nhap_Kho h
     JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
     JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
     WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay
       AND h.Is_Posted = 1;
 
-    SELECT COUNT(*) AS Total_Count FROM #DetailScope;
-
-    SELECT ds.Ngay, ds.So_Phieu, n.Ten_NCC AS Nha_Cung_Cap,
-           p.Ma_San_Pham, p.Ten_San_Pham, ds.So_Luong, ds.Don_Gia,
-           CAST(ds.So_Luong * ds.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
-    FROM #DetailScope ds
-    JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = ds.NCC_ID
-    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ds.San_Pham_ID
-    ORDER BY ds.Ngay, ds.So_Phieu
-    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    ;WITH PageScope AS
+    (
+        SELECT d.Auto_ID AS Detail_ID,
+               h.Auto_ID AS Document_ID,
+               h.Ngay_Nhap_Kho AS Ngay,
+               h.So_Phieu_Nhap_Kho AS So_Phieu,
+               h.NCC_ID,
+               d.San_Pham_ID,
+               d.SL_Nhap AS So_Luong,
+               d.Don_Gia_Nhap AS Don_Gia
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay
+          AND h.Is_Posted = 1
+        ORDER BY h.Ngay_Nhap_Kho, h.So_Phieu_Nhap_Kho, h.Auto_ID, d.Auto_ID
+        OFFSET @Offset ROWS FETCH NEXT @Page_Size ROWS ONLY
+    )
+    SELECT ps.Ngay, ps.So_Phieu, n.Ten_NCC AS Nha_Cung_Cap,
+           p.Ma_San_Pham, p.Ten_San_Pham, ps.So_Luong, ps.Don_Gia,
+           CAST(ps.So_Luong * ps.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
+    FROM PageScope ps
+    JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = ps.NCC_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ps.San_Pham_ID
+    ORDER BY ps.Ngay, ps.So_Phieu, ps.Document_ID, ps.Detail_ID;
 END
 GO
 
@@ -3063,6 +3070,7 @@ BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1; IF @Page_Size < 1 SET @Page_Size = 10;
+    DECLARE @Offset BIGINT = CONVERT(BIGINT, @Page_Number - 1) * CONVERT(BIGINT, @Page_Size);
 
     CREATE TABLE #AuthorizedWarehouse
     (
@@ -3074,30 +3082,36 @@ BEGIN
     FROM dbo.tbl_DM_Kho_User
     WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
 
-    SELECT d.Auto_ID AS Detail_ID,
-           h.Auto_ID AS Document_ID,
-           h.Kho_ID,
-           d.San_Pham_ID,
-           h.Ngay_Xuat_Kho AS Ngay,
-           h.So_Phieu_Xuat_Kho AS So_Phieu,
-           d.SL_Xuat AS So_Luong,
-           d.Don_Gia_Xuat AS Don_Gia
-    INTO #DetailScope
+    SELECT COUNT(*) AS Total_Count
     FROM dbo.tbl_XNK_Xuat_Kho h
     JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
     JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
     WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay
       AND h.Is_Posted = 1;
 
-    SELECT COUNT(*) AS Total_Count FROM #DetailScope;
-
-    SELECT ds.Ngay, ds.So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,
-           p.Ma_San_Pham, p.Ten_San_Pham, ds.So_Luong, ds.Don_Gia,
-           CAST(ds.So_Luong * ds.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
-    FROM #DetailScope ds
-    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ds.San_Pham_ID
-    ORDER BY ds.Ngay, ds.So_Phieu
-    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    ;WITH PageScope AS
+    (
+        SELECT d.Auto_ID AS Detail_ID,
+               h.Auto_ID AS Document_ID,
+               h.Ngay_Xuat_Kho AS Ngay,
+               h.So_Phieu_Xuat_Kho AS So_Phieu,
+               d.San_Pham_ID,
+               d.SL_Xuat AS So_Luong,
+               d.Don_Gia_Xuat AS Don_Gia
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay
+          AND h.Is_Posted = 1
+        ORDER BY h.Ngay_Xuat_Kho, h.So_Phieu_Xuat_Kho, h.Auto_ID, d.Auto_ID
+        OFFSET @Offset ROWS FETCH NEXT @Page_Size ROWS ONLY
+    )
+    SELECT ps.Ngay, ps.So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,
+           p.Ma_San_Pham, p.Ten_San_Pham, ps.So_Luong, ps.Don_Gia,
+           CAST(ps.So_Luong * ps.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
+    FROM PageScope ps
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ps.San_Pham_ID
+    ORDER BY ps.Ngay, ps.So_Phieu, ps.Document_ID, ps.Detail_ID;
 END
 GO
 
