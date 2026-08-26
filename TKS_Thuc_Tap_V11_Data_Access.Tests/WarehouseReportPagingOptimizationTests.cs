@@ -33,6 +33,26 @@ public sealed class WarehouseReportPagingOptimizationTests
     }
 
     [Fact]
+    public async Task Detail_report_procedures_page_from_covering_indexes_without_full_scope_materialization()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        var receiptDefinition = await ReadDefinitionAsync(connection, "sp_BC_Chi_Tiet_Nhap_Page");
+        var issueDefinition = await ReadDefinitionAsync(connection, "sp_BC_Chi_Tiet_Xuat_Page");
+
+        Assert.DoesNotContain("#DetailScope", receiptDefinition, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#DetailScope", issueDefinition, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OFFSET", receiptDefinition, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OFFSET", issueDefinition, StringComparison.OrdinalIgnoreCase);
+
+        Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Nhap_Kho_Report_Page"));
+        Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Nhap_Kho_Raw_Report_Page"));
+        Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Xuat_Kho_Report_Page"));
+        Assert.True(await IndexExistsAsync(connection, "IX_tbl_XNK_Xuat_Kho_Raw_Report_Page"));
+    }
+
+    [Fact]
     public async Task Paged_inventory_and_detail_reports_preserve_count_rows_and_warehouse_scope()
     {
         await using var connection = new SqlConnection(ConnectionString);
@@ -109,6 +129,14 @@ public sealed class WarehouseReportPagingOptimizationTests
             "SELECT OBJECT_DEFINITION(OBJECT_ID(@ProcedureName));", connection);
         command.Parameters.Add(Text("@ProcedureName", $"dbo.{procedureName}", 256));
         return Convert.ToString(await command.ExecuteScalarAsync()) ?? "";
+    }
+
+    private static async Task<bool> IndexExistsAsync(SqlConnection connection, string indexName)
+    {
+        await using var command = new SqlCommand(
+            "SELECT CASE WHEN EXISTS (SELECT 1 FROM sys.indexes WHERE name = @IndexName) THEN 1 ELSE 0 END;", connection);
+        command.Parameters.Add(Text("@IndexName", indexName, 256));
+        return Convert.ToInt32(await command.ExecuteScalarAsync()) == 1;
     }
 
     private static async Task<(int TotalCount, List<InventoryRow> Rows)> ReadPagedInventoryAsync(
