@@ -21,6 +21,21 @@ public sealed class PerformanceSeedTests
         Assert.Contains("SET QUOTED_IDENTIFIER ON", seed, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Bulk_detail_invalidation_deduplicates_the_affected_scope()
+    {
+        var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+
+        Assert.Contains(
+            "SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'",
+            procedures,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'",
+            procedures,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string FindRepositoryPath(params string[] parts)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
