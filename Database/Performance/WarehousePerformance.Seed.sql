@@ -31,6 +31,25 @@ DECLARE @IssueLineCount INT = @RecordCount - @ReceiptLineCount;
 DECLARE @ReceiptHeaderCount INT = (@ReceiptLineCount + 9) / 10;
 DECLARE @IssueHeaderCount INT = (@IssueLineCount + 9) / 10;
 
+/* The warehouse procedures validate the authenticated login through the
+   system member table. The isolated benchmark database does not otherwise
+   include the application's system schema, so create only the columns used
+   by the warehouse contract and seed one non-production benchmark identity. */
+IF OBJECT_ID(N'dbo.tbl_Sys_Thanh_Vien', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.tbl_Sys_Thanh_Vien
+    (
+        Auto_ID BIGINT NOT NULL CONSTRAINT PK_tbl_Sys_Thanh_Vien_Performance PRIMARY KEY,
+        Ma_Dang_Nhap NVARCHAR(100) NOT NULL CONSTRAINT UQ_tbl_Sys_Thanh_Vien_Performance_Login UNIQUE,
+        Ho_Ten NVARCHAR(255) NULL,
+        deleted INT NOT NULL CONSTRAINT DF_tbl_Sys_Thanh_Vien_Performance_Deleted DEFAULT (0)
+    );
+END;
+
+IF NOT EXISTS (SELECT 1 FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap = N'PERF_USER')
+    INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, deleted)
+    VALUES (1, N'PERF_USER', N'Warehouse performance benchmark', 0);
+
 /* 10 x 10 x 10000 x 100 = 100000000 possible numbers, capped by RecordCount. */
 ;WITH E1(n) AS
 (
