@@ -10,7 +10,8 @@ param(
     [int]$Warmup = 1,
     [switch]$FullLoad,
     [switch]$KeepDatabase,
-    [switch]$Reset
+    [switch]$Reset,
+    [string]$DatabaseDirectory = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,12 +52,25 @@ if ($databaseExists -and -not $Reset) {
     throw "$databaseName already exists. Use -Reset only for this isolated benchmark database, or choose a different scale."
 }
 
+$databaseDirectoryPath = $null
+if (-not [string]::IsNullOrWhiteSpace($DatabaseDirectory)) {
+    $databaseDirectoryPath = [System.IO.Path]::GetFullPath($DatabaseDirectory)
+    [System.IO.Directory]::CreateDirectory($databaseDirectoryPath) | Out-Null
+}
 try {
     if ($databaseExists -and $Reset) {
         Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', 'master', '-b', '-Q', "ALTER DATABASE [$databaseName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$databaseName];")
     }
 
-    Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', 'master', '-b', '-Q', "CREATE DATABASE [$databaseName];")
+    $createDatabaseQuery = "CREATE DATABASE [$databaseName];"
+    if ($null -ne $databaseDirectoryPath) {
+        $dataFilePath = [System.IO.Path]::Combine($databaseDirectoryPath, "$databaseName.mdf")
+        $logFilePath = [System.IO.Path]::Combine($databaseDirectoryPath, "${databaseName}_log.ldf")
+        $escapedDataFilePath = $dataFilePath.Replace("'", "''")
+        $escapedLogFilePath = $logFilePath.Replace("'", "''")
+        $createDatabaseQuery = "CREATE DATABASE [$databaseName] ON PRIMARY (NAME = N'$databaseName', FILENAME = N'$escapedDataFilePath', SIZE = 64MB, FILEGROWTH = 256MB) LOG ON (NAME = N'${databaseName}_log', FILENAME = N'$escapedLogFilePath', SIZE = 128MB, FILEGROWTH = 256MB);"
+    }
+    Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', 'master', '-b', '-Q', $createDatabaseQuery)
     Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-i', $schemaFile)
     Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-i', $proceduresFile)
     Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', "RecordCount=$RecordCount", '-i', $seedFile)
