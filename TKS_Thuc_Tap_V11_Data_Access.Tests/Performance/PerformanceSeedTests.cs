@@ -22,6 +22,15 @@ public sealed class PerformanceSeedTests
     }
 
     [Fact]
+    public void Seed_creates_the_authenticated_user_fixture_required_by_warehouse_crud()
+    {
+        var seed = File.ReadAllText(FindRepositoryPath("Database", "Performance", "WarehousePerformance.Seed.sql"));
+
+        Assert.Contains("CREATE TABLE dbo.tbl_Sys_Thanh_Vien", seed, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("PERF_USER", seed, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Bulk_detail_invalidation_deduplicates_the_affected_scope()
     {
         var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
