@@ -75,6 +75,21 @@ public sealed class PerformanceBenchmarkTests
     }
 
     [Fact]
+    public void Storage_snapshot_query_casts_page_counts_to_bigint_before_multiplication()
+    {
+        var source = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access.Tests",
+            "Performance",
+            "PerformanceBenchmark.cs"));
+
+        Assert.Contains("CAST(size AS bigint)", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "CAST(FILEPROPERTY(name, 'SpaceUsed') AS bigint)",
+            source,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     [Trait("Category", "Performance")]
     public async Task Database_benchmark_runs_only_when_explicitly_enabled()
     {
