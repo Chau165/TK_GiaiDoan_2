@@ -520,25 +520,25 @@ BEGIN
     IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
     BEGIN
         INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
         FROM inserted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
         WHERE h.Is_Posted = 1
         UNION
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
         FROM deleted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
         WHERE h.Is_Posted = 1;
     END
     ELSE IF EXISTS (SELECT 1 FROM deleted)
     BEGIN
         INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_DELETE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_DELETE'
         FROM deleted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
         WHERE h.Is_Posted = 1;
     END
     ELSE
     BEGIN
         INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Nhap_Kho, N'DOCUMENT_UPDATE'
         FROM inserted x JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = x.Nhap_Kho_ID
         WHERE h.Is_Posted = 1;
     END
@@ -558,25 +558,25 @@ BEGIN
     IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
     BEGIN
         INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
         FROM inserted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
         WHERE h.Is_Posted = 1
         UNION
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
         FROM deleted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
         WHERE h.Is_Posted = 1;
     END
     ELSE IF EXISTS (SELECT 1 FROM deleted)
     BEGIN
         INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_DELETE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_DELETE'
         FROM deleted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
         WHERE h.Is_Posted = 1;
     END
     ELSE
     BEGIN
         INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-        SELECT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
+        SELECT DISTINCT h.Kho_ID, x.San_Pham_ID, h.Ngay_Xuat_Kho, N'DOCUMENT_UPDATE'
         FROM inserted x JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = x.Xuat_Kho_ID
         WHERE h.Is_Posted = 1;
     END
