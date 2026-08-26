@@ -3,6 +3,7 @@
    and passes RecordCount through sqlcmd. Do not run this against the business database.
 */
 SET NOCOUNT ON;
+SET QUOTED_IDENTIFIER ON;
 SET XACT_ABORT ON;
 
 DECLARE @RecordCount INT = TRY_CONVERT(INT, N'$(RecordCount)');
