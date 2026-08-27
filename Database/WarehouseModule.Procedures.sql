@@ -3374,9 +3374,11 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
         CREATE TABLE #Delta(Kho_ID BIGINT NOT NULL, San_Pham_ID BIGINT NOT NULL, Delta DECIMAL(18,3) NOT NULL, PRIMARY KEY(Kho_ID, San_Pham_ID));
+        DECLARE @Movement_Date DATE;
         IF @Is_Receipt = 1
         BEGIN
             DECLARE @ReceiptWarehouse BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Document_ID);
+            SELECT @Movement_Date = Ngay_Nhap_Kho FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID;
             IF @ReceiptWarehouse IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
             EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @ReceiptWarehouse;
             IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51162, N'Phiếu đã Post.', 1;
@@ -3387,6 +3389,7 @@ BEGIN
         ELSE
         BEGIN
             DECLARE @IssueWarehouse BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Document_ID);
+            SELECT @Movement_Date = Ngay_Xuat_Kho FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID;
             IF @IssueWarehouse IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
             EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @IssueWarehouse;
             IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51162, N'Phiếu đã Post.', 1;
@@ -3407,6 +3410,11 @@ BEGIN
         INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity)
         SELECT d.Kho_ID, d.San_Pham_ID, d.Delta, 0 FROM #Delta d
         WHERE NOT EXISTS (SELECT 1 FROM dbo.InventoryBalance_Current b WITH (UPDLOCK, HOLDLOCK) WHERE b.Kho_ID = d.Kho_ID AND b.San_Pham_ID = d.San_Pham_ID);
+        DECLARE @MovementAffected dbo.InventoryMovementAffectedType;
+        INSERT @MovementAffected(Kho_ID, San_Pham_ID, Movement_Date, InvalidReason)
+        SELECT Kho_ID, San_Pham_ID, @Movement_Date, N'POSTED_DOCUMENT'
+        FROM #Delta;
+        EXEC dbo.sp_Inventory_Movement_Apply_Invalidation @Affected = @MovementAffected;
         EXEC dbo.sp_XNK_Validate_All_Balances;
         COMMIT TRANSACTION;
     END TRY
@@ -3999,6 +4007,14 @@ BEGIN
     IF @Page_Number < 1 SET @Page_Number = 1;
     IF @Page_Size < 1 SET @Page_Size = 10;
 
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryMovement_AggregateState
+        WHERE State_ID = 1 AND IsInitialized = 1
+    )
+        THROW 51221, N'Movement Aggregate chưa được khởi tạo. Hãy chạy sp_Inventory_Movement_Bootstrap_From_Ledger trước khi xem báo cáo.', 1;
+
     DECLARE @Snapshot_Date DATE =
     (
         SELECT MAX(Snapshot_Date)
@@ -4019,6 +4035,17 @@ BEGIN
     SELECT DISTINCT Kho_ID
     FROM dbo.tbl_DM_Kho_User
     WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryMovement_RebuildQueue q
+        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = q.Kho_ID
+        WHERE q.Status IN (N'WAITING', N'PROCESSING', N'FAILED')
+          AND q.From_Date <= @Den_Ngay
+          AND q.To_Date >= @Movement_Start_Date
+    )
+        THROW 51222, N'Movement Aggregate của báo cáo đang tái tạo. Vui lòng thử lại sau khi worker hoàn tất.', 1;
 
     CREATE TABLE #SnapshotBalance
     (
@@ -4045,29 +4072,13 @@ BEGIN
     );
     INSERT #MovementAggregate(Kho_ID, San_Pham_ID, OpeningDelta, Received, Issued)
     SELECT m.Kho_ID, m.San_Pham_ID,
-           SUM(CASE WHEN m.MovementDate < @Tu_Ngay THEN m.InQuantity - m.OutQuantity ELSE 0 END),
-           SUM(CASE WHEN m.MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.InQuantity ELSE 0 END),
-           SUM(CASE WHEN m.MovementDate BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.OutQuantity ELSE 0 END)
-    FROM
-    (
-        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Nhap_Kho AS MovementDate,
-               CAST(d.SL_Nhap AS DECIMAL(18,3)) AS InQuantity,
-               CAST(0 AS DECIMAL(18,3)) AS OutQuantity
-        FROM dbo.tbl_XNK_Nhap_Kho h
-        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
-        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
-        WHERE h.Is_Posted = 1
-          AND h.Ngay_Nhap_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
-        UNION ALL
-        SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Xuat_Kho,
-               CAST(0 AS DECIMAL(18,3)),
-               CAST(d.SL_Xuat AS DECIMAL(18,3))
-        FROM dbo.tbl_XNK_Xuat_Kho h
-        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
-        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
-        WHERE h.Is_Posted = 1
-          AND h.Ngay_Xuat_Kho BETWEEN @Movement_Start_Date AND @Den_Ngay
-    ) m
+           SUM(CASE WHEN m.Movement_Date < @Tu_Ngay THEN m.Total_Receipt - m.Total_Issue ELSE 0 END),
+           SUM(CASE WHEN m.Movement_Date BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.Total_Receipt ELSE 0 END),
+           SUM(CASE WHEN m.Movement_Date BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.Total_Issue ELSE 0 END)
+    FROM dbo.Inventory_Movement_Daily m
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = m.Kho_ID
+    WHERE m.IsValid = 1
+      AND m.Movement_Date BETWEEN @Movement_Start_Date AND @Den_Ngay
     GROUP BY m.Kho_ID, m.San_Pham_ID;
 
     CREATE TABLE #ReportKeys
@@ -4133,3 +4144,340 @@ BEGIN
 END
 GO
 SET QUOTED_IDENTIFIER ON;
+GO
+
+/* Queue only a narrow daily scope during Post. Recalculation from the ledger is
+   intentionally deferred to the worker so document posting stays short. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Apply_Invalidation
+    @Affected dbo.InventoryMovementAffectedType READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM @Affected) RETURN;
+
+    ;WITH Normalized AS
+    (
+        SELECT Kho_ID, San_Pham_ID, Movement_Date,
+               MAX(InvalidReason) AS InvalidReason
+        FROM @Affected
+        GROUP BY Kho_ID, San_Pham_ID, Movement_Date
+    )
+    UPDATE d
+    SET IsValid = 0,
+        InvalidatedAt = SYSUTCDATETIME(),
+        InvalidReason = n.InvalidReason,
+        UpdatedAt = SYSUTCDATETIME()
+    FROM dbo.Inventory_Movement_Daily d
+    JOIN Normalized n ON n.Kho_ID = d.Kho_ID
+                     AND n.San_Pham_ID = d.San_Pham_ID
+                     AND n.Movement_Date = d.Movement_Date;
+
+    CREATE TABLE #Scope
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        From_Date DATE NOT NULL,
+        To_Date DATE NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID)
+    );
+    INSERT #Scope(Kho_ID, San_Pham_ID, From_Date, To_Date)
+    SELECT Kho_ID, San_Pham_ID, MIN(Movement_Date), MAX(Movement_Date)
+    FROM @Affected
+    GROUP BY Kho_ID, San_Pham_ID;
+
+    /* A claimed queue item is not widened underneath its worker. A concurrent
+       change creates a second WAITING item, preserving every affected date. */
+    UPDATE q
+    SET From_Date = CASE WHEN s.From_Date < q.From_Date THEN s.From_Date ELSE q.From_Date END,
+        To_Date = CASE WHEN s.To_Date > q.To_Date THEN s.To_Date ELSE q.To_Date END,
+        ErrorMessage = NULL
+    FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
+    JOIN #Scope s ON s.Kho_ID = q.Kho_ID AND s.San_Pham_ID = q.San_Pham_ID
+    WHERE q.Status = N'WAITING';
+
+    INSERT dbo.InventoryMovement_RebuildQueue
+    (Kho_ID, San_Pham_ID, From_Date, To_Date, Status)
+    SELECT s.Kho_ID, s.San_Pham_ID, s.From_Date, s.To_Date, N'WAITING'
+    FROM #Scope s
+    WHERE NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
+        WHERE q.Kho_ID = s.Kho_ID
+          AND q.San_Pham_ID = s.San_Pham_ID
+          AND q.Status = N'WAITING'
+    );
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Rebuild
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT,
+    @From_Date DATE,
+    @To_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @From_Date IS NULL OR @To_Date IS NULL OR @From_Date > @To_Date
+        THROW 51223, N'Khoảng ngày rebuild Movement Aggregate không hợp lệ.', 1;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @AppLockResult INT;
+        DECLARE @AppLockResource NVARCHAR(255) = CONCAT(N'InventoryMovement:', @Kho_ID, N':', @San_Pham_ID);
+        EXEC @AppLockResult = sys.sp_getapplock
+            @Resource = @AppLockResource,
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @AppLockResult < 0
+            THROW 51224, N'Movement Aggregate scope đang được rebuild bởi worker khác.', 1;
+
+        CREATE TABLE #Rebuilt
+        (
+            Movement_Date DATE NOT NULL PRIMARY KEY,
+            Total_Receipt DECIMAL(18,3) NOT NULL,
+            Total_Issue DECIMAL(18,3) NOT NULL
+        );
+
+        INSERT #Rebuilt(Movement_Date, Total_Receipt, Total_Issue)
+        SELECT m.Movement_Date,
+               SUM(m.Total_Receipt),
+               SUM(m.Total_Issue)
+        FROM
+        (
+            SELECT h.Ngay_Nhap_Kho AS Movement_Date,
+                   CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Total_Receipt,
+                   CAST(0 AS DECIMAL(18,3)) AS Total_Issue
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+              AND h.Kho_ID = @Kho_ID
+              AND d.San_Pham_ID = @San_Pham_ID
+              AND h.Ngay_Nhap_Kho BETWEEN @From_Date AND @To_Date
+            UNION ALL
+            SELECT h.Ngay_Xuat_Kho,
+                   CAST(0 AS DECIMAL(18,3)),
+                   CAST(d.SL_Xuat AS DECIMAL(18,3))
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+              AND h.Kho_ID = @Kho_ID
+              AND d.San_Pham_ID = @San_Pham_ID
+              AND h.Ngay_Xuat_Kho BETWEEN @From_Date AND @To_Date
+        ) m
+        GROUP BY m.Movement_Date;
+
+        UPDATE d
+        SET Total_Receipt = r.Total_Receipt,
+            Total_Issue = r.Total_Issue,
+            IsValid = 1,
+            InvalidatedAt = NULL,
+            InvalidReason = NULL,
+            [Version] = d.[Version] + 1,
+            UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.Inventory_Movement_Daily d
+        JOIN #Rebuilt r ON r.Movement_Date = d.Movement_Date
+        WHERE d.Kho_ID = @Kho_ID AND d.San_Pham_ID = @San_Pham_ID;
+
+        INSERT dbo.Inventory_Movement_Daily
+        (Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid)
+        SELECT r.Movement_Date, @Kho_ID, @San_Pham_ID, r.Total_Receipt, r.Total_Issue, 1
+        FROM #Rebuilt r
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.Inventory_Movement_Daily d WITH (UPDLOCK, HOLDLOCK)
+            WHERE d.Movement_Date = r.Movement_Date
+              AND d.Kho_ID = @Kho_ID
+              AND d.San_Pham_ID = @San_Pham_ID
+        );
+
+        /* Only stale days in this requested scope are removed; normal back-date
+           rebuilds never clear an aggregate outside their day/range. */
+        DELETE d
+        FROM dbo.Inventory_Movement_Daily d
+        WHERE d.Kho_ID = @Kho_ID
+          AND d.San_Pham_ID = @San_Pham_ID
+          AND d.Movement_Date BETWEEN @From_Date AND @To_Date
+          AND NOT EXISTS (SELECT 1 FROM #Rebuilt r WHERE r.Movement_Date = d.Movement_Date);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Process_RebuildQueue
+    @Batch_Size INT = 100,
+    @Max_Retry_Count INT = 3
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Batch_Size < 1 SET @Batch_Size = 1;
+    IF @Max_Retry_Count < 1 SET @Max_Retry_Count = 1;
+
+    DECLARE @Processed INT = 0;
+    DECLARE @Queue_ID BIGINT;
+    DECLARE @Kho_ID BIGINT;
+    DECLARE @San_Pham_ID BIGINT;
+    DECLARE @From_Date DATE;
+    DECLARE @To_Date DATE;
+
+    WHILE @Processed < @Batch_Size
+    BEGIN
+        SET @Queue_ID = NULL;
+        BEGIN TRANSACTION;
+        SELECT TOP (1)
+               @Queue_ID = q.ID,
+               @Kho_ID = q.Kho_ID,
+               @San_Pham_ID = q.San_Pham_ID,
+               @From_Date = q.From_Date,
+               @To_Date = q.To_Date
+        FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, READPAST, ROWLOCK)
+        WHERE q.Status = N'WAITING'
+           OR (q.Status = N'FAILED' AND q.Retry_Count < @Max_Retry_Count)
+        ORDER BY q.CreatedAt, q.ID;
+
+        IF @Queue_ID IS NULL
+        BEGIN
+            COMMIT TRANSACTION;
+            BREAK;
+        END
+
+        UPDATE dbo.InventoryMovement_RebuildQueue
+        SET Status = N'PROCESSING', ErrorMessage = NULL
+        WHERE ID = @Queue_ID;
+        COMMIT TRANSACTION;
+
+        BEGIN TRY
+            EXEC dbo.sp_Inventory_Movement_Rebuild
+                @Kho_ID = @Kho_ID,
+                @San_Pham_ID = @San_Pham_ID,
+                @From_Date = @From_Date,
+                @To_Date = @To_Date;
+
+            UPDATE dbo.InventoryMovement_RebuildQueue
+            SET Status = N'COMPLETED', ProcessedAt = SYSUTCDATETIME(), ErrorMessage = NULL
+            WHERE ID = @Queue_ID;
+        END TRY
+        BEGIN CATCH
+            UPDATE dbo.InventoryMovement_RebuildQueue
+            SET Status = N'FAILED',
+                Retry_Count = Retry_Count + 1,
+                ProcessedAt = SYSUTCDATETIME(),
+                ErrorMessage = ERROR_MESSAGE()
+            WHERE ID = @Queue_ID;
+        END CATCH
+
+        SET @Processed += 1;
+    END
+END
+GO
+
+/* One controlled cutover/reconciliation from the authoritative ledger. This is
+   never called by Post or by the report path. Run it once after deployment. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Bootstrap_From_Ledger
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @AppLockResult INT;
+        EXEC @AppLockResult = sys.sp_getapplock
+            @Resource = N'InventoryMovement:Bootstrap',
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @AppLockResult < 0
+            THROW 51225, N'Movement Aggregate đang được bootstrap bởi phiên khác.', 1;
+
+        CREATE TABLE #Rebuilt
+        (
+            Movement_Date DATE NOT NULL,
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            Total_Receipt DECIMAL(18,3) NOT NULL,
+            Total_Issue DECIMAL(18,3) NOT NULL,
+            PRIMARY KEY (Movement_Date, Kho_ID, San_Pham_ID)
+        );
+
+        INSERT #Rebuilt(Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue)
+        SELECT m.Movement_Date, m.Kho_ID, m.San_Pham_ID,
+               SUM(m.Total_Receipt), SUM(m.Total_Issue)
+        FROM
+        (
+            SELECT h.Ngay_Nhap_Kho AS Movement_Date, h.Kho_ID, d.San_Pham_ID,
+                   CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Total_Receipt,
+                   CAST(0 AS DECIMAL(18,3)) AS Total_Issue
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+            UNION ALL
+            SELECT h.Ngay_Xuat_Kho, h.Kho_ID, d.San_Pham_ID,
+                   CAST(0 AS DECIMAL(18,3)), CAST(d.SL_Xuat AS DECIMAL(18,3))
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+        ) m
+        GROUP BY m.Movement_Date, m.Kho_ID, m.San_Pham_ID;
+
+        UPDATE d
+        SET Total_Receipt = r.Total_Receipt,
+            Total_Issue = r.Total_Issue,
+            IsValid = 1,
+            InvalidatedAt = NULL,
+            InvalidReason = NULL,
+            [Version] = d.[Version] + 1,
+            UpdatedAt = SYSUTCDATETIME()
+        FROM dbo.Inventory_Movement_Daily d
+        JOIN #Rebuilt r ON r.Movement_Date = d.Movement_Date
+                       AND r.Kho_ID = d.Kho_ID
+                       AND r.San_Pham_ID = d.San_Pham_ID;
+
+        INSERT dbo.Inventory_Movement_Daily
+        (Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid)
+        SELECT r.Movement_Date, r.Kho_ID, r.San_Pham_ID, r.Total_Receipt, r.Total_Issue, 1
+        FROM #Rebuilt r
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.Inventory_Movement_Daily d WITH (UPDLOCK, HOLDLOCK)
+            WHERE d.Movement_Date = r.Movement_Date
+              AND d.Kho_ID = r.Kho_ID
+              AND d.San_Pham_ID = r.San_Pham_ID
+        );
+
+        /* This full reconciliation is the only operation allowed to remove
+           stale aggregate rows across all dates. */
+        DELETE d
+        FROM dbo.Inventory_Movement_Daily d
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM #Rebuilt r
+            WHERE r.Movement_Date = d.Movement_Date
+              AND r.Kho_ID = d.Kho_ID
+              AND r.San_Pham_ID = d.San_Pham_ID
+        );
+
+        UPDATE dbo.InventoryMovement_AggregateState
+        SET IsInitialized = 1,
+            InitializedAt = COALESCE(InitializedAt, SYSUTCDATETIME()),
+            LastReconciledAt = SYSUTCDATETIME()
+        WHERE State_ID = 1;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO

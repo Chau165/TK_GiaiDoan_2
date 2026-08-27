@@ -144,13 +144,17 @@ BEGIN TRY
     IF @Received <> 105 OR @Issued <> 0
         THROW 52406, N'Back-dated rebuild did not recompute the complete daily aggregate.', 1;
 
-    /* The paged report must read aggregate rows and retain its existing result contract. */
-    CREATE TABLE #Report
-    (
-        Kho_ID BIGINT, Ten_Kho NVARCHAR(255), San_Pham_ID BIGINT, Ma_San_Pham NVARCHAR(100), Ten_San_Pham NVARCHAR(255),
-        SL_Dau_Ky DECIMAL(18,3), SL_Nhap DECIMAL(18,3), SL_Xuat DECIMAL(18,3), SL_Cuoi_Ky DECIMAL(18,3),
-        SL_Ton_Thuc_Te DECIMAL(18,3), SL_Dang_Giu DECIMAL(18,3), SL_Kha_Dung DECIMAL(18,3)
-    );
+    /* The paged report must read aggregate rows and retain its two-result-set contract. */
+    UPDATE dbo.InventoryMovement_AggregateState
+    SET IsInitialized = 1, InitializedAt = SYSUTCDATETIME(), LastReconciledAt = SYSUTCDATETIME()
+    WHERE State_ID = 1;
+
+    DECLARE @PageDefinition NVARCHAR(MAX) = OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Xuat_Nhap_Ton_Page'));
+    IF CHARINDEX(N'Inventory_Movement_Daily', @PageDefinition) = 0
+       OR CHARINDEX(N'tbl_XNK_Nhap_Kho_Raw_Data', @PageDefinition) > 0
+       OR CHARINDEX(N'tbl_XNK_Xuat_Kho_Raw_Data', @PageDefinition) > 0
+        THROW 52407, N'InventoryReportPaged still reads raw movement details instead of the daily aggregate.', 1;
+
     /* Execute the unchanged two-result-set paging contract. */
     EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page @Tu_Ngay = @ReportFrom, @Den_Ngay = '2099-02-28', @Page_Number = 1, @Page_Size = 10, @Ma_Dang_Nhap = @Login;
 
@@ -161,7 +165,7 @@ BEGIN TRY
     WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;
 
     IF @Opening <> 0 OR @Received <> 105 OR @Issued <> 25 OR @Closing <> 80
-        THROW 52407, N'Inventory report no longer matches the posted daily aggregate.', 1;
+        THROW 52408, N'Inventory report no longer matches the posted daily aggregate.', 1;
 
     /* Queue and invalidation writes must follow the caller transaction. */
     INSERT dbo.tbl_XNK_Nhap_Kho
@@ -181,7 +185,7 @@ BEGIN TRY
         WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId
           AND From_Date = '2099-02-13' AND Status IN (N'WAITING', N'PROCESSING')
     )
-        THROW 52408, N'Rollback of Post did not roll back the movement rebuild request.', 1;
+        THROW 52409, N'Rollback of Post did not roll back the movement rebuild request.', 1;
 
     ROLLBACK TRANSACTION;
     SELECT N'PASS: movement aggregate post, issue, back-date lifecycle, report and rollback.' AS Result;

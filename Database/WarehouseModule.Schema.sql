@@ -326,6 +326,89 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Post
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Posted_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Posted_Kho_Ngay ON dbo.tbl_XNK_Xuat_Kho(Is_Posted, Kho_ID, Ngay_Xuat_Kho);
 GO
 
+/* Daily receipt/issue materialization. The clustered business key is also the
+   covering report access path, so a redundant nonclustered copy is avoided. */
+IF OBJECT_ID(N'dbo.Inventory_Movement_Daily', N'U') IS NULL
+CREATE TABLE dbo.Inventory_Movement_Daily
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT UQ_Inventory_Movement_Daily_ID UNIQUE,
+    Movement_Date DATE NOT NULL,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    Total_Receipt DECIMAL(18,3) NOT NULL CONSTRAINT DF_Inventory_Movement_Daily_Total_Receipt DEFAULT (0),
+    Total_Issue DECIMAL(18,3) NOT NULL CONSTRAINT DF_Inventory_Movement_Daily_Total_Issue DEFAULT (0),
+    IsValid BIT NOT NULL CONSTRAINT DF_Inventory_Movement_Daily_IsValid DEFAULT (1),
+    InvalidatedAt DATETIME2 NULL,
+    InvalidReason NVARCHAR(100) NULL,
+    [Version] INT NOT NULL CONSTRAINT DF_Inventory_Movement_Daily_Version DEFAULT (1),
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Movement_Daily_CreatedAt DEFAULT SYSUTCDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Movement_Daily_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_Inventory_Movement_Daily PRIMARY KEY CLUSTERED (Movement_Date, Kho_ID, San_Pham_ID),
+    CONSTRAINT CK_Inventory_Movement_Daily_NonNegative CHECK (Total_Receipt >= 0 AND Total_Issue >= 0),
+    CONSTRAINT FK_Inventory_Movement_Daily_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_Inventory_Movement_Daily_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+/* Queue ranges coalesce rapid edits for a scope. A normal posted document has
+   From_Date = To_Date; a range is retained for future correction workflows. */
+IF OBJECT_ID(N'dbo.InventoryMovement_RebuildQueue', N'U') IS NULL
+CREATE TABLE dbo.InventoryMovement_RebuildQueue
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventoryMovement_RebuildQueue PRIMARY KEY,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    From_Date DATE NOT NULL,
+    To_Date DATE NOT NULL,
+    Status NVARCHAR(20) NOT NULL CONSTRAINT DF_InventoryMovement_RebuildQueue_Status DEFAULT (N'WAITING'),
+    Retry_Count INT NOT NULL CONSTRAINT DF_InventoryMovement_RebuildQueue_Retry_Count DEFAULT (0),
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_InventoryMovement_RebuildQueue_CreatedAt DEFAULT SYSUTCDATETIME(),
+    ProcessedAt DATETIME2 NULL,
+    ErrorMessage NVARCHAR(4000) NULL,
+    CONSTRAINT CK_InventoryMovement_RebuildQueue_DateRange CHECK (From_Date <= To_Date),
+    CONSTRAINT CK_InventoryMovement_RebuildQueue_Status CHECK (Status IN (N'WAITING', N'PROCESSING', N'COMPLETED', N'FAILED')),
+    CONSTRAINT FK_InventoryMovement_RebuildQueue_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_InventoryMovement_RebuildQueue_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+IF TYPE_ID(N'dbo.InventoryMovementAffectedType') IS NULL
+    EXEC(N'CREATE TYPE dbo.InventoryMovementAffectedType AS TABLE
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        Movement_Date DATE NOT NULL,
+        InvalidReason NVARCHAR(100) NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID, Movement_Date, InvalidReason)
+    );');
+GO
+
+/* This state prevents a newly deployed but unseeded aggregate from silently
+   returning incomplete reports. Bootstrap must complete once before cutover. */
+IF OBJECT_ID(N'dbo.InventoryMovement_AggregateState', N'U') IS NULL
+CREATE TABLE dbo.InventoryMovement_AggregateState
+(
+    State_ID TINYINT NOT NULL CONSTRAINT PK_InventoryMovement_AggregateState PRIMARY KEY,
+    IsInitialized BIT NOT NULL CONSTRAINT DF_InventoryMovement_AggregateState_IsInitialized DEFAULT (0),
+    InitializedAt DATETIME2 NULL,
+    LastReconciledAt DATETIME2 NULL,
+    CONSTRAINT CK_InventoryMovement_AggregateState_Singleton CHECK (State_ID = 1)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.InventoryMovement_AggregateState WHERE State_ID = 1)
+    INSERT dbo.InventoryMovement_AggregateState(State_ID, IsInitialized) VALUES (1, 0);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryMovement_RebuildQueue_Status_CreatedAt')
+    CREATE INDEX IX_InventoryMovement_RebuildQueue_Status_CreatedAt
+    ON dbo.InventoryMovement_RebuildQueue(Status, CreatedAt, ID)
+    INCLUDE (Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, ErrorMessage);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryMovement_RebuildQueue_ActiveScope')
+    CREATE INDEX IX_InventoryMovement_RebuildQueue_ActiveScope
+    ON dbo.InventoryMovement_RebuildQueue(Kho_ID, San_Pham_ID, Status, From_Date, To_Date, ID);
+GO
+
 /* The assignment uses tbl_DM_* in Bài 7/11 and tbl_XNK_* in Bài 8/12. XNK is canonical; synonyms retain both documented names. */
 IF OBJECT_ID(N'dbo.tbl_DM_Nhap_Kho', N'SN') IS NULL EXEC(N'CREATE SYNONYM dbo.tbl_DM_Nhap_Kho FOR dbo.tbl_XNK_Nhap_Kho;');
 IF OBJECT_ID(N'dbo.tbl_DM_Nhap_Kho_Raw_Data', N'SN') IS NULL EXEC(N'CREATE SYNONYM dbo.tbl_DM_Nhap_Kho_Raw_Data FOR dbo.tbl_XNK_Nhap_Kho_Raw_Data;');

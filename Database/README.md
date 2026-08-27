@@ -22,4 +22,18 @@ sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tes
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseModule.UnicodeDataTests.sql
 ```
 
+## Daily Movement Aggregate cutover
+
+After deploying the schema and procedures, initialize the new report source once
+from the posted ledger before allowing `InventoryReportPaged` to use it:
+
+```powershell
+sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -Q "EXEC dbo.sp_Inventory_Movement_Bootstrap_From_Ledger;"
+sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseInventoryMovementAggregate.IntegrationTests.sql
+```
+
+Deploy `Database\Jobs\WarehouseInventoryMovementRebuild.SqlAgent.sql` against
+`msdb` to process the queue every minute. Until that worker completes a queued
+scope, the report returns a retryable freshness error rather than stale stock data.
+
 Restart the Blazor application after the menu script runs so its function/permission cache reloads. The warehouse page route is `/Kho/Quan_Ly`.
