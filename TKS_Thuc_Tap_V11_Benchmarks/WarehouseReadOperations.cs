@@ -4,8 +4,6 @@ namespace TKS_Thuc_Tap_V11_Benchmarks;
 
 public sealed class WarehouseReadOperations
 {
-    private static readonly DateTime s_fromDate = new(2025, 1, 1);
-    private static readonly DateTime s_toDate = new(2026, 12, 31);
     private readonly BenchmarkSettings m_settings;
 
     public WarehouseReadOperations(BenchmarkSettings p_settings)
@@ -34,12 +32,12 @@ public sealed class WarehouseReadOperations
     public async Task<int> DetailReportPagedAsync()
     {
         return (await new CWarehouseReport_Controller()
-            .Detail_Report_Page_Async(true, s_fromDate, s_toDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
+            .Detail_Report_Page_Async(true, m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
     }
 
     public async Task<int> InventoryReportPagedAsync()
     {
         return (await new CWarehouseReport_Controller()
-            .Inventory_Report_Page_Async(s_fromDate, s_toDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
+            .Inventory_Report_Page_Async(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
     }
 }

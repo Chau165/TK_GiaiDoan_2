@@ -8,6 +8,11 @@ param(
     [int]$DurationSeconds = 15,
     [switch]$KeepDatabase,
     [switch]$Reset,
+    [switch]$UseSnapshot,
+    [ValidatePattern('^\d{4}-\d{2}-\d{2}$')]
+    [string]$SnapshotDate = '2025-12-31',
+    [ValidatePattern('^\d{4}-\d{2}-\d{2}$')]
+    [string]$ReportToDate = '2026-12-31',
     [string]$DatabaseDirectory = ''
 )
 
@@ -22,9 +27,27 @@ $schemaFile = Join-Path $projectRoot 'Database\WarehouseModule.Schema.sql'
 $proceduresFile = Join-Path $projectRoot 'Database\WarehouseModule.Procedures.sql'
 $seedFile = Join-Path $projectRoot 'Database\Performance\WarehousePerformance.Seed.sql'
 $sqlStatsFile = Join-Path $projectRoot 'Database\Performance\WarehousePerformance.SqlStats.sql'
+$snapshotBaselineFile = Join-Path $projectRoot 'Database\Performance\WarehousePerformance.SnapshotBaseline.sql'
+$snapshotSqlStatsFile = Join-Path $projectRoot 'Database\Performance\WarehousePerformance.SnapshotSqlStats.sql'
 $sqlStatsPath = Join-Path $reportRoot 'warehouse-tool-benchmark.sqlstats.txt'
+$snapshotBeforePath = Join-Path $reportRoot 'snapshot-verification-before.txt'
+$snapshotAfterPath = Join-Path $reportRoot 'snapshot-verification-after.txt'
 $connectionString = "Server=localhost;Database=$databaseName;Integrated Security=True;TrustServerCertificate=True;Connection Timeout=30;"
 $sqlcmd = (Get-Command sqlcmd -ErrorAction Stop).Source
+
+try {
+    $snapshotDateValue = [DateTime]::ParseExact($SnapshotDate, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+    $reportToDateValue = [DateTime]::ParseExact($ReportToDate, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+}
+catch {
+    throw 'SnapshotDate and ReportToDate must be valid dates in yyyy-MM-dd format.'
+}
+
+if ($UseSnapshot -and $reportToDateValue -le $snapshotDateValue) {
+    throw 'ReportToDate must be after SnapshotDate when -UseSnapshot is specified.'
+}
+
+$snapshotFromDate = $snapshotDateValue.AddDays(1).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
 
 if ($databaseName -notmatch '^TKS_Thuc_Tap_V11_Perf_[0-9]+$') {
     throw "Refusing an unsafe performance database name: $databaseName"
@@ -50,6 +73,33 @@ function Set-ProcessEnvironment {
     [Environment]::SetEnvironmentVariable($Name, $Value, 'Process')
 }
 
+function Write-SnapshotVerification {
+    param([string]$OutputPath)
+
+    $verificationQuery = @"
+SET NOCOUNT ON;
+SELECT 'SnapshotRows=' + CONVERT(varchar(30), COUNT_BIG(*))
+FROM dbo.InventoryBalance_Snapshot_Daily
+WHERE Snapshot_Date = CONVERT(date, '$SnapshotDate', 23);
+SELECT 'SnapshotValidRows=' + CONVERT(varchar(30), COUNT_BIG(*))
+FROM dbo.InventoryBalance_Snapshot_Daily
+WHERE Snapshot_Date = CONVERT(date, '$SnapshotDate', 23) AND IsValid = 1;
+SELECT 'SnapshotMinDate=' + COALESCE(CONVERT(varchar(10), MIN(Snapshot_Date), 23), 'NULL')
+FROM dbo.InventoryBalance_Snapshot_Daily
+WHERE IsValid = 1;
+SELECT 'SnapshotMaxDate=' + COALESCE(CONVERT(varchar(10), MAX(Snapshot_Date), 23), 'NULL')
+FROM dbo.InventoryBalance_Snapshot_Daily
+WHERE IsValid = 1;
+SELECT 'FallbackLogRows=' + CONVERT(varchar(30), COUNT_BIG(*))
+FROM dbo.InventorySnapshot_ReportFallbackLog;
+SELECT 'ReportProcUsesSnapshot=' + CASE
+    WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Xuat_Nhap_Ton_Page')) LIKE N'%InventoryBalance_Snapshot_Daily%'
+    THEN '1' ELSE '0' END;
+"@
+
+    Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-Q', $verificationQuery, '-o', $OutputPath)
+}
+
 $environmentNames = @(
     'TKS_PERF_ROWS',
     'TKS_PERF_PAGE_SIZE',
@@ -59,7 +109,9 @@ $environmentNames = @(
     'TKS_NBOMBER_DURATION_SECONDS',
     'TKS_NBOMBER_SCENARIOS',
     'TKS_BENCH_REPORT_DIR',
-    'TKS_BDN_DATABASE'
+    'TKS_BDN_DATABASE',
+    'TKS_PERF_FROM_DATE',
+    'TKS_PERF_TO_DATE'
 )
 $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
@@ -101,6 +153,24 @@ try {
     Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-i', $proceduresFile)
     Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', "RecordCount=$RecordCount", '-i', $seedFile)
 
+    if ($UseSnapshot) {
+        if (-not (Test-Path -LiteralPath $snapshotBaselineFile)) {
+            throw "Snapshot baseline script was not found: $snapshotBaselineFile"
+        }
+
+        Set-ProcessEnvironment 'TKS_PERF_FROM_DATE' $snapshotFromDate
+        Set-ProcessEnvironment 'TKS_PERF_TO_DATE' $ReportToDate
+        Set-ProcessEnvironment 'TKS_NBOMBER_SCENARIOS' $null
+        Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', "SnapshotDate=$SnapshotDate", '-i', $snapshotBaselineFile)
+        Write-SnapshotVerification $snapshotBeforePath
+        Write-Output "Snapshot enabled: $SnapshotDate; report period: $snapshotFromDate to $ReportToDate"
+    }
+    else {
+        Set-ProcessEnvironment 'TKS_PERF_FROM_DATE' $null
+        Set-ProcessEnvironment 'TKS_PERF_TO_DATE' $null
+        Set-ProcessEnvironment 'TKS_NBOMBER_SCENARIOS' $null
+    }
+
     Set-ProcessEnvironment 'TKS_PERF_ROWS' $RecordCount.ToString()
     Set-ProcessEnvironment 'TKS_PERF_PAGE_SIZE' '10'
     Set-ProcessEnvironment 'TKS_PERF_LOGIN' 'PERF_USER'
@@ -130,13 +200,23 @@ try {
         throw "NBomber failed with exit code $LASTEXITCODE"
     }
 
-    Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', 'PageSize=10', '-i', $sqlStatsFile, '-o', $sqlStatsPath)
+    if ($UseSnapshot) {
+        Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', 'PageSize=10', "FromDate=$snapshotFromDate", "ToDate=$ReportToDate", '-i', $snapshotSqlStatsFile, '-o', $sqlStatsPath)
+        Write-SnapshotVerification $snapshotAfterPath
+    }
+    else {
+        Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', 'PageSize=10', '-i', $sqlStatsFile, '-o', $sqlStatsPath)
+    }
 
     Write-Output "Tool benchmark report root: $reportRoot"
     Write-Output "BenchmarkDotNet synthetic artifacts: $bdnSyntheticDirectory"
     Write-Output "BenchmarkDotNet database artifacts: $bdnDatabaseDirectory"
     Write-Output "NBomber artifacts: $nbomberDirectory"
     Write-Output "SQL statistics: $sqlStatsPath"
+    if ($UseSnapshot) {
+        Write-Output "Snapshot verification before load: $snapshotBeforePath"
+        Write-Output "Snapshot verification after load: $snapshotAfterPath"
+    }
 }
 finally {
     foreach ($name in $environmentNames) {

@@ -26,6 +26,8 @@ public sealed class ToolBenchmarkHarnessTests
         Assert.Equal("PERF_USER", settings.LoginName);
         Assert.True(settings.DatabaseConfigured);
         Assert.Equal("C:\\temp\\tks-bench", settings.ReportDirectory);
+        Assert.Equal(new DateTime(2025, 1, 1), settings.ReportFromDate);
+        Assert.Equal(new DateTime(2026, 12, 31), settings.ReportToDate);
     }
 
     [Fact]
@@ -49,5 +51,18 @@ public sealed class ToolBenchmarkHarnessTests
         Assert.Equal(
             new[] { "MasterPaged", "LookupPaged", "DocumentPaged" },
             settings.NBomberScenarioNames);
+    }
+
+    [Fact]
+    public void Settings_parse_inventory_report_dates_from_environment()
+    {
+        var settings = BenchmarkSettings.FromEnvironment(new Dictionary<string, string?>
+        {
+            ["TKS_PERF_FROM_DATE"] = "2026-01-01",
+            ["TKS_PERF_TO_DATE"] = "2026-12-31"
+        });
+
+        Assert.Equal(new DateTime(2026, 1, 1), settings.ReportFromDate);
+        Assert.Equal(new DateTime(2026, 12, 31), settings.ReportToDate);
     }
 }

@@ -18,6 +18,8 @@ public sealed class ToolBenchmarkRunnerTests
         Assert.Contains("--filter '*WarehouseDatabaseBenchmarks*'", runner, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("-v', 'PageSize=10'", runner, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("TKS_NBOMBER_SCENARIOS", runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("WarehousePerformance.SnapshotBaseline.sql", runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SnapshotDate", runner, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--nbomber", runner, StringComparison.OrdinalIgnoreCase);
     }
 

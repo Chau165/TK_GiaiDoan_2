@@ -9,6 +9,8 @@ public sealed record BenchmarkSettings
     public int PageSize { get; init; } = 10;
     public int NBomberCopies { get; init; } = 8;
     public int NBomberDurationSeconds { get; init; } = 15;
+    public DateTime ReportFromDate { get; init; } = new(2025, 1, 1);
+    public DateTime ReportToDate { get; init; } = new(2026, 12, 31);
     public string LoginName { get; init; } = "PERF_USER";
     public string ConnectionString { get; init; } = "";
     public string ReportDirectory { get; init; } = "docs/testing/performance/tool-benchmarks";
@@ -29,6 +31,8 @@ public sealed record BenchmarkSettings
             PageSize = ReadInt(p_environment, "TKS_PERF_PAGE_SIZE", 10, 1, 10_000),
             NBomberCopies = ReadInt(p_environment, "TKS_NBOMBER_COPIES", 8, 1, 256),
             NBomberDurationSeconds = ReadInt(p_environment, "TKS_NBOMBER_DURATION_SECONDS", 15, 1, 3_600),
+            ReportFromDate = ReadDate(p_environment, "TKS_PERF_FROM_DATE", new DateTime(2025, 1, 1)),
+            ReportToDate = ReadDate(p_environment, "TKS_PERF_TO_DATE", new DateTime(2026, 12, 31)),
             LoginName = ReadString(p_environment, "TKS_PERF_LOGIN") is { Length: > 0 } v_loginName
                 ? v_loginName
                 : "PERF_USER",
@@ -66,6 +70,21 @@ public sealed record BenchmarkSettings
     private static bool ReadBool(IReadOnlyDictionary<string, string?> p_environment, string p_name)
     {
         return ReadString(p_environment, p_name) is "1" or "true" or "TRUE" or "yes" or "YES";
+    }
+
+    private static DateTime ReadDate(
+        IReadOnlyDictionary<string, string?> p_environment,
+        string p_name,
+        DateTime p_default)
+    {
+        return DateTime.TryParseExact(
+            ReadString(p_environment, p_name),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var v_value)
+            ? v_value
+            : p_default;
     }
 
     private static string ReadString(IReadOnlyDictionary<string, string?> p_environment, string p_name)
