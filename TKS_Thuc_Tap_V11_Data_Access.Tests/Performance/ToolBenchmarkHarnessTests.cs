@@ -37,4 +37,17 @@ public sealed class ToolBenchmarkHarnessTests
             new[] { "MasterPaged", "LookupPaged", "DocumentPaged", "DetailReportPaged", "InventoryReportPaged" },
             names);
     }
+
+    [Fact]
+    public void Scenario_selection_can_limit_load_to_named_paths()
+    {
+        var settings = BenchmarkSettings.FromEnvironment(new Dictionary<string, string?>
+        {
+            ["TKS_NBOMBER_SCENARIOS"] = "MasterPaged, LookupPaged, DocumentPaged"
+        });
+
+        Assert.Equal(
+            new[] { "MasterPaged", "LookupPaged", "DocumentPaged" },
+            settings.NBomberScenarioNames);
+    }
 }
