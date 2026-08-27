@@ -21,6 +21,21 @@ Từ solution root:
 
 Script tạo database `TKS_Thuc_Tap_V11_Perf_1000000`, chạy schema/procedures/seed hiện có, chạy BDN + NBomber, thu `STATISTICS IO/TIME`, rồi xóa database. Dùng `-KeepDatabase` để giữ lại database phục vụ lần đo tiếp theo; dùng `-Reset` chỉ với database benchmark tên trên.
 
+Để benchmark đúng kiến trúc tồn kho snapshot, dùng snapshot ngày `2025-12-31`. Runner sẽ tạo baseline từ movement đã post, đặt kỳ report bắt đầu từ ngày kế tiếp (`2026-01-01`) và ghi verification số dòng snapshot/fallback:
+
+```powershell
+& .\TKS_Thuc_Tap_V11_Benchmarks\Run-WarehouseToolBenchmarks.ps1 `
+    -RecordCount 1000000 `
+    -Copies 8 `
+    -DurationSeconds 10 `
+    -UseSnapshot `
+    -SnapshotDate '2025-12-31' `
+    -ReportToDate '2026-12-31' `
+    -DatabaseDirectory 'P:\TKS_Performance_Data'
+```
+
+Không chọn kỳ bắt đầu trước snapshot khi kiểm tra snapshot path: procedure chỉ dùng snapshot có `Snapshot_Date < @Tu_Ngay`.
+
 Artifacts nằm trong `docs/testing/performance/tool-benchmarks/<timestamp>/`:
 
 - `benchmarkdotnet-synthetic/`
@@ -43,6 +58,13 @@ Database BDN cần `TKS_PERF_CONNECTION_STRING` và `TKS_BDN_DATABASE=1`:
 $env:TKS_BDN_DATABASE = '1'
 $env:TKS_PERF_CONNECTION_STRING = 'Server=localhost;Database=TKS_Thuc_Tap_V11_Perf_1000000;Integrated Security=True;TrustServerCertificate=True;'
 dotnet run --project .\TKS_Thuc_Tap_V11_Benchmarks\TKS_Thuc_Tap_V11_Benchmarks.csproj -c Release -- --job short --filter '*WarehouseDatabaseBenchmarks*'
+```
+
+Khi chạy riêng database benchmark với snapshot, đặt thêm ngày report:
+
+```powershell
+$env:TKS_PERF_FROM_DATE = '2026-01-01'
+$env:TKS_PERF_TO_DATE = '2026-12-31'
 ```
 
 NBomber cần `TKS_PERF_CONNECTION_STRING`:
