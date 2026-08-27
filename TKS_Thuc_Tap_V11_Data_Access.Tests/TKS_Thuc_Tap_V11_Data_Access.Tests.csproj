@@ -17,5 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\TKS_Thuc_Tap_V11_Data_Access\TKS_Thuc_Tap_V11_Data_Access.csproj" />
     <ProjectReference Include="..\TKS_Thuc_Tap_V11_Web_Common\TKS_Thuc_Tap_V11_Web_Common.csproj" />
+    <ProjectReference Include="..\TKS_Thuc_Tap_V11_Benchmarks\TKS_Thuc_Tap_V11_Benchmarks.csproj" />
   </ItemGroup>
 </Project>
