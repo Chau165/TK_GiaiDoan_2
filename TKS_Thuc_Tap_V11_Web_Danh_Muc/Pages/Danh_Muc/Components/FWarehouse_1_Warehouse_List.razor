@@ -71,7 +71,7 @@
 
         @if (m_strSection is "Receipt" or "Issue")
         {
-            <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">@(Is_Receipt ? "Quản lý phiếu nhập" : "Quản lý phiếu xuất")</h5><div class="d-flex gap-2">@Layout_Tool_Button(m_grdDocument)@if (r_objChuc_Nang.Is_Have_Add_Permission){<button class="btn btn-primary" @onclick="New_Document">Tạo phiếu mới</button>}</div></div>
+            <div class="d-flex justify-content-between align-items-end gap-3 mb-3"><div><h5 class="mb-3">@(Is_Receipt ? "Quản lý phiếu nhập" : "Quản lý phiếu xuất")</h5><div class="row g-3 align-items-end"><div class="col-md-6"><label class="form-label">Kho</label><select class="form-select" @bind="m_iDocument_Warehouse_ID"><option value="">Tất cả kho</option>@foreach (var v_objWarehouse in m_arrWarehouse){<option value="@v_objWarehouse.Auto_ID">@v_objWarehouse.Name</option>}</select></div><div class="col-md-auto"><button class="btn btn-primary" @onclick="Load_Documents_Async">Xem phiếu</button></div></div></div><div class="d-flex gap-2">@Layout_Tool_Button(m_grdDocument)@if (r_objChuc_Nang.Is_Have_Add_Permission){<button class="btn btn-primary" @onclick="New_Document">Tạo phiếu mới</button>}</div></div>
             @if (m_bDocumentEditing)
             {
                 <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Document" m_bIs_Receipt="@Is_Receipt" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
@@ -136,6 +136,7 @@
     private List<CWarehouseInventoryReport> m_arrInventoryReport = new();
     private DateTime m_dtmFrom = new(DateTime.Today.Year, DateTime.Today.Month, 1), m_dtmTo = DateTime.Today;
     private long? m_iReport_Warehouse_ID;
+    private long? m_iDocument_Warehouse_ID;
     private bool m_bDocumentEditing;
     private bool m_bDetailEditing;
     private bool Is_Receipt => m_strSection == "Receipt";
@@ -288,7 +289,7 @@
     {
         try
         {
-            var v_objResult = await m_objDocumentController.List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name);
+            var v_objResult = await m_objDocumentController.List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name, m_iDocument_Warehouse_ID);
             m_arrDocument = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
         }
         catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseDocument>(); args.Total = 0; }

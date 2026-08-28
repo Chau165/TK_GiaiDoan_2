@@ -6,14 +6,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 
 public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
 {
-    public Task<List<CWarehouseDocument>> List_Documents_Async(bool p_bIs_Receipt, string p_strCurrent_Login = "")
+    public Task<List<CWarehouseDocument>> List_Documents_Async(bool p_bIs_Receipt, string p_strCurrent_Login = "", long? p_iWarehouse_ID = null)
     {
-        return Task.FromResult(List_From_Procedure<CWarehouseDocument>("sp_XNK_Document_List", p_bIs_Receipt, p_strCurrent_Login));
+        return Task.FromResult(List_From_Procedure<CWarehouseDocument>("sp_XNK_Document_List", p_bIs_Receipt, p_strCurrent_Login, p_iWarehouse_ID));
     }
 
-    public Task<CWarehousePagedResult<CWarehouseDocument>> List_Documents_Page_Async(bool p_bIs_Receipt, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "", string p_strCurrent_Login = "")
+    public Task<CWarehousePagedResult<CWarehouseDocument>> List_Documents_Page_Async(bool p_bIs_Receipt, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "", string p_strCurrent_Login = "", long? p_iWarehouse_ID = null)
     {
-        return Task.FromResult(Page_From_Procedure<CWarehouseDocument>("sp_XNK_Document_Page", p_bIs_Receipt, p_iPage_Number, p_iPage_Size, p_strSearch_Text, p_strCurrent_Login));
+        return Task.FromResult(Page_From_Procedure<CWarehouseDocument>("sp_XNK_Document_Page", p_bIs_Receipt, p_iPage_Number, p_iPage_Size, p_strSearch_Text, p_strCurrent_Login, p_iWarehouse_ID));
     }
 
     public Task Save_Document_Async(CWarehouseDocument p_objData,
