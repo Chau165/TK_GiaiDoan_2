@@ -122,6 +122,79 @@ public sealed class WarehouseReportPagingOptimizationTests
         }
     }
 
+    [Fact]
+    public async Task Selecting_a_warehouse_restricts_reports_and_rejects_unassigned_warehouse()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var tag = $"TDD-RF-{Guid.NewGuid():N}";
+            var login = $"{tag}-login";
+            var reportDate = DateTime.Today;
+            await InsertIdAsync(connection, transaction,
+                "DECLARE @UserId BIGINT; SELECT @UserId = ISNULL(MAX(Auto_ID), 0) + 1 FROM dbo.tbl_Sys_Thanh_Vien WITH (TABLOCKX); INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, deleted) OUTPUT INSERTED.Auto_ID VALUES (@UserId, @Login, @Name, 0);",
+                Text("@Login", login, 100), Text("@Name", $"{tag}-user", 200));
+            var productId = await InsertIdAsync(connection, transaction,
+                "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_San_Pham ORDER BY Auto_ID;");
+            var supplierId = await InsertIdAsync(connection, transaction,
+                "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_NCC ORDER BY Auto_ID;");
+            var warehouseA = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
+                Text("@Name", $"{tag}-warehouse-a", 255));
+            var warehouseB = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
+                Text("@Name", $"{tag}-warehouse-b", 255));
+            var warehouseC = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
+                Text("@Name", $"{tag}-warehouse-c", 255));
+
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
+                Text("@Login", login, 100), BigInt("@WarehouseId", warehouseA));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
+                Text("@Login", login, 100), BigInt("@WarehouseId", warehouseB));
+
+            var receiptA = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'');",
+                Text("@Number", $"{tag}-receipt-a", 100), BigInt("@WarehouseId", warehouseA), BigInt("@SupplierId", supplierId), Date("@Date", reportDate));
+            var receiptB = await InsertIdAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'');",
+                Text("@Number", $"{tag}-receipt-b", 100), BigInt("@WarehouseId", warehouseB), BigInt("@SupplierId", supplierId), Date("@Date", reportDate));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, 11, 1);",
+                BigInt("@DocumentId", receiptA), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, 22, 1);",
+                BigInt("@DocumentId", receiptB), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity) VALUES (@WarehouseId, @ProductId, @Quantity, 0);",
+                BigInt("@WarehouseId", warehouseA), BigInt("@ProductId", productId), Decimal("@Quantity", 11));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity) VALUES (@WarehouseId, @ProductId, @Quantity, 0);",
+                BigInt("@WarehouseId", warehouseB), BigInt("@ProductId", productId), Decimal("@Quantity", 22));
+
+            var inventory = await ReadPagedInventoryAsync(connection, transaction, login, warehouseA, reportDate, reportDate);
+            Assert.Equal(1, inventory.TotalCount);
+            Assert.Equal(warehouseA, Assert.Single(inventory.Rows).WarehouseId);
+
+            var detail = await ReadPagedDetailAsync(connection, transaction, "sp_BC_Chi_Tiet_Nhap_Page", login, warehouseB, reportDate, reportDate);
+            Assert.Equal(1, detail.TotalCount);
+            Assert.Equal($"{tag}-receipt-b", Assert.Single(detail.Rows).DocumentNumber);
+
+            var error = await Assert.ThrowsAsync<SqlException>(() =>
+                ReadPagedInventoryAsync(connection, transaction, login, warehouseC));
+            Assert.Equal(51054, error.Number);
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
     private static async Task<string> ReadDefinitionAsync(SqlConnection connection, string procedureName)
     {
         await using var command = new SqlCommand(
@@ -139,9 +212,9 @@ public sealed class WarehouseReportPagingOptimizationTests
     }
 
     private static async Task<(int TotalCount, List<InventoryRow> Rows)> ReadPagedInventoryAsync(
-        SqlConnection connection, SqlTransaction transaction, string login)
+        SqlConnection connection, SqlTransaction transaction, string login, long? warehouseId = null, DateTime? from = null, DateTime? to = null)
     {
-        await using var command = ReportCommand(connection, transaction, "sp_BC_Xuat_Nhap_Ton_Page", login);
+        await using var command = ReportCommand(connection, transaction, "sp_BC_Xuat_Nhap_Ton_Page", login, warehouseId, from, to);
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         var totalCount = reader.GetInt32(0);
@@ -153,9 +226,9 @@ public sealed class WarehouseReportPagingOptimizationTests
     }
 
     private static async Task<(int TotalCount, List<DetailRow> Rows)> ReadPagedDetailAsync(
-        SqlConnection connection, SqlTransaction transaction, string procedure, string login)
+        SqlConnection connection, SqlTransaction transaction, string procedure, string login, long? warehouseId = null, DateTime? from = null, DateTime? to = null)
     {
-        await using var command = ReportCommand(connection, transaction, procedure, login);
+        await using var command = ReportCommand(connection, transaction, procedure, login, warehouseId, from, to);
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         var totalCount = reader.GetInt32(0);
@@ -166,17 +239,18 @@ public sealed class WarehouseReportPagingOptimizationTests
         return (totalCount, rows);
     }
 
-    private static SqlCommand ReportCommand(SqlConnection connection, SqlTransaction transaction, string procedure, string login)
+    private static SqlCommand ReportCommand(SqlConnection connection, SqlTransaction transaction, string procedure, string login, long? warehouseId = null, DateTime? from = null, DateTime? to = null)
     {
         var command = new SqlCommand(procedure, connection, transaction)
         {
             CommandType = CommandType.StoredProcedure
         };
-        command.Parameters.Add(Date("@Tu_Ngay", new DateTime(2026, 9, 1)));
-        command.Parameters.Add(Date("@Den_Ngay", new DateTime(2026, 9, 30)));
+        command.Parameters.Add(Date("@Tu_Ngay", from ?? new DateTime(2026, 9, 1)));
+        command.Parameters.Add(Date("@Den_Ngay", to ?? new DateTime(2026, 9, 30)));
         command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
         command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 10 });
         command.Parameters.Add(Text("@Ma_Dang_Nhap", login, 100));
+        command.Parameters.Add(new SqlParameter("@Kho_ID", SqlDbType.BigInt) { Value = warehouseId ?? (object)DBNull.Value });
         return command;
     }
 
@@ -197,6 +271,7 @@ public sealed class WarehouseReportPagingOptimizationTests
     private static SqlParameter Text(string name, string value, int size) => new(name, SqlDbType.NVarChar, size) { Value = value };
     private static SqlParameter BigInt(string name, long value) => new(name, SqlDbType.BigInt) { Value = value };
     private static SqlParameter Date(string name, DateTime value) => new(name, SqlDbType.Date) { Value = value.Date };
+    private static SqlParameter Decimal(string name, decimal value) => new(name, SqlDbType.Decimal) { Precision = 18, Scale = 3, Value = value };
 
     private sealed record DetailRow(string DocumentNumber, decimal Quantity);
     private sealed record InventoryRow(long WarehouseId, decimal Received);

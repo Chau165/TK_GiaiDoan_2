@@ -940,38 +940,41 @@ GO
    canonical bundle. */
 
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Nhap
-    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100)
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
     SELECT h.Ngay_Nhap_Kho AS Ngay, h.So_Phieu_Nhap_Kho AS So_Phieu, n.Ten_NCC AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Nhap AS So_Luong, d.Don_Gia_Nhap AS Don_Gia, CAST(d.SL_Nhap * d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia
     FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = h.NCC_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID
-    WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID)
+    WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
     ORDER BY h.Ngay_Nhap_Kho, h.So_Phieu_Nhap_Kho;
 END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Xuat
-    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100)
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
     SELECT h.Ngay_Xuat_Kho AS Ngay, h.So_Phieu_Xuat_Kho AS So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Xuat AS So_Luong, d.Don_Gia_Xuat AS Don_Gia, CAST(d.SL_Xuat * d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia
     FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID
-    WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID)
+    WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
     ORDER BY h.Ngay_Xuat_Kho, h.So_Phieu_Xuat_Kho;
 END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Nhap_Page
-    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100)
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1; IF @Page_Size < 1 SET @Page_Size = 10;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
     DECLARE @Offset BIGINT = CONVERT(BIGINT, @Page_Number - 1) * CONVERT(BIGINT, @Page_Size);
 
     CREATE TABLE #AuthorizedWarehouse
@@ -982,7 +985,8 @@ BEGIN
     INSERT #AuthorizedWarehouse(Kho_ID)
     SELECT DISTINCT Kho_ID
     FROM dbo.tbl_DM_Kho_User
-    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID);
 
     SELECT COUNT(*) AS Total_Count
     FROM dbo.tbl_XNK_Nhap_Kho h
@@ -1020,12 +1024,13 @@ END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Xuat_Page
-    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100)
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1; IF @Page_Size < 1 SET @Page_Size = 10;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
     DECLARE @Offset BIGINT = CONVERT(BIGINT, @Page_Number - 1) * CONVERT(BIGINT, @Page_Size);
 
     CREATE TABLE #AuthorizedWarehouse
@@ -1036,7 +1041,8 @@ BEGIN
     INSERT #AuthorizedWarehouse(Kho_ID)
     SELECT DISTINCT Kho_ID
     FROM dbo.tbl_DM_Kho_User
-    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID);
 
     SELECT COUNT(*) AS Total_Count
     FROM dbo.tbl_XNK_Xuat_Kho h
@@ -1723,12 +1729,13 @@ RETURN
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton
-    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100)
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
         THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
 
     IF EXISTS
     (
@@ -1739,6 +1746,7 @@ BEGIN
             FROM dbo.InventoryBalance_Snapshot_Daily s
             JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
             WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
               AND s.Snapshot_Date < @Tu_Ngay
             UNION
             SELECT h.Kho_ID, d.San_Pham_ID
@@ -1746,6 +1754,7 @@ BEGIN
             JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
             JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = h.Kho_ID
             WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
               AND h.Is_Posted = 1
               AND h.Ngay_Nhap_Kho <= @Den_Ngay
             UNION
@@ -1754,6 +1763,7 @@ BEGIN
             JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
             JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = h.Kho_ID
             WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
               AND h.Is_Posted = 1
               AND h.Ngay_Xuat_Kho <= @Den_Ngay
             UNION
@@ -1761,6 +1771,7 @@ BEGIN
             FROM dbo.InventoryBalance_Current b
             JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = b.Kho_ID
             WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND (@Kho_ID IS NULL OR b.Kho_ID = @Kho_ID)
               AND @Den_Ngay = CONVERT(DATE, SYSDATETIME())
         ) sk
         OUTER APPLY
@@ -1781,7 +1792,8 @@ BEGIN
 
     SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
            SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
-    FROM dbo.fn_Inventory_Report_Snapshot(@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0))
+    FROM dbo.fn_Inventory_Report_Snapshot(@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0)) r
+    WHERE @Kho_ID IS NULL OR r.Kho_ID = @Kho_ID
     ORDER BY Ten_Kho, Ma_San_Pham;
 END
 GO
@@ -1842,7 +1854,7 @@ SET QUOTED_IDENTIFIER ON;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page
-    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100)
+    @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1850,6 +1862,7 @@ BEGIN
         THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1;
     IF @Page_Size < 1 SET @Page_Size = 10;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
 
     IF NOT EXISTS
     (
@@ -1865,7 +1878,8 @@ BEGIN
     INSERT #AuthorizedWarehouse(Kho_ID)
     SELECT DISTINCT Kho_ID
     FROM dbo.tbl_DM_Kho_User
-    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID);
 
     CREATE TABLE #ReportScope
     (

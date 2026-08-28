@@ -22,6 +22,6 @@ public sealed class CWarehouse_Controller
     public Task Save_Document_Detail_Async(bool p_bReceipt, CWarehouseDocumentDetail p_objData, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Save_Document_Detail_Async(p_bReceipt, p_objData, p_strUser, p_strFunction);
     public Task Delete_Document_Detail_Async(bool p_bReceipt, long p_iAuto_ID, string p_strUser = "", string p_strFunction = "") => m_objDocumentController.Delete_Document_Detail_Async(p_bReceipt, p_iAuto_ID, p_strUser, p_strFunction);
 
-    public Task<List<CWarehouseDetailReport>> Detail_Report_Async(bool p_bReceipt, DateTime p_dtmFrom, DateTime p_dtmTo) => m_objReportController.Detail_Report_Async(p_bReceipt, p_dtmFrom, p_dtmTo);
-    public Task<List<CWarehouseInventoryReport>> Inventory_Report_Async(DateTime p_dtmFrom, DateTime p_dtmTo) => m_objReportController.Inventory_Report_Async(p_dtmFrom, p_dtmTo);
+    public Task<List<CWarehouseDetailReport>> Detail_Report_Async(bool p_bReceipt, DateTime p_dtmFrom, DateTime p_dtmTo, string p_strCurrent_Login = "", long? p_iWarehouse_ID = null) => m_objReportController.Detail_Report_Async(p_bReceipt, p_dtmFrom, p_dtmTo, p_strCurrent_Login, p_iWarehouse_ID);
+    public Task<List<CWarehouseInventoryReport>> Inventory_Report_Async(DateTime p_dtmFrom, DateTime p_dtmTo, string p_strCurrent_Login = "", long? p_iWarehouse_ID = null) => m_objReportController.Inventory_Report_Async(p_dtmFrom, p_dtmTo, p_strCurrent_Login, p_iWarehouse_ID);
 }
