@@ -95,7 +95,7 @@ The existing controller benchmark was also attempted. The 10M low-concurrency ru
 - The local SQL Agent service is stopped/manual. The job script is installed and verified at 02:00, but this machine will not execute it until SQL Server Agent is enabled and started.
 - The worker recovers `PROCESSING` rows on its next run, but there is no retry-count/dead-letter policy yet for permanently failing rows.
 - Fallback logging is intentional observability, but high-volume fallback can itself create writes; monitor and archive the log table.
-- The legacy procedures file contains historical duplicate definitions. The final effective definitions and trigger bodies were verified in SQL Server, but splitting the file into migrations would reduce future deployment risk.
+- The warehouse procedure bundle now contains one definition per object. `WarehouseDocumentPosting.Procedures.sql` is a comment-only deprecated placeholder, so it cannot override the canonical bundle.
 - The repository-wide integration script still has an unrelated pre-existing parameter mismatch for `sp_XNK_Nhap_Kho_Save_Header`; it was not changed because it is outside this database-layer lifecycle scope.
 
 ## Coverage note

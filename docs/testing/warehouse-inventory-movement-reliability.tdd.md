@@ -87,7 +87,7 @@ WAITING -> PROCESSING -> COMPLETED
 - `InventoryMovement_RebuildDeadLetter` keeps the final failure evidence and resolution timestamp.
 - Bootstrap has `InventoryMovement:Bootstrap` exclusive applock. Post and normal rebuild acquire a shared lock within their transaction.
 - The direct-DML guards protect application-level callers. A SQL Server `sysadmin` can disable triggers or modify data regardless; production must also run the application under a least-privilege login granted only stored-procedure execution.
-- `WarehouseDocumentPosting.Procedures.sql` no longer declares the old Post procedure. The canonical declaration remains in `WarehouseModule.Procedures.sql`, so running the secondary script cannot erase queue invalidation or the maintenance gate.
+- `WarehouseDocumentPosting.Procedures.sql` is now a deprecated, comment-only placeholder. The canonical declaration remains in `WarehouseModule.Procedures.sql`, so running the secondary script cannot erase queue invalidation or the maintenance gate.
 
 ## Coverage and known gaps
 
@@ -95,4 +95,4 @@ The changed production logic is T-SQL, so the meaningful coverage is rollback-is
 
 `Database\Tests\WarehouseModule.IntegrationTests.sql` was not used as GREEN evidence: it currently fails before warehouse behavior assertions because its call to `sp_XNK_Nhap_Kho_Save_Header` omits the required `@Ma_Dang_Nhap` parameter. That legacy fixture needs a separate contract update.
 
-Only the stale Post declaration was removed from `WarehouseDocumentPosting.Procedures.sql`. Other legacy procedure declarations in that historical script were intentionally not changed in this Phase 2/3 task and need a separate deployment-bundle audit before treating the whole script as a canonical release artifact.
+The deployment-bundle audit is complete for the warehouse scripts: `WarehouseModule.Procedures.sql` now defines each object once, and `WarehouseDocumentPosting.Procedures.sql` contains no DDL.

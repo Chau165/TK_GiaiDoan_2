@@ -22,6 +22,10 @@ sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tes
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseModule.UnicodeDataTests.sql
 ```
 
+`Database\WarehouseDocumentPosting.Procedures.sql` is deprecated and contains
+no procedure definitions. Do not use it as a second warehouse procedure bundle;
+document posting is deployed by `WarehouseModule.Procedures.sql`.
+
 ## Daily Movement Aggregate cutover
 
 After deploying the schema and procedures, initialize the new report source once
