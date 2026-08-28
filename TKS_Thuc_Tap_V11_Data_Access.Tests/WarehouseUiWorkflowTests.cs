@@ -162,6 +162,40 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_reports_filter_by_a_user_authorized_warehouse()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var reportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
+        var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+
+        Assert.Contains("<label class=\"form-label\">Kho</label>", list);
+        Assert.Contains("m_iReport_Warehouse_ID", list);
+        Assert.Contains("<option value=\"\">Tất cả kho</option>", list);
+        Assert.Contains("Detail_Report_Page_Async(m_strReport_Type == \"Receipt\", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", list);
+        Assert.Contains("Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", list);
+        Assert.Contains("long? p_iWarehouse_ID = null", reportController);
+
+        foreach (var procedure in new[]
+        {
+            "sp_BC_Chi_Tiet_Nhap",
+            "sp_BC_Chi_Tiet_Xuat",
+            "sp_BC_Chi_Tiet_Nhap_Page",
+            "sp_BC_Chi_Tiet_Xuat_Page",
+            "sp_BC_Xuat_Nhap_Ton",
+            "sp_BC_Xuat_Nhap_Ton_Page"
+        })
+        {
+            var v_iProcedureStart = procedures.IndexOf($"CREATE OR ALTER PROCEDURE dbo.{procedure}", StringComparison.Ordinal);
+            Assert.True(v_iProcedureStart >= 0, $"Missing procedure {procedure}.");
+            var v_iProcedureEnd = procedures.IndexOf("\nGO", v_iProcedureStart, StringComparison.Ordinal);
+            var v_strDefinition = procedures.Substring(v_iProcedureStart, v_iProcedureEnd - v_iProcedureStart);
+            Assert.Contains("@Kho_ID BIGINT = NULL", v_strDefinition);
+            Assert.Contains("sp_DM_Kho_User_Ensure_Access", v_strDefinition);
+            Assert.Contains("@Kho_ID", v_strDefinition);
+        }
+    }
+
+    [Fact]
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var controllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
