@@ -409,6 +409,125 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryMovement_Reb
     ON dbo.InventoryMovement_RebuildQueue(Kho_ID, San_Pham_ID, Status, From_Date, To_Date, ID);
 GO
 
+/* Phase 2 reliability migration.  A queue row is the durable claim token for
+   one daily warehouse/product rebuild.  Request_Version prevents an older
+   worker from completing work that a newer invalidation has superseded. */
+IF COL_LENGTH(N'dbo.InventoryMovement_RebuildQueue', N'LastAttemptAt') IS NULL
+    ALTER TABLE dbo.InventoryMovement_RebuildQueue ADD LastAttemptAt DATETIME2 NULL;
+IF COL_LENGTH(N'dbo.InventoryMovement_RebuildQueue', N'NextRetryAt') IS NULL
+    ALTER TABLE dbo.InventoryMovement_RebuildQueue ADD NextRetryAt DATETIME2 NULL;
+IF COL_LENGTH(N'dbo.InventoryMovement_RebuildQueue', N'LastError') IS NULL
+    ALTER TABLE dbo.InventoryMovement_RebuildQueue ADD LastError NVARCHAR(4000) NULL;
+IF COL_LENGTH(N'dbo.InventoryMovement_RebuildQueue', N'Requested_Version') IS NULL
+    ALTER TABLE dbo.InventoryMovement_RebuildQueue ADD Requested_Version INT NOT NULL CONSTRAINT DF_InventoryMovement_RebuildQueue_RequestedVersion DEFAULT (1);
+IF COL_LENGTH(N'dbo.InventoryMovement_RebuildQueue', N'Claimed_Version') IS NULL
+    ALTER TABLE dbo.InventoryMovement_RebuildQueue ADD Claimed_Version INT NULL;
+GO
+
+/* Legacy FAILED rows are made actionable again or preserved as a visible final
+   failure.  No old failure is silently discarded during migration. */
+UPDATE dbo.InventoryMovement_RebuildQueue
+SET Status = N'RETRY_WAITING',
+    NextRetryAt = COALESCE(ProcessedAt, CreatedAt, SYSUTCDATETIME()),
+    LastError = COALESCE(LastError, ErrorMessage, N'Legacy worker failure awaiting retry.'),
+    ErrorMessage = NULL
+WHERE Status = N'FAILED'
+  AND Retry_Count < 3;
+
+UPDATE dbo.InventoryMovement_RebuildQueue
+SET Status = N'FAILED_FINAL',
+    LastError = COALESCE(LastError, ErrorMessage, N'Legacy worker failure reached retry limit.'),
+    ErrorMessage = NULL
+WHERE Status = N'FAILED'
+  AND Retry_Count >= 3;
+GO
+
+/* A legacy range queue can have duplicate active rows for its first day. Keep
+   the oldest in-flight row, mark the others superseded, and advance its request
+   version so the active worker must requeue before it can declare completion. */
+;WITH ActiveDuplicates AS
+(
+    SELECT ID,
+           Kho_ID,
+           San_Pham_ID,
+           From_Date,
+           ROW_NUMBER() OVER
+           (
+               PARTITION BY Kho_ID, San_Pham_ID, From_Date
+               ORDER BY CASE WHEN Status = N'PROCESSING' THEN 0 ELSE 1 END, ID
+           ) AS Row_Number,
+           COUNT(*) OVER (PARTITION BY Kho_ID, San_Pham_ID, From_Date) AS Duplicate_Count
+    FROM dbo.InventoryMovement_RebuildQueue
+    WHERE Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING')
+)
+UPDATE q
+SET Requested_Version = q.Requested_Version + d.Duplicate_Count - 1
+FROM dbo.InventoryMovement_RebuildQueue q
+JOIN ActiveDuplicates d ON d.ID = q.ID
+WHERE d.Row_Number = 1
+  AND d.Duplicate_Count > 1;
+
+;WITH ActiveDuplicates AS
+(
+    SELECT ID,
+           ROW_NUMBER() OVER
+           (
+               PARTITION BY Kho_ID, San_Pham_ID, From_Date
+               ORDER BY CASE WHEN Status = N'PROCESSING' THEN 0 ELSE 1 END, ID
+           ) AS Row_Number
+    FROM dbo.InventoryMovement_RebuildQueue
+    WHERE Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING')
+)
+UPDATE q
+SET Status = N'SUPERSEDED',
+    ProcessedAt = SYSUTCDATETIME(),
+    LastError = N'Superseded during queue lifecycle migration.',
+    ErrorMessage = NULL,
+    NextRetryAt = NULL
+FROM dbo.InventoryMovement_RebuildQueue q
+JOIN ActiveDuplicates d ON d.ID = q.ID
+WHERE d.Row_Number > 1;
+GO
+
+IF OBJECT_ID(N'dbo.CK_InventoryMovement_RebuildQueue_Status', N'C') IS NOT NULL
+    ALTER TABLE dbo.InventoryMovement_RebuildQueue DROP CONSTRAINT CK_InventoryMovement_RebuildQueue_Status;
+ALTER TABLE dbo.InventoryMovement_RebuildQueue ADD CONSTRAINT CK_InventoryMovement_RebuildQueue_Status
+    CHECK (Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'COMPLETED', N'FAILED_FINAL', N'SUPERSEDED'));
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.InventoryMovement_RebuildQueue') AND name = N'UX_InventoryMovement_RebuildQueue_ActiveDailyScope')
+    DROP INDEX UX_InventoryMovement_RebuildQueue_ActiveDailyScope ON dbo.InventoryMovement_RebuildQueue;
+CREATE UNIQUE INDEX UX_InventoryMovement_RebuildQueue_ActiveDailyScope
+    ON dbo.InventoryMovement_RebuildQueue(Kho_ID, San_Pham_ID, From_Date)
+    WHERE Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING');
+GO
+
+IF OBJECT_ID(N'dbo.InventoryMovement_RebuildDeadLetter', N'U') IS NULL
+CREATE TABLE dbo.InventoryMovement_RebuildDeadLetter
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_InventoryMovement_RebuildDeadLetter PRIMARY KEY,
+    Queue_ID BIGINT NOT NULL CONSTRAINT UQ_InventoryMovement_RebuildDeadLetter_Queue UNIQUE,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    From_Date DATE NOT NULL,
+    To_Date DATE NOT NULL,
+    Retry_Count INT NOT NULL,
+    LastError NVARCHAR(4000) NOT NULL,
+    FailedAt DATETIME2 NOT NULL CONSTRAINT DF_InventoryMovement_RebuildDeadLetter_FailedAt DEFAULT SYSUTCDATETIME(),
+    ResolvedAt DATETIME2 NULL,
+    ResolutionNote NVARCHAR(4000) NULL,
+    CONSTRAINT FK_InventoryMovement_RebuildDeadLetter_Queue FOREIGN KEY (Queue_ID) REFERENCES dbo.InventoryMovement_RebuildQueue(ID),
+    CONSTRAINT FK_InventoryMovement_RebuildDeadLetter_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_InventoryMovement_RebuildDeadLetter_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryMovement_RebuildQueue_Ready')
+    CREATE INDEX IX_InventoryMovement_RebuildQueue_Ready
+    ON dbo.InventoryMovement_RebuildQueue(Status, NextRetryAt, CreatedAt, ID)
+    INCLUDE (Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, Requested_Version, Claimed_Version);
+GO
+
 /* The assignment uses tbl_DM_* in Bài 7/11 and tbl_XNK_* in Bài 8/12. XNK is canonical; synonyms retain both documented names. */
 IF OBJECT_ID(N'dbo.tbl_DM_Nhap_Kho', N'SN') IS NULL EXEC(N'CREATE SYNONYM dbo.tbl_DM_Nhap_Kho FOR dbo.tbl_XNK_Nhap_Kho;');
 IF OBJECT_ID(N'dbo.tbl_DM_Nhap_Kho_Raw_Data', N'SN') IS NULL EXEC(N'CREATE SYNONYM dbo.tbl_DM_Nhap_Kho_Raw_Data FOR dbo.tbl_XNK_Nhap_Kho_Raw_Data;');

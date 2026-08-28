@@ -103,7 +103,7 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
             var recovered = await ReadQueueStateAsync(scope, day);
 
             Assert.Equal("COMPLETED", recovered.Status);
-            Assert.Equal(0, recovered.RetryCount);
+            Assert.Equal(1, recovered.RetryCount);
         }
         finally
         {

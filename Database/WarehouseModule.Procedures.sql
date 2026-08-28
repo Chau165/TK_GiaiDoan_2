@@ -1370,6 +1370,87 @@ BEGIN
 END
 GO
 
+/* Posted ledger data is immutable outside the canonical Post transaction.
+   Draft CRUD remains unchanged; direct UPDATE/DELETE of posted headers or
+   details is rejected before it can desynchronize current balance, snapshots,
+   and Movement Daily.  The Post procedure marks its own short transaction via
+   SESSION_CONTEXT and clears it before returning a pooled connection. */
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Movement_Guard_Receipt_Posted_Header
+ON dbo.tbl_XNK_Nhap_Kho
+AFTER UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF TRY_CONVERT(BIT, SESSION_CONTEXT(N'InventoryMovement:ManagedPost')) = 1 RETURN;
+    IF EXISTS (SELECT 1 FROM inserted WHERE Is_Posted = 1)
+       OR EXISTS (SELECT 1 FROM deleted WHERE Is_Posted = 1)
+        THROW 51228, N'Không được UPDATE hoặc DELETE phiếu nhập đã Post trực tiếp. Hãy dùng stored procedure nghiệp vụ.', 1;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Movement_Guard_Issue_Posted_Header
+ON dbo.tbl_XNK_Xuat_Kho
+AFTER UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF TRY_CONVERT(BIT, SESSION_CONTEXT(N'InventoryMovement:ManagedPost')) = 1 RETURN;
+    IF EXISTS (SELECT 1 FROM inserted WHERE Is_Posted = 1)
+       OR EXISTS (SELECT 1 FROM deleted WHERE Is_Posted = 1)
+        THROW 51228, N'Không được UPDATE hoặc DELETE phiếu xuất đã Post trực tiếp. Hãy dùng stored procedure nghiệp vụ.', 1;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Movement_Guard_Receipt_Posted_Detail
+ON dbo.tbl_XNK_Nhap_Kho_Raw_Data
+AFTER UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF TRY_CONVERT(BIT, SESSION_CONTEXT(N'InventoryMovement:ManagedPost')) = 1 RETURN;
+    IF EXISTS
+    (
+        SELECT 1
+        FROM inserted d
+        JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = d.Nhap_Kho_ID
+        WHERE h.Is_Posted = 1
+    )
+       OR EXISTS
+    (
+        SELECT 1
+        FROM deleted d
+        JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = d.Nhap_Kho_ID
+        WHERE h.Is_Posted = 1
+    )
+        THROW 51228, N'Không được UPDATE hoặc DELETE chi tiết phiếu nhập đã Post trực tiếp. Hãy dùng stored procedure nghiệp vụ.', 1;
+END
+GO
+
+CREATE OR ALTER TRIGGER dbo.tr_Inventory_Movement_Guard_Issue_Posted_Detail
+ON dbo.tbl_XNK_Xuat_Kho_Raw_Data
+AFTER UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF TRY_CONVERT(BIT, SESSION_CONTEXT(N'InventoryMovement:ManagedPost')) = 1 RETURN;
+    IF EXISTS
+    (
+        SELECT 1
+        FROM inserted d
+        JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = d.Xuat_Kho_ID
+        WHERE h.Is_Posted = 1
+    )
+       OR EXISTS
+    (
+        SELECT 1
+        FROM deleted d
+        JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID = d.Xuat_Kho_ID
+        WHERE h.Is_Posted = 1
+    )
+        THROW 51228, N'Không được UPDATE hoặc DELETE chi tiết phiếu xuất đã Post trực tiếp. Hãy dùng stored procedure nghiệp vụ.', 1;
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_XNK_InventoryBalance_Rebuild
 AS
 BEGIN
@@ -3371,8 +3452,20 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Post
 AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON; SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    DECLARE @ManagedPostContextSet BIT = 0;
     BEGIN TRY
         BEGIN TRANSACTION;
+        DECLARE @BootstrapPostLockResult INT;
+        EXEC @BootstrapPostLockResult = sys.sp_getapplock
+            @Resource = N'InventoryMovement:Bootstrap',
+            @LockMode = N'Shared',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @BootstrapPostLockResult < 0
+            THROW 51226, N'Movement Aggregate đang bảo trì bootstrap. Không thể Post chứng từ lúc này.', 1;
+
+        EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;
+        SET @ManagedPostContextSet = 1;
         CREATE TABLE #Delta(Kho_ID BIGINT NOT NULL, San_Pham_ID BIGINT NOT NULL, Delta DECIMAL(18,3) NOT NULL, PRIMARY KEY(Kho_ID, San_Pham_ID));
         DECLARE @Movement_Date DATE;
         IF @Is_Receipt = 1
@@ -3417,9 +3510,13 @@ BEGIN
         EXEC dbo.sp_Inventory_Movement_Apply_Invalidation @Affected = @MovementAffected;
         EXEC dbo.sp_XNK_Validate_All_Balances;
         COMMIT TRANSACTION;
+        EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = NULL;
+        SET @ManagedPostContextSet = 0;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @ManagedPostContextSet = 1
+            EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = NULL;
         THROW;
     END CATCH
 END
@@ -4143,7 +4240,7 @@ BEGIN
         SELECT 1
         FROM dbo.InventoryMovement_RebuildQueue q
         JOIN #SnapshotBalance sb ON sb.Kho_ID = q.Kho_ID AND sb.San_Pham_ID = q.San_Pham_ID
-        WHERE q.Status IN (N'WAITING', N'PROCESSING', N'FAILED')
+        WHERE q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL')
           AND q.From_Date <= @Den_Ngay
           AND q.To_Date >= ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101'))
     )
@@ -4265,28 +4362,44 @@ BEGIN
     (
         Kho_ID BIGINT NOT NULL,
         San_Pham_ID BIGINT NOT NULL,
-        From_Date DATE NOT NULL,
-        To_Date DATE NOT NULL,
-        PRIMARY KEY (Kho_ID, San_Pham_ID)
+        Movement_Date DATE NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID, Movement_Date)
     );
-    INSERT #Scope(Kho_ID, San_Pham_ID, From_Date, To_Date)
-    SELECT Kho_ID, San_Pham_ID, MIN(Movement_Date), MAX(Movement_Date)
+    INSERT #Scope(Kho_ID, San_Pham_ID, Movement_Date)
+    SELECT Kho_ID, San_Pham_ID, Movement_Date
     FROM @Affected
-    GROUP BY Kho_ID, San_Pham_ID;
+    GROUP BY Kho_ID, San_Pham_ID, Movement_Date;
 
-    /* A claimed queue item is not widened underneath its worker. A concurrent
-       change creates a second WAITING item, preserving every affected date. */
+    /* There is exactly one active daily queue row.  A repeated invalidation of
+       a claimed row advances Requested_Version rather than creating a second
+       worker.  The claimant must then return it to WAITING after its old build. */
     UPDATE q
-    SET From_Date = CASE WHEN s.From_Date < q.From_Date THEN s.From_Date ELSE q.From_Date END,
-        To_Date = CASE WHEN s.To_Date > q.To_Date THEN s.To_Date ELSE q.To_Date END,
-        ErrorMessage = NULL
+    SET Status = CASE WHEN q.Status IN (N'WAITING', N'RETRY_WAITING', N'FAILED_FINAL') THEN N'WAITING' ELSE q.Status END,
+        Requested_Version = q.Requested_Version + 1,
+        NextRetryAt = NULL,
+        LastError = NULL,
+        ErrorMessage = NULL,
+        ProcessedAt = CASE WHEN q.Status = N'FAILED_FINAL' THEN NULL ELSE q.ProcessedAt END
     FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
-    JOIN #Scope s ON s.Kho_ID = q.Kho_ID AND s.San_Pham_ID = q.San_Pham_ID
-    WHERE q.Status = N'WAITING';
+    JOIN #Scope s ON s.Kho_ID = q.Kho_ID
+                 AND s.San_Pham_ID = q.San_Pham_ID
+                 AND s.Movement_Date = q.From_Date
+    WHERE q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL');
+
+    UPDATE dl
+    SET ResolvedAt = SYSUTCDATETIME(),
+        ResolutionNote = N'Reactivated by a newer movement invalidation.'
+    FROM dbo.InventoryMovement_RebuildDeadLetter dl
+    JOIN dbo.InventoryMovement_RebuildQueue q ON q.ID = dl.Queue_ID
+    JOIN #Scope s ON s.Kho_ID = q.Kho_ID
+                 AND s.San_Pham_ID = q.San_Pham_ID
+                 AND s.Movement_Date = q.From_Date
+    WHERE dl.ResolvedAt IS NULL
+      AND q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING');
 
     INSERT dbo.InventoryMovement_RebuildQueue
-    (Kho_ID, San_Pham_ID, From_Date, To_Date, Status)
-    SELECT s.Kho_ID, s.San_Pham_ID, s.From_Date, s.To_Date, N'WAITING'
+    (Kho_ID, San_Pham_ID, From_Date, To_Date, Status, Requested_Version)
+    SELECT s.Kho_ID, s.San_Pham_ID, s.Movement_Date, s.Movement_Date, N'WAITING', 1
     FROM #Scope s
     WHERE NOT EXISTS
     (
@@ -4294,8 +4407,37 @@ BEGIN
         FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
         WHERE q.Kho_ID = s.Kho_ID
           AND q.San_Pham_ID = s.San_Pham_ID
-          AND q.Status = N'WAITING'
+          AND q.From_Date = s.Movement_Date
+          AND q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL')
     );
+END
+GO
+
+/* A worker may complete only the version it claimed.  A newer request keeps
+   the same row live and prevents stale output from being considered current. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Complete_Claim
+    @Queue_ID BIGINT,
+    @Claimed_Version INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Queue_ID IS NULL OR @Claimed_Version IS NULL
+        THROW 51227, N'Queue claim không hợp lệ.', 1;
+
+    UPDATE q
+    SET Status = CASE WHEN q.Requested_Version = @Claimed_Version THEN N'COMPLETED' ELSE N'WAITING' END,
+        Retry_Count = CASE WHEN q.Requested_Version = @Claimed_Version THEN q.Retry_Count ELSE 0 END,
+        ProcessedAt = CASE WHEN q.Requested_Version = @Claimed_Version THEN SYSUTCDATETIME() ELSE NULL END,
+        NextRetryAt = NULL,
+        LastError = NULL,
+        ErrorMessage = NULL
+    FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
+    WHERE q.ID = @Queue_ID
+      AND q.Status = N'PROCESSING'
+      AND q.Claimed_Version = @Claimed_Version;
+
+    IF @@ROWCOUNT <> 1
+        THROW 51229, N'Queue claim không còn hợp lệ hoặc đã bị worker khác hoàn tất.', 1;
 END
 GO
 
@@ -4313,6 +4455,15 @@ BEGIN
 
     BEGIN TRY
         BEGIN TRANSACTION;
+        DECLARE @BootstrapLockResult INT;
+        EXEC @BootstrapLockResult = sys.sp_getapplock
+            @Resource = N'InventoryMovement:Bootstrap',
+            @LockMode = N'Shared',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @BootstrapLockResult < 0
+            THROW 51226, N'Movement Aggregate đang bảo trì bootstrap. Vui lòng thử lại sau.', 1;
+
         DECLARE @AppLockResult INT;
         DECLARE @AppLockResource NVARCHAR(255) = CONCAT(N'InventoryMovement:', @Kho_ID, N':', @San_Pham_ID);
         EXEC @AppLockResult = sys.sp_getapplock
@@ -4403,13 +4554,59 @@ GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Process_RebuildQueue
     @Batch_Size INT = 100,
-    @Max_Retry_Count INT = 3
+    @Max_Retry_Count INT = 3,
+    @Base_Retry_Delay_Seconds INT = 5,
+    @Processing_Lease_Seconds INT = 300
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     IF @Batch_Size < 1 SET @Batch_Size = 1;
     IF @Max_Retry_Count < 1 SET @Max_Retry_Count = 1;
+    IF @Base_Retry_Delay_Seconds < 0 SET @Base_Retry_Delay_Seconds = 0;
+    IF @Processing_Lease_Seconds < 1 SET @Processing_Lease_Seconds = 1;
+
+    /* A process may die after claiming a row.  Recover only claims older than
+       the lease; an active worker never has its claim stolen.  A crashed claim
+       consumes retry budget and can itself become a dead-letter. */
+    DECLARE @Recovery_At DATETIME2 = SYSUTCDATETIME();
+    BEGIN TRANSACTION;
+
+    UPDATE dbo.InventoryMovement_RebuildQueue
+    SET Status = N'FAILED_FINAL',
+        Retry_Count = Retry_Count + 1,
+        ProcessedAt = @Recovery_At,
+        NextRetryAt = NULL,
+        LastError = N'Worker claim lease expired before rebuild completion.',
+        ErrorMessage = NULL
+    WHERE Status = N'PROCESSING'
+      AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At))
+      AND Retry_Count + 1 >= @Max_Retry_Count;
+
+    INSERT dbo.InventoryMovement_RebuildDeadLetter
+    (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
+    SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
+    FROM dbo.InventoryMovement_RebuildQueue q
+    WHERE q.Status = N'FAILED_FINAL'
+      AND q.LastError = N'Worker claim lease expired before rebuild completion.'
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
+          WHERE dl.Queue_ID = q.ID
+      );
+
+    UPDATE dbo.InventoryMovement_RebuildQueue
+    SET Status = N'RETRY_WAITING',
+        Retry_Count = Retry_Count + 1,
+        Claimed_Version = NULL,
+        NextRetryAt = @Recovery_At,
+        LastError = N'Worker claim lease expired before rebuild completion.',
+        ErrorMessage = NULL
+    WHERE Status = N'PROCESSING'
+      AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At));
+
+    COMMIT TRANSACTION;
 
     DECLARE @Processed INT = 0;
     DECLARE @Queue_ID BIGINT;
@@ -4417,21 +4614,56 @@ BEGIN
     DECLARE @San_Pham_ID BIGINT;
     DECLARE @From_Date DATE;
     DECLARE @To_Date DATE;
+    DECLARE @Claimed_Version INT;
 
     WHILE @Processed < @Batch_Size
     BEGIN
         SET @Queue_ID = NULL;
         BEGIN TRANSACTION;
+        DECLARE @Claimed TABLE
+        (
+            ID BIGINT NOT NULL,
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            From_Date DATE NOT NULL,
+            To_Date DATE NOT NULL,
+            Claimed_Version INT NOT NULL
+        );
+
+        ;WITH NextItem AS
+        (
+            SELECT TOP (1) q.*
+            FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, READPAST, ROWLOCK)
+            WHERE q.Status = N'WAITING'
+               OR (q.Status = N'RETRY_WAITING' AND q.NextRetryAt <= SYSUTCDATETIME())
+            ORDER BY CASE WHEN q.Status = N'WAITING' THEN 0 ELSE 1 END,
+                     q.NextRetryAt,
+                     q.CreatedAt,
+                     q.ID
+        )
+        UPDATE NextItem
+        SET Status = N'PROCESSING',
+            Claimed_Version = Requested_Version,
+            LastAttemptAt = SYSUTCDATETIME(),
+            NextRetryAt = NULL,
+            ProcessedAt = NULL,
+            ErrorMessage = NULL
+        OUTPUT inserted.ID,
+               inserted.Kho_ID,
+               inserted.San_Pham_ID,
+               inserted.From_Date,
+               inserted.To_Date,
+               inserted.Claimed_Version
+        INTO @Claimed;
+
         SELECT TOP (1)
-               @Queue_ID = q.ID,
-               @Kho_ID = q.Kho_ID,
-               @San_Pham_ID = q.San_Pham_ID,
-               @From_Date = q.From_Date,
-               @To_Date = q.To_Date
-        FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, READPAST, ROWLOCK)
-        WHERE q.Status = N'WAITING'
-           OR (q.Status = N'FAILED' AND q.Retry_Count < @Max_Retry_Count)
-        ORDER BY q.CreatedAt, q.ID;
+               @Queue_ID = ID,
+               @Kho_ID = Kho_ID,
+               @San_Pham_ID = San_Pham_ID,
+               @From_Date = From_Date,
+               @To_Date = To_Date,
+               @Claimed_Version = Claimed_Version
+        FROM @Claimed;
 
         IF @Queue_ID IS NULL
         BEGIN
@@ -4451,17 +4683,60 @@ BEGIN
                 @From_Date = @From_Date,
                 @To_Date = @To_Date;
 
-            UPDATE dbo.InventoryMovement_RebuildQueue
-            SET Status = N'COMPLETED', ProcessedAt = SYSUTCDATETIME(), ErrorMessage = NULL
-            WHERE ID = @Queue_ID;
+            EXEC dbo.sp_Inventory_Movement_Complete_Claim
+                @Queue_ID = @Queue_ID,
+                @Claimed_Version = @Claimed_Version;
         END TRY
         BEGIN CATCH
-            UPDATE dbo.InventoryMovement_RebuildQueue
-            SET Status = N'FAILED',
-                Retry_Count = Retry_Count + 1,
-                ProcessedAt = SYSUTCDATETIME(),
-                ErrorMessage = ERROR_MESSAGE()
-            WHERE ID = @Queue_ID;
+            DECLARE @Error_Number INT = ERROR_NUMBER();
+            DECLARE @Error_Message NVARCHAR(4000) = LEFT(ERROR_MESSAGE(), 4000);
+            DECLARE @Retry_After INT;
+            DECLARE @Is_Transient BIT = CASE WHEN @Error_Number IN (1205, 1222, 51224, 51226) THEN 1 ELSE 0 END;
+            DECLARE @Next_Status NVARCHAR(20);
+            DECLARE @Delay_Seconds INT;
+
+            BEGIN TRANSACTION;
+            SELECT @Retry_After = Retry_Count + 1
+            FROM dbo.InventoryMovement_RebuildQueue WITH (UPDLOCK, HOLDLOCK)
+            WHERE ID = @Queue_ID
+              AND Status = N'PROCESSING'
+              AND Claimed_Version = @Claimed_Version;
+
+            IF @Retry_After IS NOT NULL
+            BEGIN
+                SET @Next_Status = CASE WHEN @Is_Transient = 1 AND @Retry_After < @Max_Retry_Count THEN N'RETRY_WAITING' ELSE N'FAILED_FINAL' END;
+                SET @Delay_Seconds = CASE
+                    WHEN @Next_Status <> N'RETRY_WAITING' THEN NULL
+                    WHEN @Base_Retry_Delay_Seconds = 0 THEN 0
+                    WHEN @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Retry_After - 1) > 3600 THEN 3600
+                    ELSE CONVERT(INT, @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Retry_After - 1))
+                END;
+
+                UPDATE dbo.InventoryMovement_RebuildQueue
+                SET Status = @Next_Status,
+                    Retry_Count = @Retry_After,
+                    ProcessedAt = CASE WHEN @Next_Status = N'FAILED_FINAL' THEN SYSUTCDATETIME() ELSE NULL END,
+                    NextRetryAt = CASE WHEN @Next_Status = N'RETRY_WAITING' THEN DATEADD(SECOND, @Delay_Seconds, SYSUTCDATETIME()) ELSE NULL END,
+                    LastError = @Error_Message,
+                    ErrorMessage = NULL
+                WHERE ID = @Queue_ID
+                  AND Status = N'PROCESSING'
+                  AND Claimed_Version = @Claimed_Version;
+
+                IF @Next_Status = N'FAILED_FINAL'
+                    INSERT dbo.InventoryMovement_RebuildDeadLetter
+                    (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
+                    SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
+                    FROM dbo.InventoryMovement_RebuildQueue q
+                    WHERE q.ID = @Queue_ID
+                      AND NOT EXISTS
+                      (
+                          SELECT 1
+                          FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
+                          WHERE dl.Queue_ID = q.ID
+                      );
+            END
+            COMMIT TRANSACTION;
         END CATCH
 
         SET @Processed += 1;
@@ -4555,6 +4830,22 @@ BEGIN
               AND r.Kho_ID = d.Kho_ID
               AND r.San_Pham_ID = d.San_Pham_ID
         );
+
+        /* Bootstrap has rebuilt the authoritative ledger while the exclusive
+           maintenance lock excluded Post and normal workers.  Any prior retry
+           or dead-letter is therefore resolved by this reconciliation. */
+        UPDATE dbo.InventoryMovement_RebuildQueue
+        SET Status = N'COMPLETED',
+            ProcessedAt = SYSUTCDATETIME(),
+            NextRetryAt = NULL,
+            LastError = NULL,
+            ErrorMessage = NULL
+        WHERE Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL');
+
+        UPDATE dbo.InventoryMovement_RebuildDeadLetter
+        SET ResolvedAt = SYSUTCDATETIME(),
+            ResolutionNote = N'Resolved by full movement aggregate bootstrap.'
+        WHERE ResolvedAt IS NULL;
 
         UPDATE dbo.InventoryMovement_AggregateState
         SET IsInitialized = 1,
