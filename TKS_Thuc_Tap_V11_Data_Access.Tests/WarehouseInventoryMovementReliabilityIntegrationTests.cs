@@ -9,6 +9,14 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
     private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
 
     [Fact]
+    public void Deployment_post_script_does_not_override_the_canonical_movement_aware_post_procedure()
+    {
+        var deploymentScript = File.ReadAllText(FindRepositoryFile("Database/WarehouseDocumentPosting.Procedures.sql"));
+
+        Assert.DoesNotContain("CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Post", deploymentScript);
+    }
+
+    [Fact]
     public async Task Duplicate_daily_invalidations_are_merged_and_a_stale_claim_is_requeued()
     {
         await using var connection = new SqlConnection(ConnectionString);
@@ -342,6 +350,18 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
     }
 
     private static string ScopeResource(Scope scope) => $"InventoryMovement:{scope.WarehouseId}:{scope.ProductId}";
+
+    private static string FindRepositoryFile(string relativePath)
+    {
+        for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)
+        {
+            var candidate = Path.Combine(directory.FullName, relativePath);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        throw new FileNotFoundException($"Could not locate repository file '{relativePath}'.");
+    }
 
     private static async Task ExecuteAsync(string sql, params SqlParameter[] parameters)
     {
