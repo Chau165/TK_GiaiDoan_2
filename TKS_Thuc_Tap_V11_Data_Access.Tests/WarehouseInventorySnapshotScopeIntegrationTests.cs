@@ -157,7 +157,7 @@ public sealed class WarehouseInventorySnapshotScopeIntegrationTests
 
     private static void AssertScope(IEnumerable<ReportRow> rows, long warehouseId, decimal opening, decimal received, decimal issued, decimal closing)
     {
-        var row = Assert.Single(rows.Where(x => x.WarehouseId == warehouseId));
+        var row = Assert.Single(rows, x => x.WarehouseId == warehouseId);
         Assert.Equal(opening, row.Opening);
         Assert.Equal(received, row.Received);
         Assert.Equal(issued, row.Issued);

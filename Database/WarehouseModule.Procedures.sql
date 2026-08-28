@@ -3795,8 +3795,8 @@ END
 GO
 
 /* Keep this function as the single calculation contract for both report
-   procedures.  It starts from the nearest end-of-day snapshot before @Tu_Ngay
-   and only reads later posted movements. */
+   procedures.  Each warehouse/product scope starts from its own nearest
+   valid end-of-day snapshot before @Tu_Ngay, then only reads later movements. */
 CREATE OR ALTER FUNCTION dbo.fn_Inventory_Report_Snapshot
 (
     @Tu_Ngay DATE,
@@ -3808,25 +3808,52 @@ RETURNS TABLE
 AS
 RETURN
 (
-    WITH SnapshotDate AS
-    (
-        SELECT MAX(Snapshot_Date) AS Snapshot_Date
-        FROM dbo.InventoryBalance_Snapshot_Daily
-        WHERE Snapshot_Date < @Tu_Ngay
-          AND IsValid = 1
-    ), AuthorizedWarehouse AS
+    WITH AuthorizedWarehouse AS
     (
         SELECT DISTINCT Kho_ID
         FROM dbo.tbl_DM_Kho_User
         WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+    ), ScopeKeys AS
+    (
+        SELECT s.Kho_ID, s.San_Pham_ID
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
+        WHERE s.Snapshot_Date < @Tu_Ngay
+        UNION
+        SELECT h.Kho_ID, d.San_Pham_ID
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Nhap_Kho <= @Den_Ngay
+        UNION
+        SELECT h.Kho_ID, d.San_Pham_ID
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
+        WHERE h.Is_Posted = 1
+          AND h.Ngay_Xuat_Kho <= @Den_Ngay
+        UNION
+        SELECT b.Kho_ID, b.San_Pham_ID
+        FROM dbo.InventoryBalance_Current b
+        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+        WHERE @Is_Current_Report = 1
     ), SnapshotBalance AS
     (
-        SELECT s.Kho_ID, s.San_Pham_ID, s.ClosingQuantity
-        FROM dbo.InventoryBalance_Snapshot_Daily s
-        CROSS JOIN SnapshotDate sd
-        JOIN AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
-        WHERE s.Snapshot_Date = sd.Snapshot_Date
-          AND s.IsValid = 1
+        SELECT sk.Kho_ID, sk.San_Pham_ID,
+               latest.Snapshot_Date,
+               ISNULL(latest.ClosingQuantity, 0) AS ClosingQuantity
+        FROM ScopeKeys sk
+        OUTER APPLY
+        (
+            SELECT TOP (1) s.Snapshot_Date, s.ClosingQuantity
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.Kho_ID = sk.Kho_ID
+              AND s.San_Pham_ID = sk.San_Pham_ID
+              AND s.Snapshot_Date < @Tu_Ngay
+              AND s.IsValid = 1
+            ORDER BY s.Snapshot_Date DESC
+        ) latest
     ), Movements AS
     (
         SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Nhap_Kho AS MovementDate,
@@ -3835,9 +3862,9 @@ RETURN
         FROM dbo.tbl_XNK_Nhap_Kho h
         JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
         JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
-        CROSS JOIN SnapshotDate sd
+        JOIN SnapshotBalance sb ON sb.Kho_ID = h.Kho_ID AND sb.San_Pham_ID = d.San_Pham_ID
         WHERE h.Is_Posted = 1
-          AND h.Ngay_Nhap_Kho BETWEEN ISNULL(DATEADD(DAY, 1, sd.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
+          AND h.Ngay_Nhap_Kho BETWEEN ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
         UNION ALL
         SELECT h.Kho_ID, d.San_Pham_ID, h.Ngay_Xuat_Kho,
                CAST(0 AS DECIMAL(18,3)),
@@ -3845,9 +3872,9 @@ RETURN
         FROM dbo.tbl_XNK_Xuat_Kho h
         JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
         JOIN AuthorizedWarehouse aw ON aw.Kho_ID = h.Kho_ID
-        CROSS JOIN SnapshotDate sd
+        JOIN SnapshotBalance sb ON sb.Kho_ID = h.Kho_ID AND sb.San_Pham_ID = d.San_Pham_ID
         WHERE h.Is_Posted = 1
-          AND h.Ngay_Xuat_Kho BETWEEN ISNULL(DATEADD(DAY, 1, sd.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
+          AND h.Ngay_Xuat_Kho BETWEEN ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
     ), MovementAggregate AS
     (
         SELECT Kho_ID, San_Pham_ID,
@@ -3899,18 +3926,54 @@ BEGIN
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay
         THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
 
-    IF NOT EXISTS
+    IF EXISTS
     (
         SELECT 1
-        FROM dbo.InventoryBalance_Snapshot_Daily s
-        JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
-        WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
-          AND s.Snapshot_Date < @Tu_Ngay
-          AND s.IsValid = 1
+        FROM
+        (
+            SELECT s.Kho_ID, s.San_Pham_ID
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+            WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND s.Snapshot_Date < @Tu_Ngay
+            UNION
+            SELECT h.Kho_ID, d.San_Pham_ID
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = h.Kho_ID
+            WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND h.Is_Posted = 1
+              AND h.Ngay_Nhap_Kho <= @Den_Ngay
+            UNION
+            SELECT h.Kho_ID, d.San_Pham_ID
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = h.Kho_ID
+            WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND h.Is_Posted = 1
+              AND h.Ngay_Xuat_Kho <= @Den_Ngay
+            UNION
+            SELECT b.Kho_ID, b.San_Pham_ID
+            FROM dbo.InventoryBalance_Current b
+            JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = b.Kho_ID
+            WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+              AND @Den_Ngay = CONVERT(DATE, SYSDATETIME())
+        ) sk
+        OUTER APPLY
+        (
+            SELECT TOP (1) s.Snapshot_Date
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.Kho_ID = sk.Kho_ID
+              AND s.San_Pham_ID = sk.San_Pham_ID
+              AND s.Snapshot_Date < @Tu_Ngay
+              AND s.IsValid = 1
+            ORDER BY s.Snapshot_Date DESC
+        ) latest
+        WHERE latest.Snapshot_Date IS NULL
     )
         INSERT dbo.InventorySnapshot_ReportFallbackLog
         (ReportFromDate, ReportToDate, Ma_Dang_Nhap, SnapshotMissingReason)
-        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_BEFORE_PERIOD');
+        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_FOR_ONE_OR_MORE_SCOPES');
 
     SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
            SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
@@ -4015,20 +4078,7 @@ BEGIN
     )
         THROW 51221, N'Movement Aggregate chưa được khởi tạo. Hãy chạy sp_Inventory_Movement_Bootstrap_From_Ledger trước khi xem báo cáo.', 1;
 
-    DECLARE @Snapshot_Date DATE =
-    (
-        SELECT MAX(Snapshot_Date)
-        FROM dbo.InventoryBalance_Snapshot_Daily
-        WHERE Snapshot_Date < @Tu_Ngay
-          AND IsValid = 1
-    );
-    DECLARE @Movement_Start_Date DATE = ISNULL(DATEADD(DAY, 1, @Snapshot_Date), CONVERT(DATE, '19000101'));
     DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
-
-    IF @Snapshot_Date IS NULL
-        INSERT dbo.InventorySnapshot_ReportFallbackLog
-        (ReportFromDate, ReportToDate, Ma_Dang_Nhap, SnapshotMissingReason)
-        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_BEFORE_PERIOD');
 
     CREATE TABLE #AuthorizedWarehouse(Kho_ID BIGINT NOT NULL PRIMARY KEY);
     INSERT #AuthorizedWarehouse(Kho_ID)
@@ -4036,30 +4086,68 @@ BEGIN
     FROM dbo.tbl_DM_Kho_User
     WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap;
 
-    IF EXISTS
+    CREATE TABLE #ReportScope
     (
-        SELECT 1
-        FROM dbo.InventoryMovement_RebuildQueue q
-        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = q.Kho_ID
-        WHERE q.Status IN (N'WAITING', N'PROCESSING', N'FAILED')
-          AND q.From_Date <= @Den_Ngay
-          AND q.To_Date >= @Movement_Start_Date
-    )
-        THROW 51222, N'Movement Aggregate của báo cáo đang tái tạo. Vui lòng thử lại sau khi worker hoàn tất.', 1;
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        PRIMARY KEY(Kho_ID, San_Pham_ID)
+    );
+    INSERT #ReportScope(Kho_ID, San_Pham_ID)
+    SELECT s.Kho_ID, s.San_Pham_ID
+    FROM dbo.InventoryBalance_Snapshot_Daily s
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
+    WHERE s.Snapshot_Date < @Tu_Ngay
+    UNION
+    SELECT m.Kho_ID, m.San_Pham_ID
+    FROM dbo.Inventory_Movement_Daily m
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = m.Kho_ID
+    WHERE m.Movement_Date <= @Den_Ngay
+    UNION
+    SELECT b.Kho_ID, b.San_Pham_ID
+    FROM dbo.InventoryBalance_Current b
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+    WHERE @Is_Current_Report = 1;
 
     CREATE TABLE #SnapshotBalance
     (
         Kho_ID BIGINT NOT NULL,
         San_Pham_ID BIGINT NOT NULL,
+        Snapshot_Date DATE NULL,
         ClosingQuantity DECIMAL(18,3) NOT NULL,
         PRIMARY KEY(Kho_ID, San_Pham_ID)
     );
-    INSERT #SnapshotBalance(Kho_ID, San_Pham_ID, ClosingQuantity)
-    SELECT s.Kho_ID, s.San_Pham_ID, s.ClosingQuantity
-    FROM dbo.InventoryBalance_Snapshot_Daily s
-    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
-    WHERE s.Snapshot_Date = @Snapshot_Date
-      AND s.IsValid = 1;
+    INSERT #SnapshotBalance(Kho_ID, San_Pham_ID, Snapshot_Date, ClosingQuantity)
+    SELECT rs.Kho_ID,
+           rs.San_Pham_ID,
+           latest.Snapshot_Date,
+           ISNULL(latest.ClosingQuantity, 0)
+    FROM #ReportScope rs
+    OUTER APPLY
+    (
+        SELECT TOP (1) s.Snapshot_Date, s.ClosingQuantity
+        FROM dbo.InventoryBalance_Snapshot_Daily s
+        WHERE s.Kho_ID = rs.Kho_ID
+          AND s.San_Pham_ID = rs.San_Pham_ID
+          AND s.Snapshot_Date < @Tu_Ngay
+          AND s.IsValid = 1
+        ORDER BY s.Snapshot_Date DESC
+    ) latest;
+
+    IF EXISTS (SELECT 1 FROM #SnapshotBalance WHERE Snapshot_Date IS NULL)
+        INSERT dbo.InventorySnapshot_ReportFallbackLog
+        (ReportFromDate, ReportToDate, Ma_Dang_Nhap, SnapshotMissingReason)
+        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_FOR_ONE_OR_MORE_SCOPES');
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryMovement_RebuildQueue q
+        JOIN #SnapshotBalance sb ON sb.Kho_ID = q.Kho_ID AND sb.San_Pham_ID = q.San_Pham_ID
+        WHERE q.Status IN (N'WAITING', N'PROCESSING', N'FAILED')
+          AND q.From_Date <= @Den_Ngay
+          AND q.To_Date >= ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101'))
+    )
+        THROW 51222, N'Movement Aggregate của báo cáo đang tái tạo. Vui lòng thử lại sau khi worker hoàn tất.', 1;
 
     CREATE TABLE #MovementAggregate
     (
@@ -4077,8 +4165,9 @@ BEGIN
            SUM(CASE WHEN m.Movement_Date BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.Total_Issue ELSE 0 END)
     FROM dbo.Inventory_Movement_Daily m
     JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = m.Kho_ID
+    JOIN #SnapshotBalance sb ON sb.Kho_ID = m.Kho_ID AND sb.San_Pham_ID = m.San_Pham_ID
     WHERE m.IsValid = 1
-      AND m.Movement_Date BETWEEN @Movement_Start_Date AND @Den_Ngay
+      AND m.Movement_Date BETWEEN ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
     GROUP BY m.Kho_ID, m.San_Pham_ID;
 
     CREATE TABLE #ReportKeys
