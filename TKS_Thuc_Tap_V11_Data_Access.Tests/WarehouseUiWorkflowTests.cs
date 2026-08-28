@@ -174,6 +174,10 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("Detail_Report_Page_Async(m_strReport_Type == \"Receipt\", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", list);
         Assert.Contains("Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", list);
         Assert.Contains("long? p_iWarehouse_ID = null", reportController);
+        Assert.Contains("List_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_strCurrent_Login, p_iWarehouse_ID)", reportController);
+        Assert.Contains("Page_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size, p_strCurrent_Login, p_iWarehouse_ID)", reportController);
+        Assert.Contains("List_From_Procedure<CWarehouseInventoryReport>(\"sp_BC_Xuat_Nhap_Ton\", p_dtmFrom.Date, p_dtmTo.Date, p_strCurrent_Login, p_iWarehouse_ID)", reportController);
+        Assert.Contains("Page_From_Procedure<CWarehouseInventoryReport>(\"sp_BC_Xuat_Nhap_Ton_Page\", p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size, p_strCurrent_Login, p_iWarehouse_ID)", reportController);
 
         foreach (var procedure in new[]
         {
