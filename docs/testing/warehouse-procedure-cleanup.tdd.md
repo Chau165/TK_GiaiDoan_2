@@ -40,25 +40,25 @@ RED checkpoint: `8794caf` (`test: add stored procedure duplicate guard RED`).
 Validation commands and results:
 
 ```text
-dotnet test ... --filter FullyQualifiedName~WarehouseProcedureDeploymentTests --verbosity minimal
+dotnet test TKS_Thuc_Tap_V11_Data_Access.Tests\TKS_Thuc_Tap_V11_Data_Access.Tests.csproj --no-restore --filter FullyQualifiedName~WarehouseProcedureDeploymentTests --verbosity minimal
 Passed: 2, Failed: 0
 
-dotnet test ... --filter "FullyQualifiedName~WarehouseProcedureDeploymentTests|FullyQualifiedName~WarehouseAuthorizationContractTests|FullyQualifiedName~WarehouseDetailDisplayFormatTests" --verbosity minimal
+dotnet test TKS_Thuc_Tap_V11_Data_Access.Tests\TKS_Thuc_Tap_V11_Data_Access.Tests.csproj --no-restore --filter "FullyQualifiedName~WarehouseProcedureDeploymentTests|FullyQualifiedName~WarehouseAuthorizationContractTests|FullyQualifiedName~WarehouseDetailDisplayFormatTests" --verbosity minimal
 Passed: 20, Failed: 0
 
-dotnet test ... --filter FullyQualifiedName~WarehouseInventoryMovementReliabilityIntegrationTests --verbosity minimal
+dotnet test TKS_Thuc_Tap_V11_Data_Access.Tests\TKS_Thuc_Tap_V11_Data_Access.Tests.csproj --no-restore --filter FullyQualifiedName~WarehouseInventoryMovementReliabilityIntegrationTests --verbosity minimal
 Passed: 6, Failed: 0
 
-sqlcmd ... -i Database\WarehouseModule.Procedures.sql
+sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseModule.Procedures.sql
 exit code 0
 
-sqlcmd ... -i Database\Tests\WarehouseInventoryMovementAggregate.IntegrationTests.sql
+sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseInventoryMovementAggregate.IntegrationTests.sql
 PASS: movement aggregate post, issue, back-date lifecycle, report and rollback.
 
-sqlcmd ... -i Database\Tests\WarehouseInventorySnapshotLifecycle.IntegrationTests.sql
+sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseInventorySnapshotLifecycle.IntegrationTests.sql
 PASS: snapshot lifecycle invalidation, scoped queueing, rebuild, report fallback and rollback.
 
-sqlcmd ... -i Database\Tests\WarehouseModule.ReportContract.IntegrationTests.sql
+sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseModule.ReportContract.IntegrationTests.sql
 PASS: Warehouse report result contracts match report entities
 ```
 
@@ -81,9 +81,15 @@ canonical module bundle. The posting placeholder contains no DDL.
 ## Coverage and known gaps
 
 No numeric 80% coverage result was produced. This repository has no configured
-coverage collector; an attempted `XPlat Code Coverage` run reported that the
-data collector was unavailable. SQL behavior was verified through parse-only,
-deployment and rollback-isolated integration tests instead.
+coverage collector. The exact attempted command was:
+
+```text
+dotnet test TKS_Thuc_Tap_V11_Data_Access.Tests\TKS_Thuc_Tap_V11_Data_Access.Tests.csproj --no-restore --filter FullyQualifiedName~WarehouseProcedureDeploymentTests --collect:"XPlat Code Coverage" --verbosity minimal
+```
+
+It reported that the `XPlat Code Coverage` data collector was unavailable. SQL
+behavior was verified through parse-only, deployment and rollback-isolated
+integration tests instead.
 
 `Database\Tests\WarehouseModule.ValidationMessages.IntegrationTests.sql` still
 fails at its legacy header-save call because it omits the required
