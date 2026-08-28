@@ -200,6 +200,31 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_document_grids_filter_by_a_user_authorized_warehouse()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var documentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+
+        Assert.Contains("m_iDocument_Warehouse_ID", list);
+        Assert.Contains("@bind=\"m_iDocument_Warehouse_ID\"", list);
+        Assert.Contains("List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize, \"\", r_strActive_User_Name, m_iDocument_Warehouse_ID)", list);
+        Assert.Contains("long? p_iWarehouse_ID = null", documentController);
+        Assert.Contains("p_iWarehouse_ID", documentController);
+
+        foreach (var procedure in new[] { "sp_XNK_Document_List", "sp_XNK_Document_Page" })
+        {
+            var procedureStart = procedures.IndexOf($"CREATE OR ALTER PROCEDURE dbo.{procedure}", StringComparison.Ordinal);
+            Assert.True(procedureStart >= 0, $"Missing procedure {procedure}.");
+            var procedureEnd = procedures.IndexOf("\nGO", procedureStart, StringComparison.Ordinal);
+            var definition = procedures.Substring(procedureStart, procedureEnd - procedureStart);
+            Assert.Contains("@Kho_ID BIGINT = NULL", definition);
+            Assert.Contains("sp_DM_Kho_User_Ensure_Access", definition);
+            Assert.Contains("@Kho_ID IS NULL OR", definition);
+        }
+    }
+
+    [Fact]
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var controllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
