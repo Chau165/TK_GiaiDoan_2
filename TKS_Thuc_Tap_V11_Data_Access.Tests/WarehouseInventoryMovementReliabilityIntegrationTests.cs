@@ -87,6 +87,31 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
     }
 
     [Fact]
+    public async Task Expired_processing_claim_is_recovered_by_a_later_worker()
+    {
+        var scope = await CreatePersistentScopeAsync();
+        var day = new DateTime(2099, 3, 15);
+
+        try
+        {
+            await ApplyInvalidationAsync(scope, day);
+            await ExecuteAsync(
+                "UPDATE dbo.InventoryMovement_RebuildQueue SET Status = N'PROCESSING', Claimed_Version = Requested_Version, LastAttemptAt = '2000-01-01' WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate;",
+                BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId), Date("@MovementDate", day));
+
+            await ProcessQueueAsync(maxRetryCount: 2, retryDelaySeconds: 0);
+            var recovered = await ReadQueueStateAsync(scope, day);
+
+            Assert.Equal("COMPLETED", recovered.Status);
+            Assert.Equal(0, recovered.RetryCount);
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(scope);
+        }
+    }
+
+    [Fact]
     public async Task Bootstrap_gate_blocks_worker_claims_and_document_posting()
     {
         var scope = await CreatePostableScopeAsync();
