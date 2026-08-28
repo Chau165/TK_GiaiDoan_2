@@ -11,6 +11,7 @@ This run implements Phase 2 and Phase 3 without benchmarking or changing UI, DTO
 5. Bootstrap excludes both Post and normal worker rebuilds.
 6. Posted ledger headers and details cannot be directly updated or deleted outside the canonical Post transaction.
 7. A worker crash that leaves a queue in `PROCESSING` is recovered after its processing lease expires; it cannot block the report forever.
+8. The deployment script that runs after the module cannot overwrite the canonical movement-aware Post procedure.
 
 ## RED
 
@@ -29,6 +30,9 @@ RED checkpoint: `a24a1d0` (`test: reproduce movement queue reliability gaps`).
 The later lease-recovery RED test produced `Expected: COMPLETED; Actual: PROCESSING` before the worker recovery path existed.
 RED checkpoint: `2061812` (`test: cover expired movement worker claim`).
 
+The deployment-script RED test found `WarehouseDocumentPosting.Procedures.sql` redefining the old two-parameter Post procedure after the canonical module script.
+RED checkpoint: `af35169` (`test: prevent post deploy script override`).
+
 ## GREEN
 
 ```powershell
@@ -41,7 +45,7 @@ sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\
 
 Results:
 
-- Reliability integration suite: `Passed: 5`.
+- Reliability integration suite: `Passed: 6`.
 - Existing aggregate lifecycle: `PASS: movement aggregate post, issue, back-date lifecycle, report and rollback.`
 - Existing report result-set contract: `PASS: Warehouse report result contracts match report entities`.
 
@@ -73,6 +77,7 @@ WAITING -> PROCESSING -> COMPLETED
 | 6 | An expired `PROCESSING` claim consumes one retry and is completed by a later worker; it is not stranded indefinitely. | `Expired_processing_claim_is_recovered_by_a_later_worker` | PASS |
 | 7 | Prior daily aggregate/back-date/report/rollback behavior remains correct. | `WarehouseInventoryMovementAggregate.IntegrationTests.sql` | PASS |
 | 8 | Phase 1 snapshot-scope selection and report result sets remain unchanged. | `WarehouseInventorySnapshotScopeIntegrationTests`, `WarehouseModule.ReportContract.IntegrationTests.sql` | PASS |
+| 9 | The secondary deployment script cannot overwrite the movement-aware Post procedure with its old contract. | `Deployment_post_script_does_not_override_the_canonical_movement_aware_post_procedure` | PASS |
 
 ## Migration and operational notes
 
@@ -82,9 +87,12 @@ WAITING -> PROCESSING -> COMPLETED
 - `InventoryMovement_RebuildDeadLetter` keeps the final failure evidence and resolution timestamp.
 - Bootstrap has `InventoryMovement:Bootstrap` exclusive applock. Post and normal rebuild acquire a shared lock within their transaction.
 - The direct-DML guards protect application-level callers. A SQL Server `sysadmin` can disable triggers or modify data regardless; production must also run the application under a least-privilege login granted only stored-procedure execution.
+- `WarehouseDocumentPosting.Procedures.sql` no longer declares the old Post procedure. The canonical declaration remains in `WarehouseModule.Procedures.sql`, so running the secondary script cannot erase queue invalidation or the maintenance gate.
 
 ## Coverage and known gaps
 
 The changed production logic is T-SQL, so the meaningful coverage is rollback-isolated database integration behavior rather than a C# line-coverage percentage. No benchmark was run.
 
 `Database\Tests\WarehouseModule.IntegrationTests.sql` was not used as GREEN evidence: it currently fails before warehouse behavior assertions because its call to `sp_XNK_Nhap_Kho_Save_Header` omits the required `@Ma_Dang_Nhap` parameter. That legacy fixture needs a separate contract update.
+
+Only the stale Post declaration was removed from `WarehouseDocumentPosting.Procedures.sql`. Other legacy procedure declarations in that historical script were intentionally not changed in this Phase 2/3 task and need a separate deployment-bundle audit before treating the whole script as a canonical release artifact.

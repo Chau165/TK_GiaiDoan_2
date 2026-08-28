@@ -2,6 +2,8 @@
 SET NOCOUNT ON;
 GO
 
+/* The canonical document-posting procedure is defined in WarehouseModule.Procedures.sql. */
+
 CREATE OR ALTER PROCEDURE dbo.sp_XNK_Validate_All_Balances
 AS
 BEGIN
@@ -62,33 +64,6 @@ BEGIN
     IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Xuat_Kho_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID=@Xuat_Kho_ID AND Is_Posted=1) THROW 51163,N'Không được sửa chi tiết của phiếu đã Post.',1; IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@San_Pham_ID) THROW 51135,N'Sản phẩm không hợp lệ.',1; IF @SL_Xuat<=0 THROW 51136,N'Số lượng xuất phải lớn hơn 0.',1; IF @Don_Gia_Xuat<=0 THROW 51137,N'Đơn giá xuất phải lớn hơn 0.',1;
     IF ISNULL(@Auto_ID,0)=0 BEGIN INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID,San_Pham_ID,SL_Xuat,Don_Gia_Xuat) VALUES(@Xuat_Kho_ID,@San_Pham_ID,@SL_Xuat,@Don_Gia_Xuat); SET @Auto_ID=SCOPE_IDENTITY(); END ELSE BEGIN IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Auto_ID=@Auto_ID AND (Xuat_Kho_ID<>@Xuat_Kho_ID OR San_Pham_ID<>@San_Pham_ID)) THROW 51138,N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.',1; UPDATE dbo.tbl_XNK_Xuat_Kho_Raw_Data SET SL_Xuat=@SL_Xuat,Don_Gia_Xuat=@Don_Gia_Xuat WHERE Auto_ID=@Auto_ID; END
     SELECT @Auto_ID AS Auto_ID;
-END
-GO
-
-CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Post @Is_Receipt BIT, @Document_ID BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON; SET XACT_ABORT ON; SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-        CREATE TABLE #Delta(Kho_ID BIGINT NOT NULL, San_Pham_ID BIGINT NOT NULL, Delta DECIMAL(18,3) NOT NULL, PRIMARY KEY(Kho_ID,San_Pham_ID));
-        IF @Is_Receipt=1
-        BEGIN
-            IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID) THROW 51105,N'Phiếu nhập không tồn tại.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID AND Is_Posted=1) THROW 51162,N'Phiếu đã Post.',1; IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID=@Document_ID) THROW 51161,N'Không thể Post phiếu không có chi tiết.',1;
-            INSERT #Delta SELECT h.Kho_ID,d.San_Pham_ID,SUM(CAST(d.SL_Nhap AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID=h.Auto_ID WHERE h.Auto_ID=@Document_ID GROUP BY h.Kho_ID,d.San_Pham_ID; UPDATE dbo.tbl_XNK_Nhap_Kho SET Is_Posted=1,Posted_At=SYSUTCDATETIME(),Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Document_ID;
-        END
-        ELSE
-        BEGIN
-            IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID) THROW 51134,N'Phiếu xuất không tồn tại.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK,HOLDLOCK) WHERE Auto_ID=@Document_ID AND Is_Posted=1) THROW 51162,N'Phiếu đã Post.',1; IF NOT EXISTS(SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID=@Document_ID) THROW 51161,N'Không thể Post phiếu không có chi tiết.',1;
-            INSERT #Delta SELECT h.Kho_ID,d.San_Pham_ID,SUM(CAST(-d.SL_Xuat AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID=h.Auto_ID WHERE h.Auto_ID=@Document_ID GROUP BY h.Kho_ID,d.San_Pham_ID; UPDATE dbo.tbl_XNK_Xuat_Kho SET Is_Posted=1,Posted_At=SYSUTCDATETIME(),Last_Updated=SYSUTCDATETIME() WHERE Auto_ID=@Document_ID;
-        END
-        IF EXISTS(SELECT 1 FROM #Delta d LEFT JOIN dbo.InventoryBalance_Current b WITH (UPDLOCK,HOLDLOCK) ON b.Kho_ID=d.Kho_ID AND b.San_Pham_ID=d.San_Pham_ID WHERE ISNULL(b.CurrentQuantity,0)+d.Delta<0) THROW 51120,N'Không thể Post vì tồn kho không đủ.',1;
-        UPDATE b SET CurrentQuantity=b.CurrentQuantity+d.Delta,UpdatedAt=SYSUTCDATETIME() FROM dbo.InventoryBalance_Current b WITH (UPDLOCK,HOLDLOCK) JOIN #Delta d ON d.Kho_ID=b.Kho_ID AND d.San_Pham_ID=b.San_Pham_ID;
-        INSERT dbo.InventoryBalance_Current(Kho_ID,San_Pham_ID,CurrentQuantity) SELECT d.Kho_ID,d.San_Pham_ID,d.Delta FROM #Delta d WHERE NOT EXISTS(SELECT 1 FROM dbo.InventoryBalance_Current b WITH (UPDLOCK,HOLDLOCK) WHERE b.Kho_ID=d.Kho_ID AND b.San_Pham_ID=d.San_Pham_ID);
-        EXEC dbo.sp_XNK_Validate_All_Balances;
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH IF XACT_STATE()<>0 ROLLBACK TRANSACTION; THROW; END CATCH
 END
 GO
 
