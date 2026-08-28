@@ -23,6 +23,27 @@ public sealed class ToolBenchmarkRunnerTests
         Assert.Contains("--nbomber", runner, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Tool_runner_bootstraps_movement_aggregate_before_inventory_load()
+    {
+        var runner = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Benchmarks",
+            "Run-WarehouseToolBenchmarks.ps1"));
+
+        Assert.Contains("sp_Inventory_Movement_Bootstrap_From_Ledger", runner, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Tool_runner_writes_a_consolidated_markdown_report()
+    {
+        var runner = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Benchmarks",
+            "Run-WarehouseToolBenchmarks.ps1"));
+
+        Assert.Contains("performance-report.md", runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Write-ConsolidatedReport", runner, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string FindRepositoryPath(params string[] parts)
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
