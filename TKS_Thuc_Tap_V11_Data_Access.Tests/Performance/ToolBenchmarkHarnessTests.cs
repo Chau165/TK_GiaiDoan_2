@@ -65,4 +65,27 @@ public sealed class ToolBenchmarkHarnessTests
         Assert.Equal(new DateTime(2026, 1, 1), settings.ReportFromDate);
         Assert.Equal(new DateTime(2026, 12, 31), settings.ReportToDate);
     }
+
+    [Fact]
+    public void Load_scenarios_convert_operation_exceptions_into_recorded_failures()
+    {
+        var loadTest = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Benchmarks",
+            "WarehouseLoadTest.cs"));
+
+        Assert.Contains("catch (Exception", loadTest, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Response.Fail", loadTest, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FindRepositoryPath(params string[] parts)
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            var candidate = Path.Combine(new[] { directory.FullName }.Concat(parts).ToArray());
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(parts)}");
+    }
 }

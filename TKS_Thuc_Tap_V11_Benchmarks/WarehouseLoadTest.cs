@@ -45,9 +45,16 @@ public static class WarehouseLoadTest
     {
         return Scenario.Create(p_name, async _ =>
         {
-            var v_rows = await p_operation();
-            GC.KeepAlive(v_rows);
-            return Response.Ok();
+            try
+            {
+                var v_rows = await p_operation();
+                GC.KeepAlive(v_rows);
+                return Response.Ok();
+            }
+            catch (Exception p_exception)
+            {
+                return Response.Fail("-101", p_exception.Message, 0L, 0d);
+            }
         }).WithLoadSimulations(Simulation.KeepConstant(
             copies: p_settings.NBomberCopies,
             during: TimeSpan.FromSeconds(p_settings.NBomberDurationSeconds)));

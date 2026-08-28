@@ -34,6 +34,7 @@ $snapshotSqlStatsFile = Join-Path $projectRoot 'Database\Performance\WarehousePe
 $sqlStatsPath = Join-Path $reportRoot 'warehouse-tool-benchmark.sqlstats.txt'
 $datasetVerificationPath = Join-Path $reportRoot 'dataset-verification.txt'
 $movementBootstrapPath = Join-Path $reportRoot 'movement-aggregate-bootstrap.txt'
+$nbomberStatusPath = Join-Path $reportRoot 'nbomber-status.txt'
 $consolidatedReportPath = Join-Path $reportRoot 'performance-report.md'
 $snapshotBeforePath = Join-Path $reportRoot 'snapshot-verification-before.txt'
 $snapshotAfterPath = Join-Path $reportRoot 'snapshot-verification-after.txt'
@@ -140,39 +141,75 @@ function Write-ConsolidatedReport {
         [int]$Copies,
         [int]$DurationSeconds,
         [bool]$UseSnapshot,
-        [bool]$SkipSynthetic
+        [bool]$SkipSynthetic,
+        [int]$NBomberExitCode
     )
 
     $datasetVerification = Get-Content -LiteralPath $DatasetPath -Raw
     $bootstrapOutput = Get-Content -LiteralPath $BootstrapPath -Raw
     $receiptLines = [math]::Ceiling($RecordCount / 2)
     $issueLines = $RecordCount - $receiptLines
+    $bdnCsv = Get-ChildItem -LiteralPath (Join-Path $BdnDatabaseDirectory 'results') -Filter '*.csv' -File |
+        Select-Object -First 1
+    $nbomberCsv = Get-ChildItem -LiteralPath $NBomberDirectory -Filter '*.csv' -File |
+        Select-Object -First 1
+    $bdnSummary = 'BenchmarkDotNet CSV was not found.'
+    if ($null -ne $bdnCsv) {
+        $bdnSummary = @(
+            '| Scenario | Mean | Allocated |'
+            '|---|---:|---:|'
+            (Import-Csv -LiteralPath $bdnCsv.FullName | ForEach-Object {
+                "| $($_.Method) | $($_.Mean) | $($_.Allocated) |"
+            })
+        ) -join [Environment]::NewLine
+    }
+    $nbomberSummary = 'NBomber CSV was not found.'
+    if ($null -ne $nbomberCsv) {
+        $nbomberSummary = @(
+            '| Scenario | Requests | OK | Failed | Mean OK (ms) | P95 OK (ms) | P99 OK (ms) |'
+            '|---|---:|---:|---:|---:|---:|---:|'
+            (Import-Csv -LiteralPath $nbomberCsv.FullName | ForEach-Object {
+                "| $($_.scenario) | $($_.request_count) | $($_.ok) | $($_.failed) | $($_.ok_mean) | $($_.ok_95_percent) | $($_.ok_99_percent) |"
+            })
+        ) -join [Environment]::NewLine
+    }
     $report = @"
 # TKS warehouse performance benchmark report
 
 - Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')
 - Host: $([Environment]::MachineName)
 - .NET SDK: $((& dotnet --version).Trim())
-- Database: `$databaseName`
+- Database: $databaseName
 - Dataset target: $RecordCount detail rows ($receiptLines receipt + $issueLines issue)
 - NBomber load: $Copies concurrent copies per scenario, $DurationSeconds seconds
 - Total concurrent read operations when all 5 scenarios are enabled: $($Copies * 5)
 - Snapshot path enabled: $UseSnapshot
 - Synthetic BenchmarkDotNet run skipped: $SkipSynthetic
+- NBomber process exit code: $NBomberExitCode (request failures, if any, are recorded in the NBomber report)
 
 ## Dataset verification
 
-```
-$datasetVerification.Trim()
-```
+~~~text
+$($datasetVerification.Trim())
+~~~
 
 Movement aggregation is bootstrapped once from the posted ledger before the
 inventory-report benchmark. This setup operation is intentionally excluded from
 BenchmarkDotNet and NBomber timings.
 
-```
-$bootstrapOutput.Trim()
-```
+~~~text
+$($bootstrapOutput.Trim())
+~~~
+
+## Measured summary
+
+### BenchmarkDotNet database path
+
+$bdnSummary
+
+### NBomber concurrent path
+
+$nbomberSummary
 
 ## Artifacts
 
@@ -182,6 +219,7 @@ $bootstrapOutput.Trim()
 - [SQL Server statistics](warehouse-tool-benchmark.sqlstats.txt)
 - [Dataset verification](dataset-verification.txt)
 - [Movement aggregate bootstrap log](movement-aggregate-bootstrap.txt)
+- [NBomber process status](nbomber-status.txt)
 
 ## Reading the result
 
@@ -224,6 +262,8 @@ $previousEnvironment = @{}
 foreach ($name in $environmentNames) {
     $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
+
+$nbomberExitCode = 0
 
 $databaseExists = $false
 $existsOutput = & $sqlcmd -S localhost -E -C -d master -h -1 -W -Q "SET NOCOUNT ON; SELECT CASE WHEN DB_ID(N'$databaseName') IS NULL THEN 0 ELSE 1 END;"
@@ -331,8 +371,10 @@ against the full isolated dataset.
     Set-ProcessEnvironment 'TKS_NBOMBER_DURATION_SECONDS' $DurationSeconds.ToString()
     Set-ProcessEnvironment 'TKS_BENCH_REPORT_DIR' $nbomberDirectory
     & dotnet run --project $benchmarkProject --configuration Release --no-restore -- --nbomber
-    if ($LASTEXITCODE -ne 0) {
-        throw "NBomber failed with exit code $LASTEXITCODE"
+    $nbomberExitCode = $LASTEXITCODE
+    Set-Content -LiteralPath $nbomberStatusPath -Value "NBomber exit code: $nbomberExitCode`nNBomber reports were retained even when request failures were recorded." -Encoding UTF8
+    if ($nbomberExitCode -ne 0) {
+        Write-Warning "NBomber recorded request failures and exited with code $nbomberExitCode. Continuing to collect SQL statistics and the consolidated report."
     }
 
     if ($UseSnapshot) {
@@ -354,7 +396,8 @@ against the full isolated dataset.
         -Copies $Copies `
         -DurationSeconds $DurationSeconds `
         -UseSnapshot $UseSnapshot `
-        -SkipSynthetic $SkipSynthetic
+        -SkipSynthetic $SkipSynthetic `
+        -NBomberExitCode $nbomberExitCode
 
     Write-Output "Tool benchmark report root: $reportRoot"
     Write-Output "BenchmarkDotNet synthetic artifacts: $bdnSyntheticDirectory"
