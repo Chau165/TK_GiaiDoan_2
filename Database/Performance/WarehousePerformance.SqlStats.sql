@@ -7,13 +7,15 @@ EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
     @Tu_Ngay = '2025-01-01',
     @Den_Ngay = '2026-12-31',
     @Page_Number = 1,
-    @Page_Size = $(PageSize);
+    @Page_Size = $(PageSize),
+    @Ma_Dang_Nhap = N'PERF_USER';
 
 EXEC dbo.sp_BC_Chi_Tiet_Nhap_Page
     @Tu_Ngay = '2025-01-01',
     @Den_Ngay = '2026-12-31',
     @Page_Number = 1,
-    @Page_Size = $(PageSize);
+    @Page_Size = $(PageSize),
+    @Ma_Dang_Nhap = N'PERF_USER';
 
 EXEC dbo.sp_DM_Master_Page
     @Entity = N'SanPham',

@@ -57,6 +57,7 @@ if (-not [string]::IsNullOrWhiteSpace($DatabaseDirectory)) {
     $databaseDirectoryPath = [System.IO.Path]::GetFullPath($DatabaseDirectory)
     [System.IO.Directory]::CreateDirectory($databaseDirectoryPath) | Out-Null
 }
+
 try {
     if ($databaseExists -and $Reset) {
         Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', 'master', '-b', '-Q', "ALTER DATABASE [$databaseName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$databaseName];")
@@ -81,6 +82,7 @@ try {
     $env:TKS_PERF_WORKERS = $Workers.ToString()
     $env:TKS_PERF_ITERATIONS = $Iterations.ToString()
     $env:TKS_PERF_WARMUP = $Warmup.ToString()
+    $env:TKS_PERF_LOGIN = 'PERF_USER'
     $env:TKS_PERF_FULL_LOAD = if ($FullLoad) { '1' } else { '0' }
     $env:TKS_PERF_CONNECTION_STRING = "Server=localhost;Database=$databaseName;Integrated Security=True;TrustServerCertificate=True;Connection Timeout=30;"
     $env:TKS_PERF_OUTPUT = $outputPath
@@ -102,6 +104,7 @@ finally {
     Remove-Item Env:TKS_PERF_WORKERS -ErrorAction SilentlyContinue
     Remove-Item Env:TKS_PERF_ITERATIONS -ErrorAction SilentlyContinue
     Remove-Item Env:TKS_PERF_WARMUP -ErrorAction SilentlyContinue
+    Remove-Item Env:TKS_PERF_LOGIN -ErrorAction SilentlyContinue
     Remove-Item Env:TKS_PERF_FULL_LOAD -ErrorAction SilentlyContinue
     Remove-Item Env:TKS_PERF_CONNECTION_STRING -ErrorAction SilentlyContinue
     Remove-Item Env:TKS_PERF_OUTPUT -ErrorAction SilentlyContinue

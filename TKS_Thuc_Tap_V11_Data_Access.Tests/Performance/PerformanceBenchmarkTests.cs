@@ -11,12 +11,28 @@ public sealed class PerformanceBenchmarkTests
         var options = PerformanceBenchmark.ParseOptions(new Dictionary<string, string?>
         {
             ["TKS_PERF_ROWS"] = "1000000",
-            ["TKS_PERF_PAGE_SIZE"] = "10"
+            ["TKS_PERF_PAGE_SIZE"] = "10",
+            ["TKS_PERF_LOGIN"] = "PERF_USER"
         });
 
         Assert.Equal(1_000_000, options.RecordCount);
         Assert.Equal(10, options.PageSize);
+        Assert.Equal("PERF_USER", options.LoginName);
         Assert.False(options.AllowFullLoad);
+    }
+
+    [Fact]
+    public void Benchmark_seed_and_sql_stats_use_the_authorized_benchmark_login()
+    {
+        var seed = File.ReadAllText(FindRepositoryPath("Database", "Performance", "WarehousePerformance.Seed.sql"));
+        var sqlStats = File.ReadAllText(FindRepositoryPath("Database", "Performance", "WarehousePerformance.SqlStats.sql"));
+
+        Assert.Contains("tbl_DM_Kho_User", seed);
+        Assert.Contains("PERF_USER", seed);
+        Assert.DoesNotContain("CREATE UNIQUE CLUSTERED INDEX IX_Perf_Numbers", seed);
+        Assert.Contains("MAXDOP 1", seed);
+        Assert.Contains("Is_Posted", seed);
+        Assert.Contains("@Ma_Dang_Nhap = N'PERF_USER'", sqlStats);
     }
 
     [Fact]
@@ -104,5 +120,17 @@ public sealed class PerformanceBenchmarkTests
 
         Assert.Contains(report.Metrics, metric => metric.Scenario == "MasterPaged" && metric.Error is null);
         Assert.Contains(report.Metrics, metric => metric.Scenario == "InventoryReportPaged" && metric.Error is null);
+    }
+
+    private static string FindRepositoryPath(params string[] parts)
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            var candidate = Path.Combine(new[] { directory.FullName }.Concat(parts).ToArray());
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(parts)}");
     }
 }

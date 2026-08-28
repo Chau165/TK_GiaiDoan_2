@@ -1,0 +1,102 @@
+﻿SQL Server parse and compile time: 
+   CPU time = 0 ms, elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+SQL Server parse and compile time: 
+   CPU time = 1267 ms, elapsed time = 1267 ms.
+Table 'InventoryBalance_Snapshot_Daily'. Scan count 1, logical reads 3, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+Table '#AuthorizedWarehouse________________________________________________________________________________________________000000000048'. Scan count 0, logical reads 200, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_DM_Kho_User'. Scan count 1, logical reads 3, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 1 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+SQL Server parse and compile time: 
+   CPU time = 0 ms, elapsed time = 10 ms.
+Table 'InventoryBalance_Snapshot_Daily'. Scan count 100, logical reads 3001, physical reads 0, page server reads 0, read-ahead reads 14, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table '#AuthorizedWarehouse________________________________________________________________________________________________000000000048'. Scan count 1, logical reads 2, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 984 ms,  elapsed time = 999 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+Table '#AuthorizedWarehouse________________________________________________________________________________________________000000000048'. Scan count 18, logical reads 8, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_XNK_Xuat_Kho_Raw_Data'. Scan count 9, logical reads 30653, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_XNK_Nhap_Kho_Raw_Data'. Scan count 9, logical reads 30757, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_XNK_Xuat_Kho'. Scan count 100, logical reads 1354, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_XNK_Nhap_Kho'. Scan count 100, logical reads 1354, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 10110 ms,  elapsed time = 2179 ms.
+
+ SQL Server Execution Times:
+   CPU time = 0 ms,  elapsed time = 0 ms.
+SQL Server parse and compile time: 
+   CPU time = 782 ms, elapsed time = 782 ms.
+Table '#MovementAggregate__________________________________________________________________________________________________00000000004A'. Scan count 2, logical reads 5688, physical reads 0, page server reads 0, read-ahead reads 6, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table '#SnapshotBalance____________________________________________________________________________________________________000000000049'. Scan count 2, logical reads 3684, physical reads 0, page server reads 0, read-ahead reads 1, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'InventoryBalance_Current'. Scan count 1, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 3156 ms,  elapsed time = 3190 ms.
+Total_Count
+-----------
+     440000
+Table '#ReportKeys_________________________________________________________________________________________________________00000000004B'. Scan count 1, logical reads 4329, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 63 ms,  elapsed time = 69 ms.
+Kho_ID               Ten_Kho                                                                                                                                                                                                                                                         San_Pham_ID          Ma_San_Pham                                                                                          Ten_San_Pham                                                                                                                                                                                                                                                    SL_Dau_Ky            SL_Nhap              SL_Xuat              SL_Cuoi_Ky           SL_Ton_Thuc_Te       SL_Dang_Giu          SL_Kha_Dung         
+-------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- -------------------- ---------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- -------------------- -------------------- -------------------- -------------------- -------------------- -------------------- --------------------
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       9388 PERF-SKU-10                                                                                          Benchmark product 10                                                                                                                                                                                                                                                          30.000               78.000               58.000               50.000               50.000                 .000               50.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4402 PERF-SKU-10000                                                                                       Benchmark product 10000                                                                                                                                                                                                                                                         .000                9.000                9.000                 .000                 .000                 .000                 .000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4781 PERF-SKU-1001                                                                                        Benchmark product 1001                                                                                                                                                                                                                                                       110.000              288.000              198.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4782 PERF-SKU-1002                                                                                        Benchmark product 1002                                                                                                                                                                                                                                                       110.000              297.000              207.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4783 PERF-SKU-1003                                                                                        Benchmark product 1003                                                                                                                                                                                                                                                       110.000              306.000              216.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4784 PERF-SKU-1004                                                                                        Benchmark product 1004                                                                                                                                                                                                                                                       110.000              315.000              225.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4785 PERF-SKU-1005                                                                                        Benchmark product 1005                                                                                                                                                                                                                                                       110.000              324.000              234.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4786 PERF-SKU-1006                                                                                        Benchmark product 1006                                                                                                                                                                                                                                                       110.000              333.000              243.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4787 PERF-SKU-1007                                                                                        Benchmark product 1007                                                                                                                                                                                                                                                       110.000              342.000              252.000              200.000              200.000                 .000              200.000
+                   1 PERF-WH-1                                                                                                                                                                                                                                                                       4788 PERF-SKU-1008                                                                                        Benchmark product 1008                                                                                                                                                                                                                                                       110.000              351.000              261.000              200.000              200.000                 .000              200.000
+Table '#ReportKeys_________________________________________________________________________________________________________00000000004B'. Scan count 9, logical reads 4329, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_DM_San_Pham'. Scan count 9, logical reads 625, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'tbl_DM_Kho'. Scan count 5, logical reads 4, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Table 'Worktable'. Scan count 0, logical reads 0, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+
+ SQL Server Execution Times:
+   CPU time = 3376 ms,  elapsed time = 495 ms.
+
+ SQL Server Execution Times:
+   CPU time = 23360 ms,  elapsed time = 9001 ms.

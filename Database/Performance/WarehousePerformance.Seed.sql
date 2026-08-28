@@ -64,48 +64,62 @@ IF NOT EXISTS (SELECT 1 FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap = N'PERF_
 (
     SELECT TOP (@RecordCount) CONVERT(INT, ROW_NUMBER() OVER (ORDER BY (SELECT NULL))) FROM E4 a CROSS JOIN E4 b
 )
-SELECT n INTO #Numbers FROM N;
-CREATE UNIQUE CLUSTERED INDEX IX_Perf_Numbers ON #Numbers(n);
+SELECT n INTO #Numbers FROM N
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu)
 SELECT CONCAT(N'PERF-Unit-', n), N'Benchmark dimension'
-FROM #Numbers WHERE n <= @UnitCount;
+FROM #Numbers WHERE n <= @UnitCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_DM_Loai_San_Pham(Ma_LSP, Ten_LSP, Ghi_Chu)
 SELECT CONCAT(N'PERF-TYPE-', n), CONCAT(N'Benchmark product type ', n), N'Benchmark dimension'
-FROM #Numbers WHERE n <= @ProductTypeCount;
+FROM #Numbers WHERE n <= @ProductTypeCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_DM_NCC(Ma_NCC, Ten_NCC, Ghi_Chu)
 SELECT CONCAT(N'PERF-SUP-', n), CONCAT(N'Benchmark supplier ', n), N'Benchmark dimension'
-FROM #Numbers WHERE n <= @SupplierCount;
+FROM #Numbers WHERE n <= @SupplierCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu)
 SELECT CONCAT(N'PERF-WH-', n), N'Benchmark dimension'
-FROM #Numbers WHERE n <= @WarehouseCount;
+FROM #Numbers WHERE n <= @WarehouseCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
+
+INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID)
+SELECT N'PERF_USER', n
+FROM #Numbers WHERE n <= @WarehouseCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu)
 SELECT CONCAT(N'PERF-SKU-', n), CONCAT(N'Benchmark product ', n), ((n - 1) % @ProductTypeCount) + 1, ((n - 1) % @UnitCount) + 1, N'Benchmark dimension'
-FROM #Numbers WHERE n <= @ProductCount;
+FROM #Numbers WHERE n <= @ProductCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
-INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Ghi_Chu)
+INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Ghi_Chu, Is_Posted)
 SELECT CONCAT(N'PERF-IN-', n), ((n - 1) % @WarehouseCount) + 1, ((n - 1) % @SupplierCount) + 1,
-       DATEADD(DAY, (n - 1) % 730, CONVERT(date, '2025-01-01')), N'Benchmark header'
-FROM #Numbers WHERE n <= @ReceiptHeaderCount;
+       DATEADD(DAY, (n - 1) % 730, CONVERT(date, '2025-01-01')), N'Benchmark header', 1
+FROM #Numbers WHERE n <= @ReceiptHeaderCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
-INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Ghi_Chu)
+INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Ghi_Chu, Is_Posted)
 SELECT CONCAT(N'PERF-OUT-', n), ((n - 1) % @WarehouseCount) + 1,
-       DATEADD(DAY, (n - 1) % 730, CONVERT(date, '2025-01-01')), N'Benchmark header'
-FROM #Numbers WHERE n <= @IssueHeaderCount;
+       DATEADD(DAY, (n - 1) % 730, CONVERT(date, '2025-01-01')), N'Benchmark header', 1
+FROM #Numbers WHERE n <= @IssueHeaderCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap)
 SELECT ((n - 1) / 10) + 1, ((n - 1) % @ProductCount) + 1,
        CONVERT(DECIMAL(18,3), 1 + (n % 50)), CONVERT(DECIMAL(18,2), 10 + (n % 1000))
-FROM #Numbers WHERE n <= @ReceiptLineCount;
+FROM #Numbers WHERE n <= @ReceiptLineCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat)
 SELECT ((n - 1) / 10) + 1, ((n - 1) % @ProductCount) + 1,
        CONVERT(DECIMAL(18,3), 1 + (n % 40)), CONVERT(DECIMAL(18,2), 12 + (n % 1000))
-FROM #Numbers WHERE n <= @IssueLineCount;
+FROM #Numbers WHERE n <= @IssueLineCount
+OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
 UPDATE STATISTICS dbo.tbl_DM_Don_Vi_Tinh WITH FULLSCAN;
 UPDATE STATISTICS dbo.tbl_DM_Loai_San_Pham WITH FULLSCAN;

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>TKS_Thuc_Tap_V11_Benchmarks.WarehouseDatabaseBenchmarks-20260827-142605</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200.9168/25H2/2025Update/HudsonValley2)
+Intel Core i7-8650U CPU 1.90GHz (Max: 2.11GHz) (Kaby Lake R), 1 CPU, 8 logical and 4 physical cores
+.NET SDK 9.0.317
+  [Host]   : .NET 8.0.20 (8.0.20, 8.0.2025.41914), X64 RyuJIT x86-64-v3
+  ShortRun : .NET 8.0.20 (8.0.20, 8.0.2025.41914), X64 RyuJIT x86-64-v3
+</code></pre>
+<pre><code>Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method        </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>MasterPaged</td><td>1.875 ms</td><td>0.5207 ms</td><td>0.0285 ms</td><td>1.00</td><td>0.02</td><td>7.8125</td><td>36.75 KB</td><td>1.00</td>
+</tr><tr><td>LookupPaged</td><td>2.704 ms</td><td>0.3175 ms</td><td>0.0174 ms</td><td>1.44</td><td>0.02</td><td>5.8594</td><td>25.7 KB</td><td>0.70</td>
+</tr><tr><td>DocumentPaged</td><td>32.795 ms</td><td>96.5353 ms</td><td>5.2914 ms</td><td>17.50</td><td>2.46</td><td>-</td><td>47.52 KB</td><td>1.29</td>
+</tr><tr><td>DetailReportPaged</td><td>103.336 ms</td><td>109.8229 ms</td><td>6.0198 ms</td><td>55.13</td><td>2.88</td><td>-</td><td>52.53 KB</td><td>1.43</td>
+</tr><tr><td>InventoryReportPaged</td><td>NA</td><td>NA</td><td>NA</td><td>?</td><td>?</td><td>NA</td><td>NA</td><td>?</td>
+</tr></tbody></table>
+</body>
+</html>

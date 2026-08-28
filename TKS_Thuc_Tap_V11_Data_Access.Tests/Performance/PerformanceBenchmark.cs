@@ -21,6 +21,7 @@ public sealed record PerformanceOptions
     public bool RunDatabase { get; init; }
     public bool AllowFullLoad { get; init; }
     public string ConnectionString { get; init; } = "";
+    public string LoginName { get; init; } = "PERF_USER";
     public string OutputPath { get; init; } = "";
 
     public static PerformanceOptions FromEnvironment(IReadOnlyDictionary<string, string?>? p_environment = null)
@@ -39,6 +40,9 @@ public sealed record PerformanceOptions
             RunDatabase = ReadBool(p_environment, "TKS_PERF_RUN"),
             AllowFullLoad = ReadBool(p_environment, "TKS_PERF_FULL_LOAD"),
             ConnectionString = ReadString(p_environment, "TKS_PERF_CONNECTION_STRING"),
+            LoginName = string.IsNullOrWhiteSpace(ReadString(p_environment, "TKS_PERF_LOGIN"))
+                ? "PERF_USER"
+                : ReadString(p_environment, "TKS_PERF_LOGIN"),
             OutputPath = ReadString(p_environment, "TKS_PERF_OUTPUT")
         };
     }
@@ -231,13 +235,13 @@ public static class PerformanceBenchmark
             new CWarehouseMaster_Controller().List_Lookup_Page_Async("SanPham", 1, p_options.PageSize, "")
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "DocumentPaged", p_options, () =>
-            new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "")
+            new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "DetailReportPaged", p_options, () =>
-            new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize)
+            new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "InventoryReportPaged", p_options, () =>
-            new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize)
+            new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
 
         if (p_options.AllowFullLoad)
@@ -249,16 +253,16 @@ public static class PerformanceBenchmark
                 new CWarehouseMaster_Controller().List_Lookup_Async("SanPham")
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DocumentFullLoad", p_options, () =>
-                new CWarehouseDocument_Controller().List_Documents_Async(true)
+                new CWarehouseDocument_Controller().List_Documents_Async(true, p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DocumentDetailFullLoad", p_options, ()
-                => new CWarehouseDocument_Controller().List_Document_Details_Async(true, 1)
+                => new CWarehouseDocument_Controller().List_Document_Details_Async(true, 1, p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DetailReportFullLoad", p_options, () =>
-                new CWarehouseReport_Controller().Detail_Report_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31))
+                new CWarehouseReport_Controller().Detail_Report_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "InventoryReportFullLoad", p_options, () =>
-                new CWarehouseReport_Controller().Inventory_Report_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31))
+                new CWarehouseReport_Controller().Inventory_Report_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
         }
         else
@@ -286,9 +290,9 @@ public static class PerformanceBenchmark
                 return v_index switch
                 {
                     0 => (await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")).Items.Count,
-                    1 => (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "")).Items.Count,
-                    2 => (await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize)).Items.Count,
-                    _ => (await new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize)).Items.Count
+                    1 => (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count,
+                    2 => (await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count,
+                    _ => (await new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count
                 };
             }).Unwrap();
         }, p_concurrent: true);
@@ -518,20 +522,20 @@ public static class PerformanceBenchmark
 
         var v_documentController = new CWarehouseDocument_Controller();
         await AddMetricAsync(p_metrics, "Crud_Document_Save_Controller", p_options, async ()
-            => await SaveDocumentAsync(v_documentController));
+            => await SaveDocumentAsync(v_documentController, p_options.LoginName));
         await AddMetricAsync(p_metrics, "Crud_Detail_Save_Controller", p_options, async ()
-            => await SaveDetailAsync(v_documentController));
+            => await SaveDetailAsync(v_documentController, p_options.LoginName));
         await AddMetricAsync(p_metrics, "Crud_Document_Delete_Controller", p_options, async ()
             =>
             {
-                await v_documentController.Delete_Document_Async(true, 1, "benchmark", "performance");
+                await v_documentController.Delete_Document_Async(true, 1, "benchmark", "performance", p_options.LoginName);
                 return 1;
             });
 
         p_notes.Add("CRUD controller metrics intentionally retain parameter-contract failures; these are correctness findings, not hidden benchmark successes.");
     }
 
-    private static async Task<int> SaveDocumentAsync(CWarehouseDocument_Controller p_controller)
+    private static async Task<int> SaveDocumentAsync(CWarehouseDocument_Controller p_controller, string p_loginName)
     {
         var v_document = new CWarehouseDocument
         {
@@ -541,11 +545,11 @@ public static class PerformanceBenchmark
             NCC_ID = 1,
             Ngay_Chung_Tu = new DateTime(2025, 1, 1)
         };
-        await p_controller.Save_Document_Async(v_document, "benchmark", "performance");
+        await p_controller.Save_Document_Async(v_document, "benchmark", "performance", p_loginName);
         return v_document.Auto_ID > 0 ? 1 : 0;
     }
 
-    private static async Task<int> SaveDetailAsync(CWarehouseDocument_Controller p_controller)
+    private static async Task<int> SaveDetailAsync(CWarehouseDocument_Controller p_controller, string p_loginName)
     {
         var v_detail = new CWarehouseDocumentDetail
         {
@@ -554,7 +558,7 @@ public static class PerformanceBenchmark
             So_Luong = 1,
             Don_Gia = 1
         };
-        await p_controller.Save_Document_Detail_Async(true, v_detail, "benchmark", "performance");
+        await p_controller.Save_Document_Detail_Async(true, v_detail, "benchmark", "performance", p_loginName);
         return v_detail.Auto_ID > 0 ? 1 : 0;
     }
 
