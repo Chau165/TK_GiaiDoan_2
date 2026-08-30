@@ -24,6 +24,14 @@ _Avoid_: Current balance, cache.
 A derived quantity for one warehouse and product at the present time; it is not the historical source of truth.
 _Avoid_: Movement ledger, historical snapshot.
 
+**Current Inventory View (Màn hình tồn hiện tại)**:
+A read-only view of On Hand, Reserved, and Available at the present time. It does not represent opening, receipt, or issue quantities for a reporting period.
+_Avoid_: calling it an “Xuất nhập tồn theo kỳ” report.
+
+**Period Inventory Report (Báo cáo xuất nhập tồn theo kỳ)**:
+A historical report over a selected date interval, including opening, receipt, issue, and closing quantities.
+_Avoid_: using Current Inventory Balance as its historical source.
+
 **Inventory Delta**:
 The signed change to current inventory obtained by reversing an old effective movement and applying a new effective movement.
 _Avoid_: the new detail quantity alone.

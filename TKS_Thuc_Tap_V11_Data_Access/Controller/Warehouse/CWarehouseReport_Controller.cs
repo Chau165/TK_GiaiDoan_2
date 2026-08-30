@@ -26,8 +26,18 @@ public class CWarehouseReport_Controller : CWarehouse_Controller_Base
         return Task.FromResult(v_arrRes);
     }
 
-    public Task<CWarehousePagedResult<CWarehouseInventoryReport>> Inventory_Report_Page_Async(DateTime p_dtmFrom, DateTime p_dtmTo, int p_iPage_Number, int p_iPage_Size, string p_strCurrent_Login = "", long? p_iWarehouse_ID = null)
+    public Task<CWarehousePagedResult<CWarehouseInventoryReport>> Inventory_Report_Page_Async(DateTime p_dtmFrom, DateTime p_dtmTo, int p_iPage_Number, int p_iPage_Size, string p_strCurrent_Login = "", long? p_iWarehouse_ID = null, bool p_bRead_Current_Balance = false)
     {
+        if (p_bRead_Current_Balance)
+        {
+            return Task.FromResult(Page_From_Procedure<CWarehouseInventoryReport>(
+                "sp_BC_Ton_Kho_Hien_Tai_Page",
+                p_iPage_Number,
+                p_iPage_Size,
+                p_strCurrent_Login,
+                p_iWarehouse_ID));
+        }
+
         return Task.FromResult(Page_From_Procedure<CWarehouseInventoryReport>("sp_BC_Xuat_Nhap_Ton_Page", p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size, p_strCurrent_Login, p_iWarehouse_ID));
     }
 }

@@ -144,16 +144,32 @@ BEGIN TRY
     IF @Received <> 105 OR @Issued <> 0
         THROW 52406, N'Back-dated rebuild did not recompute the complete daily aggregate.', 1;
 
-    /* The paged report must read aggregate rows and retain its two-result-set contract. */
+    /* The current-stock page is a distinct read model. It must not rebuild
+       period movements, and it keeps the existing two-result-set paging contract. */
+    DECLARE @CurrentPageDefinition NVARCHAR(MAX) = OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page'));
+    IF CHARINDEX(N'InventoryBalance_Current', @CurrentPageDefinition) = 0
+       OR CHARINDEX(N'Inventory_Movement_Daily', @CurrentPageDefinition) > 0
+       OR CHARINDEX(N'#MovementAggregate', @CurrentPageDefinition) > 0
+        THROW 52410, N'Current inventory page must read only the current balance read model.', 1;
+
+    EXEC dbo.sp_BC_Ton_Kho_Hien_Tai_Page @Page_Number = 1, @Page_Size = 10, @Ma_Dang_Nhap = @Login, @Kho_ID = @WarehouseId;
+
+    /* The paged period report must read the precomputed balance read model and
+       retain its two-result-set paging contract. */
     UPDATE dbo.InventoryMovement_AggregateState
+    SET IsInitialized = 1, InitializedAt = SYSUTCDATETIME(), LastReconciledAt = SYSUTCDATETIME()
+    WHERE State_ID = 1;
+    UPDATE dbo.InventoryBalance_Daily_AggregateState
     SET IsInitialized = 1, InitializedAt = SYSUTCDATETIME(), LastReconciledAt = SYSUTCDATETIME()
     WHERE State_ID = 1;
 
     DECLARE @PageDefinition NVARCHAR(MAX) = OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Xuat_Nhap_Ton_Page'));
-    IF CHARINDEX(N'Inventory_Movement_Daily', @PageDefinition) = 0
+    IF CHARINDEX(N'Inventory_Balance_Daily', @PageDefinition) = 0
+       OR CHARINDEX(N'Inventory_Movement_Daily', @PageDefinition) > 0
+       OR CHARINDEX(N'#MovementAggregate', @PageDefinition) > 0
        OR CHARINDEX(N'tbl_XNK_Nhap_Kho_Raw_Data', @PageDefinition) > 0
        OR CHARINDEX(N'tbl_XNK_Xuat_Kho_Raw_Data', @PageDefinition) > 0
-        THROW 52407, N'InventoryReportPaged still reads raw movement details instead of the daily aggregate.', 1;
+        THROW 52407, N'InventoryReportPaged still calculates movements instead of reading Balance Daily.', 1;
 
     /* Execute the unchanged two-result-set paging contract. */
     EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page @Tu_Ngay = @ReportFrom, @Den_Ngay = '2099-02-28', @Page_Number = 1, @Page_Size = 10, @Ma_Dang_Nhap = @Login;

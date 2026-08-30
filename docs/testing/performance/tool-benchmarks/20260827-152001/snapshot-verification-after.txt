@@ -1,2 +1,0 @@
-﻿Sqlcmd: Error: Microsoft ODBC Driver 17 for SQL Server : Login failed for user 'DESKTOP-NHQ7QPL\Surface'..
-Sqlcmd: Error: Microsoft ODBC Driver 17 for SQL Server : Cannot open database "TKS_Thuc_Tap_V11_Perf_1000000" requested by the login. The login failed..

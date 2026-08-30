@@ -16,6 +16,7 @@ public sealed record BenchmarkSettings
     public string ReportDirectory { get; init; } = "docs/testing/performance/tool-benchmarks";
     public IReadOnlyList<string> NBomberScenarioNames { get; init; } = WarehouseScenarioCatalog.Names;
     public bool RunDatabaseBenchmarks { get; init; }
+    public bool UseCurrentInventoryBalance { get; init; }
 
     public bool DatabaseConfigured => !string.IsNullOrWhiteSpace(ConnectionString);
 
@@ -41,7 +42,8 @@ public sealed record BenchmarkSettings
                 ? v_reportDirectory
                 : "docs/testing/performance/tool-benchmarks",
             NBomberScenarioNames = ReadScenarioNames(p_environment),
-            RunDatabaseBenchmarks = ReadBool(p_environment, "TKS_BDN_DATABASE")
+            RunDatabaseBenchmarks = ReadBool(p_environment, "TKS_BDN_DATABASE"),
+            UseCurrentInventoryBalance = ReadBool(p_environment, "TKS_PERF_USE_CURRENT_BALANCE")
         };
     }
 

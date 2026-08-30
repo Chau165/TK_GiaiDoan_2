@@ -38,6 +38,12 @@ public sealed class WarehouseReadOperations
     public async Task<int> InventoryReportPagedAsync()
     {
         return (await new CWarehouseReport_Controller()
-            .Inventory_Report_Page_Async(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
+            .Inventory_Report_Page_Async(
+                m_settings.ReportFromDate,
+                m_settings.ReportToDate,
+                1,
+                m_settings.PageSize,
+                m_settings.LoginName,
+                p_bRead_Current_Balance: m_settings.UseCurrentInventoryBalance)).Items.Count;
     }
 }

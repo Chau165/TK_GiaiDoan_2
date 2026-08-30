@@ -6,7 +6,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING")
+        ?? "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
 
     [Fact]
     public void Deployment_post_script_does_not_override_the_canonical_movement_aware_post_procedure()
@@ -87,6 +88,38 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
             Assert.Equal("FAILED_FINAL", deadLettered.Status);
             Assert.Equal(2, deadLettered.RetryCount);
             Assert.Equal(1, await CountAsync(scope, day, "dbo.InventoryMovement_RebuildDeadLetter"));
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(scope);
+        }
+    }
+
+    [Fact]
+    public async Task Balance_daily_rebuild_is_rejected_while_another_worker_owns_the_scope()
+    {
+        var scope = await CreatePersistentScopeAsync();
+
+        try
+        {
+            await using var lockConnection = new SqlConnection(ConnectionString);
+            await lockConnection.OpenAsync();
+            await using var lockTransaction = lockConnection.BeginTransaction();
+            await AcquireExclusiveLockAsync(lockConnection, lockTransaction, ScopeResource(scope));
+
+            await using var workerConnection = new SqlConnection(ConnectionString);
+            await workerConnection.OpenAsync();
+
+            var error = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(
+                workerConnection,
+                null,
+                "dbo.sp_Inventory_Balance_Daily_Rebuild",
+                BigInt("@Kho_ID", scope.WarehouseId),
+                BigInt("@San_Pham_ID", scope.ProductId),
+                Date("@From_Date", new DateTime(2099, 3, 20))));
+
+            Assert.Equal(51224, error.Number);
+            await lockTransaction.RollbackAsync();
         }
         finally
         {
@@ -325,6 +358,8 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
                 BigInt("@WarehouseId", scope.WarehouseId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));
+            await ExecuteAsync(connection, transaction, "IF OBJECT_ID(N'dbo.Inventory_Balance_Daily_Scope', N'U') IS NOT NULL DELETE FROM dbo.Inventory_Balance_Daily_Scope WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));
+            await ExecuteAsync(connection, transaction, "IF OBJECT_ID(N'dbo.Inventory_Balance_Daily', N'U') IS NOT NULL DELETE FROM dbo.Inventory_Balance_Daily WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.Inventory_Movement_Daily WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryBalance_Snapshot_Daily WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId;", BigInt("@WarehouseId", scope.WarehouseId));

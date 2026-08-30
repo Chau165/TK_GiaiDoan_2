@@ -1,2 +1,0 @@
-NBomber exit code: 0
-NBomber reports were retained even when request failures were recorded.

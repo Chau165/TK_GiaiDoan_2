@@ -350,6 +350,75 @@ CREATE TABLE dbo.Inventory_Movement_Daily
 );
 GO
 
+/* Historical report read model.  A row exists for every materialized movement
+   date (and for a carried snapshot anchor where required), not for every
+   calendar date.  Cumulative receipt/issue values let a report derive an
+   arbitrary date range from two indexed as-of rows without SUM/GROUP BY. */
+IF OBJECT_ID(N'dbo.Inventory_Balance_Daily', N'U') IS NULL
+CREATE TABLE dbo.Inventory_Balance_Daily
+(
+    ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT UQ_Inventory_Balance_Daily_ID UNIQUE,
+    Balance_Date DATE NOT NULL,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    OpeningQuantity DECIMAL(18,3) NOT NULL,
+    TotalReceived DECIMAL(18,3) NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_TotalReceived DEFAULT (0),
+    TotalIssued DECIMAL(18,3) NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_TotalIssued DEFAULT (0),
+    ClosingQuantity DECIMAL(18,3) NOT NULL,
+    CumulativeReceived DECIMAL(18,3) NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_CumulativeReceived DEFAULT (0),
+    CumulativeIssued DECIMAL(18,3) NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_CumulativeIssued DEFAULT (0),
+    [Version] INT NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_Version DEFAULT (1),
+    IsValid BIT NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_IsValid DEFAULT (1),
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_CreatedAt DEFAULT SYSUTCDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_Inventory_Balance_Daily PRIMARY KEY CLUSTERED (Balance_Date, Kho_ID, San_Pham_ID),
+    CONSTRAINT CK_Inventory_Balance_Daily_Movement_NonNegative CHECK (TotalReceived >= 0 AND TotalIssued >= 0),
+    CONSTRAINT FK_Inventory_Balance_Daily_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_Inventory_Balance_Daily_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+/* The report enumerates one precomputed scope row, then seeks only the opening
+   and ending balance rows.  This avoids DISTINCT/GROUP BY over the daily fact. */
+IF OBJECT_ID(N'dbo.Inventory_Balance_Daily_Scope', N'U') IS NULL
+CREATE TABLE dbo.Inventory_Balance_Daily_Scope
+(
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    First_Balance_Date DATE NOT NULL,
+    Last_Balance_Date DATE NOT NULL,
+    [Version] INT NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_Scope_Version DEFAULT (1),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Balance_Daily_Scope_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_Inventory_Balance_Daily_Scope PRIMARY KEY (Kho_ID, San_Pham_ID),
+    CONSTRAINT CK_Inventory_Balance_Daily_Scope_DateRange CHECK (First_Balance_Date <= Last_Balance_Date),
+    CONSTRAINT FK_Inventory_Balance_Daily_Scope_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
+    CONSTRAINT FK_Inventory_Balance_Daily_Scope_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
+);
+GO
+
+/* A separate cutover state prevents a deployed-but-unbackfilled read model
+   from returning incomplete historical reports. */
+IF OBJECT_ID(N'dbo.InventoryBalance_Daily_AggregateState', N'U') IS NULL
+CREATE TABLE dbo.InventoryBalance_Daily_AggregateState
+(
+    State_ID TINYINT NOT NULL CONSTRAINT PK_InventoryBalance_Daily_AggregateState PRIMARY KEY,
+    IsInitialized BIT NOT NULL CONSTRAINT DF_InventoryBalance_Daily_AggregateState_IsInitialized DEFAULT (0),
+    InitializedAt DATETIME2 NULL,
+    LastReconciledAt DATETIME2 NULL,
+    CONSTRAINT CK_InventoryBalance_Daily_AggregateState_Singleton CHECK (State_ID = 1)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.InventoryBalance_Daily_AggregateState WHERE State_ID = 1)
+    INSERT dbo.InventoryBalance_Daily_AggregateState(State_ID, IsInitialized) VALUES (1, 0);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Inventory_Balance_Daily') AND name = N'IX_Inventory_Balance_Daily_Scope')
+    CREATE INDEX IX_Inventory_Balance_Daily_Scope
+    ON dbo.Inventory_Balance_Daily(Kho_ID, San_Pham_ID, Balance_Date)
+    INCLUDE (OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid, [Version]);
+GO
+
 /* Queue ranges coalesce rapid edits for a scope. A normal posted document has
    From_Date = To_Date; a range is retained for future correction workflows. */
 IF OBJECT_ID(N'dbo.InventoryMovement_RebuildQueue', N'U') IS NULL

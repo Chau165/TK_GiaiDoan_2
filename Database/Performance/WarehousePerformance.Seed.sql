@@ -6,6 +6,8 @@ SET NOCOUNT ON;
 SET QUOTED_IDENTIFIER ON;
 SET XACT_ABORT ON;
 
+BEGIN TRY
+
 DECLARE @RecordCount INT = TRY_CONVERT(INT, N'$(RecordCount)');
 IF @RecordCount IS NULL OR @RecordCount < 1 OR @RecordCount > 10000000
     THROW 52100, N'RecordCount must be between 1 and 10000000.', 1;
@@ -20,6 +22,18 @@ IF EXISTS (SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh)
     OR EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho)
     OR EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data)
     THROW 52101, N'Performance database is not empty. Create a new isolated database or reset it explicitly.', 1;
+
+/* The business triggers are retained in the benchmark database, but the
+   initial ledger is a baseline load rather than a business mutation. Disable
+   snapshot invalidation while loading it so five million-row statements do
+   not enqueue one rebuild request per generated row. They are re-enabled
+   before the seed completes and restored in the CATCH block on failure. */
+DISABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Delete ON dbo.tbl_XNK_Nhap_Kho;
+DISABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Delete ON dbo.tbl_XNK_Xuat_Kho;
+DISABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Detail ON dbo.tbl_XNK_Nhap_Kho_Raw_Data;
+DISABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Detail ON dbo.tbl_XNK_Xuat_Kho_Raw_Data;
+DISABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Post ON dbo.tbl_XNK_Nhap_Kho;
+DISABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Post ON dbo.tbl_XNK_Xuat_Kho;
 
 DECLARE @UnitCount INT = 100;
 DECLARE @ProductTypeCount INT = 100;
@@ -109,17 +123,44 @@ SELECT CONCAT(N'PERF-OUT-', n), ((n - 1) % @WarehouseCount) + 1,
 FROM #Numbers WHERE n <= @IssueHeaderCount
 OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
-INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap)
-SELECT ((n - 1) / 10) + 1, ((n - 1) % @ProductCount) + 1,
-       CONVERT(DECIMAL(18,3), 1 + (n % 50)), CONVERT(DECIMAL(18,2), 10 + (n % 1000))
-FROM #Numbers WHERE n <= @ReceiptLineCount
-OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
+DECLARE @BatchSize INT = 250000;
+DECLARE @BatchStart INT = 1;
+DECLARE @BatchEnd INT;
 
-INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat)
-SELECT ((n - 1) / 10) + 1, ((n - 1) % @ProductCount) + 1,
-       CONVERT(DECIMAL(18,3), 1 + (n % 40)), CONVERT(DECIMAL(18,2), 12 + (n % 1000))
-FROM #Numbers WHERE n <= @IssueLineCount
-OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
+WHILE @BatchStart <= @ReceiptLineCount
+BEGIN
+    SET @BatchEnd = CASE WHEN @BatchStart + @BatchSize - 1 > @ReceiptLineCount
+                         THEN @ReceiptLineCount
+                         ELSE @BatchStart + @BatchSize - 1 END;
+
+    INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap)
+    SELECT ((n - 1) / 10) + 1, ((n - 1) % @ProductCount) + 1,
+           /* Each generated warehouse/product pair receives a receipt quantity
+              greater than any generated issue quantity. The seed therefore
+              represents a ledger that can be materialized by the same
+              non-negative current-balance invariant as production. */
+           CONVERT(DECIMAL(18,3), 101 + (n % 50)), CONVERT(DECIMAL(18,2), 10 + (n % 1000))
+    FROM #Numbers WHERE n BETWEEN @BatchStart AND @BatchEnd
+    OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
+
+    SET @BatchStart = @BatchEnd + 1;
+END;
+
+SET @BatchStart = 1;
+WHILE @BatchStart <= @IssueLineCount
+BEGIN
+    SET @BatchEnd = CASE WHEN @BatchStart + @BatchSize - 1 > @IssueLineCount
+                         THEN @IssueLineCount
+                         ELSE @BatchStart + @BatchSize - 1 END;
+
+    INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat)
+    SELECT ((n - 1) / 10) + 1, ((n - 1) % @ProductCount) + 1,
+           CONVERT(DECIMAL(18,3), 1 + (n % 40)), CONVERT(DECIMAL(18,2), 12 + (n % 1000))
+    FROM #Numbers WHERE n BETWEEN @BatchStart AND @BatchEnd
+    OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
+
+    SET @BatchStart = @BatchEnd + 1;
+END;
 
 UPDATE STATISTICS dbo.tbl_DM_Don_Vi_Tinh WITH FULLSCAN;
 UPDATE STATISTICS dbo.tbl_DM_Loai_San_Pham WITH FULLSCAN;
@@ -131,9 +172,31 @@ UPDATE STATISTICS dbo.tbl_XNK_Nhap_Kho_Raw_Data WITH FULLSCAN;
 UPDATE STATISTICS dbo.tbl_XNK_Xuat_Kho WITH FULLSCAN;
 UPDATE STATISTICS dbo.tbl_XNK_Xuat_Kho_Raw_Data WITH FULLSCAN;
 
+ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Delete ON dbo.tbl_XNK_Nhap_Kho;
+ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Delete ON dbo.tbl_XNK_Xuat_Kho;
+ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Detail ON dbo.tbl_XNK_Nhap_Kho_Raw_Data;
+ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Detail ON dbo.tbl_XNK_Xuat_Kho_Raw_Data;
+ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Post ON dbo.tbl_XNK_Nhap_Kho;
+ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Post ON dbo.tbl_XNK_Xuat_Kho;
+
 SELECT N'RecordCount' AS Metric, @RecordCount AS Value
 UNION ALL SELECT N'Products', COUNT(*) FROM dbo.tbl_DM_San_Pham
 UNION ALL SELECT N'ReceiptHeaders', COUNT(*) FROM dbo.tbl_XNK_Nhap_Kho
 UNION ALL SELECT N'ReceiptLines', COUNT(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data
 UNION ALL SELECT N'IssueHeaders', COUNT(*) FROM dbo.tbl_XNK_Xuat_Kho
 UNION ALL SELECT N'IssueLines', COUNT(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data;
+
+END TRY
+BEGIN CATCH
+    BEGIN TRY
+        ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Delete ON dbo.tbl_XNK_Nhap_Kho;
+        ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Delete ON dbo.tbl_XNK_Xuat_Kho;
+        ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Detail ON dbo.tbl_XNK_Nhap_Kho_Raw_Data;
+        ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Detail ON dbo.tbl_XNK_Xuat_Kho_Raw_Data;
+        ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Receipt_Post ON dbo.tbl_XNK_Nhap_Kho;
+        ENABLE TRIGGER dbo.tr_Inventory_Snapshot_Invalidate_Issue_Post ON dbo.tbl_XNK_Xuat_Kho;
+    END TRY
+    BEGIN CATCH
+    END CATCH;
+    THROW;
+END CATCH;

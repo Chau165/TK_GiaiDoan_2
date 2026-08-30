@@ -562,7 +562,11 @@ AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON;
     DECLARE @OwnTransaction BIT = 0;
-    IF @@TRANCOUNT = 0 BEGIN TRANSACTION; SET @OwnTransaction = 1;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
     BEGIN TRY
         DELETE FROM dbo.InventoryReservation_Current;
         UPDATE dbo.InventoryBalance_Current SET ReservedQuantity = 0, UpdatedAt = SYSUTCDATETIME();
@@ -1254,8 +1258,13 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_InventoryBalance_Rebuild
 AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON;
-    BEGIN TRY
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
         BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+    BEGIN TRY
         DELETE FROM dbo.InventoryBalance_Current;
         ;WITH Delta AS
         (
@@ -1266,10 +1275,10 @@ BEGIN
         INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity)
         SELECT Kho_ID, San_Pham_ID, SUM(Amount), 0 FROM Delta GROUP BY Kho_ID, San_Pham_ID;
         EXEC dbo.sp_XNK_Reservation_Rebuild;
-        COMMIT TRANSACTION;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 END
@@ -1855,6 +1864,65 @@ GO
 SET QUOTED_IDENTIFIER ON;
 GO
 
+/* The current-stock screen is deliberately a different contract from the
+   historical Xuất nhập tồn report below. A current balance is already
+   materialized by sp_XNK_Document_Post in the same transaction as Post, so
+   readers must not rebuild period aggregates simply to display On Hand,
+   Reserved and Available. */
+CREATE OR ALTER PROCEDURE dbo.sp_BC_Ton_Kho_Hien_Tai_Page
+    @Page_Number INT,
+    @Page_Size INT,
+    @Ma_Dang_Nhap NVARCHAR(100),
+    @Kho_ID BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @Ma_Dang_Nhap = LTRIM(RTRIM(ISNULL(@Ma_Dang_Nhap, N'')));
+    IF @Ma_Dang_Nhap = N''
+       OR NOT EXISTS (SELECT 1 FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap)
+        THROW 51053, N'Phiên đăng nhập không hợp lệ.', 1;
+    IF @Page_Number < 1 SET @Page_Number = 1;
+    IF @Page_Size < 1 SET @Page_Size = 10;
+    IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+
+    CREATE TABLE #AuthorizedWarehouse
+    (
+        Kho_ID BIGINT NOT NULL PRIMARY KEY
+    );
+
+    INSERT #AuthorizedWarehouse(Kho_ID)
+    SELECT DISTINCT Kho_ID
+    FROM dbo.tbl_DM_Kho_User
+    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID);
+
+    SELECT COUNT(*) AS Total_Count
+    FROM dbo.InventoryBalance_Current b
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID;
+
+    SELECT b.Kho_ID,
+           k.Ten_Kho,
+           b.San_Pham_ID,
+           p.Ma_San_Pham,
+           p.Ten_San_Pham,
+           CAST(0 AS DECIMAL(18,3)) AS SL_Dau_Ky,
+           CAST(0 AS DECIMAL(18,3)) AS SL_Nhap,
+           CAST(0 AS DECIMAL(18,3)) AS SL_Xuat,
+           b.CurrentQuantity AS SL_Cuoi_Ky,
+           b.CurrentQuantity AS SL_Ton_Thuc_Te,
+           b.ReservedQuantity AS SL_Dang_Giu,
+           CAST(b.CurrentQuantity - b.ReservedQuantity AS DECIMAL(18,3)) AS SL_Kha_Dung
+    FROM dbo.InventoryBalance_Current b
+    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = b.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = b.San_Pham_ID
+    /* The clustered balance key supplies deterministic, seek-friendly order.
+       Sorting by display names would reintroduce a large workspace grant. */
+    ORDER BY b.Kho_ID, b.San_Pham_ID
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page
     @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
@@ -1874,157 +1942,105 @@ BEGIN
     )
         THROW 51221, N'Movement Aggregate chưa được khởi tạo. Hãy chạy sp_Inventory_Movement_Bootstrap_From_Ledger trước khi xem báo cáo.', 1;
 
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryBalance_Daily_AggregateState
+        WHERE State_ID = 1 AND IsInitialized = 1
+    )
+        THROW 51230, N'Balance Daily chưa được khởi tạo. Hãy chạy sp_Inventory_Balance_Daily_Bootstrap_From_Movement trước khi xem báo cáo.', 1;
+
     DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
-
-    CREATE TABLE #AuthorizedWarehouse(Kho_ID BIGINT NOT NULL PRIMARY KEY);
-    INSERT #AuthorizedWarehouse(Kho_ID)
-    SELECT DISTINCT Kho_ID
-    FROM dbo.tbl_DM_Kho_User
-    WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
-      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID);
-
-    CREATE TABLE #ReportScope
-    (
-        Kho_ID BIGINT NOT NULL,
-        San_Pham_ID BIGINT NOT NULL,
-        PRIMARY KEY(Kho_ID, San_Pham_ID)
-    );
-    INSERT #ReportScope(Kho_ID, San_Pham_ID)
-    SELECT s.Kho_ID, s.San_Pham_ID
-    FROM dbo.InventoryBalance_Snapshot_Daily s
-    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = s.Kho_ID
-    WHERE s.Snapshot_Date < @Tu_Ngay
-    UNION
-    SELECT m.Kho_ID, m.San_Pham_ID
-    FROM dbo.Inventory_Movement_Daily m
-    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = m.Kho_ID
-    WHERE m.Movement_Date <= @Den_Ngay
-    UNION
-    SELECT b.Kho_ID, b.San_Pham_ID
-    FROM dbo.InventoryBalance_Current b
-    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
-    WHERE @Is_Current_Report = 1;
-
-    CREATE TABLE #SnapshotBalance
-    (
-        Kho_ID BIGINT NOT NULL,
-        San_Pham_ID BIGINT NOT NULL,
-        Snapshot_Date DATE NULL,
-        ClosingQuantity DECIMAL(18,3) NOT NULL,
-        PRIMARY KEY(Kho_ID, San_Pham_ID)
-    );
-    INSERT #SnapshotBalance(Kho_ID, San_Pham_ID, Snapshot_Date, ClosingQuantity)
-    SELECT rs.Kho_ID,
-           rs.San_Pham_ID,
-           latest.Snapshot_Date,
-           ISNULL(latest.ClosingQuantity, 0)
-    FROM #ReportScope rs
-    OUTER APPLY
-    (
-        SELECT TOP (1) s.Snapshot_Date, s.ClosingQuantity
-        FROM dbo.InventoryBalance_Snapshot_Daily s
-        WHERE s.Kho_ID = rs.Kho_ID
-          AND s.San_Pham_ID = rs.San_Pham_ID
-          AND s.Snapshot_Date < @Tu_Ngay
-          AND s.IsValid = 1
-        ORDER BY s.Snapshot_Date DESC
-    ) latest;
-
-    IF EXISTS (SELECT 1 FROM #SnapshotBalance WHERE Snapshot_Date IS NULL)
-        INSERT dbo.InventorySnapshot_ReportFallbackLog
-        (ReportFromDate, ReportToDate, Ma_Dang_Nhap, SnapshotMissingReason)
-        VALUES (@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, N'NO_VALID_SNAPSHOT_FOR_ONE_OR_MORE_SCOPES');
 
     IF EXISTS
     (
         SELECT 1
         FROM dbo.InventoryMovement_RebuildQueue q
-        JOIN #SnapshotBalance sb ON sb.Kho_ID = q.Kho_ID AND sb.San_Pham_ID = q.San_Pham_ID
+        JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = q.Kho_ID
         WHERE q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL')
+          AND ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+          AND (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
           AND q.From_Date <= @Den_Ngay
-          AND q.To_Date >= ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101'))
     )
         THROW 51222, N'Movement Aggregate của báo cáo đang tái tạo. Vui lòng thử lại sau khi worker hoàn tất.', 1;
 
-    CREATE TABLE #MovementAggregate
+    ;WITH AuthorizedScope AS
     (
-        Kho_ID BIGINT NOT NULL,
-        San_Pham_ID BIGINT NOT NULL,
-        OpeningDelta DECIMAL(18,3) NOT NULL,
-        Received DECIMAL(18,3) NOT NULL,
-        Issued DECIMAL(18,3) NOT NULL,
-        PRIMARY KEY(Kho_ID, San_Pham_ID)
-    );
-    INSERT #MovementAggregate(Kho_ID, San_Pham_ID, OpeningDelta, Received, Issued)
-    SELECT m.Kho_ID, m.San_Pham_ID,
-           SUM(CASE WHEN m.Movement_Date < @Tu_Ngay THEN m.Total_Receipt - m.Total_Issue ELSE 0 END),
-           SUM(CASE WHEN m.Movement_Date BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.Total_Receipt ELSE 0 END),
-           SUM(CASE WHEN m.Movement_Date BETWEEN @Tu_Ngay AND @Den_Ngay THEN m.Total_Issue ELSE 0 END)
-    FROM dbo.Inventory_Movement_Daily m
-    JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = m.Kho_ID
-    JOIN #SnapshotBalance sb ON sb.Kho_ID = m.Kho_ID AND sb.San_Pham_ID = m.San_Pham_ID
-    WHERE m.IsValid = 1
-      AND m.Movement_Date BETWEEN ISNULL(DATEADD(DAY, 1, sb.Snapshot_Date), CONVERT(DATE, '19000101')) AND @Den_Ngay
-    GROUP BY m.Kho_ID, m.San_Pham_ID;
-
-    CREATE TABLE #ReportKeys
-    (
-        Kho_ID BIGINT NOT NULL,
-        San_Pham_ID BIGINT NOT NULL,
-        SL_Dau_Ky DECIMAL(18,3) NOT NULL,
-        SL_Nhap DECIMAL(18,3) NOT NULL,
-        SL_Xuat DECIMAL(18,3) NOT NULL,
-        HistoricalClosing DECIMAL(18,3) NOT NULL,
-        CurrentQuantity DECIMAL(18,3) NULL,
-        ReservedQuantity DECIMAL(18,3) NULL,
-        PRIMARY KEY(Kho_ID, San_Pham_ID)
-    );
-
-    ;WITH KeySet AS
-    (
-        SELECT Kho_ID, San_Pham_ID FROM #SnapshotBalance
-        UNION
-        SELECT Kho_ID, San_Pham_ID FROM #MovementAggregate
-        UNION
-        SELECT b.Kho_ID, b.San_Pham_ID
-        FROM dbo.InventoryBalance_Current b
-        JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
-        WHERE @Is_Current_Report = 1
+        SELECT s.Kho_ID, s.San_Pham_ID
+        FROM dbo.Inventory_Balance_Daily_Scope s
+        JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+        WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+          AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
+          AND s.First_Balance_Date <= @Den_Ngay
     )
-    INSERT #ReportKeys
+    SELECT COUNT(*) AS Total_Count
+    FROM AuthorizedScope s
+    CROSS APPLY
     (
-        Kho_ID, San_Pham_ID, SL_Dau_Ky, SL_Nhap, SL_Xuat,
-        HistoricalClosing, CurrentQuantity, ReservedQuantity
-    )
-    SELECT ks.Kho_ID,
-           ks.San_Pham_ID,
-           CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) AS DECIMAL(18,3)),
-           CAST(ISNULL(ma.Received, 0) AS DECIMAL(18,3)),
-           CAST(ISNULL(ma.Issued, 0) AS DECIMAL(18,3)),
-           CAST(ISNULL(sb.ClosingQuantity, 0) + ISNULL(ma.OpeningDelta, 0) + ISNULL(ma.Received, 0) - ISNULL(ma.Issued, 0) AS DECIMAL(18,3)),
-           b.CurrentQuantity,
-           b.ReservedQuantity
-    FROM KeySet ks
-    LEFT JOIN #SnapshotBalance sb ON sb.Kho_ID = ks.Kho_ID AND sb.San_Pham_ID = ks.San_Pham_ID
-    LEFT JOIN #MovementAggregate ma ON ma.Kho_ID = ks.Kho_ID AND ma.San_Pham_ID = ks.San_Pham_ID
-    LEFT JOIN dbo.InventoryBalance_Current b ON b.Kho_ID = ks.Kho_ID AND b.San_Pham_ID = ks.San_Pham_ID;
+        SELECT TOP (1) b.Balance_Date
+        FROM dbo.Inventory_Balance_Daily b WITH (INDEX(IX_Inventory_Balance_Daily_Scope))
+        WHERE b.Kho_ID = s.Kho_ID
+          AND b.San_Pham_ID = s.San_Pham_ID
+          AND b.Balance_Date <= @Den_Ngay
+          AND b.IsValid = 1
+        ORDER BY b.Balance_Date DESC
+    ) ending;
 
-    SELECT COUNT(*) AS Total_Count FROM #ReportKeys;
-    SELECT rk.Kho_ID,
+    ;WITH AuthorizedScope AS
+    (
+        SELECT s.Kho_ID, s.San_Pham_ID
+        FROM dbo.Inventory_Balance_Daily_Scope s
+        JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+        WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+          AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
+          AND s.First_Balance_Date <= @Den_Ngay
+    )
+    SELECT s.Kho_ID,
            k.Ten_Kho,
-           rk.San_Pham_ID,
+           s.San_Pham_ID,
            p.Ma_San_Pham,
            p.Ten_San_Pham,
-           rk.SL_Dau_Ky,
-           rk.SL_Nhap,
-           rk.SL_Xuat,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.CurrentQuantity, 0) ELSE rk.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.CurrentQuantity, 0) ELSE rk.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
-           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(rk.CurrentQuantity, 0) - ISNULL(rk.ReservedQuantity, 0) ELSE rk.HistoricalClosing END AS DECIMAL(18,3)) AS SL_Kha_Dung
-    FROM #ReportKeys rk
-    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = rk.Kho_ID
-    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = rk.San_Pham_ID
+           CAST(COALESCE(opening.ClosingQuantity, ending.OpeningQuantity, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
+           CAST(ending.CumulativeReceived - ISNULL(opening.CumulativeReceived, 0) AS DECIMAL(18,3)) AS SL_Nhap,
+           CAST(ending.CumulativeIssued - ISNULL(opening.CumulativeIssued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.CurrentQuantity, 0) ELSE ending.ClosingQuantity END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.CurrentQuantity, 0) ELSE ending.ClosingQuantity END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
+           CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.CurrentQuantity, 0) - ISNULL(currentBalance.ReservedQuantity, 0) ELSE ending.ClosingQuantity END AS DECIMAL(18,3)) AS SL_Kha_Dung
+    FROM AuthorizedScope s
+    CROSS APPLY
+    (
+        SELECT TOP (1)
+               b.OpeningQuantity,
+               b.ClosingQuantity,
+               b.CumulativeReceived,
+               b.CumulativeIssued
+        FROM dbo.Inventory_Balance_Daily b WITH (INDEX(IX_Inventory_Balance_Daily_Scope))
+        WHERE b.Kho_ID = s.Kho_ID
+          AND b.San_Pham_ID = s.San_Pham_ID
+          AND b.Balance_Date <= @Den_Ngay
+          AND b.IsValid = 1
+        ORDER BY b.Balance_Date DESC
+    ) ending
+    OUTER APPLY
+    (
+        SELECT TOP (1)
+               b.ClosingQuantity,
+               b.CumulativeReceived,
+               b.CumulativeIssued
+        FROM dbo.Inventory_Balance_Daily b WITH (INDEX(IX_Inventory_Balance_Daily_Scope))
+        WHERE b.Kho_ID = s.Kho_ID
+          AND b.San_Pham_ID = s.San_Pham_ID
+          AND b.Balance_Date < @Tu_Ngay
+          AND b.IsValid = 1
+        ORDER BY b.Balance_Date DESC
+    ) opening
+    LEFT JOIN dbo.InventoryBalance_Current currentBalance
+      ON currentBalance.Kho_ID = s.Kho_ID
+     AND currentBalance.San_Pham_ID = s.San_Pham_ID
+     AND @Is_Current_Report = 1
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = s.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = s.San_Pham_ID
     ORDER BY k.Ten_Kho, p.Ma_San_Pham
     OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
 END
@@ -2142,6 +2158,354 @@ BEGIN
 END
 GO
 
+/* Build the historical report read model only in the asynchronous worker.
+   The optional lock flag is internal: movement rebuild already owns the same
+   transaction-scoped applock for the complete movement-to-balance cutover. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Balance_Daily_Rebuild
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT,
+    @From_Date DATE,
+    @Scope_Lock_Held BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Kho_ID IS NULL OR @San_Pham_ID IS NULL OR @From_Date IS NULL
+        THROW 51231, N'Kho, sản phẩm và ngày rebuild Balance Daily là bắt buộc.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
+    BEGIN TRY
+        IF @Scope_Lock_Held = 0
+        BEGIN
+            DECLARE @StandaloneLockResult INT;
+            DECLARE @StandaloneLockResource NVARCHAR(255) = CONCAT(N'InventoryMovement:', @Kho_ID, N':', @San_Pham_ID);
+            EXEC @StandaloneLockResult = sys.sp_getapplock
+                @Resource = @StandaloneLockResource,
+                @LockMode = N'Exclusive',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 0;
+            IF @StandaloneLockResult < 0
+                THROW 51224, N'Movement Aggregate scope đang được rebuild bởi worker khác.', 1;
+        END
+
+        DECLARE @Base_Balance_Date DATE = NULL;
+        DECLARE @Base_Closing DECIMAL(18,3) = 0;
+        DECLARE @Base_Cumulative_Received DECIMAL(18,3) = 0;
+        DECLARE @Base_Cumulative_Issued DECIMAL(18,3) = 0;
+
+        SELECT TOP (1)
+               @Base_Balance_Date = b.Balance_Date,
+               @Base_Closing = b.ClosingQuantity,
+               @Base_Cumulative_Received = b.CumulativeReceived,
+               @Base_Cumulative_Issued = b.CumulativeIssued
+        FROM dbo.Inventory_Balance_Daily b WITH (UPDLOCK, HOLDLOCK, INDEX(IX_Inventory_Balance_Daily_Scope))
+        WHERE b.Kho_ID = @Kho_ID
+          AND b.San_Pham_ID = @San_Pham_ID
+          AND b.Balance_Date < @From_Date
+          AND b.IsValid = 1
+        ORDER BY b.Balance_Date DESC;
+
+        /* A valid snapshot is only a bootstrap anchor.  Once a balance row is
+           materialized, later report reads no longer need to inspect snapshots. */
+        IF @Base_Balance_Date IS NULL
+        BEGIN
+            DECLARE @Snapshot_Date DATE = NULL;
+            DECLARE @Snapshot_Closing DECIMAL(18,3) = 0;
+            SELECT TOP (1)
+                   @Snapshot_Date = s.Snapshot_Date,
+                   @Snapshot_Closing = s.ClosingQuantity
+            FROM dbo.InventoryBalance_Snapshot_Daily s WITH (UPDLOCK, HOLDLOCK)
+            WHERE s.Kho_ID = @Kho_ID
+              AND s.San_Pham_ID = @San_Pham_ID
+              AND s.Snapshot_Date < @From_Date
+              AND s.IsValid = 1
+            ORDER BY s.Snapshot_Date DESC;
+
+            IF @Snapshot_Date IS NOT NULL
+            BEGIN
+                INSERT dbo.Inventory_Balance_Daily
+                (
+                    Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity,
+                    TotalReceived, TotalIssued, ClosingQuantity,
+                    CumulativeReceived, CumulativeIssued, IsValid
+                )
+                SELECT @Snapshot_Date, @Kho_ID, @San_Pham_ID, @Snapshot_Closing,
+                       0, 0, @Snapshot_Closing, 0, 0, 1
+                WHERE NOT EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.Inventory_Balance_Daily b WITH (UPDLOCK, HOLDLOCK)
+                    WHERE b.Balance_Date = @Snapshot_Date
+                      AND b.Kho_ID = @Kho_ID
+                      AND b.San_Pham_ID = @San_Pham_ID
+                );
+
+                SET @Base_Balance_Date = @Snapshot_Date;
+                SET @Base_Closing = @Snapshot_Closing;
+            END
+        END
+
+        CREATE TABLE #RebuiltBalance
+        (
+            Balance_Date DATE NOT NULL PRIMARY KEY,
+            OpeningQuantity DECIMAL(18,3) NOT NULL,
+            TotalReceived DECIMAL(18,3) NOT NULL,
+            TotalIssued DECIMAL(18,3) NOT NULL,
+            ClosingQuantity DECIMAL(18,3) NOT NULL,
+            CumulativeReceived DECIMAL(18,3) NOT NULL,
+            CumulativeIssued DECIMAL(18,3) NOT NULL
+        );
+
+        ;WITH MovementRows AS
+        (
+            SELECT d.Movement_Date,
+                   d.Total_Receipt,
+                   d.Total_Issue
+            FROM dbo.Inventory_Movement_Daily d
+            WHERE d.Kho_ID = @Kho_ID
+              AND d.San_Pham_ID = @San_Pham_ID
+              AND d.Movement_Date >= @From_Date
+              AND d.IsValid = 1
+        )
+        INSERT #RebuiltBalance
+        (
+            Balance_Date, OpeningQuantity, TotalReceived, TotalIssued,
+            ClosingQuantity, CumulativeReceived, CumulativeIssued
+        )
+        SELECT m.Movement_Date,
+               CAST(@Base_Closing + ISNULL(SUM(m.Total_Receipt - m.Total_Issue) OVER (ORDER BY m.Movement_Date ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS DECIMAL(18,3)),
+               m.Total_Receipt,
+               m.Total_Issue,
+               CAST(@Base_Closing + SUM(m.Total_Receipt - m.Total_Issue) OVER (ORDER BY m.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3)),
+               CAST(@Base_Cumulative_Received + SUM(m.Total_Receipt) OVER (ORDER BY m.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3)),
+               CAST(@Base_Cumulative_Issued + SUM(m.Total_Issue) OVER (ORDER BY m.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3))
+        FROM MovementRows m;
+
+        /* Every later materialized day in this scope depends on this date.  The
+           scope applock serializes overlapping workers, so replacing only this
+           suffix cannot overwrite a newer concurrent rebuild. */
+        DELETE b
+        FROM dbo.Inventory_Balance_Daily b
+        WHERE b.Kho_ID = @Kho_ID
+          AND b.San_Pham_ID = @San_Pham_ID
+          AND b.Balance_Date >= @From_Date;
+
+        INSERT dbo.Inventory_Balance_Daily
+        (
+            Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity,
+            TotalReceived, TotalIssued, ClosingQuantity,
+            CumulativeReceived, CumulativeIssued, IsValid
+        )
+        SELECT r.Balance_Date, @Kho_ID, @San_Pham_ID, r.OpeningQuantity,
+               r.TotalReceived, r.TotalIssued, r.ClosingQuantity,
+               r.CumulativeReceived, r.CumulativeIssued, 1
+        FROM #RebuiltBalance r;
+
+        DECLARE @First_Balance_Date DATE;
+        DECLARE @Last_Balance_Date DATE;
+        SELECT @First_Balance_Date = MIN(b.Balance_Date),
+               @Last_Balance_Date = MAX(b.Balance_Date)
+        FROM dbo.Inventory_Balance_Daily b WITH (UPDLOCK, HOLDLOCK)
+        WHERE b.Kho_ID = @Kho_ID
+          AND b.San_Pham_ID = @San_Pham_ID
+          AND b.IsValid = 1;
+
+        IF @First_Balance_Date IS NULL
+            DELETE FROM dbo.Inventory_Balance_Daily_Scope
+            WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+        ELSE
+        BEGIN
+            UPDATE dbo.Inventory_Balance_Daily_Scope
+            SET First_Balance_Date = @First_Balance_Date,
+                Last_Balance_Date = @Last_Balance_Date,
+                [Version] = [Version] + 1,
+                UpdatedAt = SYSUTCDATETIME()
+            WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+
+            IF @@ROWCOUNT = 0
+                INSERT dbo.Inventory_Balance_Daily_Scope
+                (Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date)
+                VALUES (@Kho_ID, @San_Pham_ID, @First_Balance_Date, @Last_Balance_Date);
+        END
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+/* Controlled initial cutover.  The procedure is intentionally separate from
+   deployment so a production-sized backfill is scheduled explicitly. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Balance_Daily_Bootstrap_From_Movement
+    @Bootstrap_Lock_Held BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @Bootstrap_Lock_Held = 0 AND NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventoryMovement_AggregateState
+        WHERE State_ID = 1 AND IsInitialized = 1
+    )
+        THROW 51232, N'Movement Aggregate phải được bootstrap trước Balance Daily.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
+    BEGIN TRY
+        IF @Bootstrap_Lock_Held = 0
+        BEGIN
+            DECLARE @BootstrapLockResult INT;
+            EXEC @BootstrapLockResult = sys.sp_getapplock
+                @Resource = N'InventoryMovement:Bootstrap',
+                @LockMode = N'Exclusive',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 0;
+            IF @BootstrapLockResult < 0
+                THROW 51225, N'Balance Daily đang được bootstrap bởi phiên khác.', 1;
+        END
+
+        DELETE FROM dbo.Inventory_Balance_Daily_Scope;
+        DELETE FROM dbo.Inventory_Balance_Daily;
+
+        ;WITH MovementScope AS
+        (
+            SELECT d.Kho_ID, d.San_Pham_ID, MIN(d.Movement_Date) AS First_Movement_Date
+            FROM dbo.Inventory_Movement_Daily d
+            WHERE d.IsValid = 1
+            GROUP BY d.Kho_ID, d.San_Pham_ID
+        ), Anchors AS
+        (
+            SELECT ms.Kho_ID,
+                   ms.San_Pham_ID,
+                   ms.First_Movement_Date,
+                   a.Snapshot_Date,
+                   a.ClosingQuantity
+            FROM MovementScope ms
+            OUTER APPLY
+            (
+                SELECT TOP (1) s.Snapshot_Date, s.ClosingQuantity
+                FROM dbo.InventoryBalance_Snapshot_Daily s
+                WHERE s.Kho_ID = ms.Kho_ID
+                  AND s.San_Pham_ID = ms.San_Pham_ID
+                  AND s.Snapshot_Date < ms.First_Movement_Date
+                  AND s.IsValid = 1
+                ORDER BY s.Snapshot_Date DESC
+            ) a
+        ), BalanceRows AS
+        (
+            SELECT d.Movement_Date AS Balance_Date,
+                   d.Kho_ID,
+                   d.San_Pham_ID,
+                   CAST(ISNULL(a.ClosingQuantity, 0) + ISNULL(SUM(d.Total_Receipt - d.Total_Issue) OVER (PARTITION BY d.Kho_ID, d.San_Pham_ID ORDER BY d.Movement_Date ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS DECIMAL(18,3)) AS OpeningQuantity,
+                   d.Total_Receipt AS TotalReceived,
+                   d.Total_Issue AS TotalIssued,
+                   CAST(ISNULL(a.ClosingQuantity, 0) + SUM(d.Total_Receipt - d.Total_Issue) OVER (PARTITION BY d.Kho_ID, d.San_Pham_ID ORDER BY d.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3)) AS ClosingQuantity,
+                   CAST(SUM(d.Total_Receipt) OVER (PARTITION BY d.Kho_ID, d.San_Pham_ID ORDER BY d.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3)) AS CumulativeReceived,
+                   CAST(SUM(d.Total_Issue) OVER (PARTITION BY d.Kho_ID, d.San_Pham_ID ORDER BY d.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3)) AS CumulativeIssued
+            FROM dbo.Inventory_Movement_Daily d
+            JOIN Anchors a ON a.Kho_ID = d.Kho_ID AND a.San_Pham_ID = d.San_Pham_ID
+            WHERE d.IsValid = 1
+        ), AnchorRows AS
+        (
+            SELECT a.Snapshot_Date AS Balance_Date,
+                   a.Kho_ID,
+                   a.San_Pham_ID,
+                   a.ClosingQuantity AS OpeningQuantity,
+                   CAST(0 AS DECIMAL(18,3)) AS TotalReceived,
+                   CAST(0 AS DECIMAL(18,3)) AS TotalIssued,
+                   a.ClosingQuantity AS ClosingQuantity,
+                   CAST(0 AS DECIMAL(18,3)) AS CumulativeReceived,
+                   CAST(0 AS DECIMAL(18,3)) AS CumulativeIssued
+            FROM Anchors a
+            WHERE a.Snapshot_Date IS NOT NULL
+        ), SnapshotOnly AS
+        (
+            SELECT s.Snapshot_Date AS Balance_Date,
+                   s.Kho_ID,
+                   s.San_Pham_ID,
+                   s.ClosingQuantity AS OpeningQuantity,
+                   CAST(0 AS DECIMAL(18,3)) AS TotalReceived,
+                   CAST(0 AS DECIMAL(18,3)) AS TotalIssued,
+                   s.ClosingQuantity AS ClosingQuantity,
+                   CAST(0 AS DECIMAL(18,3)) AS CumulativeReceived,
+                   CAST(0 AS DECIMAL(18,3)) AS CumulativeIssued
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.IsValid = 1
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM MovementScope ms
+                  WHERE ms.Kho_ID = s.Kho_ID AND ms.San_Pham_ID = s.San_Pham_ID
+              )
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM dbo.InventoryBalance_Snapshot_Daily newer
+                  WHERE newer.Kho_ID = s.Kho_ID
+                    AND newer.San_Pham_ID = s.San_Pham_ID
+                    AND newer.IsValid = 1
+                    AND newer.Snapshot_Date > s.Snapshot_Date
+              )
+        )
+        INSERT dbo.Inventory_Balance_Daily
+        (
+            Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity,
+            TotalReceived, TotalIssued, ClosingQuantity,
+            CumulativeReceived, CumulativeIssued, IsValid
+        )
+        SELECT ar.Balance_Date, ar.Kho_ID, ar.San_Pham_ID, ar.OpeningQuantity,
+               ar.TotalReceived, ar.TotalIssued, ar.ClosingQuantity,
+               ar.CumulativeReceived, ar.CumulativeIssued, 1
+        FROM AnchorRows ar
+        UNION ALL
+        SELECT br.Balance_Date, br.Kho_ID, br.San_Pham_ID, br.OpeningQuantity,
+               br.TotalReceived, br.TotalIssued, br.ClosingQuantity,
+               br.CumulativeReceived, br.CumulativeIssued, 1
+        FROM BalanceRows br
+        UNION ALL
+        SELECT so.Balance_Date, so.Kho_ID, so.San_Pham_ID, so.OpeningQuantity,
+               so.TotalReceived, so.TotalIssued, so.ClosingQuantity,
+               so.CumulativeReceived, so.CumulativeIssued, 1
+        FROM SnapshotOnly so;
+
+        INSERT dbo.Inventory_Balance_Daily_Scope
+        (Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date)
+        SELECT b.Kho_ID, b.San_Pham_ID, MIN(b.Balance_Date), MAX(b.Balance_Date)
+        FROM dbo.Inventory_Balance_Daily b
+        WHERE b.IsValid = 1
+        GROUP BY b.Kho_ID, b.San_Pham_ID;
+
+        UPDATE dbo.InventoryBalance_Daily_AggregateState
+        SET IsInitialized = 1,
+            InitializedAt = COALESCE(InitializedAt, SYSUTCDATETIME()),
+            LastReconciledAt = SYSUTCDATETIME()
+        WHERE State_ID = 1;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Movement_Rebuild
     @Kho_ID BIGINT,
     @San_Pham_ID BIGINT,
@@ -2243,6 +2607,14 @@ BEGIN
           AND d.San_Pham_ID = @San_Pham_ID
           AND d.Movement_Date BETWEEN @From_Date AND @To_Date
           AND NOT EXISTS (SELECT 1 FROM #Rebuilt r WHERE r.Movement_Date = d.Movement_Date);
+
+        /* The report read model is rebuilt in the same worker transaction and
+           under the same scope applock.  Post never writes this table. */
+        EXEC dbo.sp_Inventory_Balance_Daily_Rebuild
+            @Kho_ID = @Kho_ID,
+            @San_Pham_ID = @San_Pham_ID,
+            @From_Date = @From_Date,
+            @Scope_Lock_Held = 1;
 
         COMMIT TRANSACTION;
     END TRY
@@ -2529,8 +2901,14 @@ BEGIN
             FROM #Rebuilt r
             WHERE r.Movement_Date = d.Movement_Date
               AND r.Kho_ID = d.Kho_ID
-              AND r.San_Pham_ID = d.San_Pham_ID
+               AND r.San_Pham_ID = d.San_Pham_ID
         );
+
+        /* Bootstrap publishes the balance read model before marking the
+           movement aggregate healthy, so report cutover cannot expose a
+           partially backfilled balance table. */
+        EXEC dbo.sp_Inventory_Balance_Daily_Bootstrap_From_Movement
+            @Bootstrap_Lock_Held = 1;
 
         /* Bootstrap has rebuilt the authoritative ledger while the exclusive
            maintenance lock excluded Post and normal workers.  Any prior retry

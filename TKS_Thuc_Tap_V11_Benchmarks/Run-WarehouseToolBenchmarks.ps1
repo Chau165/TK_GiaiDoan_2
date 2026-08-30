@@ -145,8 +145,8 @@ function Write-ConsolidatedReport {
         [int]$NBomberExitCode
     )
 
-    $datasetVerification = Get-Content -LiteralPath $DatasetPath -Raw
-    $bootstrapOutput = Get-Content -LiteralPath $BootstrapPath -Raw
+    $datasetVerification = [string](Get-Content -LiteralPath $DatasetPath -Raw)
+    $bootstrapOutput = [string](Get-Content -LiteralPath $BootstrapPath -Raw)
     $receiptLines = [math]::Ceiling($RecordCount / 2)
     $issueLines = $RecordCount - $receiptLines
     $bdnCsv = Get-ChildItem -LiteralPath (Join-Path $BdnDatabaseDirectory 'results') -Filter '*.csv' -File |
@@ -299,10 +299,11 @@ try {
             $logFilePath = [System.IO.Path]::Combine($databaseDirectoryPath, "${databaseName}_log.ldf")
             $escapedDataFilePath = $dataFilePath.Replace("'", "''")
             $escapedLogFilePath = $logFilePath.Replace("'", "''")
-            $createDatabaseQuery = "CREATE DATABASE [$databaseName] ON PRIMARY (NAME = N'$databaseName', FILENAME = N'$escapedDataFilePath', SIZE = 64MB, FILEGROWTH = 256MB) LOG ON (NAME = N'${databaseName}_log', FILENAME = N'$escapedLogFilePath', SIZE = 128MB, FILEGROWTH = 256MB);"
+            $createDatabaseQuery = "CREATE DATABASE [$databaseName] ON PRIMARY (NAME = N'$databaseName', FILENAME = N'$escapedDataFilePath', SIZE = 256MB, FILEGROWTH = 256MB) LOG ON (NAME = N'${databaseName}_log', FILENAME = N'$escapedLogFilePath', SIZE = 1024MB, FILEGROWTH = 512MB);"
         }
 
         Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', 'master', '-b', '-Q', $createDatabaseQuery)
+        Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', 'master', '-b', '-Q', "ALTER DATABASE [$databaseName] SET RECOVERY SIMPLE;")
         Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-i', $schemaFile)
         Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-i', $proceduresFile)
         Invoke-Sql @('-S', 'localhost', '-E', '-C', '-d', $databaseName, '-b', '-f', '65001', '-v', "RecordCount=$RecordCount", '-i', $seedFile)
