@@ -196,6 +196,17 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_report_warehouse_selection_rebinds_the_active_grid_immediately()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("@bind=\"m_iReport_Warehouse_ID\" @bind:after=\"Load_Report_Async\"", list);
+        Assert.Contains("private async Task Load_Report_Async()", list);
+        Assert.Contains("if (m_strReport_Type is \"Inventory\" or \"InventoryCurrent\") m_grdInventory.Rebind();", list);
+        Assert.Contains("else m_grdReportDetail.Rebind();", list);
+    }
+
+    [Fact]
     public void Warehouse_reports_filter_by_a_user_authorized_warehouse()
     {
         var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
