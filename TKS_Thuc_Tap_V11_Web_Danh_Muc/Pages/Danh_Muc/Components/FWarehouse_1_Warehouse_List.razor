@@ -95,7 +95,44 @@
             <div class="row g-3 align-items-end"><div class="col-md-3"><label class="form-label">Báo cáo</label><select class="form-select" @bind="m_strReport_Type"><option value="Receipt">Chi tiết hàng nhập</option><option value="Issue">Chi tiết hàng xuất</option><option value="Inventory">Xuất nhập tồn theo kỳ</option><option value="InventoryCurrent">Tồn kho hiện tại</option></select></div><div class="col-md-3"><label class="form-label">Kho</label><select class="form-select" @bind="m_iReport_Warehouse_ID"><option value="">Tất cả kho</option>@foreach (var v_objWarehouse in m_arrWarehouse){<option value="@v_objWarehouse.Auto_ID">@v_objWarehouse.Name</option>}</select></div>@if (!Is_Current_Inventory_Report){<div class="col-md-2"><label class="form-label">Từ ngày</label><TelerikDatePicker @bind-Value="m_dtmFrom" Format="@CConfig.Date_Format_String" /></div><div class="col-md-2"><label class="form-label">Đến ngày</label><TelerikDatePicker @bind-Value="m_dtmTo" Format="@CConfig.Date_Format_String" /></div>}else{<div class="col-md-4"><div class="form-text">Đọc số dư đã Post tại thời điểm hiện tại; không tính lại nhập/xuất theo kỳ.</div></div>}<div class="col-md-2"><button class="btn btn-primary" @onclick="Load_Report_Async">Xem báo cáo</button></div></div>
             @if (m_strReport_Type is "Inventory" or "InventoryCurrent")
             {
-            <TelerikGrid TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory"><GridExport><GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ten_Kho" Title="Kho" /><GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" />@if (!Is_Current_Inventory_Report){<GridColumn Field="SL_Dau_Ky" Title="SL đầu kỳ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dau_Ky))</Template></GridColumn><GridColumn Field="SL_Nhap" Title="SL nhập"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Nhap))</Template></GridColumn><GridColumn Field="SL_Xuat" Title="SL xuất"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Xuat))</Template></GridColumn><GridColumn Field="SL_Cuoi_Ky" Title="SL cuối kỳ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Cuoi_Ky))</Template></GridColumn>}<GridColumn Field="SL_Ton_Thuc_Te" Title="Tồn thực tế"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Ton_Thuc_Te))</Template></GridColumn><GridColumn Field="SL_Dang_Giu" Title="Đang giữ"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dang_Giu))</Template></GridColumn><GridColumn Field="SL_Kha_Dung" Title="Khả dụng"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Kha_Dung))</Template></GridColumn></GridColumns></TelerikGrid>
+                <TelerikGrid TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory">
+                    <GridExport>
+                        <GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" />
+                        <GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" />
+                    </GridExport>
+                    <GridColumns>
+                        <GridColumn Field="Ten_Kho" Title="Kho" />
+                        <GridColumn Field="Ma_San_Pham" Title="Mã SP" />
+                        <GridColumn Field="Ten_San_Pham" Title="Tên SP" />
+                        @if (!Is_Current_Inventory_Report)
+                        {
+                            <GridColumn Field="SL_Dau_Ky" Title="SL đầu kỳ">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dau_Ky))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Nhap" Title="SL nhập">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Nhap))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Xuat" Title="SL xuất">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Xuat))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Cuoi_Ky" Title="SL cuối kỳ">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Cuoi_Ky))</Template>
+                            </GridColumn>
+                        }
+                        else
+                        {
+                            <GridColumn Field="SL_Ton_Thuc_Te" Title="Tồn thực tế">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Ton_Thuc_Te))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Dang_Giu" Title="Đang giữ">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dang_Giu))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Kha_Dung" Title="Khả dụng">
+                                <Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Kha_Dung))</Template>
+                            </GridColumn>
+                        }
+                    </GridColumns>
+                </TelerikGrid>
             }
             else
             {
@@ -103,7 +140,7 @@
             }
             @if (r_objChuc_Nang.Is_Have_Export_Permission)
             {
-                <div class="mt-2">@if(m_strReport_Type=="Inventory"){@Layout_Tool_Button(m_grdInventory)}else{@Layout_Tool_Button(m_grdReportDetail)}</div>
+                <div class="mt-2">@if(m_strReport_Type is "Inventory" or "InventoryCurrent"){@Layout_Tool_Button(m_grdInventory)}else{@Layout_Tool_Button(m_grdReportDetail)}</div>
             }
         }
     </div>
@@ -116,7 +153,7 @@
 
 @if (r_bIs_Show_Edit)
 {
-    <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrUser="@m_arrUser" OnSave_Master="Save_Master_Async" OnClose="@Close_Edit" />
+    <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnSave_Master="Save_Master_Async" OnClose="@Close_Edit" />
 }
 
 @code {
@@ -132,6 +169,7 @@
     private List<CWarehouseDocument> m_arrDocument = new();
     private List<CWarehouseDocumentDetail> m_arrDetail = new();
     private List<CWarehouseLookup> m_arrUnit = new(), m_arrCategory = new(), m_arrProduct = new(), m_arrSupplier = new(), m_arrWarehouse = new(), m_arrAllWarehouse = new(), m_arrUser = new();
+    private List<CWarehouseMaster> m_arrWarehouseUser = new();
     private List<CWarehouseDetailReport> m_arrDetailReport = new();
     private List<CWarehouseInventoryReport> m_arrInventoryReport = new();
     private DateTime m_dtmFrom = new(DateTime.Today.Year, DateTime.Today.Month, 1), m_dtmTo = DateTime.Today;
@@ -199,6 +237,7 @@
         m_arrAllWarehouse = await m_objMasterController.List_Lookup_Async("Kho");
         m_arrWarehouse = await m_objMasterController.List_Authorized_Warehouses_Async(r_strActive_User_Name);
         m_arrUser = await m_objMasterController.List_User_Lookup_Async();
+        m_arrWarehouseUser = await m_objMasterController.List_Master_Async("KhoUser");
     }
 
     private async Task Load_Master_Async()
@@ -272,7 +311,7 @@
 
     private async Task Load_Report_Async()
     {
-        try { Clear_Message(); if (m_strReport_Type == "Inventory") m_grdInventory.Rebind(); else m_grdReportDetail.Rebind(); }
+        try { Clear_Message(); if (m_strReport_Type is "Inventory" or "InventoryCurrent") m_grdInventory.Rebind(); else m_grdReportDetail.Rebind(); }
         catch (Exception ex) { Set_Error(ex); }
     }
 

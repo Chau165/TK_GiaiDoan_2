@@ -162,6 +162,40 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_period_inventory_grid_hides_current_balance_columns()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var gridStart = list.IndexOf("<TelerikGrid TItem=\"CWarehouseInventoryReport\"", StringComparison.Ordinal);
+        var periodStart = list.IndexOf("@if (!Is_Current_Inventory_Report)", gridStart, StringComparison.Ordinal);
+        var currentReportBranch = list.IndexOf("else", periodStart, StringComparison.Ordinal);
+
+        Assert.True(gridStart >= 0, "Inventory grid markup was not found.");
+        Assert.True(periodStart > gridStart, "Period-report branch was not found inside the inventory grid.");
+        Assert.True(currentReportBranch > periodStart, "Current-inventory branch was not found after the period-report branch.");
+
+        foreach (var field in new[] { "SL_Dau_Ky", "SL_Nhap", "SL_Xuat", "SL_Cuoi_Ky" })
+        {
+            var fieldIndex = list.IndexOf($"Field=\"{field}\"", periodStart, StringComparison.Ordinal);
+            Assert.True(fieldIndex > periodStart && fieldIndex < currentReportBranch, $"Period field {field} is not in the period-report branch.");
+        }
+
+        foreach (var field in new[] { "SL_Ton_Thuc_Te", "SL_Dang_Giu", "SL_Kha_Dung" })
+        {
+            var fieldIndex = list.IndexOf($"Field=\"{field}\"", periodStart, StringComparison.Ordinal);
+            Assert.True(fieldIndex > currentReportBranch, $"Current-balance field {field} must be outside the period-report branch.");
+        }
+    }
+
+    [Fact]
+    public void Warehouse_inventory_current_report_rebinds_and_exports_the_inventory_grid()
+    {
+        var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("if (m_strReport_Type is \"Inventory\" or \"InventoryCurrent\") m_grdInventory.Rebind();", list);
+        Assert.Contains("@if(m_strReport_Type is \"Inventory\" or \"InventoryCurrent\"){@Layout_Tool_Button(m_grdInventory)}", list);
+    }
+
+    [Fact]
     public void Warehouse_reports_filter_by_a_user_authorized_warehouse()
     {
         var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
@@ -270,6 +304,23 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Equal(1.5m, v_objReport.So_Luong);
         Assert.Equal(12.25m, v_objReport.Don_Gia);
         Assert.Equal(18.375m, v_objReport.Tri_Gia);
+    }
+
+    [Fact]
+    public void Warehouse_master_edit_forwards_permission_assignments_to_the_editor()
+    {
+        var wrapper = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Master_Edit.razor"));
+
+        Assert.Contains("[Parameter] public List<CWarehouseMaster> m_arrWarehouseUser", wrapper);
+        Assert.Contains("m_arrWarehouseUser=\"@m_arrWarehouseUser\"", wrapper);
+    }
+
+    [Fact]
+    public void Warehouse_permission_user_dropdown_provides_value_expression_for_edit_form()
+    {
+        var editor = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
+
+        Assert.Contains("ValueExpression=\"@(() => m_objMaster.Login_Name)\"", editor);
     }
 
     private static string FindWarehousePage()
