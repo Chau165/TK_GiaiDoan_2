@@ -1,0 +1,5 @@
+TimestampUtc,ActiveRequests,ActiveCpuMs,ActiveRequestGrantKB,RequestedGrantKB,GrantedGrantKB,PeakGrantKB,WaitingMemoryGrants,ActiveResourceSemaphoreWaits,ProcExecutionCount,ProcWorkerTimeUs,ProcElapsedTimeUs,ProcLogicalReads,TempdbUsedKB,TempdbUserKB,TempdbInternalKB,WaitResourceSemaphoreTasks,WaitResourceSemaphoreMs,WaitCXPacketTasks,WaitCXPacketMs,WaitCXConsumerTasks,WaitCXConsumerMs,WaitPageIOLatchTasks,WaitPageIOLatchMs
+2026-08-30T07:45:46.2880820      ,0,0,0,0,0,0,0,0,0,0,0,0,5696,1408,512,458,8864525,37628,1878945,58305,2681462,453182,820965
+2026-08-30T07:46:12.9892164      ,2,556,0,2048,0,0,2,2,0,0,0,0,5696,1408,512,461,8889527,37628,1878945,58305,2681462,453182,820965
+2026-08-30T07:46:38.7705847      ,0,0,0,0,0,0,0,0,0,0,0,0,5696,1408,512,462,8954054,37628,1878945,58305,2681462,453243,820975
+2026-08-30T07:47:04.5330726      ,0,0,0,0,0,0,0,0,0,0,0,0,5696,1408,512,463,8979057,37628,1878945,58305,2681462,453243,820975

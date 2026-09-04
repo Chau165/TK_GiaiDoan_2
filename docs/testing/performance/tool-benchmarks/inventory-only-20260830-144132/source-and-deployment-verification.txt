@@ -1,0 +1,20 @@
+GitRevision=cbe10b7baa9f4fdf9a208fd2c8ad2da9131b5c29
+WarehouseModule.Procedures.sql SHA256=8A2057D782081B1CE5EA1DD84DD1085B17D7AF8E88AF1AF79CB1D811E621543E
+                                                                                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------
+Database=TKS_Thuc_Tap_V11_Perf_10000000                                                                                                  
+                                              
+----------------------------------------------
+ProcedureLength=2324                          
+                    
+--------------------
+UsesCurrentBalance=1
+                       
+-----------------------
+UsesMovementAggregate=0
+                
+----------------
+UsesPagedFetch=1
+                      
+----------------------
+AggregateInitialized=1

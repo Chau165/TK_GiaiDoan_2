@@ -1,0 +1,33 @@
+> test info
+
+
+
+test suite: `TKS_Thuc_Tap_V11 warehouse read workload`
+
+test name: `nbomber_default_test_name`
+
+session id: `2026-08-30_07-47-32_bfc6b1d7`
+
+> scenario stats
+
+
+
+scenario: `InventoryReportPaged`
+
+  - duration: `00:00:10`
+
+load simulations:
+
+  - `keep_constant`, copies: `4`, during: `00:00:10`
+
+|scenario and steps|ok stats|
+|---|---|
+|scenario name|`InventoryReportPaged`|
+|requests|total = `4`, ok = `4`, fail = `0`|
+|RPS (req/sec)|total = `0.4`/s, ok = `0.4`/s, fail = `0`/s|
+|latency (ms)|min = `23031.67`, mean = `23220.43`, max = `23387.99`, StdDev = `161.52`|
+|latency percentile (ms)|p50 = `23101.44`, p75 = `23379.97`, p95 = `23396.35`, p99 = `23396.35`|
+
+
+
+

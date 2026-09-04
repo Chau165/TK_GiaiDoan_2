@@ -81,6 +81,10 @@ IF NOT EXISTS (SELECT 1 FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap = N'PERF_
 SELECT n INTO #Numbers FROM N
 OPTION (MAXDOP 1, MAX_GRANT_PERCENT = 1);
 
+/* Each large ledger insert below filters #Numbers by an n range. Give those
+   bounded batches a seekable access path instead of rescanning all 10M rows. */
+CREATE UNIQUE CLUSTERED INDEX IX_Performance_Numbers_n ON #Numbers(n);
+
 INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu)
 SELECT CONCAT(N'PERF-Unit-', n), N'Benchmark dimension'
 FROM #Numbers WHERE n <= @UnitCount

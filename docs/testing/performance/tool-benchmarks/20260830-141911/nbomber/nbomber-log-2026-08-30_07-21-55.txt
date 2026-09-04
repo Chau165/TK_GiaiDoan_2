@@ -1,0 +1,16 @@
+2026-08-30 14:21:55.141 +07:00 [INF] [ThreadId:1] NBomber 6.6.0 started a new session: 2026-08-30_07-21-54_bc6297d4
+2026-08-30 14:21:55.159 +07:00 [INF] [ThreadId:1] NBomber started as single node
+2026-08-30 14:21:55.164 +07:00 [INF] [ThreadId:1] License validation....
+2026-08-30 14:21:55.166 +07:00 [WRN] [ThreadId:1] THIS VERSION IS FREE ONLY FOR PERSONAL USE. You can't use it for an organization.
+2026-08-30 14:21:55.219 +07:00 [INF] [ThreadId:1] Reports folder: P:\Giao đoạn 2 TK\Giao đoạn 2 TK\TKS_Thuc_Tap_11\docs\testing\performance\tool-benchmarks\20260830-141911\nbomber
+2026-08-30 14:21:55.221 +07:00 [INF] [ThreadId:1] Plugins: no plugins were loaded
+2026-08-30 14:21:55.222 +07:00 [INF] [ThreadId:1] Reporting sinks: no reporting sinks were loaded
+2026-08-30 14:21:55.223 +07:00 [INF] [ThreadId:1] Starting init...
+2026-08-30 14:21:55.236 +07:00 [INF] [ThreadId:1] Target scenarios: MasterPaged, LookupPaged, DocumentPaged, DetailReportPaged, InventoryReportPaged
+2026-08-30 14:21:55.240 +07:00 [INF] [ThreadId:1] Init finished
+2026-08-30 14:21:55.287 +07:00 [INF] [ThreadId:1] Starting bombing...
+2026-08-30 14:30:58.902 +07:00 [WRN] [ThreadId:42] Stopping test early: stop command activated by CLI
+2026-08-30 14:30:59.754 +07:00 [INF] [ThreadId:39] Waiting on scenarios completion...
+2026-08-30 14:31:31.308 +07:00 [INF] [ThreadId:44] Calculating final statistics...
+2026-08-30 14:31:32.199 +07:00 [INF] [ThreadId:19] Reports saved in folder: P:\Giao đoạn 2 TK\Giao đoạn 2 TK\TKS_Thuc_Tap_11\docs\testing\performance\tool-benchmarks\20260830-141911\nbomber
+2026-08-30 14:31:32.202 +07:00 [WRN] [ThreadId:19] THIS VERSION IS FREE ONLY FOR PERSONAL USE. You can't use it for an organization.

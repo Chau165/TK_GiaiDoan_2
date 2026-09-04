@@ -1,0 +1,64 @@
+  _   _   ____                        _                        __   
+ | \ | | | __ )    ___    _ __ ___   | |__     ___   _ __     / /_  
+ |  \| | |  _ \   / _ \  | '_ ` _ \  | '_ \   / _ \ | '__|   | '_ \ 
+ | |\  | | |_) | | (_) | | | | | | | | |_) | |  __/ | |      | (_) |
+ |_| \_| |____/   \___/  |_| |_| |_| |_.__/   \___| |_|       \___/ 
+                                                                    
+Welcome to the NBomber community!
+Documentation: https://nbomber.com/docs/getting-started/overview
+Blog: https://nbomber.com/blog
+Roadmap: https://nbomber.com/docs/getting-started/roadmap
+GitHub Discussion: https://github.com/PragmaticFlow/NBomber/discussions
+GitHub Issues: https://github.com/PragmaticFlow/NBomber/issues
+Docker Hub: https://hub.docker.com/u/nbomberdocker
+LinkedIn: https://www.linkedin.com/company/nbomber
+Slack: https://nbomberworkspace.slack.com
+
+14:44:18 [INF] NBomber "6.6.0" started a new session: "2026-08-30_07-44-18_5e4851c8"
+14:44:18 [INF] NBomber started as single node
+14:44:18 [INF] License validation....
+14:44:18 [WRN] THIS VERSION IS FREE ONLY FOR PERSONAL USE. You can't use it for an 
+organization.
+14:44:18 [INF] Reports folder: "P:\Giao đoạn 2 TK\Giao đoạn 2 
+TK\TKS_Thuc_Tap_11\docs\testing\performance\tool-benchmarks\inventory-only-20260
+830-144132\nbomber-workers-1"
+14:44:18 [INF] Plugins: no plugins were loaded
+14:44:18 [INF] Reporting sinks: no reporting sinks were loaded
+14:44:18 [INF] Starting init...
+14:44:18 [INF] Target scenarios: "InventoryReportPaged"
+14:44:18 [INF] Init finished
+14:44:18 [INF] Starting bombing...
+14:44:31 [INF] Stopping scenarios...
+14:44:31 [INF] Calculating final statistics...
+
+────────────────────────────────── test info ───────────────────────────────────
+
+test suite: TKS_Thuc_Tap_V11 warehouse read workload
+test name: nbomber_default_test_name
+session id: 2026-08-30_07-44-18_5e4851c8
+
+──────────────────────────────── scenario stats ────────────────────────────────
+
+scenario: InventoryReportPaged
+  - duration: 00:00:10
+
+load simulations: 
+  - keep_constant, copies: 1, during: 00:00:10
+
+┌─────────────────────────┬────────────────────────────────────────────────────┐
+│      scenario and steps │ ok stats                                           │
+├─────────────────────────┼────────────────────────────────────────────────────┤
+│           scenario name │ InventoryReportPaged                               │
+│                requests │ total = 917, ok = 917, fail = 0                    │
+│           RPS (req/sec) │ total = 91.7/s, ok = 91.7/s, fail = 0/s            │
+│            latency (ms) │ min = 1.62, mean = 10.32, max = 1712, StdDev =     │
+│                         │ 58.49                                              │
+│ latency percentile (ms) │ p50 = 3.94, p75 = 6.94, p95 = 33.76, p99 = 90.11   │
+└─────────────────────────┴────────────────────────────────────────────────────┘
+
+
+14:44:34 [INF] Reports saved in folder: "P:\Giao đoạn 2 TK\Giao đoạn 2 
+TK\TKS_Thuc_Tap_11\docs\testing\performance\tool-benchmarks\inventory-only-20260
+830-144132\nbomber-workers-1"
+14:44:35 [WRN] THIS VERSION IS FREE ONLY FOR PERSONAL USE. You can't use it for an 
+organization.

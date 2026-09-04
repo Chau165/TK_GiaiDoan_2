@@ -1,0 +1,6 @@
+"Workers","DurationSeconds","Requests","Ok","Failed","OkMeanMs","OkP95Ms","OkP99Ms","NbomberProcessExitCode","TelemetrySamples","PeakActiveRequests","PeakSingleGrantMB","PeakGrantedMemoryMB","PeakWaitingMemoryGrants","PeakActiveResourceSemaphoreWaits","PeakTempdbUsedMB","PeakTempdbInternalMB","TempdbUsedDeltaMB","SqlProcedureExecutions","SqlProcedureCpuMs","SqlProcedureElapsedMs","SqlProcedureLogicalReads","ResourceSemaphoreTasks","ResourceSemaphoreMs","CXPacketTasks","CXPacketMs","CXConsumerTasks","CXConsumerMs","PageIOLatchTasks","PageIOLatchMs"
+"1","10","917","917","0","10,32","33,76","90,11","0","17","1","0","0","0","0","5,62","0,5","-0,06","0","0","0","0","2","50015","0","0","0","0","7","13"
+"2","10","2","2","0","21623,16","21790,72","21790,72","0","4","2","0","0","2","2","5,56","0,5","0","0","0","0","0","5","114532","0","0","0","0","61","10"
+"4","10","4","4","0","23220,43","23396,35","23396,35","0","4","4","0","0","4","4","5,56","0,5","-0,06","0","0","0","0","6","123694","0","0","0","0","1","0"
+"8","10","8226","8226","0","9,4","17,98","58,24","0","25","7","0","0","0","0","6,06","0,5","0,56","8226","11112,38","35879,07","1833656","0","0","0","0","0","0","23","12"
+"16","10","25137","25137","0","17,13","41,09","147,2","0","17","11","0","0","0","0","6,56","0,5","-0,56","0","0","0","0","3","36375","0","0","0","0","19","33"
