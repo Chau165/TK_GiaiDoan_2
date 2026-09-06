@@ -4,6 +4,7 @@ using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
+[Collection("Warehouse inventory database")]
 public sealed class WarehouseInventorySnapshotIntegrationTests
 {
     private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
@@ -41,6 +42,9 @@ public sealed class WarehouseInventorySnapshotIntegrationTests
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity) VALUES (@WarehouseId, @ProductId, 100, 0);",
                 BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 100, 0, 0, 100, 0, 0, 1);",
+                Date("@Date", new DateTime(2026, 1, 31)), BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
             await CreateSnapshotAsync(connection, transaction, new DateTime(2026, 1, 31));
 
             var receiptId = await InsertIdAsync(connection, transaction,
@@ -57,6 +61,15 @@ public sealed class WarehouseInventorySnapshotIntegrationTests
                 BigInt("@DocumentId", issueId), BigInt("@ProductId", productId));
             await ExecuteAsync(connection, transaction,
                 "UPDATE dbo.InventoryBalance_Current SET CurrentQuantity = 115 WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Movement_Daily(Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid) VALUES ('2026-02-10', @WarehouseId, @ProductId, 20, 0, 1), ('2026-02-20', @WarehouseId, @ProductId, 0, 5, 1);",
+                BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES ('2026-02-10', @WarehouseId, @ProductId, 100, 20, 0, 120, 20, 0, 1), ('2026-02-20', @WarehouseId, @ProductId, 120, 0, 5, 115, 20, 5, 1);",
+                BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily_Scope(Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date) VALUES (@WarehouseId, @ProductId, '2026-01-31', '2026-02-20');",
                 BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
 
             var report = await ReadInventoryReportAsync(connection, transaction, login);

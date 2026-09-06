@@ -51,15 +51,35 @@ BEGIN
      AND a.San_Pham_ID = s.San_Pham_ID
      AND s.Snapshot_Date >= a.From_Date;
 
-    /* Coalesce requests already covered by an earlier active request.  A new
-       earlier request is retained so the worker rebuilds from the earliest
-       affected date; the filtered unique index prevents duplicate active rows
-       for the same scope/date under normal concurrent posting. */
+    /* The legacy Status column stays backward compatible.  RequestType and
+       LifecycleStatus distinguish a missing-snapshot initialization from a
+       normal invalid-snapshot rebuild without changing the Post contract. */
     INSERT dbo.InventorySnapshot_RebuildQueue
     (
-        Kho_ID, San_Pham_ID, From_Date, Status, CreatedAt, CompletedAt, ErrorMessage
+        Kho_ID, San_Pham_ID, From_Date,
+        Status, RequestType, LifecycleStatus,
+        CreatedAt, CompletedAt, ErrorMessage, LastError,
+        AttemptCount, LastAttemptAt, NextAttemptAt, LeaseUntil, ClaimedBy, ClaimedAt
     )
-    SELECT a.Kho_ID, a.San_Pham_ID, a.From_Date, N'WAITING', @InvalidatedAt, NULL, NULL
+    SELECT a.Kho_ID,
+           a.San_Pham_ID,
+           a.From_Date,
+           N'WAITING',
+           CASE WHEN EXISTS
+                     (
+                         SELECT 1
+                         FROM dbo.InventoryBalance_Snapshot_Daily s
+                         WHERE s.Kho_ID = a.Kho_ID
+                           AND s.San_Pham_ID = a.San_Pham_ID
+                     ) THEN N'REBUILD' ELSE N'INITIALIZE' END,
+           CASE WHEN EXISTS
+                     (
+                         SELECT 1
+                         FROM dbo.InventoryBalance_Snapshot_Daily s
+                         WHERE s.Kho_ID = a.Kho_ID
+                           AND s.San_Pham_ID = a.San_Pham_ID
+                     ) THEN N'WAITING' ELSE N'INITIALIZE_REQUIRED' END,
+           @InvalidatedAt, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL
     FROM #AffectedScope a
     WHERE NOT EXISTS
     (
@@ -67,7 +87,7 @@ BEGIN
         FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
         WHERE q.Kho_ID = a.Kho_ID
           AND q.San_Pham_ID = a.San_Pham_ID
-          AND q.Status IN (N'WAITING', N'PROCESSING')
+          AND q.LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED')
           AND q.From_Date <= a.From_Date
     );
 END
@@ -86,6 +106,16 @@ BEGIN
 
     BEGIN TRANSACTION;
     BEGIN TRY
+        DECLARE @ScopeLockResult INT;
+        DECLARE @ScopeLockResource NVARCHAR(255) = CONCAT(N'InventorySnapshot:', @Kho_ID, N':', @San_Pham_ID);
+        EXEC @ScopeLockResult = sys.sp_getapplock
+            @Resource = @ScopeLockResource,
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @ScopeLockResult < 0
+            THROW 51305, N'Snapshot scope đang được rebuild bởi worker khác.', 1;
+
         DECLARE @To_Date DATE;
         DECLARE @BaseSnapshot_Date DATE;
         DECLARE @OpeningQuantity DECIMAL(18,3);
@@ -142,6 +172,35 @@ BEGIN
         END
         ELSE
             SET @OpeningQuantity = ISNULL(@OpeningQuantity, 0);
+
+        /* The first persisted date may be later than the anchor.  Carry all
+           posted movement in that gap into the state used for @From_Date;
+           otherwise a rebuild starting on 05/01 would omit movement posted on
+           03/01 and produce a false closing balance. */
+        IF @BaseSnapshot_Date IS NOT NULL
+        BEGIN
+            SELECT @OpeningQuantity = @OpeningQuantity + COALESCE(SUM(m.Quantity), 0)
+            FROM
+            (
+                SELECT CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Quantity
+                FROM dbo.tbl_XNK_Nhap_Kho h
+                JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+                WHERE h.Is_Posted = 1
+                  AND h.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND h.Ngay_Nhap_Kho > @BaseSnapshot_Date
+                  AND h.Ngay_Nhap_Kho < @From_Date
+                UNION ALL
+                SELECT CAST(-d.SL_Xuat AS DECIMAL(18,3))
+                FROM dbo.tbl_XNK_Xuat_Kho h
+                JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+                WHERE h.Is_Posted = 1
+                  AND h.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND h.Ngay_Xuat_Kho > @BaseSnapshot_Date
+                  AND h.Ngay_Xuat_Kho < @From_Date
+            ) m;
+        END
 
         CREATE TABLE #Rebuilt
         (
@@ -236,13 +295,442 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Process_RebuildQueue
-    @Batch_Size INT = 100
+/* Writes a minimal, non-secret heartbeat for the SQL Agent workers.  A
+   heartbeat is deliberately separate from queue state so monitoring can also
+   detect a worker that has nothing to process. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Record_Heartbeat
+    @Worker_Name NVARCHAR(128),
+    @Queue_ID BIGINT = NULL,
+    @Succeeded BIT = NULL,
+    @LastError NVARCHAR(4000) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@Worker_Name)), N'') IS NULL
+        THROW 51307, N'Tên worker snapshot là bắt buộc.', 1;
+
+    DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+
+    UPDATE dbo.InventorySnapshot_WorkerHeartbeat WITH (UPDLOCK, SERIALIZABLE)
+       SET LastHeartbeatAt = @Now,
+           LastSuccessAt = CASE WHEN @Succeeded = 1 THEN @Now ELSE LastSuccessAt END,
+           LastFailureAt = CASE WHEN @Succeeded = 0 THEN @Now ELSE LastFailureAt END,
+           LastQueue_ID = COALESCE(@Queue_ID, LastQueue_ID),
+           LastError = CASE WHEN @Succeeded = 0 THEN LEFT(COALESCE(@LastError, N'Unknown snapshot worker failure.'), 4000)
+                            WHEN @Succeeded = 1 THEN NULL
+                            ELSE LastError END,
+           UpdatedAt = @Now
+     WHERE Worker_Name = @Worker_Name;
+
+    IF @@ROWCOUNT = 0
+        INSERT dbo.InventorySnapshot_WorkerHeartbeat
+        (
+            Worker_Name, LastHeartbeatAt, LastSuccessAt, LastFailureAt,
+            LastQueue_ID, LastError, UpdatedAt
+        )
+        VALUES
+        (
+            @Worker_Name, @Now,
+            CASE WHEN @Succeeded = 1 THEN @Now END,
+            CASE WHEN @Succeeded = 0 THEN @Now END,
+            @Queue_ID,
+            CASE WHEN @Succeeded = 0 THEN LEFT(COALESCE(@LastError, N'Unknown snapshot worker failure.'), 4000) END,
+            @Now
+        );
+END
+GO
+
+/* A baseline is explicit because an opening balance that is not represented
+   in the posted ledger cannot be inferred safely.  The confirmation parameter
+   records the operator's assertion rather than fabricating a quantity from
+   InventoryBalance_Current. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Bootstrap_From_Ledger
+    @Baseline_Date DATE,
+    @Opening_Balance_Confirmed BIT,
+    @Kho_ID BIGINT = NULL,
+    @San_Pham_ID BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @Baseline_Date IS NULL
+        THROW 51308, N'Baseline_Date là bắt buộc.', 1;
+    IF @Opening_Balance_Confirmed <> 1
+        THROW 51310, N'OPENING_BALANCE_REQUIRED: phải xác nhận opening balance đã có trong Posted Ledger trước khi bootstrap snapshot.', 1;
+
+    DECLARE @Audit_ID BIGINT;
+    DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+    DECLARE @Rows INT = 0;
+    DECLARE @ScopeCount INT = 0;
+
+    INSERT dbo.InventorySnapshot_BootstrapAudit
+    (
+        Baseline_Date, Kho_ID, San_Pham_ID, Opening_Balance_Confirmed,
+        Source_Name, Status, StartedAt
+    )
+    VALUES
+    (
+        @Baseline_Date, @Kho_ID, @San_Pham_ID, @Opening_Balance_Confirmed,
+        N'POSTED_LEDGER', N'RUNNING', @Now
+    );
+    SET @Audit_ID = SCOPE_IDENTITY();
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @LockResult INT;
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = N'InventorySnapshotBootstrap',
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @LockResult < 0
+            THROW 51309, N'Bootstrap snapshot đang được thực hiện bởi worker khác.', 1;
+
+        CREATE TABLE #Scope
+        (
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            PRIMARY KEY (Kho_ID, San_Pham_ID)
+        );
+
+        INSERT #Scope(Kho_ID, San_Pham_ID)
+        SELECT h.Kho_ID, d.San_Pham_ID
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        WHERE h.Is_Posted = 1
+          AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR d.San_Pham_ID = @San_Pham_ID)
+        UNION
+        SELECT h.Kho_ID, d.San_Pham_ID
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        WHERE h.Is_Posted = 1
+          AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR d.San_Pham_ID = @San_Pham_ID);
+
+        SELECT @ScopeCount = COUNT(*) FROM #Scope;
+
+        CREATE TABLE #Balance
+        (
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            ClosingQuantity DECIMAL(18,3) NOT NULL,
+            PRIMARY KEY (Kho_ID, San_Pham_ID)
+        );
+
+        INSERT #Balance(Kho_ID, San_Pham_ID, ClosingQuantity)
+        SELECT s.Kho_ID,
+               s.San_Pham_ID,
+               CAST(COALESCE(SUM(m.Quantity), 0) AS DECIMAL(18,3))
+        FROM #Scope s
+        LEFT JOIN
+        (
+            SELECT h.Kho_ID, d.San_Pham_ID, CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Quantity
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1 AND h.Ngay_Nhap_Kho <= @Baseline_Date
+            UNION ALL
+            SELECT h.Kho_ID, d.San_Pham_ID, CAST(-d.SL_Xuat AS DECIMAL(18,3))
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1 AND h.Ngay_Xuat_Kho <= @Baseline_Date
+        ) m ON m.Kho_ID = s.Kho_ID AND m.San_Pham_ID = s.San_Pham_ID
+        GROUP BY s.Kho_ID, s.San_Pham_ID;
+
+        UPDATE snapshot
+           SET ClosingQuantity = b.ClosingQuantity,
+               IsValid = 1,
+               InvalidatedAt = NULL,
+               InvalidReason = NULL,
+               [Version] = ISNULL(snapshot.[Version], 0) + 1
+        FROM dbo.InventoryBalance_Snapshot_Daily snapshot
+        JOIN #Balance b ON b.Kho_ID = snapshot.Kho_ID AND b.San_Pham_ID = snapshot.San_Pham_ID
+        WHERE snapshot.Snapshot_Date = @Baseline_Date;
+        SET @Rows = @@ROWCOUNT;
+
+        INSERT dbo.InventoryBalance_Snapshot_Daily
+        (
+            Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
+            IsValid, InvalidatedAt, InvalidReason, [Version]
+        )
+        SELECT @Baseline_Date, b.Kho_ID, b.San_Pham_ID, b.ClosingQuantity,
+               1, NULL, NULL, 1
+        FROM #Balance b
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryBalance_Snapshot_Daily snapshot WITH (UPDLOCK, HOLDLOCK)
+            WHERE snapshot.Snapshot_Date = @Baseline_Date
+              AND snapshot.Kho_ID = b.Kho_ID
+              AND snapshot.San_Pham_ID = b.San_Pham_ID
+        );
+        SET @Rows += @@ROWCOUNT;
+
+        UPDATE dbo.InventorySnapshot_BootstrapAudit
+           SET Status = N'COMPLETED',
+               CompletedAt = SYSUTCDATETIME(),
+               ScopeCount = @ScopeCount,
+               SnapshotRowCount = @Rows,
+               ErrorMessage = NULL
+         WHERE ID = @Audit_ID;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        UPDATE dbo.InventorySnapshot_BootstrapAudit
+           SET Status = N'FAILED',
+               CompletedAt = SYSUTCDATETIME(),
+               ErrorMessage = LEFT(ERROR_MESSAGE(), 4000)
+         WHERE ID = @Audit_ID;
+        THROW;
+    END CATCH
+END
+GO
+
+/* INITIALIZE is intentionally not delegated to Rebuild.  It creates the
+   missing checkpoint directly from posted ledger after bootstrap has recorded
+   a trustworthy baseline for this scope. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Initialize_From_Ledger
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT,
+    @Snapshot_Date DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Kho_ID IS NULL OR @San_Pham_ID IS NULL OR @Snapshot_Date IS NULL
+        THROW 51302, N'Kho, sản phẩm và ngày initialize snapshot là bắt buộc.', 1;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.InventorySnapshot_BootstrapAudit audit
+        WHERE audit.Status = N'COMPLETED'
+          AND audit.Baseline_Date <= @Snapshot_Date
+          AND (audit.Kho_ID IS NULL OR audit.Kho_ID = @Kho_ID)
+          AND (audit.San_Pham_ID IS NULL OR audit.San_Pham_ID = @San_Pham_ID)
+    )
+        THROW 51311, N'INITIALIZE_REQUIRED: chưa có bootstrap Posted Ledger được xác nhận cho scope snapshot này.', 1;
+
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DECLARE @LockResult INT;
+        DECLARE @LockResource NVARCHAR(255) = CONCAT(N'InventorySnapshot:', @Kho_ID, N':', @San_Pham_ID);
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @LockResource,
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @LockResult < 0
+            THROW 51305, N'Snapshot scope đang được rebuild bởi worker khác.', 1;
+
+        DECLARE @ClosingQuantity DECIMAL(18,3);
+        SELECT @ClosingQuantity = CAST(COALESCE(SUM(m.Quantity), 0) AS DECIMAL(18,3))
+        FROM
+        (
+            SELECT CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Quantity
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+              AND h.Kho_ID = @Kho_ID
+              AND d.San_Pham_ID = @San_Pham_ID
+              AND h.Ngay_Nhap_Kho <= @Snapshot_Date
+            UNION ALL
+            SELECT CAST(-d.SL_Xuat AS DECIMAL(18,3))
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+              AND h.Kho_ID = @Kho_ID
+              AND d.San_Pham_ID = @San_Pham_ID
+              AND h.Ngay_Xuat_Kho <= @Snapshot_Date
+        ) m;
+
+        UPDATE dbo.InventoryBalance_Snapshot_Daily
+           SET ClosingQuantity = @ClosingQuantity,
+               IsValid = 1,
+               InvalidatedAt = NULL,
+               InvalidReason = NULL,
+               [Version] = ISNULL([Version], 0) + 1
+         WHERE Snapshot_Date = @Snapshot_Date
+           AND Kho_ID = @Kho_ID
+           AND San_Pham_ID = @San_Pham_ID;
+
+        IF @@ROWCOUNT = 0
+            INSERT dbo.InventoryBalance_Snapshot_Daily
+            (
+                Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
+                IsValid, InvalidatedAt, InvalidReason, [Version]
+            )
+            VALUES
+            (
+                @Snapshot_Date, @Kho_ID, @San_Pham_ID, @ClosingQuantity,
+                1, NULL, NULL, 1
+            );
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+/* Finalization deliberately consumes Daily.  The Current projection is never
+   a historical snapshot source. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Finalize_Daily
+    @Snapshot_Date DATE,
+    @Kho_ID BIGINT = NULL,
+    @San_Pham_ID BIGINT = NULL,
+    @Worker_Name NVARCHAR(128) = N'SQLAgent:InventorySnapshotFinalize'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Snapshot_Date IS NULL
+        THROW 51312, N'Snapshot_Date là bắt buộc.', 1;
+
+    BEGIN TRY
+        /* Do not publish a final checkpoint while the Daily projection is
+           known to be behind a posted invalidation for the requested date. */
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryMovement_RebuildQueue q
+            WHERE q.From_Date <= @Snapshot_Date
+              AND q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING')
+              AND (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
+              AND (@San_Pham_ID IS NULL OR q.San_Pham_ID = @San_Pham_ID)
+        )
+            THROW 51320, N'DAILY_PROJECTION_NOT_READY: còn movement rebuild chưa hoàn tất trước ngày finalize.', 1;
+
+        BEGIN TRANSACTION;
+        DECLARE @LockResult INT;
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = N'InventorySnapshotFinalize',
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0;
+        IF @LockResult < 0
+            THROW 51313, N'Finalize snapshot đang được thực hiện bởi worker khác.', 1;
+
+        CREATE TABLE #Finalized
+        (
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            ClosingQuantity DECIMAL(18,3) NOT NULL,
+            PRIMARY KEY (Kho_ID, San_Pham_ID)
+        );
+
+        ;WITH DailyRanked AS
+        (
+            SELECT b.Kho_ID,
+                   b.San_Pham_ID,
+                   b.ClosingQuantity,
+                   ROW_NUMBER() OVER
+                   (
+                       PARTITION BY b.Kho_ID, b.San_Pham_ID
+                       ORDER BY b.Balance_Date DESC
+                   ) AS RowNo
+            FROM dbo.Inventory_Balance_Daily b
+            WHERE b.IsValid = 1
+              AND b.Balance_Date <= @Snapshot_Date
+              AND (@Kho_ID IS NULL OR b.Kho_ID = @Kho_ID)
+              AND (@San_Pham_ID IS NULL OR b.San_Pham_ID = @San_Pham_ID)
+        )
+        INSERT #Finalized(Kho_ID, San_Pham_ID, ClosingQuantity)
+        SELECT Kho_ID, San_Pham_ID, ClosingQuantity
+        FROM DailyRanked
+        WHERE RowNo = 1;
+
+        UPDATE snapshot
+           SET ClosingQuantity = final.ClosingQuantity,
+               IsValid = 1,
+               InvalidatedAt = NULL,
+               InvalidReason = NULL,
+               [Version] = ISNULL(snapshot.[Version], 0) + 1
+        FROM dbo.InventoryBalance_Snapshot_Daily snapshot
+        JOIN #Finalized final
+          ON final.Kho_ID = snapshot.Kho_ID
+         AND final.San_Pham_ID = snapshot.San_Pham_ID
+        WHERE snapshot.Snapshot_Date = @Snapshot_Date;
+
+        INSERT dbo.InventoryBalance_Snapshot_Daily
+        (
+            Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
+            IsValid, InvalidatedAt, InvalidReason, [Version]
+        )
+        SELECT @Snapshot_Date, final.Kho_ID, final.San_Pham_ID, final.ClosingQuantity,
+               1, NULL, NULL, 1
+        FROM #Finalized final
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryBalance_Snapshot_Daily snapshot WITH (UPDLOCK, HOLDLOCK)
+            WHERE snapshot.Snapshot_Date = @Snapshot_Date
+              AND snapshot.Kho_ID = final.Kho_ID
+              AND snapshot.San_Pham_ID = final.San_Pham_ID
+        );
+
+        /* A queue means a post/back-date has already invalidated history.
+           Preserve that signal rather than declaring the newly finalised row
+           valid ahead of its repair. */
+        UPDATE snapshot
+           SET IsValid = 0,
+               InvalidatedAt = SYSUTCDATETIME(),
+               InvalidReason = N'PENDING_SNAPSHOT_REPAIR'
+        FROM dbo.InventoryBalance_Snapshot_Daily snapshot
+        WHERE snapshot.Snapshot_Date = @Snapshot_Date
+          AND EXISTS
+          (
+              SELECT 1
+              FROM dbo.InventorySnapshot_RebuildQueue q
+              WHERE q.Kho_ID = snapshot.Kho_ID
+                AND q.San_Pham_ID = snapshot.San_Pham_ID
+                AND q.From_Date <= @Snapshot_Date
+                AND q.LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED')
+          );
+
+        COMMIT TRANSACTION;
+        EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
+            @Worker_Name = @Worker_Name,
+            @Succeeded = 1;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        DECLARE @FinalizeError NVARCHAR(4000) = ERROR_MESSAGE();
+        EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
+            @Worker_Name = @Worker_Name,
+            @Succeeded = 0,
+            @LastError = @FinalizeError;
+        THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Process_RebuildQueue
+    @Batch_Size INT = 100,
+    @Max_Retry_Count INT = 5,
+    @Processing_Lease_Seconds INT = 300,
+    @Worker_Name NVARCHAR(128) = N'SQLAgent:InventorySnapshotRepair',
+    @Kho_ID BIGINT = NULL,
+    @San_Pham_ID BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     IF @Batch_Size IS NULL OR @Batch_Size < 1
         THROW 51303, N'Batch size rebuild phải lớn hơn 0.', 1;
+    IF @Max_Retry_Count IS NULL OR @Max_Retry_Count < 1
+        THROW 51314, N'Max retry snapshot phải lớn hơn 0.', 1;
+    IF @Processing_Lease_Seconds IS NULL OR @Processing_Lease_Seconds < 1
+        THROW 51315, N'Processing lease snapshot phải lớn hơn 0.', 1;
+    IF NULLIF(LTRIM(RTRIM(@Worker_Name)), N'') IS NULL
+        THROW 51307, N'Tên worker snapshot là bắt buộc.', 1;
 
     DECLARE @LockResult INT;
     EXEC @LockResult = sys.sp_getapplock
@@ -254,82 +742,195 @@ BEGIN
         THROW 51304, N'Worker rebuild snapshot đang được xử lý bởi tiến trình khác.', 1;
 
     BEGIN TRY
-        /* A worker crash can leave PROCESSING rows behind. The application
-           lock guarantees no worker is active while these rows are recovered. */
-        UPDATE dbo.InventorySnapshot_RebuildQueue
-           SET Status = N'WAITING',
-               ErrorMessage = N'Recovered by rebuild worker after an interrupted run.'
-        WHERE Status = N'PROCESSING';
+        /* A crashed worker leaves a lease rather than being silently reset.
+           Expired claims consume a retry and retain their error history. */
+        DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+        UPDATE q
+           SET AttemptCount = q.AttemptCount + 1,
+               LastAttemptAt = @Now,
+               LastError = N'LEASE_EXPIRED: snapshot worker claim was not completed before LeaseUntil.',
+               ErrorMessage = N'LEASE_EXPIRED: snapshot worker claim was not completed before LeaseUntil.',
+               LifecycleStatus = CASE WHEN q.AttemptCount + 1 >= @Max_Retry_Count THEN N'FAILED_FINAL' ELSE N'RETRY_WAITING' END,
+               Status = CASE WHEN q.AttemptCount + 1 >= @Max_Retry_Count THEN N'FAILED' ELSE N'WAITING' END,
+               NextAttemptAt = CASE WHEN q.AttemptCount + 1 >= @Max_Retry_Count THEN NULL
+                                    ELSE DATEADD(MINUTE, CASE q.AttemptCount + 1 WHEN 1 THEN 1 WHEN 2 THEN 5 WHEN 3 THEN 15 ELSE 60 END, @Now) END,
+               LeaseUntil = NULL,
+               ClaimedBy = NULL,
+               ClaimedAt = NULL,
+               CompletedAt = CASE WHEN q.AttemptCount + 1 >= @Max_Retry_Count THEN @Now ELSE NULL END
+        FROM dbo.InventorySnapshot_RebuildQueue q
+        WHERE q.LifecycleStatus = N'PROCESSING'
+          AND q.LeaseUntil < @Now
+          AND (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR q.San_Pham_ID = @San_Pham_ID);
+
+        INSERT dbo.InventorySnapshot_RebuildDeadLetter
+        (
+            Queue_ID, Kho_ID, San_Pham_ID, From_Date, RequestType,
+            AttemptCount, LastError, FailedAt
+        )
+        SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.RequestType,
+               q.AttemptCount, q.LastError, @Now
+        FROM dbo.InventorySnapshot_RebuildQueue q
+        WHERE q.LifecycleStatus = N'FAILED_FINAL'
+          AND q.LastError LIKE N'LEASE_EXPIRED:%'
+          AND NOT EXISTS (SELECT 1 FROM dbo.InventorySnapshot_RebuildDeadLetter d WHERE d.Queue_ID = q.ID);
 
         CREATE TABLE #Claimed
         (
             ID BIGINT NOT NULL PRIMARY KEY,
             Kho_ID BIGINT NOT NULL,
             San_Pham_ID BIGINT NOT NULL,
-            From_Date DATE NOT NULL
+            From_Date DATE NOT NULL,
+            RequestType NVARCHAR(20) NOT NULL
         );
 
-        ;WITH NextItems AS
-        (
-            SELECT TOP (@Batch_Size) ID, Kho_ID, San_Pham_ID, From_Date,
-                   Status, ErrorMessage, CompletedAt
-            FROM dbo.InventorySnapshot_RebuildQueue WITH (UPDLOCK, READPAST, ROWLOCK)
-            WHERE Status = N'WAITING'
-            ORDER BY CreatedAt, ID
-        )
-        UPDATE NextItems
-           SET Status = N'PROCESSING',
-               ErrorMessage = NULL,
-               CompletedAt = NULL
-        OUTPUT inserted.ID, inserted.Kho_ID, inserted.San_Pham_ID, inserted.From_Date
-        INTO #Claimed(ID, Kho_ID, San_Pham_ID, From_Date);
-
-        DECLARE @QueueId BIGINT;
-        DECLARE @Kho_ID BIGINT;
-        DECLARE @San_Pham_ID BIGINT;
-        DECLARE @From_Date DATE;
-
-        DECLARE QueueCursor CURSOR LOCAL FAST_FORWARD FOR
-            SELECT ID, Kho_ID, San_Pham_ID, From_Date
-            FROM #Claimed
-            ORDER BY ID;
-
-        OPEN QueueCursor;
-        FETCH NEXT FROM QueueCursor INTO @QueueId, @Kho_ID, @San_Pham_ID, @From_Date;
-        WHILE @@FETCH_STATUS = 0
+        DECLARE @Processed INT = 0;
+        WHILE @Processed < @Batch_Size
         BEGIN
+            DECLARE @QueueId BIGINT = NULL;
+            DECLARE @QueueKho_ID BIGINT;
+            DECLARE @QueueSan_Pham_ID BIGINT;
+            DECLARE @From_Date DATE;
+            DECLARE @RequestType NVARCHAR(20);
+
+            BEGIN TRANSACTION;
+            ;WITH NextItem AS
+            (
+                SELECT TOP (1)
+                       q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.RequestType,
+                       q.Status, q.LifecycleStatus, q.LastAttemptAt, q.LeaseUntil,
+                       q.ClaimedBy, q.ClaimedAt, q.ErrorMessage, q.CompletedAt
+                FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
+                  AND (@San_Pham_ID IS NULL OR q.San_Pham_ID = @San_Pham_ID)
+                  AND
+                  (
+                      q.LifecycleStatus = N'WAITING'
+                      OR (q.LifecycleStatus = N'RETRY_WAITING' AND q.NextAttemptAt <= @Now)
+                      OR
+                      (
+                          q.LifecycleStatus = N'INITIALIZE_REQUIRED'
+                          AND EXISTS
+                          (
+                              SELECT 1
+                              FROM dbo.InventorySnapshot_BootstrapAudit audit
+                              WHERE audit.Status = N'COMPLETED'
+                                AND audit.Baseline_Date <= q.From_Date
+                                AND (audit.Kho_ID IS NULL OR audit.Kho_ID = q.Kho_ID)
+                                AND (audit.San_Pham_ID IS NULL OR audit.San_Pham_ID = q.San_Pham_ID)
+                          )
+                      )
+                  )
+                ORDER BY CASE WHEN q.LifecycleStatus = N'INITIALIZE_REQUIRED' THEN 0 ELSE 1 END,
+                         q.CreatedAt, q.ID
+            )
+            UPDATE NextItem
+               SET Status = N'PROCESSING',
+                   LifecycleStatus = N'PROCESSING',
+                   LastAttemptAt = @Now,
+                   LeaseUntil = DATEADD(SECOND, @Processing_Lease_Seconds, @Now),
+                   ClaimedBy = @Worker_Name,
+                   ClaimedAt = @Now,
+                   ErrorMessage = NULL,
+                   CompletedAt = NULL
+            OUTPUT inserted.ID, inserted.Kho_ID, inserted.San_Pham_ID, inserted.From_Date, inserted.RequestType
+            INTO #Claimed(ID, Kho_ID, San_Pham_ID, From_Date, RequestType);
+
+            SELECT TOP (1)
+                   @QueueId = ID,
+                   @QueueKho_ID = Kho_ID,
+                   @QueueSan_Pham_ID = San_Pham_ID,
+                   @From_Date = From_Date,
+                   @RequestType = RequestType
+            FROM #Claimed;
+            DELETE FROM #Claimed;
+            COMMIT TRANSACTION;
+
+            IF @QueueId IS NULL BREAK;
+
             BEGIN TRY
-                EXEC dbo.sp_Inventory_Snapshot_Rebuild
-                    @Kho_ID = @Kho_ID,
-                    @San_Pham_ID = @San_Pham_ID,
-                    @From_Date = @From_Date;
+                IF @RequestType = N'INITIALIZE'
+                    EXEC dbo.sp_Inventory_Snapshot_Initialize_From_Ledger
+                        @Kho_ID = @QueueKho_ID,
+                        @San_Pham_ID = @QueueSan_Pham_ID,
+                        @Snapshot_Date = @From_Date;
+                ELSE
+                    EXEC dbo.sp_Inventory_Snapshot_Rebuild
+                        @Kho_ID = @QueueKho_ID,
+                        @San_Pham_ID = @QueueSan_Pham_ID,
+                        @From_Date = @From_Date;
 
                 UPDATE dbo.InventorySnapshot_RebuildQueue
                    SET Status = N'COMPLETED',
+                       LifecycleStatus = N'COMPLETED',
                        CompletedAt = SYSUTCDATETIME(),
-                       ErrorMessage = NULL
-                WHERE ID = @QueueId;
+                       NextAttemptAt = NULL,
+                       LeaseUntil = NULL,
+                       ClaimedBy = NULL,
+                       ClaimedAt = NULL,
+                       ErrorMessage = NULL,
+                       LastError = NULL
+                 WHERE ID = @QueueId;
+                EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
+                    @Worker_Name = @Worker_Name,
+                    @Queue_ID = @QueueId,
+                    @Succeeded = 1;
             END TRY
             BEGIN CATCH
-                UPDATE dbo.InventorySnapshot_RebuildQueue
-                   SET Status = N'FAILED',
-                       CompletedAt = SYSUTCDATETIME(),
-                       ErrorMessage = LEFT(ERROR_MESSAGE(), 4000)
+                DECLARE @ErrorNumber INT = ERROR_NUMBER();
+                DECLARE @ErrorMessage NVARCHAR(4000) = LEFT(ERROR_MESSAGE(), 4000);
+                DECLARE @NextAttemptCount INT;
+                SELECT @NextAttemptCount = AttemptCount + 1
+                FROM dbo.InventorySnapshot_RebuildQueue
                 WHERE ID = @QueueId;
+
+                DECLARE @IsTransient BIT = CASE WHEN @ErrorNumber IN (1205, 1222, 51224, 51226, 51305) THEN 1 ELSE 0 END;
+                DECLARE @IsFinal BIT = CASE WHEN @IsTransient = 0 OR @NextAttemptCount >= @Max_Retry_Count THEN 1 ELSE 0 END;
+                DECLARE @FailureAt DATETIME2 = SYSUTCDATETIME();
+
+                UPDATE dbo.InventorySnapshot_RebuildQueue
+                   SET AttemptCount = @NextAttemptCount,
+                       LastAttemptAt = @FailureAt,
+                       LastError = @ErrorMessage,
+                       ErrorMessage = @ErrorMessage,
+                       LifecycleStatus = CASE WHEN @IsFinal = 1 THEN N'FAILED_FINAL' ELSE N'RETRY_WAITING' END,
+                       Status = CASE WHEN @IsFinal = 1 THEN N'FAILED' ELSE N'WAITING' END,
+                       NextAttemptAt = CASE WHEN @IsFinal = 1 THEN NULL
+                                            ELSE DATEADD(MINUTE, CASE @NextAttemptCount WHEN 1 THEN 1 WHEN 2 THEN 5 WHEN 3 THEN 15 ELSE 60 END, @FailureAt) END,
+                       LeaseUntil = NULL,
+                       ClaimedBy = NULL,
+                       ClaimedAt = NULL,
+                       CompletedAt = CASE WHEN @IsFinal = 1 THEN @FailureAt ELSE NULL END
+                 WHERE ID = @QueueId;
+
+                IF @IsFinal = 1
+                    INSERT dbo.InventorySnapshot_RebuildDeadLetter
+                    (
+                        Queue_ID, Kho_ID, San_Pham_ID, From_Date, RequestType,
+                        AttemptCount, LastError, FailedAt
+                    )
+                    SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.RequestType,
+                           q.AttemptCount, q.LastError, @FailureAt
+                    FROM dbo.InventorySnapshot_RebuildQueue q
+                    WHERE q.ID = @QueueId
+                      AND NOT EXISTS (SELECT 1 FROM dbo.InventorySnapshot_RebuildDeadLetter d WHERE d.Queue_ID = q.ID);
+
+                EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
+                    @Worker_Name = @Worker_Name,
+                    @Queue_ID = @QueueId,
+                    @Succeeded = 0,
+                    @LastError = @ErrorMessage;
             END CATCH;
 
-            FETCH NEXT FROM QueueCursor INTO @QueueId, @Kho_ID, @San_Pham_ID, @From_Date;
+            SET @Processed += 1;
         END
-        CLOSE QueueCursor;
-        DEALLOCATE QueueCursor;
 
         EXEC sys.sp_releaseapplock
             @Resource = N'InventorySnapshotRebuildWorker',
             @LockOwner = N'Session';
     END TRY
     BEGIN CATCH
-        IF CURSOR_STATUS('local', 'QueueCursor') >= 0 CLOSE QueueCursor;
-        IF CURSOR_STATUS('local', 'QueueCursor') >= -1 DEALLOCATE QueueCursor;
         EXEC sys.sp_releaseapplock
             @Resource = N'InventorySnapshotRebuildWorker',
             @LockOwner = N'Session';
@@ -633,7 +1234,7 @@ GO
 
 CREATE OR ALTER TRIGGER dbo.tr_Inventory_Movement_Guard_Receipt_Posted_Detail
 ON dbo.tbl_XNK_Nhap_Kho_Raw_Data
-AFTER UPDATE, DELETE
+AFTER INSERT, UPDATE, DELETE
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -688,47 +1289,373 @@ CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Create_Daily
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;
     IF @Snapshot_Date IS NULL
         THROW 51300, N'Ngày snapshot không được để trống.', 1;
 
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        UPDATE s
-           SET ClosingQuantity = b.CurrentQuantity,
-               IsValid = 1,
-               InvalidatedAt = NULL,
-               InvalidReason = NULL,
-               [Version] = ISNULL(s.[Version], 0) + 1
-        FROM dbo.InventoryBalance_Snapshot_Daily s
-        JOIN dbo.InventoryBalance_Current b
-          ON b.Kho_ID = s.Kho_ID
-         AND b.San_Pham_ID = s.San_Pham_ID
-        WHERE s.Snapshot_Date = @Snapshot_Date;
+    /* Preserve the legacy public entrypoint while enforcing the production
+       rule: historical snapshots are finalised from Balance_Daily, never
+       from the present-day Current projection. */
+    EXEC dbo.sp_Inventory_Snapshot_Finalize_Daily
+        @Snapshot_Date = @Snapshot_Date,
+        @Worker_Name = N'Legacy:sp_Inventory_Snapshot_Create_Daily';
+END
+GO
 
-        INSERT dbo.InventoryBalance_Snapshot_Daily
+/* Reconciliation is observational only.  It writes the comparison evidence
+   but never updates a ledger or projection. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Reconciliation_Run
+    @As_Of_Date DATE,
+    @Kho_ID BIGINT = NULL,
+    @San_Pham_ID BIGINT = NULL,
+    @Run_ID BIGINT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @As_Of_Date IS NULL
+        THROW 51330, N'As_Of_Date là bắt buộc khi reconciliation inventory.', 1;
+
+    INSERT dbo.InventoryReconciliation_Run(As_Of_Date, Kho_ID, San_Pham_ID, Status, StartedAt)
+    VALUES (@As_Of_Date, @Kho_ID, @San_Pham_ID, N'RUNNING', SYSUTCDATETIME());
+    SET @Run_ID = SCOPE_IDENTITY();
+
+    BEGIN TRY
+        CREATE TABLE #LedgerDaily
         (
-            Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity,
-            IsValid, InvalidatedAt, InvalidReason, [Version]
-        )
-        SELECT @Snapshot_Date, b.Kho_ID, b.San_Pham_ID, b.CurrentQuantity,
-               1, NULL, NULL, 1
-        FROM dbo.InventoryBalance_Current b
-        WHERE NOT EXISTS
-        (
-            SELECT 1
-            FROM dbo.InventoryBalance_Snapshot_Daily s
-            WHERE s.Snapshot_Date = @Snapshot_Date
-              AND s.Kho_ID = b.Kho_ID
-              AND s.San_Pham_ID = b.San_Pham_ID
+            Movement_Date DATE NOT NULL,
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            TotalReceipt DECIMAL(18,3) NOT NULL,
+            TotalIssue DECIMAL(18,3) NOT NULL,
+            PRIMARY KEY (Movement_Date, Kho_ID, San_Pham_ID)
         );
 
-        COMMIT TRANSACTION;
+        INSERT #LedgerDaily(Movement_Date, Kho_ID, San_Pham_ID, TotalReceipt, TotalIssue)
+        SELECT movement.Movement_Date,
+               movement.Kho_ID,
+               movement.San_Pham_ID,
+               CAST(SUM(movement.Receipt) AS DECIMAL(18,3)),
+               CAST(SUM(movement.Issue) AS DECIMAL(18,3))
+        FROM
+        (
+            SELECT h.Ngay_Nhap_Kho AS Movement_Date,
+                   h.Kho_ID,
+                   d.San_Pham_ID,
+                   CAST(d.SL_Nhap AS DECIMAL(18,3)) AS Receipt,
+                   CAST(0 AS DECIMAL(18,3)) AS Issue
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+              AND h.Ngay_Nhap_Kho <= @As_Of_Date
+              AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
+              AND (@San_Pham_ID IS NULL OR d.San_Pham_ID = @San_Pham_ID)
+            UNION ALL
+            SELECT h.Ngay_Xuat_Kho,
+                   h.Kho_ID,
+                   d.San_Pham_ID,
+                   CAST(0 AS DECIMAL(18,3)),
+                   CAST(d.SL_Xuat AS DECIMAL(18,3))
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1
+              AND h.Ngay_Xuat_Kho <= @As_Of_Date
+              AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
+              AND (@San_Pham_ID IS NULL OR d.San_Pham_ID = @San_Pham_ID)
+        ) movement
+        GROUP BY movement.Movement_Date, movement.Kho_ID, movement.San_Pham_ID;
+
+        CREATE TABLE #Scope
+        (
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            PRIMARY KEY (Kho_ID, San_Pham_ID)
+        );
+
+        INSERT #Scope(Kho_ID, San_Pham_ID)
+        SELECT Kho_ID, San_Pham_ID FROM #LedgerDaily
+        UNION
+        SELECT Kho_ID, San_Pham_ID
+        FROM dbo.InventoryBalance_Current
+        WHERE (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID)
+        UNION
+        SELECT Kho_ID, San_Pham_ID
+        FROM dbo.Inventory_Movement_Daily
+        WHERE Movement_Date <= @As_Of_Date
+          AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID)
+        UNION
+        SELECT Kho_ID, San_Pham_ID
+        FROM dbo.Inventory_Balance_Daily
+        WHERE Balance_Date <= @As_Of_Date
+          AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID)
+        UNION
+        SELECT Kho_ID, San_Pham_ID
+        FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date <= @As_Of_Date
+          AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID);
+
+        /* Current is compared with posted ledger through the requested
+           business date.  The as-of parameter makes the reconciliation run
+           deterministic; it does not alter Current itself. */
+        INSERT dbo.InventoryReconciliation_Result
+        (
+            Run_ID, Kho_ID, San_Pham_ID, Check_Date, Check_Type,
+            ExpectedQuantity, ActualQuantity, Difference, Severity, Status, Details
+        )
+        SELECT @Run_ID,
+               scope.Kho_ID,
+               scope.San_Pham_ID,
+               @As_Of_Date,
+               N'CURRENT_CLOSING',
+               expected.ClosingQuantity,
+               COALESCE(currentBalance.CurrentQuantity, 0),
+               expected.ClosingQuantity - COALESCE(currentBalance.CurrentQuantity, 0),
+               CASE WHEN expected.ClosingQuantity = COALESCE(currentBalance.CurrentQuantity, 0) THEN N'INFO' ELSE N'CRITICAL' END,
+               CASE WHEN expected.ClosingQuantity = COALESCE(currentBalance.CurrentQuantity, 0) THEN N'PASS' ELSE N'FAIL' END,
+               N'Posted Ledger <= As_Of_Date vs InventoryBalance_Current.'
+        FROM #Scope scope
+        OUTER APPLY
+        (
+            SELECT CAST(COALESCE(SUM(d.TotalReceipt - d.TotalIssue), 0) AS DECIMAL(18,3)) AS ClosingQuantity
+            FROM #LedgerDaily d
+            WHERE d.Kho_ID = scope.Kho_ID AND d.San_Pham_ID = scope.San_Pham_ID
+        ) expected
+        LEFT JOIN dbo.InventoryBalance_Current currentBalance
+          ON currentBalance.Kho_ID = scope.Kho_ID
+         AND currentBalance.San_Pham_ID = scope.San_Pham_ID;
+
+        /* Materialized Movement Daily must be a faithful receipt/issue split
+           of the posted ledger for every business date. */
+        INSERT dbo.InventoryReconciliation_Result
+        (
+            Run_ID, Kho_ID, San_Pham_ID, Check_Date, Check_Type,
+            ExpectedQuantity, ActualQuantity, Difference, Severity, Status, Details
+        )
+        SELECT @Run_ID,
+               COALESCE(expected.Kho_ID, actual.Kho_ID),
+               COALESCE(expected.San_Pham_ID, actual.San_Pham_ID),
+               COALESCE(expected.Movement_Date, actual.Movement_Date),
+               checkItem.Check_Type,
+               checkItem.ExpectedQuantity,
+               checkItem.ActualQuantity,
+               checkItem.ExpectedQuantity - checkItem.ActualQuantity,
+               CASE WHEN checkItem.ExpectedQuantity = checkItem.ActualQuantity THEN N'INFO' ELSE N'CRITICAL' END,
+               CASE WHEN checkItem.ExpectedQuantity = checkItem.ActualQuantity THEN N'PASS' ELSE N'FAIL' END,
+               N'Posted Ledger vs Inventory_Movement_Daily.'
+        FROM #LedgerDaily expected
+        FULL OUTER JOIN dbo.Inventory_Movement_Daily actual
+          ON actual.Movement_Date = expected.Movement_Date
+         AND actual.Kho_ID = expected.Kho_ID
+         AND actual.San_Pham_ID = expected.San_Pham_ID
+         AND actual.IsValid = 1
+        CROSS APPLY
+        (
+            VALUES
+            (N'MOVEMENT_RECEIPT', CAST(COALESCE(expected.TotalReceipt, 0) AS DECIMAL(18,3)), CAST(COALESCE(actual.Total_Receipt, 0) AS DECIMAL(18,3))),
+            (N'MOVEMENT_ISSUE', CAST(COALESCE(expected.TotalIssue, 0) AS DECIMAL(18,3)), CAST(COALESCE(actual.Total_Issue, 0) AS DECIMAL(18,3)))
+        ) checkItem(Check_Type, ExpectedQuantity, ActualQuantity)
+        WHERE COALESCE(expected.Movement_Date, actual.Movement_Date) <= @As_Of_Date
+          AND (@Kho_ID IS NULL OR COALESCE(expected.Kho_ID, actual.Kho_ID) = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR COALESCE(expected.San_Pham_ID, actual.San_Pham_ID) = @San_Pham_ID);
+
+        CREATE TABLE #DailyExpected
+        (
+            Balance_Date DATE NOT NULL,
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            OpeningQuantity DECIMAL(18,3) NOT NULL,
+            TotalReceived DECIMAL(18,3) NOT NULL,
+            TotalIssued DECIMAL(18,3) NOT NULL,
+            ClosingQuantity DECIMAL(18,3) NOT NULL,
+            PRIMARY KEY (Balance_Date, Kho_ID, San_Pham_ID)
+        );
+
+        INSERT #DailyExpected
+        (
+            Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity,
+            TotalReceived, TotalIssued, ClosingQuantity
+        )
+        SELECT d.Movement_Date,
+               d.Kho_ID,
+               d.San_Pham_ID,
+               CAST(COALESCE(SUM(d.TotalReceipt - d.TotalIssue) OVER
+                    (PARTITION BY d.Kho_ID, d.San_Pham_ID ORDER BY d.Movement_Date ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS DECIMAL(18,3)),
+               d.TotalReceipt,
+               d.TotalIssue,
+               CAST(SUM(d.TotalReceipt - d.TotalIssue) OVER
+                    (PARTITION BY d.Kho_ID, d.San_Pham_ID ORDER BY d.Movement_Date ROWS UNBOUNDED PRECEDING) AS DECIMAL(18,3))
+        FROM #LedgerDaily d;
+
+        INSERT dbo.InventoryReconciliation_Result
+        (
+            Run_ID, Kho_ID, San_Pham_ID, Check_Date, Check_Type,
+            ExpectedQuantity, ActualQuantity, Difference, Severity, Status, Details
+        )
+        SELECT @Run_ID,
+               COALESCE(expected.Kho_ID, actual.Kho_ID),
+               COALESCE(expected.San_Pham_ID, actual.San_Pham_ID),
+               COALESCE(expected.Balance_Date, actual.Balance_Date),
+               checkItem.Check_Type,
+               checkItem.ExpectedQuantity,
+               checkItem.ActualQuantity,
+               checkItem.ExpectedQuantity - checkItem.ActualQuantity,
+               CASE WHEN checkItem.ExpectedQuantity = checkItem.ActualQuantity THEN N'INFO' ELSE N'CRITICAL' END,
+               CASE WHEN checkItem.ExpectedQuantity = checkItem.ActualQuantity THEN N'PASS' ELSE N'FAIL' END,
+               N'Posted Ledger vs Inventory_Balance_Daily.'
+        FROM #DailyExpected expected
+        FULL OUTER JOIN dbo.Inventory_Balance_Daily actual
+          ON actual.Balance_Date = expected.Balance_Date
+         AND actual.Kho_ID = expected.Kho_ID
+         AND actual.San_Pham_ID = expected.San_Pham_ID
+         AND actual.IsValid = 1
+        CROSS APPLY
+        (
+            VALUES
+            (N'DAILY_OPENING', CAST(COALESCE(expected.OpeningQuantity, 0) AS DECIMAL(18,3)), CAST(COALESCE(actual.OpeningQuantity, 0) AS DECIMAL(18,3))),
+            (N'DAILY_RECEIPT', CAST(COALESCE(expected.TotalReceived, 0) AS DECIMAL(18,3)), CAST(COALESCE(actual.TotalReceived, 0) AS DECIMAL(18,3))),
+            (N'DAILY_ISSUE', CAST(COALESCE(expected.TotalIssued, 0) AS DECIMAL(18,3)), CAST(COALESCE(actual.TotalIssued, 0) AS DECIMAL(18,3))),
+            (N'DAILY_CLOSING', CAST(COALESCE(expected.ClosingQuantity, 0) AS DECIMAL(18,3)), CAST(COALESCE(actual.ClosingQuantity, 0) AS DECIMAL(18,3)))
+        ) checkItem(Check_Type, ExpectedQuantity, ActualQuantity)
+        WHERE COALESCE(expected.Balance_Date, actual.Balance_Date) <= @As_Of_Date
+          AND (@Kho_ID IS NULL OR COALESCE(expected.Kho_ID, actual.Kho_ID) = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR COALESCE(expected.San_Pham_ID, actual.San_Pham_ID) = @San_Pham_ID);
+
+        /* Snapshot is compared at the requested checkpoint.  Absence of a
+           valid row is visible as actual zero, never repaired by this run. */
+        INSERT dbo.InventoryReconciliation_Result
+        (
+            Run_ID, Kho_ID, San_Pham_ID, Check_Date, Check_Type,
+            ExpectedQuantity, ActualQuantity, Difference, Severity, Status, Details
+        )
+        SELECT @Run_ID,
+               scope.Kho_ID,
+               scope.San_Pham_ID,
+               @As_Of_Date,
+               N'SNAPSHOT_CLOSING',
+               expected.ClosingQuantity,
+               COALESCE(snapshot.ClosingQuantity, 0),
+               expected.ClosingQuantity - COALESCE(snapshot.ClosingQuantity, 0),
+               CASE WHEN expected.ClosingQuantity = COALESCE(snapshot.ClosingQuantity, 0) THEN N'INFO' ELSE N'CRITICAL' END,
+               CASE WHEN expected.ClosingQuantity = COALESCE(snapshot.ClosingQuantity, 0) THEN N'PASS' ELSE N'FAIL' END,
+               N'Posted Ledger <= As_Of_Date vs valid InventoryBalance_Snapshot_Daily.'
+        FROM #Scope scope
+        OUTER APPLY
+        (
+            SELECT CAST(COALESCE(SUM(d.TotalReceipt - d.TotalIssue), 0) AS DECIMAL(18,3)) AS ClosingQuantity
+            FROM #LedgerDaily d
+            WHERE d.Kho_ID = scope.Kho_ID AND d.San_Pham_ID = scope.San_Pham_ID
+        ) expected
+        LEFT JOIN dbo.InventoryBalance_Snapshot_Daily snapshot
+          ON snapshot.Snapshot_Date = @As_Of_Date
+         AND snapshot.Kho_ID = scope.Kho_ID
+         AND snapshot.San_Pham_ID = scope.San_Pham_ID
+         AND snapshot.IsValid = 1;
+
+        UPDATE dbo.InventoryReconciliation_Run
+           SET Status = N'COMPLETED',
+               CompletedAt = SYSUTCDATETIME(),
+               ErrorMessage = NULL
+         WHERE ID = @Run_ID;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        UPDATE dbo.InventoryReconciliation_Run
+           SET Status = N'FAILED',
+               CompletedAt = SYSUTCDATETIME(),
+               ErrorMessage = LEFT(ERROR_MESSAGE(), 4000)
+         WHERE ID = @Run_ID;
         THROW;
     END CATCH
+END
+GO
+
+/* SQL Agent jobs call this procedure to expose backlog and stale-projection
+   conditions in a queryable result set.  Throw_On_Critical is opt-in so the
+   same procedure works for dashboards and alerting job steps. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Monitor
+    @Snapshot_Backlog_Minutes INT = 60,
+    @Processing_Lease_Seconds INT = 300,
+    @Daily_Stale_Days INT = 1,
+    @Throw_On_Critical BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Snapshot_Backlog_Minutes < 1 OR @Processing_Lease_Seconds < 1 OR @Daily_Stale_Days < 1
+        THROW 51331, N'Ngưỡng monitoring snapshot phải lớn hơn 0.', 1;
+
+    DECLARE @Now DATETIME2 = SYSUTCDATETIME();
+    DECLARE @Today DATE = CONVERT(DATE, @Now);
+    CREATE TABLE #Health
+    (
+        Check_Name NVARCHAR(80) NOT NULL,
+        Severity NVARCHAR(20) NOT NULL,
+        MetricValue BIGINT NOT NULL,
+        Details NVARCHAR(1000) NOT NULL
+    );
+
+    INSERT #Health
+    SELECT N'SNAPSHOT_BACKLOG', CASE WHEN COUNT_BIG(*) > 0 THEN N'CRITICAL' ELSE N'INFO' END, COUNT_BIG(*),
+           N'Active snapshot queue rows older than configured backlog threshold.'
+    FROM dbo.InventorySnapshot_RebuildQueue
+    WHERE LifecycleStatus IN (N'WAITING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED')
+      AND CreatedAt < DATEADD(MINUTE, -@Snapshot_Backlog_Minutes, @Now);
+
+    INSERT #Health
+    SELECT N'SNAPSHOT_FAILED_FINAL', CASE WHEN COUNT_BIG(*) > 0 THEN N'CRITICAL' ELSE N'INFO' END, COUNT_BIG(*),
+           N'Snapshot queue rows that require dead-letter recovery.'
+    FROM dbo.InventorySnapshot_RebuildQueue
+    WHERE LifecycleStatus = N'FAILED_FINAL';
+
+    INSERT #Health
+    SELECT N'SNAPSHOT_LEASE_EXPIRED', CASE WHEN COUNT_BIG(*) > 0 THEN N'CRITICAL' ELSE N'INFO' END, COUNT_BIG(*),
+           N'PROCESSING queue rows whose lease has expired.'
+    FROM dbo.InventorySnapshot_RebuildQueue
+    WHERE LifecycleStatus = N'PROCESSING' AND LeaseUntil < @Now;
+
+    INSERT #Health
+    SELECT N'SNAPSHOT_WORKER_STALE', CASE WHEN COUNT_BIG(*) > 0 THEN N'CRITICAL' ELSE N'INFO' END, COUNT_BIG(*),
+           N'Repair worker heartbeat missing or older than the lease threshold.'
+    FROM (SELECT 1 AS MissingHeartbeat WHERE NOT EXISTS
+          (
+              SELECT 1 FROM dbo.InventorySnapshot_WorkerHeartbeat
+              WHERE Worker_Name = N'SQLAgent:InventorySnapshotRepair'
+                AND LastHeartbeatAt >= DATEADD(SECOND, -@Processing_Lease_Seconds, @Now)
+          )) stale;
+
+    INSERT #Health
+    SELECT N'DAILY_STALE', CASE WHEN maxDate.MaxBalanceDate IS NULL OR maxDate.MaxBalanceDate < DATEADD(DAY, -@Daily_Stale_Days, @Today) THEN N'CRITICAL' ELSE N'INFO' END,
+           CASE WHEN maxDate.MaxBalanceDate IS NULL OR maxDate.MaxBalanceDate < DATEADD(DAY, -@Daily_Stale_Days, @Today) THEN 1 ELSE 0 END,
+           N'Latest valid Inventory_Balance_Daily is outside configured freshness threshold.'
+    FROM (SELECT MAX(Balance_Date) AS MaxBalanceDate FROM dbo.Inventory_Balance_Daily WHERE IsValid = 1) maxDate;
+
+    INSERT #Health
+    SELECT N'SNAPSHOT_NOT_FINALIZED', CASE WHEN COUNT_BIG(*) > 0 THEN N'CRITICAL' ELSE N'INFO' END, COUNT_BIG(*),
+           N'Balance Daily scopes have no valid end-of-day snapshot on or after their latest valid balance date.'
+    FROM
+    (
+        SELECT b.Kho_ID, b.San_Pham_ID, MAX(b.Balance_Date) AS Balance_Date
+        FROM dbo.Inventory_Balance_Daily b
+        WHERE b.IsValid = 1
+        GROUP BY b.Kho_ID, b.San_Pham_ID
+    ) latest
+    WHERE NOT EXISTS
+    (
+        SELECT 1 FROM dbo.InventoryBalance_Snapshot_Daily snapshot
+        WHERE snapshot.Kho_ID = latest.Kho_ID
+          AND snapshot.San_Pham_ID = latest.San_Pham_ID
+          AND snapshot.Snapshot_Date >= latest.Balance_Date
+          AND snapshot.Snapshot_Date <= @Today
+          AND snapshot.IsValid = 1
+    );
+
+    SELECT Check_Name, Severity, MetricValue, Details
+    FROM #Health
+    ORDER BY CASE Severity WHEN N'CRITICAL' THEN 0 ELSE 1 END, Check_Name;
+
+    IF @Throw_On_Critical = 1 AND EXISTS (SELECT 1 FROM #Health WHERE Severity = N'CRITICAL')
+        THROW 51332, N'INVENTORY_SNAPSHOT_MONITOR_CRITICAL: kiểm tra result set để biết metric lỗi.', 1;
 END
 GO
 
@@ -1109,22 +2036,38 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Save_Detail
     @Auto_ID BIGINT OUTPUT, @Nhap_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Nhap DECIMAL(18,3), @Don_Gia_Nhap DECIMAL(18,2), @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
-    SET NOCOUNT ON;
-    DECLARE @Kho_ID BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Nhap_Kho_ID);
-    IF @Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
-    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Nhap_Kho_ID AND Is_Posted = 1) THROW 51163, N'Không được sửa chi tiết của phiếu đã Post.', 1;
-    IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID = @San_Pham_ID) THROW 51106, N'Sản phẩm không hợp lệ.', 1;
-    IF @SL_Nhap <= 0 THROW 51107, N'Số lượng nhập phải lớn hơn 0.', 1;
-    IF @Don_Gia_Nhap <= 0 THROW 51108, N'Đơn giá nhập phải lớn hơn 0.', 1;
-    IF ISNULL(@Auto_ID, 0) = 0 INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES(@Nhap_Kho_ID, @San_Pham_ID, @SL_Nhap, @Don_Gia_Nhap);
-    ELSE
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
     BEGIN
-        IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Auto_ID AND (Nhap_Kho_ID <> @Nhap_Kho_ID OR San_Pham_ID <> @San_Pham_ID)) THROW 51110, N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.', 1;
-        UPDATE dbo.tbl_XNK_Nhap_Kho_Raw_Data SET SL_Nhap = @SL_Nhap, Don_Gia_Nhap = @Don_Gia_Nhap WHERE Auto_ID = @Auto_ID;
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
     END
-    IF ISNULL(@Auto_ID, 0) = 0 SET @Auto_ID = SCOPE_IDENTITY();
-    SELECT @Auto_ID AS Auto_ID;
+    BEGIN TRY
+        DECLARE @Kho_ID BIGINT, @Is_Posted BIT;
+        SELECT @Kho_ID = Kho_ID, @Is_Posted = Is_Posted
+        FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK)
+        WHERE Auto_ID = @Nhap_Kho_ID;
+        IF @Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+        EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+        IF @Is_Posted = 1 THROW 51163, N'Không được sửa chi tiết của phiếu đã Post.', 1;
+        IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID = @San_Pham_ID) THROW 51106, N'Sản phẩm không hợp lệ.', 1;
+        IF @SL_Nhap <= 0 THROW 51107, N'Số lượng nhập phải lớn hơn 0.', 1;
+        IF @Don_Gia_Nhap <= 0 THROW 51108, N'Đơn giá nhập phải lớn hơn 0.', 1;
+        IF ISNULL(@Auto_ID, 0) = 0 INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES(@Nhap_Kho_ID, @San_Pham_ID, @SL_Nhap, @Don_Gia_Nhap);
+        ELSE
+        BEGIN
+            IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Auto_ID AND (Nhap_Kho_ID <> @Nhap_Kho_ID OR San_Pham_ID <> @San_Pham_ID)) THROW 51110, N'Không được phép sửa phiếu hoặc sản phẩm của chi tiết.', 1;
+            UPDATE dbo.tbl_XNK_Nhap_Kho_Raw_Data SET SL_Nhap = @SL_Nhap, Don_Gia_Nhap = @Don_Gia_Nhap WHERE Auto_ID = @Auto_ID;
+        END
+        IF ISNULL(@Auto_ID, 0) = 0 SET @Auto_ID = SCOPE_IDENTITY();
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+        SELECT @Auto_ID AS Auto_ID;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -1821,7 +2764,7 @@ BEGIN
 
     DECLARE @Affected dbo.InventorySnapshotAffectedType;
     INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-    SELECT i.Kho_ID,
+    SELECT DISTINCT i.Kho_ID,
            r.San_Pham_ID,
            CASE WHEN i.Ngay_Nhap_Kho <= d.Ngay_Nhap_Kho THEN i.Ngay_Nhap_Kho ELSE d.Ngay_Nhap_Kho END,
            CASE WHEN d.Is_Posted = 0 AND i.Is_Posted = 1 THEN N'BACK_DATE_POST' ELSE N'DOCUMENT_UPDATE' END
@@ -2000,7 +2943,10 @@ BEGIN
            s.San_Pham_ID,
            p.Ma_San_Pham,
            p.Ten_San_Pham,
-           CAST(COALESCE(opening.ClosingQuantity, ending.OpeningQuantity, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
+           /* A missing pre-period row means there is no materialized balance
+              before @Tu_Ngay.  ending.OpeningQuantity belongs to the latest
+              movement day and must never seed the report opening. */
+           CAST(COALESCE(opening.ClosingQuantity, 0) AS DECIMAL(18,3)) AS SL_Dau_Ky,
            CAST(ending.CumulativeReceived - ISNULL(opening.CumulativeReceived, 0) AS DECIMAL(18,3)) AS SL_Nhap,
            CAST(ending.CumulativeIssued - ISNULL(opening.CumulativeIssued, 0) AS DECIMAL(18,3)) AS SL_Xuat,
            CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.CurrentQuantity, 0) ELSE ending.ClosingQuantity END AS DECIMAL(18,3)) AS SL_Cuoi_Ky,
