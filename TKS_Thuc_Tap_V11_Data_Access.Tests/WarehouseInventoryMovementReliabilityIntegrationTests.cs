@@ -6,6 +6,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
 {
+    private const string DirectDmlProbeUser = "Phase10MovementDmlProbe";
     private static string ConnectionString => Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING")
         ?? "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
 
@@ -135,6 +136,7 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
 
         try
         {
+            await SeedValidSnapshotAnchorAsync(scope, new DateTime(2099, 3, 1));
             await ApplyInvalidationAsync(scope, day);
             await ExecuteAsync(
                 "UPDATE dbo.InventoryMovement_RebuildQueue SET Status = N'PROCESSING', Claimed_Version = Requested_Version, LastAttemptAt = '2000-01-01' WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate;",
@@ -145,6 +147,36 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
 
             Assert.Equal("COMPLETED", recovered.Status);
             Assert.Equal(1, recovered.RetryCount);
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(scope);
+        }
+    }
+
+    [Fact]
+    public async Task A_second_idle_movement_worker_tick_does_not_reapply_completed_work()
+    {
+        var scope = await CreatePersistentScopeAsync();
+        var day = new DateTime(2099, 3, 16);
+
+        try
+        {
+            await SeedValidSnapshotAnchorAsync(scope, new DateTime(2099, 3, 1));
+            await ApplyInvalidationAsync(scope, day);
+            await ProcessQueueAsync(maxRetryCount: 2, retryDelaySeconds: 0);
+
+            var firstQueue = await ReadQueueStateAsync(scope, day);
+            Assert.Equal("COMPLETED", firstQueue.Status);
+            var firstMovementRows = await CountProjectionRowsAsync(scope, day, "dbo.Inventory_Movement_Daily", "Movement_Date");
+            var firstBalanceRows = await CountProjectionRowsAsync(scope, day, "dbo.Inventory_Balance_Daily", "Balance_Date");
+
+            await ProcessQueueAsync(maxRetryCount: 2, retryDelaySeconds: 0);
+
+            var secondQueue = await ReadQueueStateAsync(scope, day);
+            Assert.Equal("COMPLETED", secondQueue.Status);
+            Assert.Equal(firstMovementRows, await CountProjectionRowsAsync(scope, day, "dbo.Inventory_Movement_Daily", "Movement_Date"));
+            Assert.Equal(firstBalanceRows, await CountProjectionRowsAsync(scope, day, "dbo.Inventory_Balance_Daily", "Balance_Date"));
         }
         finally
         {
@@ -193,7 +225,7 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
             var receiptId = await CreateDraftReceiptAsync(scope, new DateTime(2099, 3, 14), quantity: 10m);
             await PostReceiptAsync(scope.Login!, receiptId);
 
-            var error = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsync(
+            var error = await Assert.ThrowsAsync<SqlException>(() => ExecutePostedDetailMutationAsProbeAsync(
                 "UPDATE d SET SL_Nhap = SL_Nhap + 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d WHERE d.Nhap_Kho_ID = @DocumentId;",
                 BigInt("@DocumentId", receiptId)));
 
@@ -223,6 +255,12 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
         await connection.OpenAsync();
         await ApplyInvalidationAsync(connection, null, scope, day);
     }
+
+    private static Task SeedValidSnapshotAnchorAsync(Scope scope, DateTime anchorDate) => ExecuteAsync(
+        "INSERT dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity, IsValid, [Version]) VALUES (@AnchorDate, @WarehouseId, @ProductId, 0, 1, 1);",
+        Date("@AnchorDate", anchorDate),
+        BigInt("@WarehouseId", scope.WarehouseId),
+        BigInt("@ProductId", scope.ProductId));
 
     private static async Task<Scope> CreateScopeAsync(SqlConnection connection, SqlTransaction transaction)
     {
@@ -272,7 +310,7 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync();
         var documentId = await ScalarLongAsync(connection, null,
-            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @MovementDate, 0, N'TDD movement reliability');",
+            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @MovementDate, 0, N'TDD movement reliability'); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
             Text("@Number", $"{scope.Tag}-receipt-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@SupplierId", scope.SupplierId!.Value), Date("@MovementDate", day));
         await ExecuteAsync(connection, null,
             "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
@@ -341,6 +379,15 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
         await connection.OpenAsync();
         return Convert.ToInt32(await ScalarAsync(connection, null,
             $"SELECT COUNT(*) FROM {tableName} WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate;",
+            BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId), Date("@MovementDate", day)));
+    }
+
+    private static async Task<int> CountProjectionRowsAsync(Scope scope, DateTime day, string tableName, string dateColumn)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        return Convert.ToInt32(await ScalarAsync(connection, null,
+            $"SELECT COUNT(*) FROM {tableName} WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND {dateColumn} = @MovementDate;",
             BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId), Date("@MovementDate", day)));
     }
 
@@ -417,6 +464,55 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
         await using var command = new SqlCommand(procedure, connection, transaction) { CommandType = CommandType.StoredProcedure };
         command.Parameters.AddRange(parameters);
         await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task ExecutePostedDetailMutationAsProbeAsync(string sql, params SqlParameter[] parameters)
+    {
+        await EnsureDirectDmlProbeUserAsync();
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await connection.OpenAsync();
+            try
+            {
+                await ExecuteAsync(
+                    connection,
+                    null,
+                    $"EXECUTE AS USER = N'{DirectDmlProbeUser}'; EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1; {sql}",
+                    parameters);
+            }
+            finally
+            {
+                await ExecuteAsync(connection, null, "REVERT;");
+            }
+        }
+        finally
+        {
+            await DropDirectDmlProbeUserAsync();
+        }
+    }
+
+    private static async Task EnsureDirectDmlProbeUserAsync()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteAsync(
+            connection,
+            null,
+            $"""
+            SET QUOTED_IDENTIFIER ON;
+            IF DATABASE_PRINCIPAL_ID(N'{DirectDmlProbeUser}') IS NULL
+                CREATE USER [{DirectDmlProbeUser}] WITHOUT LOGIN;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.tbl_XNK_Nhap_Kho_Raw_Data TO [{DirectDmlProbeUser}];
+            GRANT SELECT ON OBJECT::dbo.tbl_XNK_Nhap_Kho TO [{DirectDmlProbeUser}];
+            """);
+    }
+
+    private static async Task DropDirectDmlProbeUserAsync()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteAsync(connection, null, $"IF DATABASE_PRINCIPAL_ID(N'{DirectDmlProbeUser}') IS NOT NULL DROP USER [{DirectDmlProbeUser}];");
     }
 
     private static async Task<long> ScalarLongAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters) => Convert.ToInt64(await ScalarAsync(connection, transaction, sql, parameters));

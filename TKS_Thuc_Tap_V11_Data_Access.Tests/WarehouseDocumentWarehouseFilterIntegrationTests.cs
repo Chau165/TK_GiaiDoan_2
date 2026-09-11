@@ -6,7 +6,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseDocumentWarehouseFilterIntegrationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     [Fact]
     public async Task Document_pages_filter_receipts_and_issues_by_selected_authorized_warehouse()
@@ -42,13 +42,13 @@ public sealed class WarehouseDocumentWarehouseFilterIntegrationTests
                 Text("@Login", login, 100), BigInt("@WarehouseId", warehouseB));
 
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 0, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt-a", 100), BigInt("@WarehouseId", warehouseA), BigInt("@SupplierId", supplierId));
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 0, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt-b", 100), BigInt("@WarehouseId", warehouseB), BigInt("@SupplierId", supplierId));
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-09-10', 0, N'');",
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-09-10', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-issue-b", 100), BigInt("@WarehouseId", warehouseB));
 
             var allReceipts = await ReadPagedDocumentsAsync(connection, transaction, true, login);

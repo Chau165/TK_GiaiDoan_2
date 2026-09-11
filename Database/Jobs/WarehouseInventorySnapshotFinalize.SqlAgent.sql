@@ -20,7 +20,8 @@ BEGIN
 END
 
 DECLARE @Command NVARCHAR(MAX) =
-N'DECLARE @SnapshotDate DATE = DATEADD(DAY, -1, CONVERT(DATE, SYSUTCDATETIME()));
+N'DECLARE @SnapshotDate DATE = DATEADD(DAY, -1, CONVERT(DATE,
+       (SYSUTCDATETIME() AT TIME ZONE N''UTC'') AT TIME ZONE N''SE Asia Standard Time''));
   EXEC dbo.sp_Inventory_Snapshot_Finalize_Daily
        @Snapshot_Date = @SnapshotDate,
        @Worker_Name = N''SQLAgent:InventorySnapshotFinalize'';';

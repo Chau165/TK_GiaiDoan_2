@@ -1089,8 +1089,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 
         public static string Format_So_Luong(decimal p_decSo_Luong)
         {
-            // Hiển thị số lượng 2 chữ số thập phân, ví dụ 60 -> 60.00
-            return p_decSo_Luong.ToString("0.00", CultureInfo.InvariantCulture);
+            // Giữ tối đa 3 chữ số thập phân theo DECIMAL(18,3), không làm tròn mất phần nghìn.
+            return p_decSo_Luong.ToString("0.###", CultureInfo.InvariantCulture);
         }
     }
 }

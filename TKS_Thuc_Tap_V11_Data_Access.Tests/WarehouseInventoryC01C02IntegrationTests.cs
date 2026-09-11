@@ -8,10 +8,105 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 [Collection("Warehouse inventory database")]
 public sealed class WarehouseInventoryC01C02IntegrationTests
 {
+    private const string DirectDmlProbeUser = "Phase10C01DmlProbe";
+
     private static string BaseConnectionString =>
         Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING")
         ?? throw new InvalidOperationException(
             "TKS_INTEGRATION_CONNECTION_STRING must point to a disposable test database.");
+
+    [Fact]
+    public async Task Receipt_save_detail_without_ambient_transaction_owns_and_closes_transaction()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            var receiptId = await SaveReceiptHeaderAsync(fixture, new DateTime(2026, 1, 10));
+            await using var connection = OpenConnection($"C01-standalone-{fixture.Tag}");
+            await connection.OpenAsync();
+
+            await SaveReceiptDetailAsync(fixture, receiptId, 10, fixture.LoginA, connection: connection);
+
+            Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT @@TRANCOUNT;"));
+            await AssertReceiptInvariantAsync(fixture, expectedLedger: 0, expectedCurrent: 0, expectedDetailCount: 1);
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Receipt_save_detail_inside_ambient_transaction_preserves_caller_ownership_and_rolls_back()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            var receiptId = await SaveReceiptHeaderAsync(fixture, new DateTime(2026, 1, 10));
+            await using var connection = OpenConnection($"C01-ambient-{fixture.Tag}");
+            await connection.OpenAsync();
+            await ExecuteAsync(connection, null, "CREATE TABLE #AmbientMarker(Value INT NOT NULL);");
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
+
+            await ExecuteAsync(connection, transaction, "INSERT #AmbientMarker(Value) VALUES (1);");
+            await SaveReceiptDetailAsync(
+                fixture,
+                receiptId,
+                10,
+                fixture.LoginA,
+                connection: connection,
+                transaction: transaction);
+
+            Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT @@TRANCOUNT;"));
+            Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT COUNT(*) FROM #AmbientMarker;"));
+            Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT COUNT(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @ReceiptId;", BigInt("@ReceiptId", receiptId)));
+
+            await transaction.RollbackAsync();
+
+            Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT @@TRANCOUNT;"));
+            Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT COUNT(*) FROM #AmbientMarker;"));
+            Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT COUNT(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @ReceiptId;", BigInt("@ReceiptId", receiptId)));
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Receipt_save_detail_error_inside_ambient_transaction_does_not_commit_caller_work()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            var receiptId = await SaveReceiptHeaderAsync(fixture, new DateTime(2026, 1, 10));
+            await using var connection = OpenConnection($"C01-ambient-error-{fixture.Tag}");
+            await connection.OpenAsync();
+            await ExecuteAsync(connection, null, "CREATE TABLE #AmbientMarker(Value INT NOT NULL);");
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
+            await ExecuteAsync(connection, transaction, "INSERT #AmbientMarker(Value) VALUES (1);");
+
+            await AssertSqlNumberAsync(
+                51107,
+                () => SaveReceiptDetailAsync(
+                    fixture,
+                    receiptId,
+                    0,
+                    fixture.LoginA,
+                    connection: connection,
+                    transaction: transaction));
+
+            Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT @@TRANCOUNT;"));
+            var transactionState = await IntScalarAsync(connection, transaction, "SELECT XACT_STATE();");
+            Assert.Contains(transactionState, new[] { 1, -1 });
+            await transaction.RollbackAsync();
+            Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT COUNT(*) FROM #AmbientMarker;"));
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
 
     [Fact]
     public async Task Receipt_draft_post_and_posted_mutations_preserve_inventory_invariants()
@@ -97,6 +192,8 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
                 postOutcomeTask,
                 TimeSpan.FromMilliseconds(400));
 
+            Assert.False(postCompletedBeforeGateRelease, "Post acquired the parent lock before Save Detail released it.");
+
             await gateTransaction.CommitAsync();
             var saveOutcome = await saveOutcomeTask;
             var postOutcome = await postOutcomeTask;
@@ -119,6 +216,88 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
                    invariant, not on an implementation-specific ordering. */
                 Assert.Equal(100m, invariant.Current);
             }
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Concurrent_post_holding_header_makes_save_detail_wait_and_reject_after_post()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            await CreateAndPostReceiptAsync(fixture, new DateTime(2026, 1, 9), 100, "stock");
+            var receiptId = await SaveReceiptHeaderAsync(fixture, new DateTime(2026, 1, 10));
+            await SaveReceiptDetailAsync(fixture, receiptId, 20, fixture.LoginA);
+
+            await using var gateConnection = OpenConnection($"C01-post-gate-{fixture.Tag}");
+            await gateConnection.OpenAsync();
+            await using var gateTransaction = (SqlTransaction)await gateConnection.BeginTransactionAsync();
+            await ExecuteAsync(
+                gateConnection,
+                gateTransaction,
+                "SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WITH (XLOCK, HOLDLOCK) WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId));
+
+            await using var postConnection = OpenConnection($"C01-post-held-{fixture.Tag}");
+            await postConnection.OpenAsync();
+            var postSessionId = await IntScalarAsync(postConnection, null, "SELECT @@SPID;");
+            var postOutcomeTask = CaptureAsync(() => PostReceiptAsync(fixture, receiptId, fixture.LoginA, postConnection));
+            await WaitForSqlLockAsync(postConnection, postSessionId, postOutcomeTask);
+
+            await using var saveConnection = OpenConnection($"C01-save-after-post-{fixture.Tag}");
+            await saveConnection.OpenAsync();
+            var saveSessionId = await IntScalarAsync(saveConnection, null, "SELECT @@SPID;");
+            var saveOutcomeTask = CaptureAsync(() => SaveReceiptDetailAsync(
+                fixture,
+                receiptId,
+                5,
+                fixture.LoginB,
+                connection: saveConnection));
+            await WaitForSqlLockAsync(saveConnection, saveSessionId, saveOutcomeTask);
+
+            await gateTransaction.CommitAsync();
+            var postOutcome = await postOutcomeTask;
+            var saveOutcome = await saveOutcomeTask;
+
+            Assert.True(postOutcome.Succeeded, FormatFailure("Post", postOutcome.Error));
+            Assert.True(IsExpectedPostedRejection(saveOutcome.Error), FormatFailure("Save Detail", saveOutcome.Error));
+            await AssertReceiptInvariantAsync(fixture, expectedLedger: 120, expectedCurrent: 120, expectedDetailCount: 2);
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Posting_multiple_details_for_one_scope_does_not_duplicate_invalidation_queue()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            var receiptId = await SaveReceiptHeaderAsync(fixture, new DateTime(2026, 1, 10));
+            await SaveReceiptDetailAsync(fixture, receiptId, 10, fixture.LoginA);
+            await SaveReceiptDetailAsync(fixture, receiptId, 20, fixture.LoginA);
+            await PostReceiptAsync(fixture, receiptId, fixture.LoginA);
+
+            await AssertReceiptInvariantAsync(fixture, expectedLedger: 30, expectedCurrent: 30, expectedDetailCount: 2);
+            Assert.Equal(1, await IntScalarAsync(
+                fixture.ConnectionString,
+                null,
+                "SELECT COUNT(*) FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED');",
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId)));
+            Assert.Equal(1, await IntScalarAsync(
+                fixture.ConnectionString,
+                null,
+                "SELECT COUNT(*) FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING');",
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId)));
         }
         finally
         {
@@ -205,6 +384,259 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
                 BigInt("@WarehouseId", fixture.WarehouseId),
                 BigInt("@ProductId", fixture.ProductId));
             Assert.Equal(10m, initializedClosing);
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Three_decimal_quantity_survives_inventory_projections_and_period_report()
+    {
+        var fixture = await CreateFixtureAsync();
+        var movementDate = new DateTime(2026, 1, 10);
+        try
+        {
+            // The rebuild contract requires a valid historical anchor for an
+            // already-initialized scope; this test is about decimal preservation,
+            // not about exercising the no-anchor bootstrap failure path.
+            await InsertSnapshotAsync(fixture, new DateTime(2026, 1, 1), 0m, isValid: true);
+            await CreateAndPostReceiptAsync(fixture, movementDate, 1.234m, "L02-precision");
+
+            await ExecuteStoredAsync(
+                fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Movement_Process_RebuildQueue",
+                new SqlParameter("@Batch_Size", SqlDbType.Int) { Value = 100 });
+            await ExecuteStoredAsync(
+                fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Balance_Daily_Rebuild",
+                BigInt("@Kho_ID", fixture.WarehouseId),
+                BigInt("@San_Pham_ID", fixture.ProductId),
+                Date("@From_Date", movementDate));
+
+            await ExecuteAsync(
+                fixture.ConnectionString,
+                null,
+                """
+                UPDATE dbo.InventoryBalance_Snapshot_Daily
+                SET ClosingQuantity = 0, IsValid = 0
+                WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;
+                IF @@ROWCOUNT = 0
+                    INSERT dbo.InventoryBalance_Snapshot_Daily
+                    (Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity, IsValid, [Version])
+                    VALUES (@Date, @WarehouseId, @ProductId, 0, 0, 1);
+                """,
+                Date("@Date", movementDate),
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId));
+            await ExecuteStoredAsync(
+                fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Snapshot_Rebuild",
+                BigInt("@Kho_ID", fixture.WarehouseId),
+                BigInt("@San_Pham_ID", fixture.ProductId),
+                Date("@From_Date", movementDate));
+
+            var projection = await ReadQuantityProjectionAsync(fixture, movementDate);
+            Assert.Equal(1.234m, projection.Ledger);
+            Assert.Equal(1.234m, projection.Current);
+            Assert.Equal(1.234m, projection.MovementReceived);
+            Assert.Equal(1.234m, projection.DailyReceived);
+            Assert.Equal(1.234m, projection.DailyClosing);
+            Assert.Equal(1.234m, projection.SnapshotClosing);
+
+            var report = await ReadPeriodReportQuantityAsync(fixture, movementDate);
+            Assert.Equal(1.234m, report.Received);
+            Assert.Equal(1.234m, report.Closing);
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Snapshot_old_claim_cannot_complete_after_a_newer_invalidation()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            var anchorDate = new DateTime(2025, 12, 31);
+            var rebuildDate = new DateTime(2026, 1, 2);
+            await CreateAndPostReceiptAsync(fixture, new DateTime(2026, 1, 1), 100m, "H04-version");
+            await InsertSnapshotAsync(fixture, anchorDate, 0m, isValid: true);
+            await InsertSnapshotAsync(fixture, rebuildDate, 0m, isValid: false);
+
+            var queueId = await IntScalarAsync(
+                fixture.ConnectionString,
+                null,
+                "SELECT TOP (1) ID FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId ORDER BY ID DESC;",
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId));
+
+            await ExecuteAsync(
+                fixture.ConnectionString,
+                null,
+                """
+                UPDATE dbo.InventorySnapshot_RebuildQueue
+                SET Status = N'PROCESSING', LifecycleStatus = N'PROCESSING', ClaimedBy = N'H04-test',
+                    ClaimedAt = SYSUTCDATETIME(), LeaseUntil = DATEADD(MINUTE, 5, SYSUTCDATETIME())
+                WHERE ID = @QueueId;
+                IF COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'Claimed_Version') IS NOT NULL
+                    EXEC sys.sp_executesql N'UPDATE dbo.InventorySnapshot_RebuildQueue SET Claimed_Version = Requested_Version WHERE ID = @QueueId;', N'@QueueId BIGINT', @QueueId = @QueueId;
+                """,
+                BigInt("@QueueId", queueId));
+
+            await ExecuteStoredAsync(
+                fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Snapshot_Rebuild",
+                BigInt("@Kho_ID", fixture.WarehouseId),
+                BigInt("@San_Pham_ID", fixture.ProductId),
+                Date("@From_Date", new DateTime(2026, 1, 1)));
+
+            await ExecuteAsync(
+                fixture.ConnectionString,
+                null,
+                """
+                DECLARE @Affected dbo.InventorySnapshotAffectedType;
+                INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+                VALUES (@WarehouseId, @ProductId, @FromDate, N'BACK_DATE_POST');
+                EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+                """,
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId),
+                Date("@FromDate", new DateTime(2026, 1, 1)));
+
+            await ExecuteAsync(
+                fixture.ConnectionString,
+                null,
+                """
+                DECLARE @Affected dbo.InventorySnapshotAffectedType;
+                INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+                VALUES (@WarehouseId, @ProductId, @FromDate, N'RECEIPT_EDIT');
+                EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+                """,
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId),
+                Date("@FromDate", new DateTime(2026, 1, 1)));
+
+            await ExecuteAsync(
+                fixture.ConnectionString,
+                null,
+                """
+                IF OBJECT_ID(N'dbo.sp_Inventory_Snapshot_Complete_Claim', N'P') IS NULL
+                BEGIN
+                    UPDATE dbo.InventorySnapshot_RebuildQueue
+                    SET Status = N'COMPLETED', LifecycleStatus = N'COMPLETED', CompletedAt = SYSUTCDATETIME(),
+                        LeaseUntil = NULL, ClaimedBy = NULL, ClaimedAt = NULL
+                    WHERE ID = @QueueId;
+                END
+                ELSE
+                BEGIN
+                    DECLARE @ClaimedVersion INT;
+                    EXEC sys.sp_executesql
+                        N'SELECT @ClaimedVersion = Claimed_Version FROM dbo.InventorySnapshot_RebuildQueue WHERE ID = @QueueId;',
+                        N'@QueueId BIGINT, @ClaimedVersion INT OUTPUT',
+                        @QueueId = @QueueId,
+                        @ClaimedVersion = @ClaimedVersion OUTPUT;
+                    EXEC dbo.sp_Inventory_Snapshot_Complete_Claim @Queue_ID = @QueueId, @Claimed_Version = @ClaimedVersion;
+                END
+                """,
+                BigInt("@QueueId", queueId));
+
+            Assert.Equal(
+                0,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT CASE WHEN LifecycleStatus = N'COMPLETED' THEN 1 ELSE 0 END FROM dbo.InventorySnapshot_RebuildQueue WHERE ID = @QueueId;",
+                    BigInt("@QueueId", queueId)));
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT COUNT(*) FROM dbo.InventorySnapshot_RebuildQueue WHERE ID = @QueueId AND LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED');",
+                    BigInt("@QueueId", queueId)));
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT CASE WHEN COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'Requested_Version') IS NOT NULL AND COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'Claimed_Version') IS NOT NULL THEN 1 ELSE 0 END;"));
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT CASE WHEN Requested_Version = Claimed_Version + 2 THEN 1 ELSE 0 END FROM dbo.InventorySnapshot_RebuildQueue WHERE ID = @QueueId;",
+                    BigInt("@QueueId", queueId)));
+
+            await ExecuteStoredAsync(
+                fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Snapshot_Process_RebuildQueue",
+                new SqlParameter("@Batch_Size", SqlDbType.Int) { Value = 1 },
+                Text("@Worker_Name", $"H04-latest-{fixture.Tag}", 128),
+                BigInt("@Kho_ID", fixture.WarehouseId),
+                BigInt("@San_Pham_ID", fixture.ProductId));
+
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT CASE WHEN LifecycleStatus = N'COMPLETED' AND Requested_Version = Claimed_Version THEN 1 ELSE 0 END FROM dbo.InventorySnapshot_RebuildQueue WHERE ID = @QueueId;",
+                    BigInt("@QueueId", queueId)));
+        }
+        finally
+        {
+            await CleanupFixtureAsync(fixture);
+        }
+    }
+
+    [Fact]
+    public async Task Snapshot_waiting_invalidation_coalesces_and_advances_version()
+    {
+        var fixture = await CreateFixtureAsync();
+        try
+        {
+            var invalidationDate = new DateTime(2026, 2, 10);
+            await CreateAndPostReceiptAsync(fixture, invalidationDate, 10m, "H04-waiting");
+
+            await ExecuteAsync(
+                fixture.ConnectionString,
+                null,
+                """
+                DECLARE @Affected dbo.InventorySnapshotAffectedType;
+                INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+                VALUES (@WarehouseId, @ProductId, @FromDate, N'BACK_DATE_POST');
+                EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+                """,
+                BigInt("@WarehouseId", fixture.WarehouseId),
+                BigInt("@ProductId", fixture.ProductId),
+                Date("@FromDate", invalidationDate));
+
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT COUNT(*) FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND LifecycleStatus = N'INITIALIZE_REQUIRED';",
+                    BigInt("@WarehouseId", fixture.WarehouseId),
+                    BigInt("@ProductId", fixture.ProductId)));
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT CASE WHEN Requested_Version = 2 AND Claimed_Version IS NULL THEN 1 ELSE 0 END FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                    BigInt("@WarehouseId", fixture.WarehouseId),
+                    BigInt("@ProductId", fixture.ProductId)));
         }
         finally
         {
@@ -306,7 +738,8 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
         decimal quantity,
         string login,
         long detailId = 0,
-        SqlConnection? connection = null)
+        SqlConnection? connection = null,
+        SqlTransaction? transaction = null)
     {
         var ownsConnection = connection is null;
         connection ??= OpenConnection($"C01C02-detail-{fixture.Tag}");
@@ -317,7 +750,7 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
         {
             return await ExecuteStoredWithOutputAsync(
                 connection,
-                null,
+                transaction,
                 "dbo.sp_XNK_Nhap_Kho_Save_Detail",
                 BigInt("@Nhap_Kho_ID", receiptId),
                 BigInt("@San_Pham_ID", fixture.ProductId),
@@ -371,14 +804,58 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
         await PostReceiptAsync(fixture, receiptId, fixture.LoginA);
     }
 
-    private static Task InsertReceiptDetailDirectlyAsync(Fixture fixture, long receiptId, decimal quantity) =>
-        ExecuteAsync(
-            fixture.ConnectionString,
+    private static async Task InsertReceiptDetailDirectlyAsync(Fixture fixture, long receiptId, decimal quantity)
+    {
+        await EnsureDirectDmlProbeUserAsync();
+        await using var connection = OpenConnection($"C01C02-dml-{fixture.Tag}");
+        await connection.OpenAsync();
+        var impersonated = false;
+        try
+        {
+            await ExecuteAsync(
+                connection,
+                null,
+                $"EXECUTE AS USER = N'{DirectDmlProbeUser}'; EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
+            impersonated = true;
+            await ExecuteAsync(
+                connection,
+                null,
+                "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@ReceiptId, @ProductId, @Quantity, 1);",
+                BigInt("@ReceiptId", receiptId),
+                BigInt("@ProductId", fixture.ProductId),
+                Decimal("@Quantity", quantity));
+        }
+        finally
+        {
+            if (impersonated)
+                await ExecuteAsync(connection, null, "REVERT;");
+
+            await DropDirectDmlProbeUserAsync();
+        }
+    }
+
+    private static async Task EnsureDirectDmlProbeUserAsync()
+    {
+        await using var connection = OpenConnection("C01C02-probe-admin");
+        await connection.OpenAsync();
+        await ExecuteAsync(
+            connection,
             null,
-            "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@ReceiptId, @ProductId, @Quantity, 1);",
-            BigInt("@ReceiptId", receiptId),
-            BigInt("@ProductId", fixture.ProductId),
-            Decimal("@Quantity", quantity));
+            $"""
+            SET QUOTED_IDENTIFIER ON;
+            IF DATABASE_PRINCIPAL_ID(N'{DirectDmlProbeUser}') IS NULL
+                CREATE USER [{DirectDmlProbeUser}] WITHOUT LOGIN;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON OBJECT::dbo.tbl_XNK_Nhap_Kho_Raw_Data TO [{DirectDmlProbeUser}];
+            GRANT SELECT ON OBJECT::dbo.tbl_XNK_Nhap_Kho TO [{DirectDmlProbeUser}];
+            """);
+    }
+
+    private static async Task DropDirectDmlProbeUserAsync()
+    {
+        await using var connection = OpenConnection("C01C02-probe-cleanup");
+        await connection.OpenAsync();
+        await ExecuteAsync(connection, null, $"IF DATABASE_PRINCIPAL_ID(N'{DirectDmlProbeUser}') IS NOT NULL DROP USER [{DirectDmlProbeUser}];");
+    }
 
     private static Task InsertSnapshotAsync(Fixture fixture, DateTime date, decimal closing, bool isValid) =>
         ExecuteAsync(
@@ -437,6 +914,62 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         return new SnapshotQueueRow(reader.GetString(0), reader.GetString(1));
+    }
+
+    private static async Task<QuantityProjection> ReadQuantityProjectionAsync(Fixture fixture, DateTime date)
+    {
+        await using var connection = OpenConnection($"L02-projection-read-{fixture.Tag}");
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(
+            """
+            SELECT
+                COALESCE((SELECT SUM(d.SL_Nhap)
+                          FROM dbo.tbl_XNK_Nhap_Kho h
+                          JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+                          WHERE h.Kho_ID = @WarehouseId AND d.San_Pham_ID = @ProductId AND h.Is_Posted = 1), 0),
+                COALESCE((SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId), 0),
+                COALESCE((SELECT Total_Receipt FROM dbo.Inventory_Movement_Daily WHERE Movement_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1), 0),
+                COALESCE((SELECT TotalReceived FROM dbo.Inventory_Balance_Daily WHERE Balance_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1), 0),
+                COALESCE((SELECT ClosingQuantity FROM dbo.Inventory_Balance_Daily WHERE Balance_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1), 0),
+                COALESCE((SELECT ClosingQuantity FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1), 0)
+            """,
+            connection);
+        command.Parameters.Add(BigInt("@WarehouseId", fixture.WarehouseId));
+        command.Parameters.Add(BigInt("@ProductId", fixture.ProductId));
+        command.Parameters.Add(Date("@Date", date));
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return new QuantityProjection(
+            reader.GetDecimal(0),
+            reader.GetDecimal(1),
+            reader.GetDecimal(2),
+            reader.GetDecimal(3),
+            reader.GetDecimal(4),
+            reader.GetDecimal(5));
+    }
+
+    private static async Task<PeriodReportQuantity> ReadPeriodReportQuantityAsync(Fixture fixture, DateTime date)
+    {
+        await using var connection = OpenConnection($"L02-report-read-{fixture.Tag}");
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton_Page", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(Date("@Tu_Ngay", date));
+        command.Parameters.Add(Date("@Den_Ngay", date));
+        command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
+        command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 10 });
+        command.Parameters.Add(Text("@Ma_Dang_Nhap", fixture.LoginA, 100));
+        command.Parameters.Add(BigInt("@Kho_ID", fixture.WarehouseId));
+
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.True(await reader.NextResultAsync());
+        Assert.True(await reader.ReadAsync());
+        return new PeriodReportQuantity(
+            reader.GetDecimal(reader.GetOrdinal("SL_Nhap")),
+            reader.GetDecimal(reader.GetOrdinal("SL_Cuoi_Ky")));
     }
 
     private static async Task WaitForSqlLockAsync(SqlConnection saveConnection, int sessionId, Task<OperationOutcome> operation)
@@ -661,6 +1194,16 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
     private sealed record ReceiptInvariant(decimal Ledger, decimal Current, int DetailCount);
 
     private sealed record SnapshotQueueRow(string RequestType, string LifecycleStatus);
+
+    private sealed record QuantityProjection(
+        decimal Ledger,
+        decimal Current,
+        decimal MovementReceived,
+        decimal DailyReceived,
+        decimal DailyClosing,
+        decimal SnapshotClosing);
+
+    private sealed record PeriodReportQuantity(decimal Received, decimal Closing);
 
     private sealed record OperationOutcome(bool Succeeded, Exception? Error);
 }

@@ -30,7 +30,7 @@ public class WarehouseModuleStructureTests
     [Fact]
     public async Task Master_list_reads_bigint_ids_and_int_zero_placeholders()
     {
-        CConfig.TKS_Thuc_Tap_V11_Conn_String = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+        CConfig.TKS_Thuc_Tap_V11_Conn_String = WarehouseTestDatabase.ConnectionString;
 
         var result = await new CWarehouseMaster_Controller().List_Master_Async("DonViTinh");
 

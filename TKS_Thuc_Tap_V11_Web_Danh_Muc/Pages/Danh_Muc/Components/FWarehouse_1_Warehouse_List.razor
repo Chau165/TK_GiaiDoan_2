@@ -13,6 +13,10 @@
         {
             <div class="alert alert-success">@m_strSuccess</div>
         }
+        @if (!String.IsNullOrWhiteSpace(m_strAuditWarning))
+        {
+            <div class="alert alert-warning">@m_strAuditWarning</div>
+        }
 
         @if (m_strSection == "Master")
         {
@@ -160,7 +164,7 @@
     private readonly CWarehouseMaster_Controller m_objMasterController = new();
     private readonly CWarehouseDocument_Controller m_objDocumentController = new();
     private readonly CWarehouseReport_Controller m_objReportController = new();
-    private string m_strSection = "Master", m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "";
+    private string m_strSection = "Master", m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private CWarehouseMaster m_objMaster = new();
     private CWarehouseDocument m_objDocument = new();
     private CWarehouseDocument? m_objSelectedDocument;
@@ -196,6 +200,7 @@
     {
         r_strError = "";
         m_strSuccess = "";
+        m_strAuditWarning = "";
         Format_Grid(m_grdMaster);
         m_objFormattedMasterGrid = m_grdMaster;
     }
@@ -248,7 +253,7 @@
 
     private async Task Save_Master_Async(CWarehouseMaster p_objData)
     {
-        try { var v_iAuto_ID = p_objData.Auto_ID; if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; await m_objMasterController.Save_Master_Async(m_strMaster_Type, p_objData, r_strActive_User_Name, r_strActive_Function_Code); CCommon_Controller.FCommon_Insert_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã lưu danh mục."); }
+        try { var v_iAuto_ID = p_objData.Auto_ID; if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; await m_objMasterController.Save_Master_Async(m_strMaster_Type, p_objData, r_strActive_User_Name, r_strActive_Function_Code); Try_Record_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã lưu danh mục."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -259,7 +264,7 @@
 
     private async Task Delete_Master_Async(long p_iAuto_ID)
     {
-        try { await m_objMasterController.Delete_Master_Async(m_strMaster_Type, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code); CCommon_Controller.FCommon_Insert_Action_History(p_iAuto_ID, "Xóa", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã xóa danh mục."); }
+        try { await m_objMasterController.Delete_Master_Async(m_strMaster_Type, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code); Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã xóa danh mục."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -271,19 +276,19 @@
 
     private async Task Save_Document_Async(CWarehouseDocument p_objData)
     {
-        try { var v_iAuto_ID = p_objData.Auto_ID; if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; p_objData.Is_Receipt = Is_Receipt; await m_objDocumentController.Save_Document_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); CCommon_Controller.FCommon_Insert_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse document " + p_objData.So_Phieu); m_grdDocument.Rebind(); await Select_Document_Async(p_objData); Set_Success("Đã lưu phiếu."); }
+        try { var v_iAuto_ID = p_objData.Auto_ID; if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; p_objData.Is_Receipt = Is_Receipt; await m_objDocumentController.Save_Document_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); Try_Record_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Warehouse document " + p_objData.So_Phieu); m_grdDocument.Rebind(); await Select_Document_Async(p_objData); Set_Success("Đã lưu phiếu."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
     private async Task Delete_Document_Async(long p_iAuto_ID)
     {
-        try { await m_objDocumentController.Delete_Document_Async(Is_Receipt, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); CCommon_Controller.FCommon_Insert_Action_History(p_iAuto_ID, "Xóa", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse document"); Cancel_Document(); m_objSelectedDocument = null; m_arrDetail.Clear(); await Load_Documents_Async(); Set_Success("Đã xóa phiếu."); }
+        try { await m_objDocumentController.Delete_Document_Async(Is_Receipt, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse document"); Cancel_Document(); m_objSelectedDocument = null; m_arrDetail.Clear(); await Load_Documents_Async(); Set_Success("Đã xóa phiếu."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
     private async Task Post_Document_Async(CWarehouseDocument p_objData)
     {
-        try { if (p_objData.Is_Posted || !r_objChuc_Nang.Is_Have_Edit_Permission) return; await m_objDocumentController.Post_Document_Async(Is_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); p_objData.Is_Posted = true; CCommon_Controller.FCommon_Insert_Action_History(p_objData.Auto_ID, "Post", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse document " + p_objData.So_Phieu); m_grdDocument.Rebind(); await Select_Document_Async(p_objData); Set_Success("Đã Post phiếu; tồn kho đã được cập nhật."); }
+        try { if (p_objData.Is_Posted || !r_objChuc_Nang.Is_Have_Edit_Permission) return; await m_objDocumentController.Post_Document_Async(Is_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); p_objData.Is_Posted = true; Try_Record_Action_History(p_objData.Auto_ID, "Post", "Warehouse document " + p_objData.So_Phieu); m_grdDocument.Rebind(); await Select_Document_Async(p_objData); Set_Success("Đã Post phiếu; tồn kho đã được cập nhật."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -299,13 +304,13 @@
 
     private async Task Save_Detail_Async(CWarehouseDocumentDetail p_objData)
     {
-        try { if (m_objSelectedDocument == null || p_objData.Auto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || p_objData.Auto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; p_objData.Document_ID = m_objSelectedDocument.Auto_ID; var v_iAuto_ID = p_objData.Auto_ID; await m_objDocumentController.Save_Document_Detail_Async(Is_Receipt, p_objData, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); CCommon_Controller.FCommon_Insert_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse detail"); await Select_Document_Async(m_objSelectedDocument); Set_Success("Đã lưu chi tiết."); }
+        try { if (m_objSelectedDocument == null || p_objData.Auto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || p_objData.Auto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; p_objData.Document_ID = m_objSelectedDocument.Auto_ID; var v_iAuto_ID = p_objData.Auto_ID; await m_objDocumentController.Save_Document_Detail_Async(Is_Receipt, p_objData, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); Try_Record_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Warehouse detail"); await Select_Document_Async(m_objSelectedDocument); Set_Success("Đã lưu chi tiết."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
     private async Task Delete_Detail_Async(long p_iAuto_ID)
     {
-        try { if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Delete_Permission) return; await m_objDocumentController.Delete_Document_Detail_Async(Is_Receipt, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); CCommon_Controller.FCommon_Insert_Action_History(p_iAuto_ID, "Xóa", "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Warehouse detail"); await Select_Document_Async(m_objSelectedDocument); Set_Success("Đã xóa chi tiết."); }
+        try { if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Delete_Permission) return; await m_objDocumentController.Delete_Document_Detail_Async(Is_Receipt, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name); Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse detail"); await Select_Document_Async(m_objSelectedDocument); Set_Success("Đã xóa chi tiết."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -352,13 +357,38 @@
             var v_objResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report);
             m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
         }
-        catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseInventoryReport>(); args.Total = 0; }
+        catch (Exception ex)
+        {
+            if (CWarehouseReportReadiness.IsRetryable(ex))
+                Set_Report_Not_Ready();
+            else
+                Set_Error(ex);
+
+            args.Data = new List<CWarehouseInventoryReport>(); args.Total = 0;
+        }
     }
 
     private Task Print_Async() => r_objChuc_Nang.Is_Have_Export_Permission ? g_jsRuntime.InvokeVoidAsync("print").AsTask() : Task.CompletedTask;
-    private void Clear_Message() { r_strError = ""; m_strSuccess = ""; }
+    private void Try_Record_Action_History(long p_iRef_ID, string p_strAction, string p_strContent)
+    {
+        CWarehouseActionHistory_Recorder.TryRecord(
+            () => CCommon_Controller.FCommon_Insert_Action_History(
+                p_iRef_ID, p_strAction, "Web", r_strActive_User_Name, r_strActive_Function_Code,
+                r_objChuc_Nang.Ten_Chuc_Nang, p_strContent),
+            p_objException =>
+            {
+                CLogger.Warning(
+                    nameof(FWarehouse_1_Warehouse_List),
+                    nameof(Try_Record_Action_History),
+                    $"Ref_ID={p_iRef_ID}; Action={p_strAction}; {p_objException}");
+                m_strAuditWarning = "Nghiệp vụ đã thành công nhưng chưa ghi được lịch sử thao tác.";
+            });
+    }
+
+    private void Clear_Message() { r_strError = ""; m_strSuccess = ""; m_strAuditWarning = ""; }
     private void Set_Success(string p_strText) { r_strError = ""; m_strSuccess = p_strText; }
-    private void Set_Error(Exception p_objException) { m_strSuccess = ""; r_strError = CCommonFunction.Set_Error_MessageBox(p_objException.Message); }
+    private void Set_Error(Exception p_objException) { m_strSuccess = ""; m_strAuditWarning = ""; r_strError = CCommonFunction.Set_Error_MessageBox(p_objException.Message); }
+    private void Set_Report_Not_Ready() { m_strSuccess = ""; m_strAuditWarning = ""; r_strError = CCommonFunction.Set_Error_MessageBox(CWarehouseReportReadiness.RetryMessage); }
     private static CWarehouseMaster Clone_Master(CWarehouseMaster p_objData) => new() { Auto_ID = p_objData.Auto_ID, Code = p_objData.Code, Name = p_objData.Name, Related_ID = p_objData.Related_ID, Related_ID_2 = p_objData.Related_ID_2, Login_Name = p_objData.Login_Name, Ghi_Chu = p_objData.Ghi_Chu };
     private static CWarehouseDocument Clone_Document(CWarehouseDocument p_objData) => new() { Auto_ID = p_objData.Auto_ID, Is_Receipt = p_objData.Is_Receipt, So_Phieu = p_objData.So_Phieu, Kho_ID = p_objData.Kho_ID, NCC_ID = p_objData.NCC_ID, Ten_Kho = p_objData.Ten_Kho, Ten_NCC = p_objData.Ten_NCC, Ngay_Chung_Tu = p_objData.Ngay_Chung_Tu, Is_Posted = p_objData.Is_Posted, Posted_At = p_objData.Posted_At, Ghi_Chu = p_objData.Ghi_Chu };
     private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData) => new() { Auto_ID = p_objData.Auto_ID, Document_ID = p_objData.Document_ID, San_Pham_ID = p_objData.San_Pham_ID, So_Luong = p_objData.So_Luong, Don_Gia = p_objData.Don_Gia, Ma_San_Pham = p_objData.Ma_San_Pham, Ten_San_Pham = p_objData.Ten_San_Pham };

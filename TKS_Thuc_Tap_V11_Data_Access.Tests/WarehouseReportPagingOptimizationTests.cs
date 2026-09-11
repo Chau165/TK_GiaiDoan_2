@@ -6,7 +6,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseReportPagingOptimizationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     [Fact]
     public async Task Effective_report_procedures_use_narrow_paging_scopes_and_reuse_authorization()
@@ -18,10 +18,10 @@ public sealed class WarehouseReportPagingOptimizationTests
         var receiptDefinition = await ReadDefinitionAsync(connection, "sp_BC_Chi_Tiet_Nhap_Page");
         var issueDefinition = await ReadDefinitionAsync(connection, "sp_BC_Chi_Tiet_Xuat_Page");
 
-        Assert.Contains("#ReportKeys", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("SELECT COUNT(*) AS Total_Count FROM #ReportKeys", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("AuthorizedScope", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CROSS APPLY", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("#WarehouseScopeResult_Snapshot", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("#MovementAggregate", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#ReportKeys", inventoryDefinition, StringComparison.OrdinalIgnoreCase);
 
         foreach (var definition in new[] { receiptDefinition, issueDefinition })
         {
@@ -60,6 +60,8 @@ public sealed class WarehouseReportPagingOptimizationTests
 
         try
         {
+            await ExecuteAsync(connection, transaction,
+                "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
             var tag = $"TDD-PAGING-{Guid.NewGuid():N}";
             var loginA = $"{tag}-A";
             var loginB = $"{tag}-B";
@@ -82,10 +84,10 @@ public sealed class WarehouseReportPagingOptimizationTests
                 Text("@Login", loginB, 100), BigInt("@WarehouseId", warehouseB));
 
             var receiptA = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt-a", 100), BigInt("@WarehouseId", warehouseA), BigInt("@SupplierId", supplierId));
             var receiptB = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-09-10', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt-b", 100), BigInt("@WarehouseId", warehouseB), BigInt("@SupplierId", supplierId));
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, 11, 1);",
@@ -93,6 +95,9 @@ public sealed class WarehouseReportPagingOptimizationTests
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, 22, 1);",
                 BigInt("@DocumentId", receiptB), BigInt("@ProductId", productId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Movement_Daily(Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid) VALUES ('2026-09-10', @WarehouseA, @ProductId, 11, 0, 1), ('2026-09-10', @WarehouseB, @ProductId, 22, 0, 1); INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES ('2026-09-10', @WarehouseA, @ProductId, 0, 11, 0, 11, 11, 0, 1), ('2026-09-10', @WarehouseB, @ProductId, 0, 22, 0, 22, 22, 0, 1); INSERT dbo.Inventory_Balance_Daily_Scope(Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date) VALUES (@WarehouseA, @ProductId, '2026-09-10', '2026-09-10'), (@WarehouseB, @ProductId, '2026-09-10', '2026-09-10');",
+                BigInt("@WarehouseA", warehouseA), BigInt("@WarehouseB", warehouseB), BigInt("@ProductId", productId));
 
             var inventoryA = await ReadPagedInventoryAsync(connection, transaction, loginA);
             Assert.Equal(1, inventoryA.TotalCount);
@@ -131,6 +136,8 @@ public sealed class WarehouseReportPagingOptimizationTests
 
         try
         {
+            await ExecuteAsync(connection, transaction,
+                "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
             var tag = $"TDD-RF-{Guid.NewGuid():N}";
             var login = $"{tag}-login";
             var reportDate = DateTime.Today;
@@ -159,10 +166,10 @@ public sealed class WarehouseReportPagingOptimizationTests
                 Text("@Login", login, 100), BigInt("@WarehouseId", warehouseB));
 
             var receiptA = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt-a", 100), BigInt("@WarehouseId", warehouseA), BigInt("@SupplierId", supplierId), Date("@Date", reportDate));
             var receiptB = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt-b", 100), BigInt("@WarehouseId", warehouseB), BigInt("@SupplierId", supplierId), Date("@Date", reportDate));
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, 11, 1);",
@@ -176,6 +183,9 @@ public sealed class WarehouseReportPagingOptimizationTests
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity) VALUES (@WarehouseId, @ProductId, @Quantity, 0);",
                 BigInt("@WarehouseId", warehouseB), BigInt("@ProductId", productId), Decimal("@Quantity", 22));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Movement_Daily(Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid) VALUES (@Date, @WarehouseA, @ProductId, 11, 0, 1), (@Date, @WarehouseB, @ProductId, 22, 0, 1); INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseA, @ProductId, 0, 11, 0, 11, 11, 0, 1), (@Date, @WarehouseB, @ProductId, 0, 22, 0, 22, 22, 0, 1); INSERT dbo.Inventory_Balance_Daily_Scope(Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date) VALUES (@WarehouseA, @ProductId, @Date, @Date), (@WarehouseB, @ProductId, @Date, @Date);",
+                Date("@Date", reportDate), BigInt("@WarehouseA", warehouseA), BigInt("@WarehouseB", warehouseB), BigInt("@ProductId", productId));
 
             var inventory = await ReadPagedInventoryAsync(connection, transaction, login, warehouseA, reportDate, reportDate);
             Assert.Equal(1, inventory.TotalCount);

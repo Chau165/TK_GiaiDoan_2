@@ -7,7 +7,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 [Collection("Warehouse inventory database")]
 public sealed class WarehouseOpeningBalanceIntegrationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     [Fact]
     public async Task Period_reports_use_the_last_balance_before_start_and_match_each_other()
@@ -18,6 +18,8 @@ public sealed class WarehouseOpeningBalanceIntegrationTests
 
         try
         {
+            await ExecuteAsync(connection, transaction,
+                "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
             var tag = $"TDD-OPEN-{Guid.NewGuid():N}";
             var login = $"{tag}-login";
             var productIds = await ReadProductIdsAsync(connection, transaction, 3);
@@ -203,7 +205,7 @@ public sealed class WarehouseOpeningBalanceIntegrationTests
     private static async Task InsertReceiptAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long supplierId, long productId, DateTime date, decimal quantity, string tag)
     {
         var documentId = await InsertIdAsync(connection, transaction,
-            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'');",
+            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
             Text("@Number", $"{tag}-receipt-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId), Date("@Date", date));
         await ExecuteAsync(connection, transaction,
             "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
@@ -213,7 +215,7 @@ public sealed class WarehouseOpeningBalanceIntegrationTests
     private static async Task InsertIssueAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long productId, DateTime date, decimal quantity, string tag)
     {
         var documentId = await InsertIdAsync(connection, transaction,
-            "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @Date, 1, N'');",
+            "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @Date, 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
             Text("@Number", $"{tag}-issue-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", warehouseId), Date("@Date", date));
         await ExecuteAsync(connection, transaction,
             "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@DocumentId, @ProductId, @Quantity, 1);",

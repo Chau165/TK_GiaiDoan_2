@@ -8,7 +8,7 @@ public class MemberGroupSynchronizationTests
     [Fact]
     public async Task Deleting_a_member_group_mapping_refreshes_the_member_group_summary()
     {
-        const string connectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+        var connectionString = WarehouseTestDatabase.ConnectionString;
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();

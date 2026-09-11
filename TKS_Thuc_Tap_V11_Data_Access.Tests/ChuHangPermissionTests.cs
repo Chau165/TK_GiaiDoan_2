@@ -8,7 +8,7 @@ public class ChuHangPermissionTests
     [Fact]
     public async Task Thuctap_kho_has_active_chu_hang_access_with_crud_permissions()
     {
-        const string connectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+        var connectionString = WarehouseTestDatabase.ConnectionString;
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();

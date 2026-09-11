@@ -19,10 +19,14 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     public Task Save_Document_Async(CWarehouseDocument p_objData,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
+        var v_bIsCreate = p_objData.Auto_ID == 0;
         p_objData.Last_Updated_By = p_strLast_Updated_By;
         p_objData.Last_Updated_By_Function = p_strLast_Updated_By_Function;
-        p_objData.Created_By = p_strLast_Updated_By;
-        p_objData.Created_By_Function = p_strLast_Updated_By_Function;
+        if (v_bIsCreate)
+        {
+            p_objData.Created_By = p_strLast_Updated_By;
+            p_objData.Created_By_Function = p_strLast_Updated_By_Function;
+        }
 
         if (p_objData.Is_Receipt)
         {
@@ -33,7 +37,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@NCC_ID", p_objData.NCC_ID),
                 Date("@Ngay_Nhap_Kho", p_objData.Ngay_Chung_Tu),
                 NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
-                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
+                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
+                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
+                NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
         else
         {
@@ -43,7 +51,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@Kho_ID", p_objData.Kho_ID),
                 Date("@Ngay_Xuat_Kho", p_objData.Ngay_Chung_Tu),
                 NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
-                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
+                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
+                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
+                NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
 
         return Task.CompletedTask;
@@ -61,7 +73,12 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     public Task Post_Document_Async(bool p_bIs_Receipt, long p_iAuto_ID,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
-        Execute_Procedure("sp_XNK_Document_Post", Bit("@Is_Receipt", p_bIs_Receipt), BigInt("@Document_ID", p_iAuto_ID), NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+        Execute_Procedure("sp_XNK_Document_Post",
+            Bit("@Is_Receipt", p_bIs_Receipt),
+            BigInt("@Document_ID", p_iAuto_ID),
+            NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
+            NVarChar("@Last_Updated_By", p_strLast_Updated_By, 100),
+            NVarChar("@Last_Updated_By_Function", p_strLast_Updated_By_Function, 100));
         return Task.CompletedTask;
     }
 
@@ -73,10 +90,14 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     public Task Save_Document_Detail_Async(bool p_bIs_Receipt, CWarehouseDocumentDetail p_objData,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
+        var v_bIsCreate = p_objData.Auto_ID == 0;
         p_objData.Last_Updated_By = p_strLast_Updated_By;
         p_objData.Last_Updated_By_Function = p_strLast_Updated_By_Function;
-        p_objData.Created_By = p_strLast_Updated_By;
-        p_objData.Created_By_Function = p_strLast_Updated_By_Function;
+        if (v_bIsCreate)
+        {
+            p_objData.Created_By = p_strLast_Updated_By;
+            p_objData.Created_By_Function = p_strLast_Updated_By_Function;
+        }
 
         if (p_bIs_Receipt)
         {
@@ -86,7 +107,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@San_Pham_ID", p_objData.San_Pham_ID),
                 Decimal("@SL_Nhap", p_objData.So_Luong, 18, 3),
                 Decimal("@Don_Gia_Nhap", p_objData.Don_Gia, 18, 2),
-                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
+                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
+                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
+                NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
         else
         {
@@ -96,7 +121,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 BigInt("@San_Pham_ID", p_objData.San_Pham_ID),
                 Decimal("@SL_Xuat", p_objData.So_Luong, 18, 3),
                 Decimal("@Don_Gia_Xuat", p_objData.Don_Gia, 18, 2),
-                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+                NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
+                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
+                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
+                NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
 
         return Task.CompletedTask;

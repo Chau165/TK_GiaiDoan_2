@@ -9,7 +9,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseIssueReservationIntegrationTests : IAsyncLifetime
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     private readonly string m_strTag = $"TDD-RES-{Guid.NewGuid():N}"[..20];
     private long m_iProductId;
@@ -49,9 +49,10 @@ public sealed class WarehouseIssueReservationIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await ExecuteAsync("DELETE dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
-        await ExecuteAsync("DELETE dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
+        await ExecuteAsync("EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1; DELETE dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
+        await ExecuteAsync("EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1; DELETE dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @Tag;", NVarChar("@Tag", $"{m_strTag}%", 100));
         await ExecuteAsync("DELETE dbo.InventoryBalance_Current WHERE San_Pham_ID = @ProductId;", BigInt("@ProductId", m_iProductId));
+        await ExecuteAsync("SET QUOTED_IDENTIFIER ON; DELETE d FROM dbo.InventoryMovement_RebuildDeadLetter d JOIN dbo.InventoryMovement_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.San_Pham_ID = @ProductId; DELETE d FROM dbo.InventorySnapshot_RebuildDeadLetter d JOIN dbo.InventorySnapshot_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.San_Pham_ID = @ProductId; DELETE FROM dbo.InventoryMovement_RebuildQueue WHERE San_Pham_ID = @ProductId; DELETE FROM dbo.InventorySnapshot_RebuildQueue WHERE San_Pham_ID = @ProductId;", BigInt("@ProductId", m_iProductId));
         await ExecuteAsync("DELETE dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap = @Login;", NVarChar("@Login", m_strLogin, 100));
         await ExecuteAsync("DELETE dbo.tbl_DM_San_Pham WHERE Auto_ID = @ProductId;", BigInt("@ProductId", m_iProductId));
         await ExecuteAsync("DELETE dbo.tbl_DM_NCC WHERE Auto_ID = @SupplierId;", BigInt("@SupplierId", m_iSupplierId));

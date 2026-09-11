@@ -20,10 +20,17 @@ public sealed class WarehouseDetailDisplayFormatTests
     }
 
     [Theory]
-    [InlineData(60, "60.00")]
-    [InlineData(1.5, "1.50")]
-    [InlineData(1234.567, "1234.57")]
-    public void Format_So_Luong_shows_two_decimals_with_dot_separator(decimal p_decValue, string p_strExpected)
+    [InlineData(0, "0")]
+    [InlineData(0.001, "0.001")]
+    [InlineData(0.004, "0.004")]
+    [InlineData(0.005, "0.005")]
+    [InlineData(0.01, "0.01")]
+    [InlineData(1, "1")]
+    [InlineData(1.2, "1.2")]
+    [InlineData(1.23, "1.23")]
+    [InlineData(1.234, "1.234")]
+    [InlineData(999999.999, "999999.999")]
+    public void Format_So_Luong_preserves_meaningful_decimal_precision(decimal p_decValue, string p_strExpected)
     {
         Assert.Equal(p_strExpected, CUtility.Format_So_Luong(p_decValue));
     }

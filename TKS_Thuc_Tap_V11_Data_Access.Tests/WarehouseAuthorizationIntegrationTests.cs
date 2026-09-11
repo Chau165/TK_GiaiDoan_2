@@ -9,11 +9,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     private readonly string m_strTag = $"TDD-AUTH-{Guid.NewGuid():N}"[..21];
     private string m_strLogin = "";
     private long m_iUserId;
+    private long m_iSupplierId;
     private long m_iWarehouseAId;
     private long m_iWarehouseBId;
 
@@ -24,6 +25,7 @@ public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
         m_iUserId = await InsertIdAsync(
             "DECLARE @UserId BIGINT = CONVERT(BIGINT, ABS(CHECKSUM(NEWID()))); INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, Trang_Thai_ID, deleted) OUTPUT INSERTED.Auto_ID VALUES (@UserId, @Login, @Name, 1, 0);",
             NVarChar("@Login", m_strLogin, 100), NVarChar("@Name", $"{m_strTag}-User", 200));
+        m_iSupplierId = await ScalarLongAsync("SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_NCC ORDER BY Auto_ID;");
         m_iWarehouseAId = await InsertIdAsync(
             "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
             NVarChar("@Name", $"{m_strTag}-Warehouse-A", 255));
@@ -60,6 +62,7 @@ public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
             Is_Receipt = true,
             So_Phieu = $"{m_strTag}-UNAUTHORIZED",
             Kho_ID = m_iWarehouseBId,
+            NCC_ID = m_iSupplierId,
             Ngay_Chung_Tu = new DateTime(2026, 8, 25)
         };
 

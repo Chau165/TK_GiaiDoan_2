@@ -6,7 +6,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseReportingPostedOnlyIntegrationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     [Fact]
     public async Task Reports_include_posted_documents_but_exclude_drafts()
@@ -17,6 +17,10 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
 
         try
         {
+            await ExecuteAsync(connection, transaction,
+                "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
+            await ExecuteAsync(connection, transaction,
+                "UPDATE dbo.InventoryMovement_AggregateState SET IsInitialized = 1 WHERE State_ID = 1; UPDATE dbo.InventoryBalance_Daily_AggregateState SET IsInitialized = 1 WHERE State_ID = 1;");
             var tag = $"TDD-POSTED-{Guid.NewGuid():N}";
             var login = $"{tag}-login";
 
@@ -40,10 +44,10 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
                 Text("@Login", login, 100), BigInt("@WarehouseId", warehouseId));
 
             var draftReceiptId = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-20', 0, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-20', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
             var postedReceiptId = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-20', 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-20', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@ReceiptId, @ProductId, @Quantity, 100);",
@@ -53,10 +57,10 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
                 BigInt("@ReceiptId", postedReceiptId), BigInt("@ProductId", productId), Decimal("@Quantity", 10m));
 
             var draftIssueId = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-08-21', 0, N'');",
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-21', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
             var postedIssueId = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-08-21', 1, N'');",
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-21', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@IssueId, @ProductId, @Quantity, 100);",
@@ -64,6 +68,16 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@IssueId, @ProductId, @Quantity, 100);",
                 BigInt("@IssueId", postedIssueId), BigInt("@ProductId", productId), Decimal("@Quantity", 3m));
+            await ExecuteAsync(connection, transaction,
+                """
+                INSERT dbo.Inventory_Movement_Daily(Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid)
+                VALUES ('2026-08-20', @WarehouseId, @ProductId, 10, 0, 1), ('2026-08-21', @WarehouseId, @ProductId, 0, 3, 1);
+                INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid)
+                VALUES ('2026-08-20', @WarehouseId, @ProductId, 0, 10, 0, 10, 10, 0, 1), ('2026-08-21', @WarehouseId, @ProductId, 10, 0, 3, 7, 10, 3, 1);
+                INSERT dbo.Inventory_Balance_Daily_Scope(Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date)
+                VALUES (@WarehouseId, @ProductId, '2026-08-20', '2026-08-21');
+                """,
+                BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
 
             var receiptRows = await ReadDetailReportAsync(connection, transaction, "sp_BC_Chi_Tiet_Nhap", login);
             Assert.Single(receiptRows);
@@ -124,16 +138,16 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
                 Text("@Login", login, 100), BigInt("@WarehouseId", warehouseId));
 
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 0, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-08-25', 0, N'');",
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-25', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
             await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-08-25', 1, N'');",
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-25', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
 
             var receiptRows = await ReadDocumentPageAsync(connection, transaction, true, login);

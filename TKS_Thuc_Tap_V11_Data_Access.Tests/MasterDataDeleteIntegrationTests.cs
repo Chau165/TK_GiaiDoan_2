@@ -8,7 +8,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class MasterDataDeleteIntegrationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     [Fact]
     public async Task Master_data_delete_accepts_the_four_values_passed_by_the_controller()

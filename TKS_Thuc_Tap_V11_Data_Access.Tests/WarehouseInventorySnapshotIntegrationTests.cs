@@ -7,7 +7,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 [Collection("Warehouse inventory database")]
 public sealed class WarehouseInventorySnapshotIntegrationTests
 {
-    private const string ConnectionString = "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
 
     [Fact]
     public async Task Inventory_report_uses_the_latest_daily_snapshot_and_only_later_movements()
@@ -18,6 +18,10 @@ public sealed class WarehouseInventorySnapshotIntegrationTests
 
         try
         {
+            await ExecuteAsync(connection, transaction,
+                "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
+            await ExecuteAsync(connection, transaction,
+                "UPDATE dbo.InventoryMovement_AggregateState SET IsInitialized = 1 WHERE State_ID = 1; UPDATE dbo.InventoryBalance_Daily_AggregateState SET IsInitialized = 1 WHERE State_ID = 1;");
             var tag = $"TDD-SNAPSHOT-{Guid.NewGuid():N}";
             var login = $"{tag}-login";
             var unitId = await InsertIdAsync(connection, transaction,
@@ -48,13 +52,13 @@ public sealed class WarehouseInventorySnapshotIntegrationTests
             await CreateSnapshotAsync(connection, transaction, new DateTime(2026, 1, 31));
 
             var receiptId = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, '2026-02-10', 1, N'');",
+                "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-02-10', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, 20, 1);",
                 BigInt("@DocumentId", receiptId), BigInt("@ProductId", productId));
             var issueId = await InsertIdAsync(connection, transaction,
-                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, '2026-02-20', 1, N'');",
+                "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-02-20', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
                 Text("@Number", $"{tag}-issue", 100), BigInt("@WarehouseId", warehouseId));
             await ExecuteAsync(connection, transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@DocumentId, @ProductId, 5, 1);",

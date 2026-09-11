@@ -144,10 +144,9 @@ public sealed class WarehouseUiWorkflowTests
     {
         var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
-        Assert.Contains("JOIN dbo.tbl_DM_Kho k ON k.Auto_ID=m.Kho_ID", procedures);
-        Assert.Contains("k.Ten_Kho AS Ten_Kho", procedures);
-        Assert.Contains("GROUP BY m.Kho_ID,m.San_Pham_ID,k.Ten_Kho", procedures);
-        Assert.Contains("SELECT Kho_ID,Ten_Kho,San_Pham_ID", procedures);
+        Assert.Contains("JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = s.Kho_ID", procedures);
+        Assert.Contains("k.Ten_Kho", procedures);
+        Assert.Contains("FROM AuthorizedScope s", procedures);
     }
 
     [Fact]
@@ -217,7 +216,7 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("m_iReport_Warehouse_ID", list);
         Assert.Contains("<option value=\"\">Tất cả kho</option>", list);
         Assert.Contains("Detail_Report_Page_Async(m_strReport_Type == \"Receipt\", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", list);
-        Assert.Contains("Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", list);
+        Assert.Contains("Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report)", list);
         Assert.Contains("long? p_iWarehouse_ID = null", reportController);
         Assert.Contains("List_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_strCurrent_Login, p_iWarehouse_ID)", reportController);
         Assert.Contains("Page_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size, p_strCurrent_Login, p_iWarehouse_ID)", reportController);

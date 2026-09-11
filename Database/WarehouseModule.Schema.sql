@@ -265,6 +265,8 @@ CREATE TABLE dbo.InventorySnapshot_RebuildQueue
     CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_InventorySnapshot_RebuildQueue_CreatedAt DEFAULT SYSUTCDATETIME(),
     CompletedAt DATETIME2 NULL,
     ErrorMessage NVARCHAR(4000) NULL,
+    Requested_Version INT NOT NULL CONSTRAINT DF_InventorySnapshot_RebuildQueue_RequestedVersion DEFAULT (1),
+    Claimed_Version INT NULL,
     CONSTRAINT CK_InventorySnapshot_RebuildQueue_Status CHECK (Status IN (N'WAITING', N'PROCESSING', N'COMPLETED', N'FAILED')),
     CONSTRAINT FK_InventorySnapshot_RebuildQueue_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
     CONSTRAINT FK_InventorySnapshot_RebuildQueue_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
@@ -326,8 +328,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Nhap_Kho_Post
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_tbl_XNK_Xuat_Kho_Posted_Kho_Ngay') CREATE INDEX IX_tbl_XNK_Xuat_Kho_Posted_Kho_Ngay ON dbo.tbl_XNK_Xuat_Kho(Is_Posted, Kho_ID, Ngay_Xuat_Kho);
 GO
 
-/* Daily receipt/issue materialization. The clustered business key is also the
-   covering report access path, so a redundant nonclustered copy is avoided. */
+/* Daily receipt/issue materialization. The clustered business key is ordered
+   by date for chronological scans; rebuilds also need a scope-first suffix
+   access path, which is added below after the table exists. */
 IF OBJECT_ID(N'dbo.Inventory_Movement_Daily', N'U') IS NULL
 CREATE TABLE dbo.Inventory_Movement_Daily
 (
@@ -348,6 +351,21 @@ CREATE TABLE dbo.Inventory_Movement_Daily
     CONSTRAINT FK_Inventory_Movement_Daily_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID),
     CONSTRAINT FK_Inventory_Movement_Daily_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID)
 );
+GO
+
+/* Phase 7 M01: movement and balance rebuilds filter by warehouse/product and
+   then scan a date suffix. Keep the existing chronological clustered key for
+   date-oriented consumers, and add the measured scope-first covering path. */
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.Inventory_Movement_Daily')
+      AND name = N'IX_Inventory_Movement_Daily_Scope_Date'
+)
+    CREATE INDEX IX_Inventory_Movement_Daily_Scope_Date
+    ON dbo.Inventory_Movement_Daily(Kho_ID, San_Pham_ID, Movement_Date)
+    INCLUDE (Total_Receipt, Total_Issue, IsValid);
 GO
 
 /* Historical report read model.  A row exists for every materialized movement
@@ -411,6 +429,136 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.InventoryBalance_Daily_AggregateState WHERE State_ID = 1)
     INSERT dbo.InventoryBalance_Daily_AggregateState(State_ID, IsInitialized) VALUES (1, 0);
+GO
+
+/* The report scope catalog is the optimistic boundary for scope discovery.
+   A Posted scope is recorded in the same transaction as the document Post.
+   Historical reports validate only catalog rows whose first Posted date is at
+   or before the requested cutoff; current reports validate all authorized
+   catalog rows. */
+IF OBJECT_ID(N'dbo.Inventory_Report_Scope_Catalog', N'U') IS NULL
+CREATE TABLE dbo.Inventory_Report_Scope_Catalog
+(
+    Catalog_ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Inventory_Report_Scope_Catalog PRIMARY KEY,
+    Kho_ID BIGINT NOT NULL,
+    San_Pham_ID BIGINT NOT NULL,
+    First_Posted_Date DATE NULL,
+    Last_Posted_Date DATE NULL,
+    Is_Current BIT NOT NULL CONSTRAINT DF_Inventory_Report_Scope_Catalog_Is_Current DEFAULT (0),
+    [Version] INT NOT NULL CONSTRAINT DF_Inventory_Report_Scope_Catalog_Version DEFAULT (1),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Report_Scope_Catalog_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_Inventory_Report_Scope_Catalog_Scope UNIQUE (Kho_ID, San_Pham_ID),
+    CONSTRAINT CK_Inventory_Report_Scope_Catalog_DateRange CHECK
+    (
+        First_Posted_Date IS NULL
+        OR Last_Posted_Date IS NULL
+        OR First_Posted_Date <= Last_Posted_Date
+    ),
+    CONSTRAINT FK_Inventory_Report_Scope_Catalog_Kho FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID) ON DELETE CASCADE,
+    CONSTRAINT FK_Inventory_Report_Scope_Catalog_San_Pham FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID) ON DELETE CASCADE
+);
+GO
+
+/* Existing Phase 10.1 rehearsal databases may have received the catalog
+   before the cascade clauses were added.  Make the upgrade idempotent so
+   ordinary disposable test-fixture cleanup can remove its parent scope. */
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Inventory_Report_Scope_Catalog_Kho'
+      AND delete_referential_action <> 1
+)
+BEGIN
+    ALTER TABLE dbo.Inventory_Report_Scope_Catalog DROP CONSTRAINT FK_Inventory_Report_Scope_Catalog_Kho;
+    ALTER TABLE dbo.Inventory_Report_Scope_Catalog
+        ADD CONSTRAINT FK_Inventory_Report_Scope_Catalog_Kho
+        FOREIGN KEY (Kho_ID) REFERENCES dbo.tbl_DM_Kho(Auto_ID) ON DELETE CASCADE;
+END
+GO
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Inventory_Report_Scope_Catalog_San_Pham'
+      AND delete_referential_action <> 1
+)
+BEGIN
+    ALTER TABLE dbo.Inventory_Report_Scope_Catalog DROP CONSTRAINT FK_Inventory_Report_Scope_Catalog_San_Pham;
+    ALTER TABLE dbo.Inventory_Report_Scope_Catalog
+        ADD CONSTRAINT FK_Inventory_Report_Scope_Catalog_San_Pham
+        FOREIGN KEY (San_Pham_ID) REFERENCES dbo.tbl_DM_San_Pham(Auto_ID) ON DELETE CASCADE;
+END
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.Inventory_Report_Scope_Catalog')
+      AND name = N'IX_Inventory_Report_Scope_Catalog_Cutoff'
+)
+    CREATE INDEX IX_Inventory_Report_Scope_Catalog_Cutoff
+    ON dbo.Inventory_Report_Scope_Catalog(First_Posted_Date, Catalog_ID, Kho_ID, San_Pham_ID)
+    INCLUDE (Last_Posted_Date, Is_Current, [Version]);
+GO
+
+/* Idempotent upgrade seed for databases that already contain Posted ledger,
+   Current, Daily, or Snapshot scopes before this catalog is introduced. */
+;WITH LedgerScope AS
+(
+    SELECT h.Kho_ID, d.San_Pham_ID,
+           MIN(h.Ngay_Nhap_Kho) AS First_Posted_Date,
+           MAX(h.Ngay_Nhap_Kho) AS Last_Posted_Date
+    FROM dbo.tbl_XNK_Nhap_Kho h
+    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+    WHERE h.Is_Posted = 1
+    GROUP BY h.Kho_ID, d.San_Pham_ID
+    UNION ALL
+    SELECT h.Kho_ID, d.San_Pham_ID,
+           MIN(h.Ngay_Xuat_Kho),
+           MAX(h.Ngay_Xuat_Kho)
+    FROM dbo.tbl_XNK_Xuat_Kho h
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+    WHERE h.Is_Posted = 1
+    GROUP BY h.Kho_ID, d.San_Pham_ID
+),
+LedgerScopeCollapsed AS
+(
+    SELECT Kho_ID, San_Pham_ID, MIN(First_Posted_Date) AS First_Posted_Date, MAX(Last_Posted_Date) AS Last_Posted_Date
+    FROM LedgerScope
+    GROUP BY Kho_ID, San_Pham_ID
+),
+ExistingScope AS
+(
+    SELECT Kho_ID, San_Pham_ID FROM LedgerScopeCollapsed
+    UNION
+    SELECT Kho_ID, San_Pham_ID FROM dbo.InventoryBalance_Current
+    UNION
+    SELECT Kho_ID, San_Pham_ID FROM dbo.Inventory_Balance_Daily_Scope
+    UNION
+    SELECT Kho_ID, San_Pham_ID FROM dbo.InventoryBalance_Snapshot_Daily
+)
+INSERT dbo.Inventory_Report_Scope_Catalog
+    (Kho_ID, San_Pham_ID, First_Posted_Date, Last_Posted_Date, Is_Current)
+SELECT s.Kho_ID,
+       s.San_Pham_ID,
+       l.First_Posted_Date,
+       l.Last_Posted_Date,
+       CASE WHEN c.Kho_ID IS NULL THEN 0 ELSE 1 END
+FROM ExistingScope s
+LEFT JOIN LedgerScopeCollapsed l
+  ON l.Kho_ID = s.Kho_ID AND l.San_Pham_ID = s.San_Pham_ID
+LEFT JOIN dbo.InventoryBalance_Current c
+  ON c.Kho_ID = s.Kho_ID AND c.San_Pham_ID = s.San_Pham_ID
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.Inventory_Report_Scope_Catalog existing
+    WHERE existing.Kho_ID = s.Kho_ID
+      AND existing.San_Pham_ID = s.San_Pham_ID
+);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Inventory_Balance_Daily') AND name = N'IX_Inventory_Balance_Daily_Scope')
@@ -634,6 +782,24 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_InventoryReservation_
     CREATE INDEX IX_InventoryReservation_Current_Kho_Product ON dbo.InventoryReservation_Current(Kho_ID, San_Pham_ID) INCLUDE (ReservedQuantity);
 GO
 
+/* A singleton generation is the optimistic read boundary for the current
+   stock report.  Every mutation of InventoryBalance_Current advances it in
+   the transaction that made the projection mutation visible. */
+IF OBJECT_ID(N'dbo.Inventory_Current_Report_State', N'U') IS NULL
+CREATE TABLE dbo.Inventory_Current_Report_State
+(
+    State_ID TINYINT NOT NULL CONSTRAINT PK_Inventory_Current_Report_State PRIMARY KEY,
+    Generation BIGINT NOT NULL CONSTRAINT DF_Inventory_Current_Report_State_Generation DEFAULT (1),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Inventory_Current_Report_State_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT CK_Inventory_Current_Report_State_Singleton CHECK (State_ID = 1),
+    CONSTRAINT CK_Inventory_Current_Report_State_Generation_Positive CHECK (Generation > 0)
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Inventory_Current_Report_State WHERE State_ID = 1)
+    INSERT dbo.Inventory_Current_Report_State(State_ID, Generation) VALUES (1, 1);
+GO
+
 /* Inventory Snapshot production hardening is intentionally additive.  The
    legacy Status column remains intact for existing consumers; LifecycleStatus
    is the durable worker state introduced by this migration. */
@@ -660,6 +826,29 @@ IF COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'ClaimedAt') IS NULL
     ALTER TABLE dbo.InventorySnapshot_RebuildQueue ADD ClaimedAt DATETIME2 NULL;
 IF COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'LastError') IS NULL
     ALTER TABLE dbo.InventorySnapshot_RebuildQueue ADD LastError NVARCHAR(4000) NULL;
+IF COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'Requested_Version') IS NULL
+    ALTER TABLE dbo.InventorySnapshot_RebuildQueue ADD Requested_Version INT NOT NULL
+        CONSTRAINT DF_InventorySnapshot_RebuildQueue_RequestedVersion DEFAULT (1) WITH VALUES;
+IF COL_LENGTH(N'dbo.InventorySnapshot_RebuildQueue', N'Claimed_Version') IS NULL
+    ALTER TABLE dbo.InventorySnapshot_RebuildQueue ADD Claimed_Version INT NULL;
+GO
+
+/* Version migration semantics: legacy rows represent one requested build;
+   only a row that is still PROCESSING may retain a claim token. */
+UPDATE dbo.InventorySnapshot_RebuildQueue
+SET Requested_Version = CASE WHEN Requested_Version < 1 THEN 1 ELSE Requested_Version END,
+    Claimed_Version = CASE WHEN LifecycleStatus = N'PROCESSING' THEN COALESCE(Claimed_Version, Requested_Version) ELSE NULL END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.check_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.InventorySnapshot_RebuildQueue')
+      AND name = N'CK_InventorySnapshot_RebuildQueue_Version'
+)
+    ALTER TABLE dbo.InventorySnapshot_RebuildQueue ADD CONSTRAINT CK_InventorySnapshot_RebuildQueue_Version
+        CHECK (Requested_Version >= 1 AND (Claimed_Version IS NULL OR Claimed_Version >= 1));
 GO
 
 IF NOT EXISTS

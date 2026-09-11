@@ -135,6 +135,219 @@ public sealed class WarehouseInventorySnapshotHardeningIntegrationTests
     }
 
     [Fact]
+    public async Task Finalize_blocks_relevant_movement_failed_final_before_publish()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var scope = await CreateScopeAsync(connection, transaction);
+            var snapshotDate = new DateTime(2099, 4, 10);
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 0, 100, 0, 100, 100, 0, 1);",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventoryMovement_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, To_Date, Status, Retry_Count, ErrorMessage, LastError) VALUES (@WarehouseId, @ProductId, @Date, @Date, N'FAILED_FINAL', 3, N'failed movement rebuild', N'failed movement rebuild');",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            var error = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Finalize_Daily",
+                Date("@Snapshot_Date", snapshotDate), BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId)));
+
+            Assert.Equal(51320, error.Number);
+            Assert.Equal(0, await IntScalarAsync(connection, transaction,
+                "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId)));
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Finalize_blocks_relevant_snapshot_failed_final_before_publish()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var scope = await CreateScopeAsync(connection, transaction);
+            var snapshotDate = new DateTime(2099, 5, 10);
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 0, 100, 0, 100, 100, 0, 1);",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventorySnapshot_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, Status, RequestType, LifecycleStatus, AttemptCount, LastError) VALUES (@WarehouseId, @ProductId, @Date, N'FAILED', N'REBUILD', N'FAILED_FINAL', 5, N'failed snapshot rebuild');",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            var error = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Finalize_Daily",
+                Date("@Snapshot_Date", snapshotDate), BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId)));
+
+            Assert.Equal(51321, error.Number);
+            Assert.Equal(0, await IntScalarAsync(connection, transaction,
+                "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId)));
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData("WAITING")]
+    [InlineData("PROCESSING")]
+    [InlineData("RETRY_WAITING")]
+    public async Task Finalize_still_blocks_active_movement_rebuild_states(string status)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var scope = await CreateScopeAsync(connection, transaction);
+            var snapshotDate = new DateTime(2099, 6, 10);
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventoryMovement_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, To_Date, Status, Retry_Count, ErrorMessage, LastError) VALUES (@WarehouseId, @ProductId, @Date, @Date, @Status, 0, N'active movement rebuild', N'active movement rebuild');",
+                Date("@Date", snapshotDate), Text("@Status", status, 20), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            var error = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Finalize_Daily",
+                Date("@Snapshot_Date", snapshotDate), BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId)));
+
+            Assert.Equal(51320, error.Number);
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData("WAITING")]
+    [InlineData("PROCESSING")]
+    [InlineData("RETRY_WAITING")]
+    public async Task Finalize_keeps_snapshot_invalid_while_snapshot_rebuild_is_active(string lifecycleStatus)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var scope = await CreateScopeAsync(connection, transaction);
+            var snapshotDate = new DateTime(2099, 7, 10);
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 0, 100, 0, 100, 100, 0, 1);",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventorySnapshot_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, Status, RequestType, LifecycleStatus, AttemptCount, LastError) VALUES (@WarehouseId, @ProductId, @Date, @Status, N'REBUILD', @LifecycleStatus, 0, N'active snapshot rebuild');",
+                Date("@Date", snapshotDate), Text("@Status", lifecycleStatus == "PROCESSING" ? "PROCESSING" : "WAITING", 20), Text("@LifecycleStatus", lifecycleStatus, 24), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            await ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Finalize_Daily",
+                Date("@Snapshot_Date", snapshotDate), BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId));
+
+            Assert.Equal(0, await IntScalarAsync(connection, transaction,
+                "SELECT IsValid FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId)));
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Finalize_allows_checkpoint_after_failed_final_recovery()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var scope = await CreateScopeAsync(connection, transaction);
+            var snapshotDate = new DateTime(2099, 8, 10);
+            await CreatePostedReceiptAsync(connection, transaction, scope, snapshotDate, 120m);
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 0, 120, 0, 120, 120, 0, 1);",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity, IsValid, [Version]) VALUES (@Date, @WarehouseId, @ProductId, 100, 0, 1);",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+            await ExecuteAsync(connection, transaction,
+                "DELETE dl FROM dbo.InventorySnapshot_RebuildDeadLetter dl JOIN dbo.InventorySnapshot_RebuildQueue q ON q.ID = dl.Queue_ID WHERE q.Kho_ID = @WarehouseId AND q.San_Pham_ID = @ProductId; DELETE FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+            var queueId = await LongScalarAsync(connection, transaction,
+                "INSERT dbo.InventorySnapshot_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, Status, RequestType, LifecycleStatus, AttemptCount, LastError) OUTPUT INSERTED.ID VALUES (@WarehouseId, @ProductId, @Date, N'FAILED', N'REBUILD', N'FAILED_FINAL', 5, N'failed before recovery');",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            await ExecuteAsync(connection, transaction,
+                "UPDATE dbo.InventorySnapshot_RebuildQueue SET Status = N'WAITING', LifecycleStatus = N'WAITING', AttemptCount = 0, LastError = NULL, ErrorMessage = NULL, CompletedAt = NULL, NextAttemptAt = NULL WHERE ID = @QueueId;",
+                BigInt("@QueueId", queueId));
+            await ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Process_RebuildQueue",
+                Int("@Batch_Size", 1), Int("@Max_Retry_Count", 5), Int("@Processing_Lease_Seconds", 300),
+                Text("@Worker_Name", "TDD-Snapshot-Recovery", 128), BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId));
+            Assert.Equal(120m, await DecimalScalarAsync(connection, transaction,
+                "SELECT ClosingQuantity FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1;",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId)));
+            await ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Finalize_Daily",
+                Date("@Snapshot_Date", snapshotDate), BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId));
+
+            Assert.Equal(120m, await DecimalScalarAsync(connection, transaction,
+                "SELECT ClosingQuantity FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1;",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId)));
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Finalize_scoped_checkpoint_ignores_unrelated_failed_final()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var healthy = await CreateScopeAsync(connection, transaction);
+            var failed = await CreateScopeAsync(connection, transaction);
+            var snapshotDate = new DateTime(2099, 9, 10);
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 0, 77, 0, 77, 77, 0, 1);",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", healthy.WarehouseId), BigInt("@ProductId", healthy.ProductId));
+            await ExecuteAsync(connection, transaction,
+                "INSERT dbo.InventoryMovement_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, To_Date, Status, Retry_Count, ErrorMessage, LastError) VALUES (@WarehouseId, @ProductId, @Date, @Date, N'FAILED_FINAL', 3, N'unrelated failure', N'unrelated failure');",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", failed.WarehouseId), BigInt("@ProductId", failed.ProductId));
+
+            await ExecuteStoredAsync(connection, transaction,
+                "dbo.sp_Inventory_Snapshot_Finalize_Daily",
+                Date("@Snapshot_Date", snapshotDate), BigInt("@Kho_ID", healthy.WarehouseId), BigInt("@San_Pham_ID", healthy.ProductId));
+
+            Assert.Equal(77m, await DecimalScalarAsync(connection, transaction,
+                "SELECT ClosingQuantity FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1;",
+                Date("@Date", snapshotDate), BigInt("@WarehouseId", healthy.WarehouseId), BigInt("@ProductId", healthy.ProductId)));
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+        }
+    }
+
+    [Fact]
     public async Task Back_dated_post_invalidates_and_rebuilds_existing_snapshot()
     {
         await using var connection = new SqlConnection(ConnectionString);
@@ -386,7 +599,7 @@ public sealed class WarehouseInventorySnapshotHardeningIntegrationTests
     private static async Task<long> CreateDraftReceiptAsync(SqlConnection connection, SqlTransaction transaction, Scope scope, DateTime date, decimal quantity)
     {
         var documentId = await LongScalarAsync(connection, transaction,
-            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 0, N'TDD snapshot hardening');",
+            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @Date, 0, N'TDD snapshot hardening'); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
             Text("@Number", $"{scope.Tag}-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@SupplierId", scope.SupplierId), Date("@Date", date));
         await ExecuteAsync(connection, transaction,
             "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
@@ -396,22 +609,26 @@ public sealed class WarehouseInventorySnapshotHardeningIntegrationTests
 
     private static async Task CreatePostedReceiptAsync(SqlConnection connection, SqlTransaction transaction, Scope scope, DateTime date, decimal quantity)
     {
+        await ExecuteAsync(connection, transaction, "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
         var documentId = await LongScalarAsync(connection, transaction,
-            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'TDD snapshot hardening');",
+            "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N'TDD snapshot hardening'); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
             Text("@Number", $"{scope.Tag}-R-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@SupplierId", scope.SupplierId), Date("@Date", date));
         await ExecuteAsync(connection, transaction,
             "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
             BigInt("@DocumentId", documentId), BigInt("@ProductId", scope.ProductId), Decimal("@Quantity", quantity));
+        await ExecuteAsync(connection, transaction, "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = NULL;");
     }
 
     private static async Task CreatePostedIssueAsync(SqlConnection connection, SqlTransaction transaction, Scope scope, DateTime date, decimal quantity)
     {
+        await ExecuteAsync(connection, transaction, "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
         var documentId = await LongScalarAsync(connection, transaction,
-            "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Number, @WarehouseId, @Date, 1, N'TDD snapshot hardening');",
+            "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @Date, 1, N'TDD snapshot hardening'); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
             Text("@Number", $"{scope.Tag}-I-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", scope.WarehouseId), Date("@Date", date));
         await ExecuteAsync(connection, transaction,
             "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
             BigInt("@DocumentId", documentId), BigInt("@ProductId", scope.ProductId), Decimal("@Quantity", quantity));
+        await ExecuteAsync(connection, transaction, "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = NULL;");
     }
 
     private static async Task AcquireLockAsync(SqlConnection connection, SqlTransaction transaction, string resource)
