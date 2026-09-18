@@ -432,6 +432,14 @@ public sealed class WarehouseInventorySnapshotHardeningIntegrationTests
             Assert.NotNull(queue.NextAttemptAt);
             Assert.True(queue.NextAttemptAt >= DateTime.UtcNow.AddSeconds(45));
             await lockTransaction.RollbackAsync();
+            await ExecuteAsync(
+                "UPDATE dbo.InventorySnapshot_RebuildQueue SET NextAttemptAt = '2000-01-01' WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            await ProcessSnapshotQueueAsync(scope, maxRetryCount: 5, workerName: "TDD-Snapshot-Retry-Released");
+            var completed = await ReadQueueAsync(scope);
+            Assert.Equal("COMPLETED", completed.LifecycleStatus);
+            Assert.Equal(1, completed.AttemptCount);
         }
         finally
         {

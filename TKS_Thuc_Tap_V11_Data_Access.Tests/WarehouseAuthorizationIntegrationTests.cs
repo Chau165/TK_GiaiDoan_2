@@ -49,8 +49,8 @@ public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task User_sees_only_assigned_warehouse_and_cannot_save_document_in_other_warehouse()
     {
-        var v_objMasterController = new CWarehouseMaster_Controller();
-        var v_arrAllowedWarehouses = await v_objMasterController.List_Authorized_Warehouses_Async(m_strLogin);
+        var v_objPermissionController = new CWarehousePermission_Controller();
+        var v_arrAllowedWarehouses = await v_objPermissionController.List_Authorized_Warehouses_Async(m_strLogin);
 
         var v_objAllowedWarehouse = Assert.Single(v_arrAllowedWarehouses);
         Assert.Equal(m_iWarehouseAId, v_objAllowedWarehouse.Auto_ID);

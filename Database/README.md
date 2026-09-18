@@ -54,7 +54,14 @@ Deploy `Database\Jobs\WarehouseInventoryMovementRebuild.SqlAgent.sql` against
 `msdb` to process the queue every minute. Until that worker completes a queued
 scope, the report returns a retryable freshness error rather than stale stock data.
 
-Restart the Blazor application after the menu script runs so its function/permission cache reloads. The warehouse page route is `/Kho/Quan_Ly`.
+Restart the Blazor application after the menu script runs so its function/permission cache reloads. The warehouse routes are:
+
+- `/Kho/Quan_Ly` for Master Data > Kho.
+- `/Kho/Nhap_Kho` for Quản lý kho > Nhập kho.
+- `/Kho/Xuat_Kho` for Quản lý kho > Xuất kho.
+- `/Kho/Ton_Kho` for Quản lý kho > Tồn kho.
+- `/Kho/Bao_Cao` for Quản lý kho > Báo cáo.
+- `/Kho/Phan_Quyen` for Quản trị > Phân quyền kho-user.
 
 ## Authoritative final local-demo deployment order
 

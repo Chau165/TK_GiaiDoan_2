@@ -73,7 +73,7 @@ public sealed class WarehousePhase10Gate1IntegrationTests
                 Date("@Date", bridgeDate), Date("@FromDate", fromDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
 
             await ExecuteStoredAsync(connection, transaction, "dbo.sp_Inventory_Balance_Daily_Rebuild",
-                BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId), Date("@From_Date", fromDate), Bit("@Scope_Lock_Held", false));
+                BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId), Date("@From_Date", fromDate));
 
             var row = await ReadDailyAsync(connection, transaction, scope, fromDate);
             Assert.Equal(120m, row.OpeningQuantity);
@@ -110,7 +110,7 @@ public sealed class WarehousePhase10Gate1IntegrationTests
                 Date("@Date", bridgeDate), Date("@FromDate", fromDate), BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
 
             await ExecuteStoredAsync(connection, transaction, "dbo.sp_Inventory_Balance_Daily_Rebuild",
-                BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId), Date("@From_Date", fromDate), Bit("@Scope_Lock_Held", false));
+                BigInt("@Kho_ID", scope.WarehouseId), BigInt("@San_Pham_ID", scope.ProductId), Date("@From_Date", fromDate));
 
             var row = await ReadDailyAsync(connection, transaction, scope, fromDate);
             Assert.Equal(80m, row.OpeningQuantity);
@@ -127,9 +127,20 @@ public sealed class WarehousePhase10Gate1IntegrationTests
     }
 
     [Fact]
-    public async Task N05_delete_header_releases_reservation_when_save_detail_writes_after_delete_waits()
+    public async Task N05_delete_fence_wins_first_and_save_detail_fails_closed_at_group_fence()
     {
         var scope = await CreatePersistentIssueScopeAsync("TDD-N05-DELETE-WINS");
+        await using (var setupConnection = new SqlConnection(ConnectionString))
+        {
+            await setupConnection.OpenAsync();
+            await using var setupTransaction = setupConnection.BeginTransaction();
+            scope = scope with
+            {
+                DetailId = await SaveIssueDetailAsync(setupConnection, setupTransaction, scope, quantity: 1m)
+            };
+            await setupTransaction.CommitAsync();
+        }
+
         await using var saveConnection = new SqlConnection(ConnectionString);
         await using var deleteConnection = new SqlConnection(ConnectionString);
         await saveConnection.OpenAsync();
@@ -139,20 +150,16 @@ public sealed class WarehousePhase10Gate1IntegrationTests
 
         try
         {
-            await ExecuteAsync(saveConnection, saveTransaction,
-                "SELECT Auto_ID FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @IssueId;",
-                BigInt("@IssueId", scope.IssueId));
+            await AcquireIssueFenceAsync(deleteConnection, deleteTransaction, scope);
 
-            var deleteSpid = await IntScalarAsync(deleteConnection, deleteTransaction, "SELECT @@SPID;");
-            var deleteTask = ExecuteStoredAsync(deleteConnection, deleteTransaction, "dbo.sp_XNK_Xuat_Kho_Delete_Header",
+            var saveError = await Assert.ThrowsAsync<SqlException>(() => SaveIssueDetailAsync(
+                saveConnection, saveTransaction, scope, quantity: 1m, autoId: scope.DetailId));
+            Assert.Equal(51407, saveError.Number);
+            await saveTransaction.RollbackAsync();
+
+            await ExecuteStoredAsync(deleteConnection, deleteTransaction, "dbo.sp_XNK_Xuat_Kho_Delete_Header",
                 BigInt("@Auto_ID", scope.IssueId), Text("@Last_Updated_By", scope.Login, 100),
                 Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", scope.Login, 100));
-
-            Assert.True(await WaitForLockWaitAsync(deleteSpid), "Delete Header did not expose the expected parent-lock wait.");
-
-            await SaveIssueDetailAsync(saveConnection, saveTransaction, scope, quantity: 1m);
-            await saveTransaction.CommitAsync();
-            await deleteTask;
             await deleteTransaction.CommitAsync();
 
             await AssertReservationInvariantAsync(scope, headerShouldExist: false);
@@ -167,6 +174,59 @@ public sealed class WarehousePhase10Gate1IntegrationTests
             {
                 try { await deleteTransaction.RollbackAsync(); } catch { }
             }
+            await CleanupPersistentIssueScopeAsync(scope);
+        }
+    }
+
+    [Fact]
+    public async Task N05_save_fence_wins_first_and_delete_fails_closed_at_group_fence()
+    {
+        var scope = await CreatePersistentIssueScopeAsync("TDD-N05-SAVE-FIRST");
+        await using (var setupConnection = new SqlConnection(ConnectionString))
+        {
+            await setupConnection.OpenAsync();
+            await using var setupTransaction = setupConnection.BeginTransaction();
+            scope = scope with
+            {
+                DetailId = await SaveIssueDetailAsync(setupConnection, setupTransaction, scope, quantity: 1m)
+            };
+            await setupTransaction.CommitAsync();
+        }
+
+        await using var saveConnection = new SqlConnection(ConnectionString);
+        await using var deleteConnection = new SqlConnection(ConnectionString);
+        await saveConnection.OpenAsync();
+        await deleteConnection.OpenAsync();
+        await using var saveTransaction = saveConnection.BeginTransaction();
+
+        try
+        {
+            // Model the approved Root -> Group -> Scope -> Row order without
+            // holding the parent row before the canonical group fence.
+            await AcquireIssueFenceAsync(saveConnection, saveTransaction, scope);
+            await ExecuteAsync(saveConnection, saveTransaction,
+                "SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WITH (UPDLOCK, HOLDLOCK) WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
+
+            var deleteError = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(
+                deleteConnection,
+                null,
+                "dbo.sp_XNK_Xuat_Kho_Delete_Header",
+                BigInt("@Auto_ID", scope.IssueId), Text("@Last_Updated_By", scope.Login, 100),
+                Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", scope.Login, 100)));
+
+            Assert.Equal(51407, deleteError.Number);
+            await saveTransaction.RollbackAsync();
+
+            await ExecuteStoredAsync(deleteConnection, null, "dbo.sp_XNK_Xuat_Kho_Delete_Header",
+                BigInt("@Auto_ID", scope.IssueId), Text("@Last_Updated_By", scope.Login, 100),
+                Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", scope.Login, 100));
+
+            await AssertReservationInvariantAsync(scope, headerShouldExist: false);
+        }
+        finally
+        {
+            try { await saveTransaction.RollbackAsync(); } catch { }
             await CleanupPersistentIssueScopeAsync(scope);
         }
     }
@@ -234,13 +294,28 @@ public sealed class WarehousePhase10Gate1IntegrationTests
         return scope with { IssueId = issueId, DetailId = 0 };
     }
 
-    private static async Task<long> SaveIssueDetailAsync(SqlConnection connection, SqlTransaction transaction, Scope scope, decimal quantity)
+    private static async Task<long> SaveIssueDetailAsync(SqlConnection connection, SqlTransaction transaction, Scope scope, decimal quantity, long autoId = 0)
     {
         return await ExecuteStoredIdAsync(connection, transaction, "dbo.sp_XNK_Xuat_Kho_Save_Detail",
-            BigIntOutput("@Auto_ID", 0), BigInt("@Xuat_Kho_ID", scope.IssueId), BigInt("@San_Pham_ID", scope.ProductId),
+            BigIntOutput("@Auto_ID", autoId), BigInt("@Xuat_Kho_ID", scope.IssueId), BigInt("@San_Pham_ID", scope.ProductId),
             Decimal("@SL_Xuat", quantity), Decimal("@Don_Gia_Xuat", 1), Text("@Ma_Dang_Nhap", scope.Login, 100),
             Text("@Created_By", scope.Login, 100), Text("@Created_By_Function", "TDD", 100),
             Text("@Last_Updated_By", scope.Login, 100), Text("@Last_Updated_By_Function", "TDD", 100));
+    }
+
+    private static async Task AcquireIssueFenceAsync(SqlConnection connection, SqlTransaction transaction, Scope scope)
+    {
+        await ExecuteAsync(connection, transaction,
+            """
+            DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+            DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+            INSERT @GroupSet(Kho_ID) VALUES (@WarehouseId);
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@WarehouseId, @ProductId);
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set @GroupSet = @GroupSet, @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set @ScopeSet = @ScopeSet, @Mode = N'Exclusive';
+            """,
+            BigInt("@WarehouseId", scope.WarehouseId), BigInt("@ProductId", scope.ProductId));
     }
 
     private static async Task<Scope> CreateBasicScopeAsync(SqlConnection connection, SqlTransaction transaction, string prefix)

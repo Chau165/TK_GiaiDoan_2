@@ -15,11 +15,11 @@ public sealed class WarehousePermissionFilterTests
             new() { Auto_ID = 2, Name = "Kho Hà Nội" },
             new() { Auto_ID = 3, Name = "Kho Bình Dương" }
         };
-        var v_arrPermissions = new List<CWarehouseMaster>
+        var v_arrPermissions = new List<CWarehousePermission>
         {
-            new() { Auto_ID = 10, Login_Name = "thuctap_kho", Related_ID = 1 },
-            new() { Auto_ID = 11, Login_Name = "thuctap_kho", Related_ID = 2 },
-            new() { Auto_ID = 12, Login_Name = "other_user", Related_ID = 3 }
+            new() { Permission_ID = 10, Login_Name = "thuctap_kho", Warehouse_ID = 1 },
+            new() { Permission_ID = 11, Login_Name = "thuctap_kho", Warehouse_ID = 2 },
+            new() { Permission_ID = 12, Login_Name = "other_user", Warehouse_ID = 3 }
         };
 
         var v_arrAvailable = CWarehousePermissionFilter.List_Available_Warehouses(
@@ -38,10 +38,10 @@ public sealed class WarehousePermissionFilterTests
             new() { Auto_ID = 2, Name = "Kho Hà Nội" },
             new() { Auto_ID = 3, Name = "Kho Bình Dương" }
         };
-        var v_arrPermissions = new List<CWarehouseMaster>
+        var v_arrPermissions = new List<CWarehousePermission>
         {
-            new() { Auto_ID = 10, Login_Name = "thuctap_kho", Related_ID = 1 },
-            new() { Auto_ID = 11, Login_Name = "thuctap_kho", Related_ID = 2 }
+            new() { Permission_ID = 10, Login_Name = "thuctap_kho", Warehouse_ID = 1 },
+            new() { Permission_ID = 11, Login_Name = "thuctap_kho", Warehouse_ID = 2 }
         };
 
         var v_arrAvailable = CWarehousePermissionFilter.List_Available_Warehouses(

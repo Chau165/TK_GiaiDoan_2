@@ -8,7 +8,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick="Cancel_Async"></button>
             </div>
             <div class="modal-body">
-                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Master" m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnSave_Master="OnSave_Master" OnCancel="Cancel_Async" />
+                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Master" m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_objPermission="@m_objPermission" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnSave_Master="OnSave_Master" OnSave_Permission="OnSave_Permission" OnCancel="Cancel_Async" />
             </div>
         </div>
     </div>
@@ -17,12 +17,14 @@
 @code {
     [Parameter] public string m_strMaster_Type { get; set; } = "";
     [Parameter] public CWarehouseMaster m_objMaster { get; set; } = new();
+    [Parameter] public CWarehousePermission m_objPermission { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrCategory { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
-    [Parameter] public List<CWarehouseMaster> m_arrWarehouseUser { get; set; } = new();
+    [Parameter] public List<CWarehousePermission> m_arrWarehouseUser { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
     [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
+    [Parameter] public EventCallback<CWarehousePermission> OnSave_Permission { get; set; }
     private Task Cancel_Async()
     {
         return OnClose.InvokeAsync(new CEvent_Call_Back { Message_ID = (int)EModal_Result.Close_Cancel });

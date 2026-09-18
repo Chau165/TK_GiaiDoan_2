@@ -13,7 +13,7 @@ param(
 )
 
 <#
-Runs only InventoryReportPaged against a dedicated 10M-row database. The
+Runs only InventoryCurrentBalancePaged against a dedicated 10M-row database. The
 database data/log files and all generated artifacts are placed on P:. SQL
 Server's existing tempdb remains a server-level resource and is observed, not
 reconfigured, by this script.
@@ -165,9 +165,9 @@ function Get-NBomberSummary {
         throw "NBomber CSV was not produced in $NbomberDirectory"
     }
 
-    $result = Import-Csv -LiteralPath $csv.FullName | Where-Object { $_.scenario -eq 'InventoryReportPaged' } | Select-Object -First 1
+    $result = Import-Csv -LiteralPath $csv.FullName | Where-Object { $_.scenario -eq 'InventoryCurrentBalancePaged' } | Select-Object -First 1
     if ($null -eq $result) {
-        throw "NBomber result did not contain InventoryReportPaged in $($csv.FullName)"
+        throw "NBomber result did not contain InventoryCurrentBalancePaged in $($csv.FullName)"
     }
 
     return $result
@@ -232,7 +232,7 @@ SELECT 'AggregateInitialized=' + CONVERT(varchar(1), IsInitialized) FROM dbo.Inv
     $env:TKS_PERF_FROM_DATE = '2025-01-01'
     $env:TKS_PERF_TO_DATE = (Get-Date).ToString('yyyy-MM-dd')
     $env:TKS_PERF_USE_CURRENT_BALANCE = '1'
-    $env:TKS_NBOMBER_SCENARIOS = 'InventoryReportPaged'
+    $env:TKS_NBOMBER_SCENARIOS = 'InventoryCurrentBalancePaged'
 
     & dotnet build $benchmarkProject --configuration Release --no-restore -v:minimal
     if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
@@ -241,15 +241,15 @@ SELECT 'AggregateInitialized=' + CONVERT(varchar(1), IsInitialized) FROM dbo.Inv
     $env:TKS_BDN_DATABASE = '1'
     Push-Location $scriptRoot
     try {
-        & dotnet run --project $benchmarkProject --configuration Release --no-build -- --job short --filter '*InventoryReportPaged*' --artifacts $bdnDirectory
+        & dotnet run --project $benchmarkProject --configuration Release --no-build -- --job short --filter '*InventoryCurrentBalancePaged*' --artifacts $bdnDirectory
     }
     finally {
         Pop-Location
     }
-    if ($LASTEXITCODE -ne 0) { throw 'BenchmarkDotNet InventoryReportPaged run failed.' }
+    if ($LASTEXITCODE -ne 0) { throw 'BenchmarkDotNet InventoryCurrentBalancePaged run failed.' }
     $bdnCsv = Get-ChildItem -LiteralPath (Join-Path $bdnDirectory 'results') -Filter '*report.csv' -File | Select-Object -First 1
     if ($null -eq $bdnCsv -or (Select-String -LiteralPath $bdnCsv.FullName -SimpleMatch ',NA,NA' -Quiet)) {
-        throw 'BenchmarkDotNet did not produce a valid InventoryReportPaged measurement.'
+        throw 'BenchmarkDotNet did not produce a valid InventoryCurrentBalancePaged measurement.'
     }
 
     $summaryRows = @()
@@ -317,9 +317,9 @@ SELECT 'AggregateInitialized=' + CONVERT(varchar(1), IsInitialized) FROM dbo.Inv
     $bdnCsv = Get-ChildItem -LiteralPath (Join-Path $bdnDirectory 'results') -Filter '*.csv' -File | Select-Object -First 1
     $bdnMarkdown = 'BenchmarkDotNet result CSV was not produced.'
     if ($null -ne $bdnCsv) {
-        $bdn = Import-Csv -LiteralPath $bdnCsv.FullName | Where-Object { $_.Method -eq 'InventoryReportPaged' } | Select-Object -First 1
+        $bdn = Import-Csv -LiteralPath $bdnCsv.FullName | Where-Object { $_.Method -eq 'InventoryCurrentBalancePaged' } | Select-Object -First 1
         if ($null -ne $bdn) {
-            $bdnMarkdown = "| Method | Mean | Allocated |`n|---|---:|---:|`n| InventoryReportPaged | $($bdn.Mean) | $($bdn.Allocated) |"
+            $bdnMarkdown = "| Method | Mean | Allocated |`n|---|---:|---:|`n| InventoryCurrentBalancePaged | $($bdn.Mean) | $($bdn.Allocated) |"
         }
     }
     $matrixMarkdown = @(
@@ -331,14 +331,14 @@ SELECT 'AggregateInitialized=' + CONVERT(varchar(1), IsInitialized) FROM dbo.Inv
     $workerArtifacts = ($WorkerCounts | ForEach-Object { '`nbomber-workers-' + $_ + '/`' }) -join ', '
     $reportPath = Join-Path $reportRoot 'performance-report.md'
     @"
-# InventoryReportPaged isolated load matrix
+# InventoryCurrentBalancePaged isolated load matrix
 
 - Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')
 - Source revision: $sourceRevision
 - Database: $databaseName
 - Data and log directory: $databaseDirectoryPath
 - Data target: $RecordCount detail rows
-- Scope: `InventoryReportPaged` only; no other NBomber scenarios are registered.
+- Scope: `InventoryCurrentBalancePaged` only; no other NBomber scenarios are registered.
 - Read path: `sp_BC_Ton_Kho_Hien_Tai_Page` reads the materialized current balance; page size 10; PERF_USER is authorized for all benchmark warehouses.
 - NBomber duration: $DurationSeconds seconds for each worker level.
 

@@ -254,7 +254,8 @@ INSERT @ApprovedProcedures(Object_Name) VALUES
     (N'dbo.sp_BC_Xuat_Nhap_Ton'),
     (N'dbo.sp_BC_Xuat_Nhap_Ton_Page'),
     (N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page'),
-    (N'dbo.sp_DM_Kho_User_List_Allowed');
+    (N'dbo.sp_DM_Kho_User_List_Allowed'),
+    (N'dbo.sp_DM_Kho_User_Delete');
 
 DECLARE approved_procedure_cursor CURSOR LOCAL FAST_FORWARD FOR
     SELECT Object_Name FROM @ApprovedProcedures ORDER BY Object_Name;

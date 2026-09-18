@@ -1,11 +1,8 @@
 @inherits FBase
 
 <div class="card">
-    <div class="card-header d-flex gap-2 flex-wrap">
-        <button class="btn @(m_strSection == "Master" ? "btn-primary" : "btn-light")" @onclick="@(() => Select_Section_Async("Master"))">Danh mục</button>
-        <button class="btn @(m_strSection == "Receipt" ? "btn-primary" : "btn-light")" @onclick="@(() => Select_Section_Async("Receipt"))">Phiếu nhập</button>
-        <button class="btn @(m_strSection == "Issue" ? "btn-primary" : "btn-light")" @onclick="@(() => Select_Section_Async("Issue"))">Phiếu xuất</button>
-        <button class="btn @(m_strSection == "Report" ? "btn-primary" : "btn-light")" @onclick="@(() => Select_Section_Async("Report"))">Báo cáo</button>
+    <div class="card-header">
+        <h5 class="mb-0">@Section_Title</h5>
     </div>
     <div class="card-body">
         @((MarkupString)r_strError)
@@ -21,56 +18,107 @@
         @if (m_strSection == "Master")
         {
             <div class="d-flex justify-content-between align-items-end gap-3">
-                <div style="min-width: 280px;"><label class="form-label">Loại danh mục</label><select class="form-select" @bind="m_strMaster_Type" @bind:after="Load_Master_Async"><option value="DonViTinh">Đơn vị tính</option><option value="LoaiSanPham">Loại sản phẩm</option><option value="SanPham">Sản phẩm</option><option value="NCC">Nhà cung cấp</option><option value="Kho">Kho</option><option value="KhoUser">Phân quyền kho - user</option></select></div>
+                <div style="min-width: 280px;"><label class="form-label">Loại danh mục</label><select class="form-select" @bind="m_strMaster_Type" @bind:after="Load_Master_Async">
+                    @if (!m_bWarehouse_Permission_Only)
+                    {
+                        <option value="DonViTinh">Đơn vị tính</option>
+                        <option value="LoaiSanPham">Loại sản phẩm</option>
+                        <option value="SanPham">Sản phẩm</option>
+                        <option value="NCC">Nhà cung cấp</option>
+                        <option value="Kho">Kho</option>
+                    }
+                    @if (m_bWarehouse_Permission_Only)
+                    {
+                        <option value="KhoUser">Phân quyền kho - user</option>
+                    }
+                </select></div>
                 <div class="d-flex gap-2">
                     @if (r_objChuc_Nang.Is_Have_Add_Permission)
                     {
                         <button type="button" class="btn btn-primary" @onclick="New_Master">Thêm</button>
                     }
-                    @Layout_Tool_Button(m_grdMaster)
-                </div>
-            </div>
-            <h5 class="mt-3">Danh sách @((m_strMaster_Type == "KhoUser") ? "phân quyền kho - user" : "danh mục")</h5>
-            <TelerikGrid TItem="CWarehouseMaster" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Master_Async" @ref="m_grdMaster">
-                <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
-                <GridColumns>
-                    <GridColumn Width="70px">
-                        <Template>
-                            <button type="button" class="btn btn-link" title="Xem" @onclick="@(() => Open_Master_Info((context as CWarehouseMaster)))">
-                                <i class="mdi mdi-eye" style="color: purple;"></i>
-                            </button>
-                            @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
-                            {
-                                <button type="button" class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="mdi mdi-cog-outline" style="color: purple;"></i>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    @if (r_objChuc_Nang.Is_Have_Edit_Permission)
-                                    {
-                                        <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Master((context as CWarehouseMaster)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; Hiệu chỉnh</button></li>
-                                    }
-                                    @if (r_objChuc_Nang.Is_Have_Delete_Permission)
-                                    {
-                                        <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Master_Async((context as CWarehouseMaster).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; Xóa</button></li>
-                                    }
-                                </ul>
-                            }
-                        </Template>
-                    </GridColumn>
                     @if (m_strMaster_Type == "KhoUser")
                     {
-                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" ShowFilterCellButtons="false" /><GridColumn Field="Name" Title="Họ tên" Width="240px" ShowFilterCellButtons="false" /><GridColumn Field="Ghi_Chu" Title="Tên kho" ShowFilterCellButtons="false" />
-                    }
-                    else if (CCache_Grid_UI_Global.List_Data_By_Code("2010", "grdMaster").Count > 0)
-                    {
-                        <FCommon_General_Col_Grid m_strFCode="2010" m_strTen_Grid="grdMaster" />
+                        @Layout_Tool_Button(m_grdPermission)
                     }
                     else
                     {
-                        <GridColumn Field="Code" Title="Mã" Width="140px" /><GridColumn Field="Name" Title="Tên / đăng nhập" Width="240px" /><GridColumn Field="Ghi_Chu" Title="Ghi chú" /><GridColumn Field="Related_ID" Title="Liên kết" Width="100px" />
+                        @Layout_Tool_Button(m_grdMaster)
                     }
-                </GridColumns>
-            </TelerikGrid>
+                </div>
+            </div>
+            <h5 class="mt-3">Danh sách @((m_strMaster_Type == "KhoUser") ? "phân quyền kho - user" : "danh mục")</h5>
+            @if (m_strMaster_Type == "KhoUser")
+            {
+                <TelerikGrid TItem="CWarehousePermission" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Kho_User_Async" @ref="m_grdPermission">
+                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
+                    <GridColumns>
+                        <GridColumn Width="70px">
+                            <Template>
+                                <button type="button" class="btn btn-link" title="Xem" @onclick="@(() => Open_Kho_User_Info((context as CWarehousePermission)))">
+                                    <i class="mdi mdi-eye" style="color: purple;"></i>
+                                </button>
+                                @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
+                                {
+                                    <button type="button" class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="mdi mdi-cog-outline" style="color: purple;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        @if (r_objChuc_Nang.Is_Have_Edit_Permission)
+                                        {
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Kho_User((context as CWarehousePermission)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; Hiệu chỉnh</button></li>
+                                        }
+                                        @if (r_objChuc_Nang.Is_Have_Delete_Permission)
+                                        {
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Kho_User_Async((context as CWarehousePermission).Permission_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; Xóa</button></li>
+                                        }
+                                    </ul>
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" ShowFilterCellButtons="false" /><GridColumn Field="User_Name" Title="Họ tên" Width="240px" ShowFilterCellButtons="false" /><GridColumn Field="Warehouse_Name" Title="Tên kho" ShowFilterCellButtons="false" />
+                    </GridColumns>
+                </TelerikGrid>
+            }
+            else
+            {
+                <TelerikGrid TItem="CWarehouseMaster" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Master_Async" @ref="m_grdMaster">
+                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
+                    <GridColumns>
+                        <GridColumn Width="70px">
+                            <Template>
+                                <button type="button" class="btn btn-link" title="Xem" @onclick="@(() => Open_Master_Info((context as CWarehouseMaster)))">
+                                    <i class="mdi mdi-eye" style="color: purple;"></i>
+                                </button>
+                                @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
+                                {
+                                    <button type="button" class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="mdi mdi-cog-outline" style="color: purple;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        @if (r_objChuc_Nang.Is_Have_Edit_Permission)
+                                        {
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Master((context as CWarehouseMaster)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; Hiệu chỉnh</button></li>
+                                        }
+                                        @if (r_objChuc_Nang.Is_Have_Delete_Permission)
+                                        {
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Master_Async((context as CWarehouseMaster).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; Xóa</button></li>
+                                        }
+                                    </ul>
+                                }
+                            </Template>
+                        </GridColumn>
+                        @if (CCache_Grid_UI_Global.List_Data_By_Code("2010", "grdMaster").Count > 0)
+                        {
+                            <FCommon_General_Col_Grid m_strFCode="2010" m_strTen_Grid="grdMaster" />
+                        }
+                        else
+                        {
+                            <GridColumn Field="Code" Title="Mã" Width="140px" /><GridColumn Field="Name" Title="Tên / đăng nhập" Width="240px" /><GridColumn Field="Ghi_Chu" Title="Ghi chú" /><GridColumn Field="Related_ID" Title="Liên kết" Width="100px" />
+                        }
+                    </GridColumns>
+                </TelerikGrid>
+            }
         }
 
         @if (m_strSection is "Receipt" or "Issue")
@@ -152,20 +200,41 @@
 
 @if (r_bIs_Show_Info)
 {
-    <FWarehouse_2_Warehouse_Master_Info m_objData="@m_objMaster" m_strMaster_Type="@m_strMaster_Type" OnClose="@Close_Info" />
+    @if (m_strMaster_Type == "KhoUser")
+    {
+        <FWarehouse_2_Warehouse_Master_Info m_objPermission="@m_objPermission" m_strMaster_Type="@m_strMaster_Type" OnClose="@Close_Info" />
+    }
+    else
+    {
+        <FWarehouse_2_Warehouse_Master_Info m_objData="@m_objMaster" m_strMaster_Type="@m_strMaster_Type" OnClose="@Close_Info" />
+    }
 }
 
 @if (r_bIs_Show_Edit)
 {
-    <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnSave_Master="Save_Master_Async" OnClose="@Close_Edit" />
+    @if (m_strMaster_Type == "KhoUser")
+    {
+        <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objPermission="@m_objPermission" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnSave_Permission="Save_Kho_User_Async" OnClose="@Close_Edit" />
+    }
+    else
+    {
+        <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrUser="@m_arrUser" OnSave_Master="Save_Master_Async" OnClose="@Close_Edit" />
+    }
 }
 
 @code {
+    [Parameter] public string m_strSection { get; set; } = "Master";
+    [Parameter] public string m_strInitial_Report_Type { get; set; } = "Receipt";
+    [Parameter] public bool m_bWarehouse_Permission_Only { get; set; }
+
     private readonly CWarehouseMaster_Controller m_objMasterController = new();
+    private readonly CWarehousePermission_Controller m_objPermissionController = new();
     private readonly CWarehouseDocument_Controller m_objDocumentController = new();
     private readonly CWarehouseReport_Controller m_objReportController = new();
-    private string m_strSection = "Master", m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
+    private string m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
+    private bool m_bRouteParametersApplied;
     private CWarehouseMaster m_objMaster = new();
+    private CWarehousePermission m_objPermission = new();
     private CWarehouseDocument m_objDocument = new();
     private CWarehouseDocument? m_objSelectedDocument;
     private CWarehouseDocumentDetail m_objDetail = new();
@@ -173,7 +242,7 @@
     private List<CWarehouseDocument> m_arrDocument = new();
     private List<CWarehouseDocumentDetail> m_arrDetail = new();
     private List<CWarehouseLookup> m_arrUnit = new(), m_arrCategory = new(), m_arrProduct = new(), m_arrSupplier = new(), m_arrWarehouse = new(), m_arrAllWarehouse = new(), m_arrUser = new();
-    private List<CWarehouseMaster> m_arrWarehouseUser = new();
+    private List<CWarehousePermission> m_arrWarehouseUser = new();
     private List<CWarehouseDetailReport> m_arrDetailReport = new();
     private List<CWarehouseInventoryReport> m_arrInventoryReport = new();
     private DateTime m_dtmFrom = new(DateTime.Today.Year, DateTime.Today.Month, 1), m_dtmTo = DateTime.Today;
@@ -185,10 +254,36 @@
     private bool Is_Current_Inventory_Report => m_strReport_Type == "InventoryCurrent";
     private TelerikGrid<CWarehouseMaster> m_grdMaster = new();
     private TelerikGrid<CWarehouseMaster> m_objFormattedMasterGrid = new();
+    private TelerikGrid<CWarehousePermission> m_grdPermission = new();
+    private TelerikGrid<CWarehousePermission> m_objFormattedPermissionGrid = new();
     private string m_strFormattedMaster_Type = "";
     private TelerikGrid<CWarehouseDocument> m_grdDocument = new();
     private TelerikGrid<CWarehouseDetailReport> m_grdReportDetail = new();
     private TelerikGrid<CWarehouseInventoryReport> m_grdInventory = new();
+
+    private string Section_Title => m_strSection switch
+    {
+        "Master" when m_bWarehouse_Permission_Only => "Phân quyền kho - user",
+        "Master" => "Danh mục kho",
+        "Receipt" => "Nhập kho",
+        "Issue" => "Xuất kho",
+        _ when Is_Current_Inventory_Report => "Tồn kho",
+        _ => "Báo cáo kho"
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (!m_bRouteParametersApplied)
+        {
+            m_strMaster_Type = m_bWarehouse_Permission_Only ? "KhoUser" : "DonViTinh";
+            m_strReport_Type = string.IsNullOrWhiteSpace(m_strInitial_Report_Type)
+                ? "Receipt"
+                : m_strInitial_Report_Type;
+            m_bRouteParametersApplied = true;
+        }
+
+        base.OnParametersSet();
+    }
 
     protected override void Init_Data()
     {
@@ -201,13 +296,32 @@
         r_strError = "";
         m_strSuccess = "";
         m_strAuditWarning = "";
-        Format_Grid(m_grdMaster);
-        m_objFormattedMasterGrid = m_grdMaster;
+        if (m_strSection != "Master")
+            return;
+
+        if (m_strMaster_Type == "KhoUser")
+        {
+            Format_Grid(m_grdPermission);
+            m_objFormattedPermissionGrid = m_grdPermission;
+        }
+        else
+        {
+            Format_Grid(m_grdMaster);
+            m_objFormattedMasterGrid = m_grdMaster;
+        }
     }
 
     protected override Task After_Render_Async(bool firstRender)
     {
-        if (m_strSection == "Master" && (!ReferenceEquals(m_objFormattedMasterGrid, m_grdMaster) || m_strFormattedMaster_Type != m_strMaster_Type))
+        if (m_strSection == "Master" && m_strMaster_Type == "KhoUser" &&
+            (!ReferenceEquals(m_objFormattedPermissionGrid, m_grdPermission) || m_strFormattedMaster_Type != m_strMaster_Type))
+        {
+            m_objFormattedPermissionGrid = m_grdPermission;
+            m_strFormattedMaster_Type = m_strMaster_Type;
+            Format_Grid(m_grdPermission);
+        }
+        else if (m_strSection == "Master" && m_strMaster_Type != "KhoUser" &&
+            (!ReferenceEquals(m_objFormattedMasterGrid, m_grdMaster) || m_strFormattedMaster_Type != m_strMaster_Type))
         {
             m_objFormattedMasterGrid = m_grdMaster;
             m_strFormattedMaster_Type = m_strMaster_Type;
@@ -224,15 +338,6 @@
         else if (m_strSection is "Receipt" or "Issue") await Load_Documents_Async();
     }
 
-    private async Task Select_Section_Async(string p_strSection)
-    {
-        m_strSection = p_strSection;
-        Clear_Message();
-        r_bIs_Show_Info = false; r_bIs_Show_Edit = false; m_bDocumentEditing = false; m_bDetailEditing = false; m_objSelectedDocument = null; m_arrDetail.Clear();
-        if (p_strSection == "Master") await Load_Master_Async();
-        else if (p_strSection is "Receipt" or "Issue") { m_objDocument = New_Document_Model(); await Load_Documents_Async(); }
-    }
-
     private async Task Load_Lookups_Async()
     {
         m_arrUnit = await m_objMasterController.List_Lookup_Async("DonViTinh");
@@ -240,14 +345,20 @@
         m_arrProduct = await m_objMasterController.List_Lookup_Async("SanPham");
         m_arrSupplier = await m_objMasterController.List_Lookup_Async("NCC");
         m_arrAllWarehouse = await m_objMasterController.List_Lookup_Async("Kho");
-        m_arrWarehouse = await m_objMasterController.List_Authorized_Warehouses_Async(r_strActive_User_Name);
-        m_arrUser = await m_objMasterController.List_User_Lookup_Async();
-        m_arrWarehouseUser = await m_objMasterController.List_Master_Async("KhoUser");
+        m_arrWarehouse = await m_objPermissionController.List_Authorized_Warehouses_Async(r_strActive_User_Name);
+        m_arrUser = await m_objPermissionController.List_User_Lookup_Async();
+        m_arrWarehouseUser = await m_objPermissionController.List_Kho_User_Async();
     }
 
     private async Task Load_Master_Async()
     {
-        try { Clear_Message(); Cancel_Master(); m_grdMaster.Rebind(); }
+        try
+        {
+            Clear_Message();
+            Cancel_Master();
+            if (m_strMaster_Type == "KhoUser") m_grdPermission.Rebind();
+            else m_grdMaster.Rebind();
+        }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -257,14 +368,35 @@
         catch (Exception ex) { Set_Error(ex); }
     }
 
-    private void New_Master() { m_objMaster = new(); r_bIs_Show_Edit = true; Clear_Message(); }
+    private async Task Save_Kho_User_Async(CWarehousePermission p_objData)
+    {
+        try { var v_iPermission_ID = p_objData.Permission_ID; if (v_iPermission_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iPermission_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission) return; await m_objPermissionController.Save_Kho_User_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code); Try_Record_Action_History(p_objData.Permission_ID, v_iPermission_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã lưu danh mục."); }
+        catch (Exception ex) { Set_Error(ex); }
+    }
+
+    private void New_Master()
+    {
+        if (m_strMaster_Type == "KhoUser") m_objPermission = new();
+        else m_objMaster = new();
+        r_bIs_Show_Edit = true;
+        Clear_Message();
+    }
+
     private void Edit_Master(CWarehouseMaster p_objData) { r_iAuto_ID = p_objData.Auto_ID; m_objMaster = Clone_Master(p_objData); r_bIs_Show_Edit = true; Clear_Message(); }
     private void Open_Master_Info(CWarehouseMaster p_objData) { r_iAuto_ID = p_objData.Auto_ID; m_objMaster = Clone_Master(p_objData); r_bIs_Show_Info = true; Clear_Message(); }
-    private void Cancel_Master() { m_objMaster = new(); r_bIs_Show_Edit = false; }
+    private void Edit_Kho_User(CWarehousePermission p_objData) { r_iAuto_ID = p_objData.Permission_ID; m_objPermission = Clone_Permission(p_objData); r_bIs_Show_Edit = true; Clear_Message(); }
+    private void Open_Kho_User_Info(CWarehousePermission p_objData) { r_iAuto_ID = p_objData.Permission_ID; m_objPermission = Clone_Permission(p_objData); r_bIs_Show_Info = true; Clear_Message(); }
+    private void Cancel_Master() { m_objMaster = new(); m_objPermission = new(); r_bIs_Show_Edit = false; }
 
     private async Task Delete_Master_Async(long p_iAuto_ID)
     {
         try { await m_objMasterController.Delete_Master_Async(m_strMaster_Type, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code); Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã xóa danh mục."); }
+        catch (Exception ex) { Set_Error(ex); }
+    }
+
+    private async Task Delete_Kho_User_Async(long p_iPermission_ID)
+    {
+        try { await m_objPermissionController.Delete_Kho_User_Async(p_iPermission_ID, r_strActive_User_Name, r_strActive_Function_Code); Try_Record_Action_History(p_iPermission_ID, "Xóa", "Warehouse " + m_strMaster_Type); await Load_Lookups_Async(); await Load_Master_Async(); Set_Success("Đã xóa danh mục."); }
         catch (Exception ex) { Set_Error(ex); }
     }
 
@@ -330,6 +462,16 @@
         catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehouseMaster>(); args.Total = 0; }
     }
 
+    private async Task Read_Kho_User_Async(GridReadEventArgs args)
+    {
+        try
+        {
+            var v_objResult = await m_objPermissionController.List_Kho_User_Page_Async(args.Request.Page, args.Request.PageSize);
+            args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+        }
+        catch (Exception ex) { Set_Error(ex); args.Data = new List<CWarehousePermission>(); args.Total = 0; }
+    }
+
     private async Task Read_Document_Async(GridReadEventArgs args)
     {
         try
@@ -389,7 +531,8 @@
     private void Set_Success(string p_strText) { r_strError = ""; m_strSuccess = p_strText; }
     private void Set_Error(Exception p_objException) { m_strSuccess = ""; m_strAuditWarning = ""; r_strError = CCommonFunction.Set_Error_MessageBox(p_objException.Message); }
     private void Set_Report_Not_Ready() { m_strSuccess = ""; m_strAuditWarning = ""; r_strError = CCommonFunction.Set_Error_MessageBox(CWarehouseReportReadiness.RetryMessage); }
-    private static CWarehouseMaster Clone_Master(CWarehouseMaster p_objData) => new() { Auto_ID = p_objData.Auto_ID, Code = p_objData.Code, Name = p_objData.Name, Related_ID = p_objData.Related_ID, Related_ID_2 = p_objData.Related_ID_2, Login_Name = p_objData.Login_Name, Ghi_Chu = p_objData.Ghi_Chu };
+    private static CWarehouseMaster Clone_Master(CWarehouseMaster p_objData) => new() { Auto_ID = p_objData.Auto_ID, Code = p_objData.Code, Name = p_objData.Name, Related_ID = p_objData.Related_ID, Related_ID_2 = p_objData.Related_ID_2, Ghi_Chu = p_objData.Ghi_Chu };
+    private static CWarehousePermission Clone_Permission(CWarehousePermission p_objData) => new() { Permission_ID = p_objData.Permission_ID, Login_Name = p_objData.Login_Name, User_Name = p_objData.User_Name, Warehouse_ID = p_objData.Warehouse_ID, Warehouse_Name = p_objData.Warehouse_Name };
     private static CWarehouseDocument Clone_Document(CWarehouseDocument p_objData) => new() { Auto_ID = p_objData.Auto_ID, Is_Receipt = p_objData.Is_Receipt, So_Phieu = p_objData.So_Phieu, Kho_ID = p_objData.Kho_ID, NCC_ID = p_objData.NCC_ID, Ten_Kho = p_objData.Ten_Kho, Ten_NCC = p_objData.Ten_NCC, Ngay_Chung_Tu = p_objData.Ngay_Chung_Tu, Is_Posted = p_objData.Is_Posted, Posted_At = p_objData.Posted_At, Ghi_Chu = p_objData.Ghi_Chu };
     private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData) => new() { Auto_ID = p_objData.Auto_ID, Document_ID = p_objData.Document_ID, San_Pham_ID = p_objData.San_Pham_ID, So_Luong = p_objData.So_Luong, Don_Gia = p_objData.Don_Gia, Ma_San_Pham = p_objData.Ma_San_Pham, Ten_San_Pham = p_objData.Ten_San_Pham };
 }

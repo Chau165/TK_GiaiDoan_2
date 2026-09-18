@@ -34,6 +34,28 @@ public sealed class WarehouseReportPagingOptimizationTests
     }
 
     [Fact]
+    public async Task Historical_scope_fence_uses_catalog_driven_materialization_with_projection_fallbacks()
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        var definition = await ReadDefinitionAsync(connection, "sp_Inventory_Report_Acquire_Scope_Fence");
+        var materializationStart = definition.IndexOf("INSERT #ReportFenceStateCandidate", StringComparison.OrdinalIgnoreCase);
+        var scopeMaterialization = definition.IndexOf("INSERT #ReportScopeCandidate", materializationStart, StringComparison.OrdinalIgnoreCase);
+
+        Assert.True(materializationStart >= 0);
+        Assert.True(scopeMaterialization > materializationStart);
+
+        var materialization = definition[materializationStart..scopeMaterialization];
+        Assert.Contains("Inventory_Report_Scope_Catalog", materialization, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Inventory_Balance_Daily_Scope", materialization, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InventoryBalance_Snapshot_Daily", materialization, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InventoryBalance_Current", materialization, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tbl_XNK_Nhap_Kho h", materialization, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tbl_XNK_Xuat_Kho h", materialization, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Detail_report_procedures_page_from_covering_indexes_without_full_scope_materialization()
     {
         await using var connection = new SqlConnection(ConnectionString);

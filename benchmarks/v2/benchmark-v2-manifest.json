@@ -1,0 +1,159 @@
+{
+  "protocolVersion": "WAREHOUSE_BENCHMARK_V2_1",
+  "protocolSemanticVersion": "2.0.0",
+  "runnerSha256": "AED4E9594D62A959B79AC268DBE5E19A464C64414F30EE0FE18374A66E7FC4AD",
+  "sourceClosureSha256": "135B8C570A9B6D6890606959B4471E45C46A4768849EEE6282095C815C8B0940",
+  "benchmarkProjectSha256": "0A2398342C079F0757056944FDB11C896C09D265DA6E49FF28458B3064A56CAC",
+  "benchmarkDllSha256": "DCB75373489DC1CC3288142D02484327E1369EF8B6A522C80BC6108D06B3BA84",
+  "runtimeBundleManifestSha256": "2DEE48CC2D9E8ECE7B1D5A483E694DEC83F159C5F33489791BB9BCB37F413C6C",
+  "target": {
+    "server": "localhost\\MSSQLSERVER19",
+    "database": "TKS_Thuc_Tap_V11_Perf_10000000",
+    "databaseId": 5
+  },
+  "dataset": {
+    "receiptDetails": 5000000,
+    "issueDetails": 5000000,
+    "totalRawDetails": 10000000,
+    "receiptHeaders": 500000,
+    "issueHeaders": 500000,
+    "products": 10000,
+    "movementDaily": 730000,
+    "balanceDaily": 730000,
+    "balanceDailyScope": 10000,
+    "reportCatalog": 10000,
+    "currentRows": 10000
+  },
+  "scenarioCatalog": [
+    {
+      "name": "MasterPaged",
+      "operation": "CWarehouseMaster_Controller.List_Master_Page_Async",
+      "parameters": "SanPham, page=1, pageSize=10, search=''"
+    },
+    {
+      "name": "LookupPaged",
+      "operation": "CWarehouseMaster_Controller.List_Lookup_Page_Async",
+      "parameters": "SanPham, page=1, pageSize=10, search=''"
+    },
+    {
+      "name": "DocumentPaged",
+      "operation": "CWarehouseDocument_Controller.List_Documents_Page_Async",
+      "parameters": "isReceipt=true, page=1, pageSize=10, search='', login=PERF_USER"
+    },
+    {
+      "name": "DetailReportPaged",
+      "operation": "CWarehouseReport_Controller.Detail_Report_Page_Async",
+      "parameters": "isReceipt=true, 2025-01-01..2026-12-31, page=1, pageSize=10, login=PERF_USER"
+    },
+    {
+      "name": "InventoryHistoricalReportPaged",
+      "operation": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+      "parameters": "2025-01-01..2026-12-31, page=1, pageSize=10, login=PERF_USER, UseCurrentBalance=false"
+    },
+    {
+      "name": "InventoryCurrentBalancePaged",
+      "operation": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+      "parameters": "2025-01-01..2026-12-31, page=1, pageSize=10, login=PERF_USER, UseCurrentBalance=true"
+    }
+  ],
+  "parameters": {
+    "page": 1,
+    "pageSize": 10,
+    "fromDate": "2025-01-01",
+    "toDate": "2026-12-31",
+    "login": "PERF_USER",
+    "useSnapshot": false,
+    "historicalUseCurrentBalance": false,
+    "currentUseCurrentBalance": true,
+    "applicationTimeoutSeconds": 30,
+    "historicalMode": "LEGACY"
+  },
+  "bdn": {
+    "purpose": "single-operation client/database latency",
+    "launchCount": 1,
+    "warmupCount": 2,
+    "iterationCount": 5,
+    "invocationCount": 1,
+    "unrollFactor": 1,
+    "parallelJobs": false,
+    "memoryDiagnoser": false,
+    "scenarioProcessIsolation": true
+  },
+  "nbomber": {
+    "purpose": "concurrent request latency and throughput",
+    "simulation": "Simulation.KeepConstant",
+    "copiesMeaning": "one copy is one scenario worker; each worker loops one real operation",
+    "warmupSeconds": 3,
+    "durationSeconds": 15,
+    "requestPacing": "completion-driven worker loop; no hidden multiplier",
+    "scenarioProcessIsolation": true
+  },
+  "profiles": {
+    "standard": {
+      "levels": [
+        1,
+        2,
+        4
+      ],
+      "mandatory": true,
+      "blocks": 18
+    },
+    "capacity": {
+      "levels": [
+        1,
+        2,
+        4,
+        6,
+        8
+      ],
+      "mandatory": false,
+      "stopOnHardHostLimit": true
+    },
+    "mixed": {
+      "profiles": [
+        "MIX-1",
+        "MIX-2",
+        "MIX-3",
+        "MIX-4"
+      ],
+      "mandatory": false
+    },
+    "allSixLow": {
+      "mandatory": false
+    }
+  },
+  "hostSafety": {
+    "freePhysicalRamHardStopMb": 512,
+    "freePhysicalRamBlockStartMb": 1024,
+    "cooldownMinimumSeconds": 5,
+    "cooldownMaximumSeconds": 60,
+    "telemetryIntervalMilliseconds": 1000,
+    "bdnAndNbomberMayOverlap": false
+  },
+  "outputs": [
+    "v2-run-metadata.json",
+    "v2-environment.json",
+    "v2-validation.json",
+    "v2-bdn-summary.csv",
+    "v2-nbomber-summary.csv",
+    "v2-host-telemetry.csv",
+    "v2-sql-telemetry.csv",
+    "v2-capacity-summary.json",
+    "v2-consistency-before.json",
+    "v2-consistency-after.json",
+    "v2-process-peak-memory.csv",
+    "v2-result.json",
+    "Benchmark-V2-Report.md"
+  ],
+  "v1Reference": {
+    "path": "C:\\Users\\Surface\\Documents\\Codex\\2026-08-30\\ban\\outputs\\run-fixed-warehouse-regression.ps1",
+    "sha256": "1D97CE267F3D0CE03FD4D6826E66B4ABFC2C04A59554E54B9A751486BD8F8CD6",
+    "status": "DEPRECATED_FOR_CURRENT_LOW_MEMORY_HOST; HISTORICAL_REFERENCE_ONLY; READ_ONLY; DO_NOT_MODIFY",
+    "baseline": "warehouse-regression-20260830-214500",
+    "comparability": "LEGACY_DIRECTIONAL_REFERENCE; NOT_EXACTLY_COMPARABLE"
+  },
+  "integrity": {
+    "manifestGeneratedAfterBuild": true,
+    "manifestSelfHashStoredSeparately": true
+  }
+}

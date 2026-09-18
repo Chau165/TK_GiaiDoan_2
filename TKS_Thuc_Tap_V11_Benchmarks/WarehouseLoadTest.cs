@@ -19,7 +19,8 @@ public static class WarehouseLoadTest
             CreateScenario("LookupPaged", v_operations.LookupPagedAsync, v_settings),
             CreateScenario("DocumentPaged", v_operations.DocumentPagedAsync, v_settings),
             CreateScenario("DetailReportPaged", v_operations.DetailReportPagedAsync, v_settings),
-            CreateScenario("InventoryReportPaged", v_operations.InventoryReportPagedAsync, v_settings)
+            CreateScenario("InventoryHistoricalReportPaged", v_operations.InventoryHistoricalReportPagedAsync, v_settings),
+            CreateScenario("InventoryCurrentBalancePaged", v_operations.InventoryCurrentBalancePagedAsync, v_settings)
         };
         var v_selectedNames = v_settings.NBomberScenarioNames.ToHashSet(StringComparer.Ordinal);
         var v_scenarios = v_allScenarios

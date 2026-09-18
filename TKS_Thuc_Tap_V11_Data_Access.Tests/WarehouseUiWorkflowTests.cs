@@ -32,7 +32,7 @@ public sealed class WarehouseUiWorkflowTests
         var page = File.ReadAllText(FindWarehousePage());
         var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("<FWarehouse_1_Warehouse_List />", page);
+        Assert.Contains("<FWarehouse_1_Warehouse_List m_strSection=\"Master\" />", page);
         Assert.Contains("@inherits FBase", list);
         Assert.Contains("FWarehouse_2_Warehouse_Info", list);
         Assert.Contains("FWarehouse_3_Warehouse_Edit", list);
@@ -321,7 +321,7 @@ public sealed class WarehouseUiWorkflowTests
     {
         var wrapper = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Master_Edit.razor"));
 
-        Assert.Contains("[Parameter] public List<CWarehouseMaster> m_arrWarehouseUser", wrapper);
+        Assert.Contains("[Parameter] public List<CWarehousePermission> m_arrWarehouseUser", wrapper);
         Assert.Contains("m_arrWarehouseUser=\"@m_arrWarehouseUser\"", wrapper);
     }
 
@@ -330,7 +330,7 @@ public sealed class WarehouseUiWorkflowTests
     {
         var editor = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
-        Assert.Contains("ValueExpression=\"@(() => m_objMaster.Login_Name)\"", editor);
+        Assert.Contains("ValueExpression=\"@(() => m_objPermission.Login_Name)\"", editor);
     }
 
     private static string FindWarehousePage()

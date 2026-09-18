@@ -261,7 +261,7 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
     }
 
     [Fact]
-    public async Task R02_current_report_rejects_count_data_generation_change()
+    public async Task R02_current_report_holds_group_fence_against_concurrent_post()
     {
         var fixture = await CreateNewScopeReportFixtureAsync();
         await using var locker = new SqlConnection(ConnectionString);
@@ -282,14 +282,19 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
             var reportTask = ReadCurrentReportAsync(report, fixture);
             Assert.True(await WaitForLockWaitAsync(reportSpid), "Current report did not pause during page materialization.");
 
-            await ExecuteStoredAsync(post, null, "dbo.sp_XNK_Document_Post",
+            var postError = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(post, null, "dbo.sp_XNK_Document_Post",
                 Bit("@Is_Receipt", true), BigInt("@Document_ID", fixture.DraftReceiptId),
                 Text("@Ma_Dang_Nhap", fixture.Login, 100), Text("@Last_Updated_By", fixture.Login, 100),
-                Text("@Last_Updated_By_Function", "Phase10.2-P101-A02", 100));
+                Text("@Last_Updated_By_Function", "Phase10.2-P101-A02", 100)));
+            Assert.Equal(51407, postError.Number);
+            Assert.Contains("Inventory fence Group acquisition failed", postError.Message, StringComparison.Ordinal);
 
             await lockerTransaction.RollbackAsync();
-            var error = await Assert.ThrowsAsync<SqlException>(async () => await reportTask);
-            Assert.Equal(51324, error.Number);
+            _ = await reportTask;
+
+            Assert.Equal(0, await IntScalarAsync(post, null,
+                "SELECT CONVERT(INT, Is_Posted) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @ReceiptId;",
+                BigInt("@ReceiptId", fixture.DraftReceiptId)));
         }
         finally
         {

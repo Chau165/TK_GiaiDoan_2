@@ -18,27 +18,46 @@
             <div class="modal-body">
                 <div class="tab-content">
                     <div class="tab-pane active show" id="warehouse_master_info" role="tabpanel">
-                        <div class="row">
-                            <div class="col-lg-4">
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Auto_ID, true)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Mã</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Code, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Tên / đăng nhập</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Name != "" ? m_objData.Name : m_objData.Login_Name, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Loại danh mục</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_strMaster_Type, false)</span></div></div>
+                        @if (m_strMaster_Type == "KhoUser")
+                        {
+                            <div class="row">
+                                <div class="col-lg-4">
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID phân quyền</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Permission_ID, true)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Mã đăng nhập</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Login_Name, false)</span></div></div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Họ tên</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.User_Name, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID kho</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Warehouse_ID, true)</span></div></div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Tên kho</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Warehouse_Name, false)</span></div></div>
+                                </div>
                             </div>
-                            <div class="col-lg-4">
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Liên kết 1</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID, true)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Liên kết 2</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID_2, true)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ghi chú</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Ghi_Chu, false)</span></div></div>
+                        }
+                        else
+                        {
+                            <div class="row">
+                                <div class="col-lg-4">
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Auto_ID, true)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Mã</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Code, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Tên</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Name, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Loại danh mục</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_strMaster_Type, false)</span></div></div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Liên kết 1</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID, true)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Liên kết 2</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID_2, true)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ghi chú</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Ghi_Chu, false)</span></div></div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ngày giờ tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Người tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Chức năng tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By_Function, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ngày cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Người cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By, false)</span></div></div>
+                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Chức năng cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By_Function, false)</span></div></div>
+                                </div>
                             </div>
-                            <div class="col-lg-4">
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ngày giờ tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Người tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Chức năng tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By_Function, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ngày cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Người cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By, false)</span></div></div>
-                                <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Chức năng cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By_Function, false)</span></div></div>
-                            </div>
-                        </div>
+                        }
                     </div>
                     <div class="tab-pane" id="warehouse_master_history" role="tabpanel">
                         <FCommon_Record_Action_History_List v_arrData="@m_arrAction_History" />
@@ -51,11 +70,13 @@
 
 @code {
     [Parameter] public CWarehouseMaster m_objData { get; set; } = new();
+    [Parameter] public CWarehousePermission m_objPermission { get; set; } = new();
     [Parameter] public string m_strMaster_Type { get; set; } = "";
     private List<CLog_Record_Action_History> m_arrAction_History = new();
 
     protected override void Load_Data()
     {
-        m_arrAction_History = new CLog_Record_Action_History_Controller().FCommon_Sys_sp_sel_List_Log_Record_Action_History(m_objData.Auto_ID);
+        var v_iReference_ID = m_strMaster_Type == "KhoUser" ? m_objPermission.Permission_ID : m_objData.Auto_ID;
+        m_arrAction_History = new CLog_Record_Action_History_Controller().FCommon_Sys_sp_sel_List_Log_Record_Action_History(v_iReference_ID);
     }
 }

@@ -12,7 +12,11 @@ public static class Program
         var v_settings = BenchmarkSettings.FromEnvironment();
         if (v_settings.RunDatabaseBenchmarks)
         {
-            BenchmarkSwitcher.FromTypes(new[] { typeof(WarehouseDatabaseBenchmarks) }).Run(p_args);
+            BenchmarkSwitcher.FromTypes(new[]
+            {
+                typeof(WarehouseDatabaseBenchmarks),
+                typeof(WarehouseCurrentBalanceBenchmarks)
+            }).Run(p_args);
         }
         else
         {

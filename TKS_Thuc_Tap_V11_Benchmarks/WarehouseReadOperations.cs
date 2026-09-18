@@ -35,7 +35,24 @@ public sealed class WarehouseReadOperations
             .Detail_Report_Page_Async(true, m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
     }
 
-    public async Task<int> InventoryReportPagedAsync()
+    public Task<int> InventoryHistoricalReportPagedAsync()
+    {
+        return InventoryReportPagedAsync(p_bRead_Current_Balance: false);
+    }
+
+    public Task<int> InventoryCurrentBalancePagedAsync()
+    {
+        return InventoryReportPagedAsync(p_bRead_Current_Balance: true);
+    }
+
+    // Backward-compatible alias. The former name represented the historical
+    // report; current balance has a distinct operation and scenario.
+    public Task<int> InventoryReportPagedAsync()
+    {
+        return InventoryHistoricalReportPagedAsync();
+    }
+
+    private async Task<int> InventoryReportPagedAsync(bool p_bRead_Current_Balance)
     {
         return (await new CWarehouseReport_Controller()
             .Inventory_Report_Page_Async(
@@ -44,6 +61,6 @@ public sealed class WarehouseReadOperations
                 1,
                 m_settings.PageSize,
                 m_settings.LoginName,
-                p_bRead_Current_Balance: m_settings.UseCurrentInventoryBalance)).Items.Count;
+                p_bRead_Current_Balance: p_bRead_Current_Balance)).Items.Count;
     }
 }

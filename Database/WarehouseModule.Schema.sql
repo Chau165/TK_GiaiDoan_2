@@ -2,6 +2,38 @@
 SET NOCOUNT ON;
 SET QUOTED_IDENTIFIER ON;
 
+/* PERF-06A FOUNDATION TYPES START */
+
+/* ========================================================================
+   PERF-06A Inventory Fence Contract foundation
+
+   These table types are the only collection inputs accepted by the fence
+   acquisition procedures. Duplicates are intentionally allowed at the input
+   boundary and are removed by the ordered acquisition procedures. No
+   business procedure consumes them in PERF-06A.
+   ======================================================================== */
+
+IF TYPE_ID(N'dbo.InventoryFenceGroupSetType') IS NULL
+BEGIN
+    EXEC(N'CREATE TYPE dbo.InventoryFenceGroupSetType AS TABLE
+    (
+        Kho_ID BIGINT NOT NULL
+    );');
+END;
+GO
+
+IF TYPE_ID(N'dbo.InventoryFenceScopeSetType') IS NULL
+BEGIN
+    EXEC(N'CREATE TYPE dbo.InventoryFenceScopeSetType AS TABLE
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL
+    );');
+END;
+GO
+
+/* PERF-06A FOUNDATION TYPES END */
+
 IF OBJECT_ID(N'dbo.tbl_DM_Don_Vi_Tinh', N'U') IS NULL
 CREATE TABLE dbo.tbl_DM_Don_Vi_Tinh
 (
@@ -798,6 +830,31 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Inventory_Current_Report_State WHERE State_ID = 1)
     INSERT dbo.Inventory_Current_Report_State(State_ID, Generation) VALUES (1, 1);
+GO
+
+/* PERF-06D reversible reader gate.  The application role may consume the
+   selected mode through the report procedure but cannot change the gate.
+   LEGACY is the safe default; GROUP is enabled deliberately on a rehearsal
+   database before the approved performance-validation phase. */
+IF OBJECT_ID(N'dbo.Inventory_Report_Fence_Config', N'U') IS NULL
+CREATE TABLE dbo.Inventory_Report_Fence_Config
+(
+    Config_ID TINYINT NOT NULL CONSTRAINT PK_Inventory_Report_Fence_Config PRIMARY KEY,
+    Historical_Report_Mode NVARCHAR(8) NOT NULL
+        CONSTRAINT DF_Inventory_Report_Fence_Config_HistoricalMode DEFAULT (N'LEGACY'),
+    UpdatedAt DATETIME2 NOT NULL
+        CONSTRAINT DF_Inventory_Report_Fence_Config_UpdatedAt DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT CK_Inventory_Report_Fence_Config_Singleton CHECK (Config_ID = 1),
+    CONSTRAINT CK_Inventory_Report_Fence_Config_Mode CHECK
+    (
+        Historical_Report_Mode COLLATE Latin1_General_100_BIN2 IN (N'LEGACY', N'GROUP')
+    )
+);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Inventory_Report_Fence_Config WHERE Config_ID = 1)
+    INSERT dbo.Inventory_Report_Fence_Config(Config_ID, Historical_Report_Mode)
+    VALUES (1, N'LEGACY');
 GO
 
 /* Inventory Snapshot production hardening is intentionally additive.  The

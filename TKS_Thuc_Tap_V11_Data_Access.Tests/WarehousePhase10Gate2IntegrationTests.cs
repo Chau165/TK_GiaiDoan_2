@@ -32,7 +32,8 @@ public sealed class WarehousePhase10Gate2IntegrationTests
                 BigInt("@San_Pham_ID", fixture.ProductId),
                 Text("@Worker_Name", fixture.Tag, 128)));
 
-            Assert.Equal(51322, error.Number);
+            Assert.Equal(51407, error.Number);
+            Assert.Contains("Inventory fence Group acquisition failed", error.Message, StringComparison.Ordinal);
 
             await ExecuteStoredAsync(
                 postConnection,
@@ -143,8 +144,17 @@ public sealed class WarehousePhase10Gate2IntegrationTests
     private static async Task AcquireScopeLockAsync(SqlConnection connection, SqlTransaction transaction, Fixture fixture)
     {
         await ExecuteAsync(connection, transaction,
-            "DECLARE @result INT; EXEC @result = sys.sp_getapplock @Resource = @Resource, @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 0; IF @result < 0 THROW 51322, N'TDD could not acquire scope fence.', 1;",
-            Text("@Resource", $"InventoryMovement:{fixture.WarehouseId}:{fixture.ProductId}", 255));
+            """
+            DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+            DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+            INSERT @GroupSet(Kho_ID) VALUES (@WarehouseId);
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@WarehouseId, @ProductId);
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set @GroupSet = @GroupSet, @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set @ScopeSet = @ScopeSet, @Mode = N'Exclusive';
+            """,
+            BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
     }
 
     private static async Task<SnapshotRow> ReadSnapshotAsync(Fixture fixture)

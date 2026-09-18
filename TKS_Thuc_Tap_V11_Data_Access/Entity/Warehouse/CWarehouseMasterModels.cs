@@ -12,8 +12,6 @@ public class CWarehouseMaster
     public long Related_ID { get; set; }
     public long Related_ID_2 { get; set; }
     [StringLength(100)]
-    public string Login_Name { get; set; } = "";
-    [StringLength(100)]
     public string Created_By { get; set; } = "";
     [StringLength(100)]
     public string Created_By_Function { get; set; } = "";

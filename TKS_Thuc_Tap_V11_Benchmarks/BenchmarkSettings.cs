@@ -14,7 +14,7 @@ public sealed record BenchmarkSettings
     public string LoginName { get; init; } = "PERF_USER";
     public string ConnectionString { get; init; } = "";
     public string ReportDirectory { get; init; } = "docs/testing/performance/tool-benchmarks";
-    public IReadOnlyList<string> NBomberScenarioNames { get; init; } = WarehouseScenarioCatalog.Names;
+    public IReadOnlyList<string> NBomberScenarioNames { get; init; } = WarehouseScenarioCatalog.DefaultNames;
     public bool RunDatabaseBenchmarks { get; init; }
     public bool UseCurrentInventoryBalance { get; init; }
 
@@ -98,10 +98,11 @@ public sealed record BenchmarkSettings
     {
         var v_rawNames = ReadString(p_environment, "TKS_NBOMBER_SCENARIOS");
         if (string.IsNullOrWhiteSpace(v_rawNames))
-            return WarehouseScenarioCatalog.Names;
+            return WarehouseScenarioCatalog.DefaultNames;
 
         var v_names = v_rawNames
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(WarehouseScenarioCatalog.Canonicalize)
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         var v_unknownNames = v_names
@@ -124,6 +125,25 @@ public static class WarehouseScenarioCatalog
         "LookupPaged",
         "DocumentPaged",
         "DetailReportPaged",
-        "InventoryReportPaged"
+        "InventoryHistoricalReportPaged",
+        "InventoryCurrentBalancePaged"
     };
+
+    public static IReadOnlyList<string> DefaultNames { get; } = new[]
+    {
+        "MasterPaged",
+        "LookupPaged",
+        "DocumentPaged",
+        "DetailReportPaged",
+        "InventoryHistoricalReportPaged"
+    };
+
+    public static string Canonicalize(string p_name)
+    {
+        return p_name switch
+        {
+            "InventoryReportPaged" => "InventoryHistoricalReportPaged",
+            _ => p_name
+        };
+    }
 }

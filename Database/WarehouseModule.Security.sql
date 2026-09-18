@@ -18,6 +18,7 @@ DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.tbl_XNK_Xuat_Kho_Raw_Data TO [Warehou
 DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.InventoryBalance_Current TO [Warehouse_Application];
 DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.InventoryReservation_Current TO [Warehouse_Application];
 DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.Inventory_Current_Report_State TO [Warehouse_Application];
+DENY INSERT, UPDATE, DELETE ON OBJECT::dbo.Inventory_Report_Fence_Config TO [Warehouse_Application];
 GO
 
 /* Approved Warehouse entry points.  Stored procedures and their dbo-owned
@@ -42,4 +43,5 @@ GRANT EXECUTE ON OBJECT::dbo.sp_BC_Xuat_Nhap_Ton TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_BC_Xuat_Nhap_Ton_Page TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_BC_Ton_Kho_Hien_Tai_Page TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_DM_Kho_User_List_Allowed TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.sp_DM_Kho_User_Delete TO [Warehouse_Application];
 GO

@@ -1,0 +1,215 @@
+{
+  "manifestVersion": 1,
+  "protocol": "fixed-warehouse-regression-v7-dependency-closure",
+  "database": {
+    "name": "TKS_Thuc_Tap_V11_Perf_10000000",
+    "directory": "P:\\TKS_Thuc_Tap_V11_PerfData"
+  },
+  "source": {
+    "schemaPath": "Database\\WarehouseModule.Schema.sql",
+    "schemaSha256": "7576666BE99F921885844F51767691244BD8B839413DB5D2397036CFE3A9904C",
+    "proceduresPath": "Database\\WarehouseModule.Procedures.sql",
+    "proceduresSha256": "88A245B85B09D1087FDB201F7E43BB963005707791BFCBF84FD26B7654085894",
+    "runnerPath": "C:\\Users\\Surface\\Documents\\Codex\\2026-08-30\\ban\\outputs\\run-fixed-warehouse-regression.ps1",
+    "runnerSha256": "1D97CE267F3D0CE03FD4D6826E66B4ABFC2C04A59554E54B9A751486BD8F8CD6"
+  },
+  "requiredObjects": {
+    "tables": [
+      "Inventory_Report_Scope_Catalog",
+      "Inventory_Report_Fence_Config",
+      "Inventory_Current_Report_State",
+      "Inventory_Balance_Daily",
+      "Inventory_Balance_Daily_Scope",
+      "Inventory_Movement_Daily",
+      "InventoryBalance_Current",
+      "InventoryBalance_Daily_AggregateState",
+      "InventoryBalance_Snapshot_Daily",
+      "InventoryMovement_AggregateState",
+      "InventoryMovement_RebuildQueue",
+      "InventoryMovement_RebuildDeadLetter",
+      "InventoryReservation_Current",
+      "InventorySnapshot_RebuildQueue",
+      "InventorySnapshot_RebuildDeadLetter",
+      "InventorySnapshot_ReportFallbackLog",
+      "InventorySnapshot_BootstrapAudit",
+      "InventorySnapshot_WorkerHeartbeat",
+      "InventoryReconciliation_Run",
+      "InventoryReconciliation_Result",
+      "tbl_DM_San_Pham",
+      "tbl_DM_Kho",
+      "tbl_DM_Kho_User",
+      "tbl_XNK_Nhap_Kho",
+      "tbl_XNK_Nhap_Kho_Raw_Data",
+      "tbl_XNK_Xuat_Kho",
+      "tbl_XNK_Xuat_Kho_Raw_Data",
+      "tbl_Sys_Thanh_Vien"
+    ],
+    "types": [
+      {
+        "name": "InventoryMovementAffectedType",
+        "columns": [
+          { "name": "Kho_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false },
+          { "name": "San_Pham_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false },
+          { "name": "Movement_Date", "type": "date", "maxLength": 3, "precision": 10, "scale": 0, "nullable": false },
+          { "name": "InvalidReason", "type": "nvarchar", "maxLength": 200, "precision": 0, "scale": 0, "nullable": false }
+        ]
+      },
+      {
+        "name": "InventorySnapshotAffectedType",
+        "columns": [
+          { "name": "Kho_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false },
+          { "name": "San_Pham_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false },
+          { "name": "From_Date", "type": "date", "maxLength": 3, "precision": 10, "scale": 0, "nullable": false },
+          { "name": "InvalidReason", "type": "nvarchar", "maxLength": 200, "precision": 0, "scale": 0, "nullable": false }
+        ]
+      },
+      {
+        "name": "InventoryFenceGroupSetType",
+        "columns": [
+          { "name": "Kho_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false }
+        ]
+      },
+      {
+        "name": "InventoryFenceScopeSetType",
+        "columns": [
+          { "name": "Kho_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false },
+          { "name": "San_Pham_ID", "type": "bigint", "maxLength": 8, "precision": 19, "scale": 0, "nullable": false }
+        ]
+      }
+    ],
+    "indexes": [
+      "dbo.Inventory_Report_Scope_Catalog|PK_Inventory_Report_Scope_Catalog",
+      "dbo.Inventory_Report_Scope_Catalog|UQ_Inventory_Report_Scope_Catalog_Scope",
+      "dbo.Inventory_Report_Scope_Catalog|IX_Inventory_Report_Scope_Catalog_Cutoff",
+      "dbo.Inventory_Report_Fence_Config|PK_Inventory_Report_Fence_Config",
+      "dbo.Inventory_Current_Report_State|PK_Inventory_Current_Report_State",
+      "dbo.Inventory_Movement_Daily|IX_Inventory_Movement_Daily_Scope_Date",
+      "dbo.Inventory_Movement_Daily|PK_Inventory_Movement_Daily",
+      "dbo.Inventory_Balance_Daily|IX_Inventory_Balance_Daily_Scope",
+      "dbo.Inventory_Balance_Daily|PK_Inventory_Balance_Daily",
+      "dbo.Inventory_Balance_Daily_Scope|PK_Inventory_Balance_Daily_Scope",
+      "dbo.InventoryBalance_Current|PK_InventoryBalance_Current",
+      "dbo.InventoryBalance_Daily_AggregateState|PK_InventoryBalance_Daily_AggregateState",
+      "dbo.InventoryBalance_Snapshot_Daily|IX_InventoryBalance_Snapshot_Daily_Scope",
+      "dbo.InventoryBalance_Snapshot_Daily|IX_InventoryBalance_Snapshot_Daily_Valid_Date",
+      "dbo.InventoryBalance_Snapshot_Daily|PK_InventoryBalance_Snapshot_Daily",
+      "dbo.InventoryMovement_AggregateState|PK_InventoryMovement_AggregateState",
+      "dbo.InventoryMovement_RebuildQueue|IX_InventoryMovement_RebuildQueue_ActiveScope",
+      "dbo.InventoryMovement_RebuildQueue|IX_InventoryMovement_RebuildQueue_Ready",
+      "dbo.InventoryMovement_RebuildQueue|IX_InventoryMovement_RebuildQueue_Status_CreatedAt",
+      "dbo.InventoryMovement_RebuildQueue|PK_InventoryMovement_RebuildQueue",
+      "dbo.InventoryMovement_RebuildQueue|UX_InventoryMovement_RebuildQueue_ActiveDailyScope",
+      "dbo.InventoryMovement_RebuildDeadLetter|PK_InventoryMovement_RebuildDeadLetter",
+      "dbo.InventorySnapshot_RebuildQueue|IX_InventorySnapshot_RebuildQueue_LifecycleReady",
+      "dbo.InventorySnapshot_RebuildQueue|IX_InventorySnapshot_RebuildQueue_Status_CreatedAt",
+      "dbo.InventorySnapshot_RebuildQueue|PK_InventorySnapshot_RebuildQueue",
+      "dbo.InventorySnapshot_RebuildQueue|UX_InventorySnapshot_RebuildQueue_Active_Scope",
+      "dbo.InventorySnapshot_RebuildDeadLetter|PK_InventorySnapshot_RebuildDeadLetter",
+      "dbo.InventorySnapshot_ReportFallbackLog|PK_InventorySnapshot_ReportFallbackLog",
+      "dbo.InventorySnapshot_BootstrapAudit|PK_InventorySnapshot_BootstrapAudit",
+      "dbo.InventorySnapshot_WorkerHeartbeat|PK_InventorySnapshot_WorkerHeartbeat",
+      "dbo.InventoryReconciliation_Run|PK_InventoryReconciliation_Run",
+      "dbo.InventoryReconciliation_Result|IX_InventoryReconciliation_Result_Run_Status",
+      "dbo.InventoryReconciliation_Result|PK_InventoryReconciliation_Result",
+      "dbo.InventoryReservation_Current|IX_InventoryReservation_Current_Kho_Product",
+      "dbo.InventoryReservation_Current|PK_InventoryReservation_Current",
+      "dbo.tbl_XNK_Nhap_Kho|IX_tbl_XNK_Nhap_Kho_Report_Page",
+      "dbo.tbl_XNK_Xuat_Kho|IX_tbl_XNK_Xuat_Kho_Report_Page",
+      "dbo.tbl_XNK_Nhap_Kho_Raw_Data|IX_tbl_XNK_Nhap_Kho_Raw_NhapKho_ID",
+      "dbo.tbl_XNK_Xuat_Kho_Raw_Data|IX_tbl_XNK_Xuat_Kho_Raw_XuatKho_ID"
+    ],
+    "procedures": [
+      { "name": "sp_DM_Master_Page", "parameters": ["@Entity", "@Page_Number", "@Page_Size", "@Search_Text"], "sha256": "E0DDA3BEE093448C3D8A2634A93734A34DA55A758250CFEEC86F4122A0B862AA" },
+      { "name": "sp_DM_Lookup_Page", "parameters": ["@Entity", "@Page_Number", "@Page_Size", "@Search_Text"], "sha256": "1C55CAF2882090E694D330D40D8A8D756E2848F10B91E9DBC1F9E2D5D613DCA0" },
+      { "name": "sp_XNK_Document_Page", "parameters": ["@Is_Receipt", "@Page_Number", "@Page_Size", "@Search_Text", "@Ma_Dang_Nhap", "@Kho_ID"], "sha256": "144717DAE59B2B60DA7D48D2AC79DD9BBEB1A4A93B1EB875662BDFBCA8061A6E" },
+      { "name": "sp_BC_Chi_Tiet_Nhap_Page", "parameters": ["@Tu_Ngay", "@Den_Ngay", "@Page_Number", "@Page_Size", "@Ma_Dang_Nhap", "@Kho_ID"], "sha256": "F1950BEF71A90E644AEC02C99AB8E6A4D217DFC8530562C971DD891D736B523B" },
+      { "name": "sp_BC_Xuat_Nhap_Ton_Page", "parameters": ["@Tu_Ngay", "@Den_Ngay", "@Page_Number", "@Page_Size", "@Ma_Dang_Nhap", "@Kho_ID"], "sha256": "028464B2EB25F9C857468F75B03B4E5ECB59E389ABF218B9A95F2F97EE831926" },
+      { "name": "sp_BC_Ton_Kho_Hien_Tai_Page", "parameters": ["@Page_Number", "@Page_Size", "@Ma_Dang_Nhap", "@Kho_ID"], "sha256": "29013CC498B2BBE8725E515CFAEEF1657979E3D2036436E1A2A1EDB857A36E74" },
+      { "name": "sp_BC_Xuat_Nhap_Ton", "parameters": ["@Tu_Ngay", "@Den_Ngay", "@Ma_Dang_Nhap", "@Kho_ID"], "sha256": "D5CAD9E2B1812C3ACF251FEBD80CB2EFEFAB8E9694482BBF2CDDEBF1122C4A5D" },
+      { "name": "sp_XNK_Document_Post", "parameters": ["@Is_Receipt", "@Document_ID", "@Ma_Dang_Nhap", "@Last_Updated_By", "@Last_Updated_By_Function"], "sha256": "8B84B11264BD9FEC5BA8CDF35CAE7934F1204F7333E6BD3EAE0B5A73A3D82705" },
+      { "name": "sp_DM_Kho_User_Ensure_Access", "parameters": ["@Ma_Dang_Nhap", "@Kho_ID"], "sha256": "3588A5A910791B8B69A185CCFA8C1A32D0D6E259DE7A6596C5F67CA572BFCB96" },
+      { "name": "sp_DM_Kho_User_List_Allowed", "parameters": ["@Ma_Dang_Nhap"], "sha256": "4C66F79FEBCCB1C068177CF6CE46606115905EA9DB7FE25109298A575E1ECEB5" },
+      { "name": "sp_Inventory_Fence_Require_Transaction", "parameters": [], "sha256": "7CE17A1C4FC6AB79DD41CD802F61EAD5964AE3D5235CD176785372ECDEBEEAD9" },
+      { "name": "sp_Inventory_Fence_Acquire_Root", "parameters": ["@Mode"], "sha256": "512C1A9C8A368581186B21D3DD4AB7E7F08BDE62916577788839383C84B13992" },
+      { "name": "sp_Inventory_Fence_Acquire_Group", "parameters": ["@Kho_ID", "@Mode"], "sha256": "2EAA6942F982BD189F74037B15B0597DBA462BE834289DE5A6F6DB80241B9626" },
+      { "name": "sp_Inventory_Fence_Acquire_Group_Set", "parameters": ["@GroupSet", "@Mode"], "sha256": "CD4C19701CB07589DAEE564C3FC9EA77A2BEEA240673E354B13AF25FA568AE24" },
+      { "name": "sp_Inventory_Fence_Acquire_Legacy_Scope", "parameters": ["@Kho_ID", "@San_Pham_ID", "@Mode"], "sha256": "4C7C6DA470F9E20560FED423ACFE63BA0842AE79C970CDDD5347943A65040967" },
+      { "name": "sp_Inventory_Fence_Acquire_Legacy_Scope_Set", "parameters": ["@ScopeSet", "@Mode"], "sha256": "3528B729D32B21E96754C71EDFFC67FCE3CF362D3116E40B7421C24EB2F79795" },
+      { "name": "sp_Inventory_Fence_Acquire_Legacy_Snapshot", "parameters": ["@Kho_ID", "@San_Pham_ID", "@Mode"], "sha256": "0C34111A10234CB379CF9E34B8D23EA4CD05914378460DCC821A0533F865F540" },
+      { "name": "sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set", "parameters": ["@ScopeSet", "@Mode"], "sha256": "84B721486000FC64DCD5886967A60646ED32F60CAFB7B706579A7EBBA7F43E1F" },
+      { "name": "sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap", "parameters": ["@Mode"], "sha256": "0FD72625FF78A043EEE284D62E3938F72F44079B1110B3CB5D40D8ED4A50920D" },
+      { "name": "sp_Inventory_Fence_Acquire_Legacy_Snapshot_Bootstrap", "parameters": [], "sha256": "F203633995FBA89B65463B40167814EC873C03095FBC394BD6912F6D00D19777" },
+      { "name": "sp_Inventory_Fence_Acquire_Snapshot_Finalize_Singleton", "parameters": [], "sha256": "F3C7D789EF083F020B7F2C98E994A4F945994E34FF450DDD34AA29710CF16DFD" },
+      { "name": "sp_Inventory_Fence_Acquire_Snapshot_Worker_Singleton", "parameters": [], "sha256": "BC1F1E136D34AF4FF14EDA17A6591C89FF003D2F85EEBD4CA29670A186D6F2A0" },
+      { "name": "sp_Inventory_Fence_Release_Snapshot_Worker_Singleton", "parameters": [], "sha256": "1F9401BC80E7579006586C2C5371FF3D7CDBB1F4BA8477F994DC6F2C742D93FE" },
+      { "name": "sp_Inventory_Fence_Require_Context", "parameters": ["@GroupSet", "@ScopeSet", "@RequiredRootMode", "@RequiredGroupMode", "@RequiredScopeMode"], "sha256": "EAF324F4A5AE89AFFF0791C2EC0B086D214B8AD15DA04BD79EEA9678FC87E68D" },
+      { "name": "sp_Inventory_Report_Validate_Scope_Fence", "parameters": ["@Tu_Ngay", "@Den_Ngay", "@Ma_Dang_Nhap", "@Kho_ID", "@Is_Current_Report"], "sha256": "A88BAC65CB01A673280D23AF91233FC22D83D803078C30DE3CE9398F5578CDEF" },
+      { "name": "sp_Inventory_Report_Acquire_Scope_Fence", "parameters": ["@Tu_Ngay", "@Den_Ngay", "@Ma_Dang_Nhap", "@Kho_ID", "@Is_Current_Report", "@Catalog_Scope_Count:OUT", "@Catalog_Max_ID:OUT"], "sha256": "D34634DB7531F8D22BB6AA5D39F7DF32279D6454A57C90D520E7C03F51B4E218" },
+      { "name": "sp_Inventory_Movement_Apply_Invalidation", "parameters": ["@Affected"], "sha256": "F99B48772831280FC5CF95854CFCDFE15115D43717DBC0E33E86122FC4BB5011" },
+      { "name": "sp_Inventory_Movement_Complete_Claim", "parameters": ["@Queue_ID", "@Claimed_Version"], "sha256": "028B7A6C7B08CEFB221321F58FDD599A2F847AED0467BB926F4A7DF925DD32A5" },
+      { "name": "sp_Inventory_Movement_Process_RebuildQueue", "parameters": ["@Batch_Size", "@Max_Retry_Count", "@Base_Retry_Delay_Seconds", "@Processing_Lease_Seconds"], "sha256": "05102CD3716F4F9F58E4E5BA200AAA528FE3EF745B40CC5251DCEA2DA90D3D4C" },
+      { "name": "sp_Inventory_Movement_Rebuild", "parameters": ["@Kho_ID", "@San_Pham_ID", "@From_Date", "@To_Date"], "sha256": "A31CC75F1D41299356CB5CA07F54E01C615B16142952266F09DCF2CF41878D88" },
+      { "name": "sp_Inventory_Movement_Bootstrap_From_Ledger", "parameters": [], "sha256": "CE8454127C4BA779B9BB7B5A3CFBB2B67BCB6303BE8A4B8EB55E76ECDB4B22DE" },
+      { "name": "sp_Inventory_Balance_Daily_Rebuild", "parameters": ["@Kho_ID", "@San_Pham_ID", "@From_Date"], "sha256": "F4FE9C3474B4F88BE8FC16881C58F9595A34773A2520C59FDD5EEAB4DFE95D78" },
+      { "name": "sp_Inventory_Balance_Daily_Bootstrap_From_Movement", "parameters": ["@Bootstrap_Lock_Held"], "sha256": "5DBB4374567DFD67CD30A93C7D51E4033756276E6D5AE6A84AECC2A68D5EFEE6" },
+      { "name": "sp_Inventory_Snapshot_Apply_Invalidation", "parameters": ["@Affected"], "sha256": "10E8DF86478479C445DA973020C014E4DFF7A4981A76AE9E7125A0968D8709E2" },
+      { "name": "sp_Inventory_Snapshot_Rebuild", "parameters": ["@Kho_ID", "@San_Pham_ID", "@From_Date"], "sha256": "80BD383A27B408D92F1093EA4F08C54D24203DA422F791A5B5CB32D6E3A1870F" },
+      { "name": "sp_Inventory_Snapshot_Record_Heartbeat", "parameters": ["@Worker_Name", "@Queue_ID", "@Succeeded", "@LastError"], "sha256": "4CE1CFBE559BA143FE2B9CB3C12FC9D248E7CBCD888D18C87194A18D24836EAA" },
+      { "name": "sp_Inventory_Snapshot_Bootstrap_From_Ledger", "parameters": ["@Baseline_Date", "@Opening_Balance_Confirmed", "@Kho_ID", "@San_Pham_ID"], "sha256": "4CB700F12A119B767599CB2130D0296EFB4784F8ADCAC05202A059E3047CDE1C" },
+      { "name": "sp_Inventory_Snapshot_Initialize_From_Ledger", "parameters": ["@Kho_ID", "@San_Pham_ID", "@Snapshot_Date"], "sha256": "5072E10135CB43C07EE97CBB4C4B3EF12B9EF91166F3BDB852FD0E8D6595D79D" },
+      { "name": "sp_Inventory_Snapshot_Finalize_Daily", "parameters": ["@Snapshot_Date", "@Kho_ID", "@San_Pham_ID", "@Worker_Name"], "sha256": "A5884C3C1202D569D29F88126225E76FC19EE3DCCB09C5C1001C2D9936A69DC8" },
+      { "name": "sp_Inventory_Snapshot_Complete_Claim", "parameters": ["@Queue_ID", "@Claimed_Version"], "sha256": "21246276267B46EBC4998CFC7D92DF72C03DB36A210201B9E24D57418D0B4627" },
+      { "name": "sp_Inventory_Snapshot_Process_RebuildQueue", "parameters": ["@Batch_Size", "@Max_Retry_Count", "@Processing_Lease_Seconds", "@Worker_Name", "@Kho_ID", "@San_Pham_ID"], "sha256": "8DDC6797653407AEAA697CE14ABE452246331781EBAD5B1ED3A14BD45B6473E3" },
+      { "name": "sp_Inventory_Snapshot_Create_Daily", "parameters": ["@Snapshot_Date"], "sha256": "018FBC8743D9FCAFEE160C88F20A3FD9D555E31E7A40A920F2A066069210636C" },
+      { "name": "sp_Inventory_Snapshot_Monitor", "parameters": ["@Snapshot_Backlog_Minutes", "@Processing_Lease_Seconds", "@Daily_Stale_Days", "@Throw_On_Critical"], "sha256": "C4C8BC689CAF3700E06BA1A1010AD1A13120B19169615BCA876E1F6CA41F71EC" },
+      { "name": "sp_Inventory_Snapshot_Invalidate_From", "parameters": ["@From_Date", "@Kho_ID", "@San_Pham_ID", "@InvalidReason"], "sha256": "8EDCBD64321693F73A1115AAEA8DC6BDCF2429077C33B6D326097C2FE8D6E316" },
+      { "name": "sp_Inventory_Reconciliation_Run", "parameters": ["@As_Of_Date", "@Kho_ID", "@San_Pham_ID", "@Run_ID:OUT"], "sha256": "E84A70FC7DBBB0D9786A809E4980DAF226CE799D9FA9794A0BFEC2BEA269551C" },
+      { "name": "sp_XNK_Reservation_Adjust", "parameters": ["@Kho_ID", "@San_Pham_ID", "@Delta"], "sha256": "7117A6CEB4313BCFF863022C0F05628231E93F769F2BFE772CF990FE7B782357" },
+      { "name": "sp_XNK_Reservation_Move_Document", "parameters": ["@Xuat_Kho_ID", "@Old_Kho_ID", "@New_Kho_ID"], "sha256": "D4FE4B8914CB48C3C990FBA8B8497C4629127F875865055AE819CA4FC85FD3F4" },
+      { "name": "sp_XNK_Reservation_Release_Detail", "parameters": ["@Xuat_Kho_Detail_ID"], "sha256": "C5DDA33EFC40AAFEBD62378B775E273C95C80CE82D07A5F8B55AFE8698CDD7B3" },
+      { "name": "sp_XNK_Reservation_Release_Document", "parameters": ["@Xuat_Kho_ID"], "sha256": "C50C5A716DAA6B9269D2547369E40E55CC6A99D2F752F463A022ADC86C8D5559" },
+      { "name": "sp_XNK_Reservation_Rebuild", "parameters": [], "sha256": "C1E94793C423CBDCCCFA69C7C801950FCD035BDCC45F3397A7CB905567103D2E" },
+      { "name": "sp_XNK_InventoryBalance_Rebuild", "parameters": [], "sha256": "325BF9738AA80F3A650CBDE9A9F1E0AE24B7E70D3FB2B41502C7FCD66CC34112" }
+    ],
+    "functions": [
+      { "name": "fn_Inventory_Report_Snapshot", "sha256": "E58C5375BE4627B54962A34D65F5CF509476D5885886582ADF8A50560DFF7D92" }
+    ]
+  },
+  "scenarios": {
+    "canonical": [
+      "MasterPaged",
+      "LookupPaged",
+      "DocumentPaged",
+      "DetailReportPaged",
+      "InventoryHistoricalReportPaged",
+      "InventoryCurrentBalancePaged"
+    ],
+    "fixedRunner": [
+      "MasterPaged",
+      "LookupPaged",
+      "DocumentPaged",
+      "DetailReportPaged",
+      "InventoryHistoricalReportPaged",
+      "InventoryCurrentBalancePaged"
+    ],
+    "aliases": {
+      "InventoryReportPaged": "InventoryHistoricalReportPaged"
+    }
+  },
+  "workload": {
+    "recordCount": 10000000,
+    "pageSize": 10,
+    "fromDate": "2025-01-01",
+    "toDate": "2026-12-31",
+    "login": "PERF_USER",
+    "useSnapshot": false,
+    "useCurrentBalance": false,
+    "nbomberDurationSeconds": 15,
+    "nbomberMixedCopies": [1, 2, 4, 8],
+    "nbomberMatrixCopies": 8,
+    "nbomberTelemetryIntervalMs": 500,
+    "bdnWarmupCount": 3,
+    "bdnIterationCount": 5,
+    "bdnIterationTimeMs": 1000
+  }
+}

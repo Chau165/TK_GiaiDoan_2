@@ -186,36 +186,59 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
                 fixture.LoginA,
                 connection: postConnection));
 
-            /* Before the fix Post commits while Save_Detail is paused.  After
-               the fix Save_Detail owns the parent lock, so Post must wait. */
+            /* Save_Detail has already acquired Root -> Group and is waiting
+               on the controlled product-row lock.  Post must therefore fail
+               closed at the conflicting Group fence; completion here does
+               not mean that the parent row lock was acquired. */
             var postCompletedBeforeGateRelease = await WaitForCompletionAsync(
                 postOutcomeTask,
-                TimeSpan.FromMilliseconds(400));
+                TimeSpan.FromSeconds(2));
 
-            Assert.False(postCompletedBeforeGateRelease, "Post acquired the parent lock before Save Detail released it.");
+            if (!postCompletedBeforeGateRelease)
+            {
+                await gateTransaction.RollbackAsync();
+                var delayedPostOutcome = await postOutcomeTask;
+                throw new Xunit.Sdk.XunitException(
+                    $"Post did not fail fast on the Group fence before the gate was released. {FormatFailure("Post", delayedPostOutcome.Error)}");
+            }
+
+            var postOutcome = await postOutcomeTask;
+            Assert.True(
+                postOutcome.Error is SqlException sqlException && sqlException.Number == 51407,
+                $"Post should fail closed with the Group fence conflict, but {FormatFailure("Post", postOutcome.Error)}.");
 
             await gateTransaction.CommitAsync();
             var saveOutcome = await saveOutcomeTask;
-            var postOutcome = await postOutcomeTask;
 
             Assert.True(
-                saveOutcome.Succeeded || IsExpectedPostedRejection(saveOutcome.Error),
+                saveOutcome.Succeeded,
                 FormatFailure("Save Detail", saveOutcome.Error));
-            Assert.True(postOutcome.Succeeded, FormatFailure("Post", postOutcome.Error));
+
+            Assert.Equal(
+                0,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT CONVERT(INT, Is_Posted) FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @ReceiptId;",
+                    BigInt("@ReceiptId", receiptId)));
+
+            var beforeRetry = await ReadReceiptInvariantAsync(fixture);
+            Assert.Equal(0m, beforeRetry.Ledger);
+            Assert.Equal(0m, beforeRetry.Current);
+
+            /* Once the conflicting fence is released, the same valid Post
+               operation may be retried and must publish atomically. */
+            var retryOutcome = await CaptureAsync(() => PostReceiptAsync(
+                fixture,
+                receiptId,
+                fixture.LoginA,
+                connection: postConnection));
+            Assert.True(retryOutcome.Succeeded, FormatFailure("Post retry", retryOutcome.Error));
 
             var invariant = await ReadReceiptInvariantAsync(fixture);
             Assert.Equal(invariant.Ledger, invariant.Current);
-            Assert.True(
-                invariant.Ledger is 100m or 120m,
-                $"Unexpected posted ledger quantity: {invariant.Ledger}.");
-
-            if (postCompletedBeforeGateRelease)
-            {
-                /* The old implementation reaches this branch and then
-                   produces ledger=120/current=100.  Keep the assertion on the
-                   invariant, not on an implementation-specific ordering. */
-                Assert.Equal(100m, invariant.Current);
-            }
+            Assert.Equal(120m, invariant.Ledger);
+            Assert.Equal(2, invariant.DetailCount);
         }
         finally
         {
@@ -352,16 +375,58 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
     }
 
     [Fact]
-    public async Task Snapshot_scope_without_anchor_remains_initialize_required()
+    public async Task Snapshot_scope_without_anchor_initializes_only_after_valid_bootstrap()
     {
         var fixture = await CreateFixtureAsync();
         try
         {
-            await CreateAndPostReceiptAsync(fixture, new DateTime(2026, 1, 3), 10, "initialize");
+            var movementDate = new DateTime(2026, 1, 3);
+            var bootstrapDate = new DateTime(2026, 1, 1);
+            await CreateAndPostReceiptAsync(fixture, movementDate, 10, "initialize");
 
             var queue = await ReadSnapshotQueueAsync(fixture);
             Assert.Equal("INITIALIZE", queue.RequestType);
             Assert.Equal("INITIALIZE_REQUIRED", queue.LifecycleStatus);
+
+            /* Use the canonical production bootstrap contract.  It creates
+               only the declared baseline anchor from Posted Ledger; it must
+               not fabricate the target snapshot for the unanchored date. */
+            await ExecuteStoredAsync(
+                fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Snapshot_Bootstrap_From_Ledger",
+                Date("@Baseline_Date", bootstrapDate),
+                new SqlParameter("@Opening_Balance_Confirmed", SqlDbType.Bit) { Value = true },
+                BigInt("@Kho_ID", fixture.WarehouseId),
+                BigInt("@San_Pham_ID", fixture.ProductId));
+
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT COUNT(*) FROM dbo.InventorySnapshot_BootstrapAudit WHERE Baseline_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND Status = N'COMPLETED';",
+                    Date("@Date", bootstrapDate),
+                    BigInt("@WarehouseId", fixture.WarehouseId),
+                    BigInt("@ProductId", fixture.ProductId)));
+            Assert.Equal(
+                1,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1;",
+                    Date("@Date", bootstrapDate),
+                    BigInt("@WarehouseId", fixture.WarehouseId),
+                    BigInt("@ProductId", fixture.ProductId)));
+            Assert.Equal(
+                0,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                    Date("@Date", movementDate),
+                    BigInt("@WarehouseId", fixture.WarehouseId),
+                    BigInt("@ProductId", fixture.ProductId)));
 
             await ExecuteStoredAsync(
                 fixture.ConnectionString,
@@ -370,20 +435,32 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
                 new SqlParameter("@Batch_Size", SqlDbType.Int) { Value = 10 },
                 Text("@Worker_Name", $"C02-initialize-{fixture.Tag}", 128));
 
+            var completedQueue = await ReadSnapshotQueueAsync(fixture);
+            Assert.Equal("COMPLETED", completedQueue.LifecycleStatus);
             var snapshotCount = await IntScalarAsync(
                 fixture.ConnectionString,
                 null,
-                "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                Date("@Date", movementDate),
                 BigInt("@WarehouseId", fixture.WarehouseId),
                 BigInt("@ProductId", fixture.ProductId));
             Assert.Equal(1, snapshotCount);
             var initializedClosing = await DecimalScalarAsync(
                 fixture.ConnectionString,
                 null,
-                "SELECT ClosingQuantity FROM dbo.InventoryBalance_Snapshot_Daily WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                "SELECT ClosingQuantity FROM dbo.InventoryBalance_Snapshot_Daily WHERE Snapshot_Date = @Date AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                Date("@Date", movementDate),
                 BigInt("@WarehouseId", fixture.WarehouseId),
                 BigInt("@ProductId", fixture.ProductId));
             Assert.Equal(10m, initializedClosing);
+            Assert.Equal(
+                0,
+                await IntScalarAsync(
+                    fixture.ConnectionString,
+                    null,
+                    "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily s WHERE s.Kho_ID = @WarehouseId AND s.San_Pham_ID = @ProductId AND (s.IsValid = 0 OR NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho k WHERE k.Auto_ID = s.Kho_ID) OR NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_San_Pham p WHERE p.Auto_ID = s.San_Pham_ID));",
+                    BigInt("@WarehouseId", fixture.WarehouseId),
+                    BigInt("@ProductId", fixture.ProductId)));
         }
         finally
         {
@@ -1061,6 +1138,7 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.Inventory_Balance_Daily_Scope WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryReservation_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
+            await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventorySnapshot_BootstrapAudit WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
             await ExecuteAsync(connection, transaction, "DELETE d FROM dbo.InventoryMovement_RebuildDeadLetter d JOIN dbo.InventoryMovement_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.Kho_ID = @WarehouseId AND q.San_Pham_ID = @ProductId;", BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId));
             await ExecuteAsync(connection, transaction, "DELETE FROM dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @TagPrefix;", Text("@TagPrefix", $"{fixture.Tag}%", 100));

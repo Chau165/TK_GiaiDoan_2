@@ -13,13 +13,906 @@ GO
 SET QUOTED_IDENTIFIER ON;
 GO
 
+/* PERF-06A FOUNDATION START */
+
+/* ========================================================================
+   PERF-06A Inventory Fence Contract foundation
+
+   This is the only source seam that constructs Root, Group, and legacy
+   Scope resource names. PERF-06A introduced it without wiring business paths;
+   PERF-06B now uses it from the migrated writers while Historical Report
+   remains on its legacy fence. Data locks are transaction-owned and every
+   acquisition requires an existing transaction owned by the caller.
+
+   Resource hierarchy:
+       InventoryMovementGroup:Root
+           -> InventoryMovementGroup:<Kho_ID>
+               -> InventoryMovement:<Kho_ID>:<San_Pham_ID>
+
+   The procedures below accept typed IDs/sets, never a raw resource string.
+   Group acquisition requires Root. Legacy Scope acquisition acquires and
+   verifies the corresponding Group first. Nested callers use APPLOCK_MODE
+   against the current transaction instead of a caller-controlled Boolean or
+   SESSION_CONTEXT value.
+   ======================================================================== */
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Root_Resource()
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    RETURN N'InventoryMovementGroup:Root';
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Group_Resource
+(
+    @Kho_ID BIGINT
+)
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0
+        RETURN NULL;
+
+    RETURN N'InventoryMovementGroup:' + CONVERT(NVARCHAR(20), @Kho_ID);
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Scope_Resource
+(
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT
+)
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0 OR @San_Pham_ID IS NULL OR @San_Pham_ID <= 0
+        RETURN NULL;
+
+    RETURN N'InventoryMovement:'
+         + CONVERT(NVARCHAR(20), @Kho_ID)
+         + N':'
+         + CONVERT(NVARCHAR(20), @San_Pham_ID);
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Snapshot_Resource
+(
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT
+)
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0 OR @San_Pham_ID IS NULL OR @San_Pham_ID <= 0
+        RETURN NULL;
+
+    RETURN N'InventorySnapshot:'
+         + CONVERT(NVARCHAR(20), @Kho_ID)
+         + N':'
+         + CONVERT(NVARCHAR(20), @San_Pham_ID);
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Movement_Bootstrap_Resource()
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    RETURN N'InventoryMovement:Bootstrap';
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Snapshot_Bootstrap_Resource()
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    RETURN N'InventorySnapshotBootstrap';
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Snapshot_Finalize_Resource()
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    RETURN N'InventorySnapshotFinalize';
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Snapshot_Worker_Resource()
+RETURNS NVARCHAR(255)
+AS
+BEGIN
+    RETURN N'InventorySnapshotRebuildWorker';
+END;
+GO
+
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Mode_Satisfies
+(
+    @ActualMode NVARCHAR(32),
+    @RequiredMode NVARCHAR(12)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @Result BIT = 0;
+
+    IF @RequiredMode = N'Shared'
+       AND @ActualMode IN (N'Shared', N'Exclusive')
+        SET @Result = 1;
+    ELSE IF @RequiredMode = N'Exclusive'
+        AND @ActualMode = N'Exclusive'
+        SET @Result = 1;
+
+    RETURN @Result;
+END;
+GO
+
+/* Only negative application-lock acquisition results are retryable worker
+   contention.  Contract, validation, ownership and context errors remain
+   permanent/fail-closed and must never be silently retried. */
+CREATE OR ALTER FUNCTION dbo.fn_Inventory_Fence_Is_Transient_Contention
+(
+    @Error_Number INT,
+    @Error_Message NVARCHAR(4000)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @Result BIT = 0;
+
+    IF @Error_Number IN (51403, 51407, 51412, 51424)
+       AND
+       (
+           @Error_Message LIKE N'%Result=-1'
+           OR @Error_Message LIKE N'%Result=-2'
+           OR @Error_Message LIKE N'%Result=-3'
+       )
+        SET @Result = 1;
+    ELSE IF @Error_Number IN (51428, 51431)
+       AND @Error_Message LIKE N'%compatibility fence is busy.%'
+        SET @Result = 1;
+
+    RETURN @Result;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Require_Transaction
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @@TRANCOUNT = 0
+        THROW 51401, N'Inventory fence requires an existing caller transaction.', 1;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Root
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Root_Resource();
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @LockResult INT;
+
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = @Mode,
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+
+        IF @LockResult < 0
+        BEGIN
+            DECLARE @AcquireError NVARCHAR(2048) =
+                N'Inventory fence Root acquisition failed. Resource='
+                + @Resource
+                + N'; Result='
+                + CONVERT(NVARCHAR(20), @LockResult);
+            THROW 51403, @AcquireError, 1;
+        END;
+    END;
+
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @VerifyError NVARCHAR(2048) =
+            N'Inventory fence Root verification failed. Resource='
+            + @Resource
+            + N'; EffectiveMode='
+            + ISNULL(@ActualMode, N'NULL')
+            + N'; RequiredMode='
+            + @Mode;
+        THROW 51404, @VerifyError, 1;
+    END;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Group
+    @Kho_ID BIGINT,
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0
+        THROW 51405, N'Inventory fence Kho_ID must be a positive canonical identifier.', 1;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    DECLARE @RootResource NVARCHAR(255) = dbo.fn_Inventory_Fence_Root_Resource();
+    DECLARE @RootMode NVARCHAR(32) = APPLOCK_MODE(N'public', @RootResource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@RootMode, N'Shared') = 0
+    BEGIN
+        DECLARE @RootError NVARCHAR(2048) =
+            N'Inventory fence Group requires Root first. EffectiveRootMode='
+            + ISNULL(@RootMode, N'NULL');
+        THROW 51406, @RootError, 1;
+    END;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Group_Resource(@Kho_ID);
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @LockResult INT;
+
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = @Mode,
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+
+        IF @LockResult < 0
+        BEGIN
+            DECLARE @AcquireError NVARCHAR(2048) =
+                N'Inventory fence Group acquisition failed. Resource='
+                + @Resource
+                + N'; Result='
+                + CONVERT(NVARCHAR(20), @LockResult);
+            THROW 51407, @AcquireError, 1;
+        END;
+    END;
+
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @VerifyError NVARCHAR(2048) =
+            N'Inventory fence Group verification failed. Resource='
+            + @Resource
+            + N'; EffectiveMode='
+            + ISNULL(@ActualMode, N'NULL')
+            + N'; RequiredMode='
+            + @Mode;
+        THROW 51408, @VerifyError, 1;
+    END;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Group_Set
+    @GroupSet dbo.InventoryFenceGroupSetType READONLY,
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    IF EXISTS (SELECT 1 FROM @GroupSet WHERE Kho_ID IS NULL OR Kho_ID <= 0)
+        THROW 51409, N'Inventory fence GroupSet contains an invalid Kho_ID.', 1;
+
+    DECLARE @Group_ID BIGINT;
+    DECLARE GroupCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT Kho_ID
+        FROM @GroupSet
+        GROUP BY Kho_ID
+        ORDER BY Kho_ID;
+
+    OPEN GroupCursor;
+    FETCH NEXT FROM GroupCursor INTO @Group_ID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group
+            @Kho_ID = @Group_ID,
+            @Mode = @Mode;
+
+        FETCH NEXT FROM GroupCursor INTO @Group_ID;
+    END;
+
+    CLOSE GroupCursor;
+    DEALLOCATE GroupCursor;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Legacy_Scope
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT,
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0
+        THROW 51410, N'Inventory fence Scope Kho_ID must be a positive canonical identifier.', 1;
+
+    IF @San_Pham_ID IS NULL OR @San_Pham_ID <= 0
+        THROW 51411, N'Inventory fence Scope San_Pham_ID must be a positive canonical identifier.', 1;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    /* The Group call verifies Root and establishes Group before Scope. */
+    EXEC dbo.sp_Inventory_Fence_Acquire_Group
+        @Kho_ID = @Kho_ID,
+        @Mode = @Mode;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Scope_Resource(@Kho_ID, @San_Pham_ID);
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @LockResult INT;
+
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = @Mode,
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+
+        IF @LockResult < 0
+        BEGIN
+            DECLARE @AcquireError NVARCHAR(2048) =
+                N'Inventory fence legacy Scope acquisition failed. Resource='
+                + @Resource
+                + N'; Result='
+                + CONVERT(NVARCHAR(20), @LockResult);
+            THROW 51412, @AcquireError, 1;
+        END;
+    END;
+
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @VerifyError NVARCHAR(2048) =
+            N'Inventory fence legacy Scope verification failed. Resource='
+            + @Resource
+            + N'; EffectiveMode='
+            + ISNULL(@ActualMode, N'NULL')
+            + N'; RequiredMode='
+            + @Mode;
+        THROW 51413, @VerifyError, 1;
+    END;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+    @ScopeSet dbo.InventoryFenceScopeSetType READONLY,
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    IF EXISTS
+       (
+           SELECT 1
+           FROM @ScopeSet
+           WHERE Kho_ID IS NULL
+              OR Kho_ID <= 0
+              OR San_Pham_ID IS NULL
+              OR San_Pham_ID <= 0
+       )
+        THROW 51414, N'Inventory fence ScopeSet contains an invalid identifier.', 1;
+
+    DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+
+    INSERT @GroupSet(Kho_ID)
+    SELECT DISTINCT Kho_ID
+    FROM @ScopeSet;
+
+    /* GroupSet is acquired completely and sorted before the first Scope. */
+    EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+        @GroupSet = @GroupSet,
+        @Mode = @Mode;
+
+    DECLARE @Kho_ID BIGINT;
+    DECLARE @San_Pham_ID BIGINT;
+    DECLARE ScopeCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT Kho_ID, San_Pham_ID
+        FROM @ScopeSet
+        GROUP BY Kho_ID, San_Pham_ID
+        ORDER BY Kho_ID, San_Pham_ID;
+
+    OPEN ScopeCursor;
+    FETCH NEXT FROM ScopeCursor INTO @Kho_ID, @San_Pham_ID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope
+            @Kho_ID = @Kho_ID,
+            @San_Pham_ID = @San_Pham_ID,
+            @Mode = @Mode;
+
+        FETCH NEXT FROM ScopeCursor INTO @Kho_ID, @San_Pham_ID;
+    END;
+
+    CLOSE ScopeCursor;
+    DEALLOCATE ScopeCursor;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot
+    @Kho_ID BIGINT,
+    @San_Pham_ID BIGINT,
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0
+        THROW 51422, N'Inventory fence Snapshot Kho_ID must be a positive canonical identifier.', 1;
+
+    IF @San_Pham_ID IS NULL OR @San_Pham_ID <= 0
+        THROW 51423, N'Inventory fence Snapshot San_Pham_ID must be a positive canonical identifier.', 1;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    /* Snapshot namespace is a compatibility lock only.  The Group call keeps
+       the new data fence ahead of every legacy namespace lock. */
+    EXEC dbo.sp_Inventory_Fence_Acquire_Group
+        @Kho_ID = @Kho_ID,
+        @Mode = @Mode;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Snapshot_Resource(@Kho_ID, @San_Pham_ID);
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @LockResult INT;
+
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = @Mode,
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+
+        IF @LockResult < 0
+        BEGIN
+            DECLARE @AcquireError NVARCHAR(2048) =
+                N'Inventory fence legacy Snapshot acquisition failed. Resource='
+                + @Resource
+                + N'; Result='
+                + CONVERT(NVARCHAR(20), @LockResult);
+            THROW 51424, @AcquireError, 1;
+        END;
+    END;
+
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @VerifyError NVARCHAR(2048) =
+            N'Inventory fence legacy Snapshot verification failed. Resource='
+            + @Resource
+            + N'; EffectiveMode='
+            + ISNULL(@ActualMode, N'NULL')
+            + N'; RequiredMode='
+            + @Mode;
+        THROW 51425, @VerifyError, 1;
+    END;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+    @ScopeSet dbo.InventoryFenceScopeSetType READONLY,
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    IF EXISTS
+       (
+           SELECT 1
+           FROM @ScopeSet
+           WHERE Kho_ID IS NULL
+              OR Kho_ID <= 0
+              OR San_Pham_ID IS NULL
+              OR San_Pham_ID <= 0
+       )
+        THROW 51426, N'Inventory fence SnapshotSet contains an invalid identifier.', 1;
+
+    DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+    INSERT @GroupSet(Kho_ID)
+    SELECT DISTINCT Kho_ID FROM @ScopeSet;
+
+    /* A complete Group set is acquired before any Snapshot namespace. */
+    EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+        @GroupSet = @GroupSet,
+        @Mode = @Mode;
+
+    DECLARE @Kho_ID BIGINT;
+    DECLARE @San_Pham_ID BIGINT;
+    DECLARE SnapshotCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT Kho_ID, San_Pham_ID
+        FROM @ScopeSet
+        GROUP BY Kho_ID, San_Pham_ID
+        ORDER BY Kho_ID, San_Pham_ID;
+
+    OPEN SnapshotCursor;
+    FETCH NEXT FROM SnapshotCursor INTO @Kho_ID, @San_Pham_ID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot
+            @Kho_ID = @Kho_ID,
+            @San_Pham_ID = @San_Pham_ID,
+            @Mode = @Mode;
+
+        FETCH NEXT FROM SnapshotCursor INTO @Kho_ID, @San_Pham_ID;
+    END;
+
+    CLOSE SnapshotCursor;
+    DEALLOCATE SnapshotCursor;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    DECLARE @RootMode NVARCHAR(32) = APPLOCK_MODE(N'public', dbo.fn_Inventory_Fence_Root_Resource(), N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@RootMode, N'Shared') = 0
+        THROW 51427, N'Legacy movement bootstrap compatibility lock requires Root first.', 1;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Movement_Bootstrap_Resource();
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @LockResult INT;
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = @Mode,
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+        IF @LockResult < 0
+            THROW 51428, N'Inventory movement bootstrap compatibility fence is busy.', 1;
+    END;
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+        THROW 51429, N'Inventory movement bootstrap compatibility fence verification failed.', 1;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Bootstrap
+AS
+BEGIN
+    SET NOCOUNT ON;
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies
+       (APPLOCK_MODE(N'public', dbo.fn_Inventory_Fence_Root_Resource(), N'Transaction'), N'Exclusive') = 0
+        THROW 51430, N'Legacy snapshot bootstrap compatibility lock requires Root Exclusive.', 1;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Snapshot_Bootstrap_Resource();
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, N'Exclusive') = 0
+    BEGIN
+        DECLARE @LockResult INT;
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+        IF @LockResult < 0
+            THROW 51431, N'Legacy snapshot bootstrap compatibility fence is busy.', 1;
+    END;
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, N'Exclusive') = 0
+        THROW 51432, N'Legacy snapshot bootstrap compatibility fence verification failed.', 1;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Snapshot_Finalize_Singleton
+AS
+BEGIN
+    SET NOCOUNT ON;
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Snapshot_Finalize_Resource();
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, N'Exclusive') = 0
+    BEGIN
+        DECLARE @LockResult INT;
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+        IF @LockResult < 0
+            THROW 51433, N'Finalize snapshot đang được thực hiện bởi worker khác.', 1;
+    END;
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, N'Exclusive') = 0
+        THROW 51434, N'Finalize singleton fence verification failed.', 1;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Acquire_Snapshot_Worker_Singleton
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Snapshot_Worker_Resource();
+    DECLARE @LockResult INT;
+    EXEC @LockResult = sys.sp_getapplock
+        @Resource = @Resource,
+        @LockMode = N'Exclusive',
+        @LockOwner = N'Session',
+        @LockTimeout = 0,
+        @DbPrincipal = N'public';
+    IF @LockResult < 0
+        THROW 51435, N'Snapshot rebuild worker is already running.', 1;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Release_Snapshot_Worker_Singleton
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Snapshot_Worker_Resource();
+    DECLARE @ReleaseResult INT;
+    EXEC @ReleaseResult = sys.sp_releaseapplock
+        @Resource = @Resource,
+        @LockOwner = N'Session';
+    IF @ReleaseResult < 0
+        THROW 51436, N'Snapshot rebuild worker singleton release failed.', 1;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Fence_Require_Context
+    @GroupSet dbo.InventoryFenceGroupSetType READONLY,
+    @ScopeSet dbo.InventoryFenceScopeSetType READONLY,
+    @RequiredRootMode NVARCHAR(12),
+    @RequiredGroupMode NVARCHAR(12) = N'Shared',
+    @RequiredScopeMode NVARCHAR(12) = N'Shared'
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @RequiredRootMode IS NULL
+       OR @RequiredRootMode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51415, N'Required Root mode must be exactly Shared or Exclusive.', 1;
+
+    IF @RequiredGroupMode IS NULL
+       OR @RequiredGroupMode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51416, N'Required Group mode must be exactly Shared or Exclusive.', 1;
+
+    IF @RequiredScopeMode IS NULL
+       OR @RequiredScopeMode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51417, N'Required Scope mode must be exactly Shared or Exclusive.', 1;
+
+    IF EXISTS (SELECT 1 FROM @GroupSet WHERE Kho_ID IS NULL OR Kho_ID <= 0)
+        THROW 51409, N'Inventory fence GroupSet contains an invalid Kho_ID.', 1;
+
+    IF EXISTS
+       (
+           SELECT 1
+           FROM @ScopeSet
+           WHERE Kho_ID IS NULL
+              OR Kho_ID <= 0
+              OR San_Pham_ID IS NULL
+              OR San_Pham_ID <= 0
+       )
+        THROW 51414, N'Inventory fence ScopeSet contains an invalid identifier.', 1;
+
+    IF EXISTS
+       (
+           SELECT 1
+           FROM @ScopeSet s
+           LEFT JOIN @GroupSet g ON g.Kho_ID = s.Kho_ID
+           WHERE g.Kho_ID IS NULL
+       )
+        THROW 51418, N'Inventory fence context is missing a Group for a requested Scope.', 1;
+
+    DECLARE @RootResource NVARCHAR(255) = dbo.fn_Inventory_Fence_Root_Resource();
+    DECLARE @RootMode NVARCHAR(32) = APPLOCK_MODE(N'public', @RootResource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@RootMode, @RequiredRootMode) = 0
+    BEGIN
+        DECLARE @RootContextError NVARCHAR(2048) =
+            N'Inventory fence context is missing required Root mode. Resource='
+            + @RootResource
+            + N'; EffectiveMode='
+            + ISNULL(@RootMode, N'NULL')
+            + N'; RequiredMode='
+            + @RequiredRootMode;
+        THROW 51419, @RootContextError, 1;
+    END;
+
+    DECLARE @Kho_ID BIGINT;
+    DECLARE @Resource NVARCHAR(255);
+    DECLARE @ActualMode NVARCHAR(32);
+
+    DECLARE GroupContextCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT Kho_ID
+        FROM @GroupSet
+        GROUP BY Kho_ID
+        ORDER BY Kho_ID;
+
+    OPEN GroupContextCursor;
+    FETCH NEXT FROM GroupContextCursor INTO @Kho_ID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @Resource = dbo.fn_Inventory_Fence_Group_Resource(@Kho_ID);
+        SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+        IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @RequiredGroupMode) = 0
+        BEGIN
+            DECLARE @GroupContextError NVARCHAR(2048) =
+                N'Inventory fence context is missing required Group mode. Resource='
+                + @Resource
+                + N'; EffectiveMode='
+                + ISNULL(@ActualMode, N'NULL')
+                + N'; RequiredMode='
+                + @RequiredGroupMode;
+            CLOSE GroupContextCursor;
+            DEALLOCATE GroupContextCursor;
+            THROW 51420, @GroupContextError, 1;
+        END;
+
+        FETCH NEXT FROM GroupContextCursor INTO @Kho_ID;
+    END;
+
+    CLOSE GroupContextCursor;
+    DEALLOCATE GroupContextCursor;
+
+    DECLARE @San_Pham_ID BIGINT;
+    DECLARE ScopeContextCursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT Kho_ID, San_Pham_ID
+        FROM @ScopeSet
+        GROUP BY Kho_ID, San_Pham_ID
+        ORDER BY Kho_ID, San_Pham_ID;
+
+    OPEN ScopeContextCursor;
+    FETCH NEXT FROM ScopeContextCursor INTO @Kho_ID, @San_Pham_ID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @Resource = dbo.fn_Inventory_Fence_Scope_Resource(@Kho_ID, @San_Pham_ID);
+        SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+        IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @RequiredScopeMode) = 0
+        BEGIN
+            DECLARE @ScopeContextError NVARCHAR(2048) =
+                N'Inventory fence context is missing required Scope mode. Resource='
+                + @Resource
+                + N'; EffectiveMode='
+                + ISNULL(@ActualMode, N'NULL')
+                + N'; RequiredMode='
+                + @RequiredScopeMode;
+            CLOSE ScopeContextCursor;
+            DEALLOCATE ScopeContextCursor;
+            THROW 51421, @ScopeContextError, 1;
+        END;
+
+        FETCH NEXT FROM ScopeContextCursor INTO @Kho_ID, @San_Pham_ID;
+    END;
+
+    CLOSE ScopeContextCursor;
+    DEALLOCATE ScopeContextCursor;
+END;
+GO
+
+/* PERF-06A FOUNDATION END */
+
 CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Apply_Invalidation
     @Affected dbo.InventorySnapshotAffectedType READONLY
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
-    CREATE TABLE #AffectedScope
+    IF NOT EXISTS (SELECT 1 FROM @Affected) RETURN;
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @Affected
+        WHERE Kho_ID IS NULL OR Kho_ID <= 0
+           OR San_Pham_ID IS NULL OR San_Pham_ID <= 0
+           OR From_Date IS NULL
+    )
+        THROW 51441, N'Snapshot invalidation contains an invalid scope or date.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID)
+        SELECT DISTINCT Kho_ID FROM @Affected;
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID)
+        SELECT DISTINCT Kho_ID, San_Pham_ID FROM @Affected;
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        CREATE TABLE #AffectedScope
     (
         Kho_ID BIGINT NOT NULL,
         San_Pham_ID BIGINT NOT NULL,
@@ -28,7 +921,7 @@ BEGIN
         PRIMARY KEY (Kho_ID, San_Pham_ID)
     );
 
-    INSERT #AffectedScope(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        INSERT #AffectedScope(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
     SELECT Kho_ID,
            San_Pham_ID,
            MIN(From_Date),
@@ -39,9 +932,9 @@ BEGIN
     FROM @Affected
     GROUP BY Kho_ID, San_Pham_ID;
 
-    DECLARE @InvalidatedAt DATETIME2 = SYSUTCDATETIME();
+        DECLARE @InvalidatedAt DATETIME2 = SYSUTCDATETIME();
 
-    UPDATE s
+        UPDATE s
        SET IsValid = 0,
            InvalidatedAt = @InvalidatedAt,
            InvalidReason = a.InvalidReason
@@ -54,7 +947,7 @@ BEGIN
     /* A new invalidation advances the durable generation even when a worker
        already owns the queue row.  The old claim remains PROCESSING, but its
        completion can no longer publish COMPLETED for the newer generation. */
-    UPDATE q
+        UPDATE q
        SET RequestType = CASE WHEN EXISTS
                                    (
                                        SELECT 1
@@ -91,7 +984,7 @@ BEGIN
      AND q.From_Date <= a.From_Date
     WHERE q.LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED', N'FAILED_FINAL');
 
-    UPDATE dl
+        UPDATE dl
        SET ResolvedAt = SYSUTCDATETIME(),
            ResolutionNote = N'Reactivated by a newer snapshot invalidation.'
     FROM dbo.InventorySnapshot_RebuildDeadLetter dl
@@ -106,7 +999,7 @@ BEGIN
     /* The legacy Status column stays backward compatible.  RequestType and
        LifecycleStatus distinguish a missing-snapshot initialization from a
        normal invalid-snapshot rebuild without changing the Post contract. */
-    INSERT dbo.InventorySnapshot_RebuildQueue
+        INSERT dbo.InventorySnapshot_RebuildQueue
     (
         Kho_ID, San_Pham_ID, From_Date,
         Status, RequestType, LifecycleStatus,
@@ -134,15 +1027,22 @@ BEGIN
                      ) THEN N'WAITING' ELSE N'INITIALIZE_REQUIRED' END,
            @InvalidatedAt, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, 1, NULL
     FROM #AffectedScope a
-    WHERE NOT EXISTS
-    (
-        SELECT 1
-        FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
-        WHERE q.Kho_ID = a.Kho_ID
-          AND q.San_Pham_ID = a.San_Pham_ID
-          AND q.LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED', N'FAILED_FINAL')
-          AND q.From_Date <= a.From_Date
-    );
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
+            WHERE q.Kho_ID = a.Kho_ID
+              AND q.San_Pham_ID = a.San_Pham_ID
+              AND q.LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED', N'FAILED_FINAL')
+              AND q.From_Date <= a.From_Date
+        );
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -157,17 +1057,35 @@ BEGIN
     IF @Kho_ID IS NULL OR @San_Pham_ID IS NULL OR @From_Date IS NULL
         THROW 51302, N'Kho, sản phẩm và ngày rebuild là bắt buộc.', 1;
 
-    BEGIN TRANSACTION;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
     BEGIN TRY
-        DECLARE @ScopeLockResult INT;
-        DECLARE @ScopeLockResource NVARCHAR(255) = CONCAT(N'InventorySnapshot:', @Kho_ID, N':', @San_Pham_ID);
-        EXEC @ScopeLockResult = sys.sp_getapplock
-            @Resource = @ScopeLockResource,
-            @LockMode = N'Exclusive',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @ScopeLockResult < 0
-            THROW 51305, N'Snapshot scope đang được rebuild bởi worker khác.', 1;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
 
         DECLARE @To_Date DATE;
         DECLARE @BaseSnapshot_Date DATE;
@@ -184,7 +1102,7 @@ BEGIN
            materialize. This is normal when two back-dated events coalesce. */
         IF @To_Date IS NULL
         BEGIN
-            COMMIT TRANSACTION;
+            IF @OwnTransaction = 1 COMMIT TRANSACTION;
             RETURN;
         END
 
@@ -339,10 +1257,10 @@ BEGIN
               AND s.San_Pham_ID = @San_Pham_ID
         );
 
-        COMMIT TRANSACTION;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 END
@@ -432,15 +1350,9 @@ BEGIN
 
     BEGIN TRY
         BEGIN TRANSACTION;
-
-        DECLARE @LockResult INT;
-        EXEC @LockResult = sys.sp_getapplock
-            @Resource = N'InventorySnapshotBootstrap',
-            @LockMode = N'Exclusive',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @LockResult < 0
-            THROW 51309, N'Bootstrap snapshot đang được thực hiện bởi worker khác.', 1;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Bootstrap;
 
         CREATE TABLE #Scope
         (
@@ -569,17 +1481,35 @@ BEGIN
     )
         THROW 51311, N'INITIALIZE_REQUIRED: chưa có bootstrap Posted Ledger được xác nhận cho scope snapshot này.', 1;
 
-    BEGIN TRANSACTION;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
     BEGIN TRY
-        DECLARE @LockResult INT;
-        DECLARE @LockResource NVARCHAR(255) = CONCAT(N'InventorySnapshot:', @Kho_ID, N':', @San_Pham_ID);
-        EXEC @LockResult = sys.sp_getapplock
-            @Resource = @LockResource,
-            @LockMode = N'Exclusive',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @LockResult < 0
-            THROW 51305, N'Snapshot scope đang được rebuild bởi worker khác.', 1;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
 
         DECLARE @ClosingQuantity DECIMAL(18,3);
         SELECT @ClosingQuantity = CAST(COALESCE(SUM(m.Quantity), 0) AS DECIMAL(18,3))
@@ -624,10 +1554,10 @@ BEGIN
                 1, NULL, NULL, 1
             );
 
-        COMMIT TRANSACTION;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
 END
@@ -646,6 +1576,8 @@ BEGIN
     SET XACT_ABORT ON;
     IF @Snapshot_Date IS NULL
         THROW 51312, N'Snapshot_Date là bắt buộc.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
 
     BEGIN TRY
         /* Do not publish a final checkpoint while the Daily projection is
@@ -692,15 +1624,84 @@ BEGIN
         )
             THROW 51321, N'SNAPSHOT_REBUILD_FAILED_FINAL: checkpoint bị chặn bởi failure chưa được recovery.', 1;
 
-        BEGIN TRANSACTION;
-        DECLARE @LockResult INT;
-        EXEC @LockResult = sys.sp_getapplock
-            @Resource = N'InventorySnapshotFinalize',
-            @LockMode = N'Exclusive',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @LockResult < 0
-            THROW 51313, N'Finalize snapshot đang được thực hiện bởi worker khác.', 1;
+        IF (@Kho_ID IS NOT NULL AND @Kho_ID <= 0)
+            THROW 51405, N'Inventory fence Kho_ID must be a positive canonical identifier.', 1;
+        IF (@San_Pham_ID IS NOT NULL AND @San_Pham_ID <= 0)
+            THROW 51423, N'Inventory fence Snapshot San_Pham_ID must be a positive canonical identifier.', 1;
+
+        DECLARE @WholeDomain BIT = CASE WHEN @Kho_ID IS NULL OR @San_Pham_ID IS NULL THEN 1 ELSE 0 END;
+        DECLARE @RequiredRootMode NVARCHAR(12) = CASE WHEN @WholeDomain = 1 THEN N'Exclusive' ELSE N'Shared' END;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+
+        IF @@TRANCOUNT = 0
+        BEGIN
+            BEGIN TRANSACTION;
+            SET @OwnTransaction = 1;
+        END
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = @RequiredRootMode;
+        IF @WholeDomain = 1
+        BEGIN
+            /* Root Exclusive is the data fence for an unbounded finalize.  The
+               legacy bootstrap resource remains only for old writers. */
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Exclusive';
+        END;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Snapshot_Finalize_Singleton;
+
+        CREATE TABLE #FinalizeScope
+        (
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            PRIMARY KEY (Kho_ID, San_Pham_ID)
+        );
+
+        IF @WholeDomain = 0
+            INSERT #FinalizeScope(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+        ELSE
+        BEGIN
+            INSERT #FinalizeScope(Kho_ID, San_Pham_ID)
+            SELECT b.Kho_ID, b.San_Pham_ID
+            FROM dbo.Inventory_Balance_Daily b
+            WHERE b.IsValid = 1 AND b.Balance_Date <= @Snapshot_Date
+            UNION
+            SELECT s.Kho_ID, s.San_Pham_ID
+            FROM dbo.InventoryBalance_Snapshot_Daily s
+            WHERE s.Snapshot_Date <= @Snapshot_Date
+            UNION
+            SELECT c.Kho_ID, c.San_Pham_ID
+            FROM dbo.Inventory_Report_Scope_Catalog c
+            UNION
+            SELECT h.Kho_ID, d.San_Pham_ID
+            FROM dbo.tbl_XNK_Nhap_Kho h
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1 AND h.Ngay_Nhap_Kho <= @Snapshot_Date
+            UNION
+            SELECT h.Kho_ID, d.San_Pham_ID
+            FROM dbo.tbl_XNK_Xuat_Kho h
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Is_Posted = 1 AND h.Ngay_Xuat_Kho <= @Snapshot_Date;
+        END;
+
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID)
+        SELECT Kho_ID, San_Pham_ID FROM #FinalizeScope;
+        INSERT @GroupSet(Kho_ID)
+        SELECT DISTINCT Kho_ID FROM #FinalizeScope;
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = @RequiredRootMode,
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
 
         /* Repeat terminal-failure guards after taking the finalize lock so a
            failure committed while the initial freshness check was running
@@ -746,43 +1747,6 @@ BEGIN
               AND (@San_Pham_ID IS NULL OR q.San_Pham_ID = @San_Pham_ID)
         )
             THROW 51321, N'SNAPSHOT_REBUILD_FAILED_FINAL: checkpoint bị chặn bởi failure chưa được recovery.', 1;
-
-        /* Finalize and Post share the same per-scope fence used by Daily
-           rebuild. A shared lock lets Finalize complete before a Post, while
-           a committed Post cannot pass this point without excluding the
-           publication read. Sorted acquisition keeps multi-scope operations
-           in one lock order. */
-        DECLARE @FinalizeScopeLockResult INT;
-        DECLARE @FinalizeScopeLockResource NVARCHAR(255);
-        DECLARE @FinalizeScopeKho_ID BIGINT, @FinalizeScopeSan_Pham_ID BIGINT;
-        DECLARE finalize_scope_cursor CURSOR LOCAL FAST_FORWARD FOR
-            SELECT DISTINCT b.Kho_ID, b.San_Pham_ID
-            FROM dbo.Inventory_Balance_Daily b
-            WHERE b.IsValid = 1
-              AND b.Balance_Date <= @Snapshot_Date
-              AND (@Kho_ID IS NULL OR b.Kho_ID = @Kho_ID)
-              AND (@San_Pham_ID IS NULL OR b.San_Pham_ID = @San_Pham_ID)
-            ORDER BY b.Kho_ID, b.San_Pham_ID;
-        OPEN finalize_scope_cursor;
-        FETCH NEXT FROM finalize_scope_cursor INTO @FinalizeScopeKho_ID, @FinalizeScopeSan_Pham_ID;
-        WHILE @@FETCH_STATUS = 0
-        BEGIN
-            SET @FinalizeScopeLockResource = CONCAT(N'InventoryMovement:', @FinalizeScopeKho_ID, N':', @FinalizeScopeSan_Pham_ID);
-            EXEC @FinalizeScopeLockResult = sys.sp_getapplock
-                @Resource = @FinalizeScopeLockResource,
-                @LockMode = N'Shared',
-                @LockOwner = N'Transaction',
-                @LockTimeout = 0;
-            IF @FinalizeScopeLockResult < 0
-            BEGIN
-                CLOSE finalize_scope_cursor;
-                DEALLOCATE finalize_scope_cursor;
-                THROW 51322, N'Projection scope đang được Post hoặc rebuild; Finalize phải chạy lại sau khi scope ổn định.', 1;
-            END
-            FETCH NEXT FROM finalize_scope_cursor INTO @FinalizeScopeKho_ID, @FinalizeScopeSan_Pham_ID;
-        END
-        CLOSE finalize_scope_cursor;
-        DEALLOCATE finalize_scope_cursor;
 
         CREATE TABLE #Finalized
         (
@@ -861,18 +1825,22 @@ BEGIN
                  AND q.LifecycleStatus IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED', N'FAILED_FINAL')
            );
 
-        COMMIT TRANSACTION;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
         EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
             @Worker_Name = @Worker_Name,
             @Succeeded = 1;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
         DECLARE @FinalizeError NVARCHAR(4000) = ERROR_MESSAGE();
-        EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
-            @Worker_Name = @Worker_Name,
-            @Succeeded = 0,
-            @LastError = @FinalizeError;
+        /* A caller-owned XACT_ABORT transaction can be uncommittable after
+           the fail-closed validation THROW.  Do not let heartbeat persistence
+           mask the original 51320/51321 contract with error 3930. */
+        IF XACT_STATE() <> -1
+            EXEC dbo.sp_Inventory_Snapshot_Record_Heartbeat
+                @Worker_Name = @Worker_Name,
+                @Succeeded = 0,
+                @LastError = @FinalizeError;
         THROW;
     END CATCH
 END
@@ -889,7 +1857,42 @@ BEGIN
     IF @Queue_ID IS NULL OR @Claimed_Version IS NULL
         THROW 51316, N'Queue claim snapshot không hợp lệ.', 1;
 
-    UPDATE q
+    DECLARE @Candidate_Kho_ID BIGINT, @Candidate_San_Pham_ID BIGINT;
+    SELECT @Candidate_Kho_ID = Kho_ID, @Candidate_San_Pham_ID = San_Pham_ID
+    FROM dbo.InventorySnapshot_RebuildQueue
+    WHERE ID = @Queue_ID;
+    IF @Candidate_Kho_ID IS NULL OR @Candidate_San_Pham_ID IS NULL
+        THROW 51317, N'Queue claim snapshot không còn tồn tại.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_San_Pham_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        UPDATE q
        SET Status = CASE WHEN q.Requested_Version = @Claimed_Version THEN N'COMPLETED' ELSE N'WAITING' END,
            LifecycleStatus = CASE WHEN q.Requested_Version = @Claimed_Version THEN N'COMPLETED' ELSE N'WAITING' END,
            AttemptCount = CASE WHEN q.Requested_Version = @Claimed_Version THEN q.AttemptCount ELSE 0 END,
@@ -905,8 +1908,14 @@ BEGIN
       AND q.LifecycleStatus = N'PROCESSING'
       AND q.Claimed_Version = @Claimed_Version;
 
-    IF @@ROWCOUNT <> 1
-        THROW 51317, N'Queue claim snapshot không còn hợp lệ hoặc đã được worker khác hoàn tất.', 1;
+        IF @@ROWCOUNT <> 1
+            THROW 51317, N'Queue claim snapshot không còn hợp lệ hoặc đã được worker khác hoàn tất.', 1;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -930,14 +1939,7 @@ BEGIN
     IF NULLIF(LTRIM(RTRIM(@Worker_Name)), N'') IS NULL
         THROW 51307, N'Tên worker snapshot là bắt buộc.', 1;
 
-    DECLARE @LockResult INT;
-    EXEC @LockResult = sys.sp_getapplock
-        @Resource = N'InventorySnapshotRebuildWorker',
-        @LockMode = N'Exclusive',
-        @LockOwner = N'Session',
-        @LockTimeout = 0;
-    IF @LockResult < 0
-        THROW 51304, N'Worker rebuild snapshot đang được xử lý bởi tiến trình khác.', 1;
+    EXEC dbo.sp_Inventory_Fence_Acquire_Snapshot_Worker_Singleton;
 
     BEGIN TRY
         /* A crashed worker leaves a lease rather than being silently reset.
@@ -947,6 +1949,12 @@ BEGIN
         DECLARE @TickHadFailure BIT = 0;
         DECLARE @TickLastError NVARCHAR(4000) = NULL;
         DECLARE @ExpiredLeaseCount INT = 0;
+        /* Lease recovery can touch every warehouse when the worker is not
+           filtered. Treat it as a whole-domain queue mutation and fence it
+           before the first queue/state write. */
+        BEGIN TRANSACTION;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
         UPDATE q
            SET AttemptCount = q.AttemptCount + 1,
                LastAttemptAt = @Now,
@@ -985,6 +1993,8 @@ BEGIN
           AND q.LastError LIKE N'LEASE_EXPIRED:%'
           AND NOT EXISTS (SELECT 1 FROM dbo.InventorySnapshot_RebuildDeadLetter d WHERE d.Queue_ID = q.ID);
 
+        COMMIT TRANSACTION;
+
         CREATE TABLE #Claimed
         (
             ID BIGINT NOT NULL PRIMARY KEY,
@@ -1004,15 +2014,72 @@ BEGIN
             DECLARE @RequestType NVARCHAR(20);
             DECLARE @Claimed_Version INT;
 
+            DECLARE @Candidate_ID BIGINT = NULL;
+            DECLARE @Candidate_Kho_ID BIGINT;
+            DECLARE @Candidate_San_Pham_ID BIGINT;
+            SELECT TOP (1)
+                   @Candidate_ID = q.ID,
+                   @Candidate_Kho_ID = q.Kho_ID,
+                   @Candidate_San_Pham_ID = q.San_Pham_ID
+            FROM dbo.InventorySnapshot_RebuildQueue q WITH (READPAST)
+            WHERE (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
+              AND (@San_Pham_ID IS NULL OR q.San_Pham_ID = @San_Pham_ID)
+              AND
+              (
+                  q.LifecycleStatus = N'WAITING'
+                  OR (q.LifecycleStatus = N'RETRY_WAITING' AND q.NextAttemptAt <= @Now)
+                  OR
+                  (
+                      q.LifecycleStatus = N'INITIALIZE_REQUIRED'
+                      AND EXISTS
+                      (
+                          SELECT 1
+                          FROM dbo.InventorySnapshot_BootstrapAudit audit
+                          WHERE audit.Status = N'COMPLETED'
+                            AND audit.Baseline_Date <= q.From_Date
+                            AND (audit.Kho_ID IS NULL OR audit.Kho_ID = q.Kho_ID)
+                            AND (audit.San_Pham_ID IS NULL OR audit.San_Pham_ID = q.San_Pham_ID)
+                      )
+                  )
+              )
+            ORDER BY CASE WHEN q.LifecycleStatus = N'INITIALIZE_REQUIRED' THEN 0 ELSE 1 END,
+                     q.CreatedAt, q.ID;
+
+            IF @Candidate_ID IS NULL BREAK;
+
+            BEGIN TRY
             BEGIN TRANSACTION;
+            DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+            DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+            INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_San_Pham_ID);
+
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+                @GroupSet = @GroupSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+                @ScopeSet = @ScopeSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+                @ScopeSet = @ScopeSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Require_Context
+                @GroupSet = @GroupSet,
+                @ScopeSet = @ScopeSet,
+                @RequiredRootMode = N'Shared',
+                @RequiredGroupMode = N'Exclusive',
+                @RequiredScopeMode = N'Exclusive';
+
             ;WITH NextItem AS
             (
                 SELECT TOP (1)
                        q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.RequestType, q.Requested_Version, q.Claimed_Version,
                        q.Status, q.LifecycleStatus, q.LastAttemptAt, q.LeaseUntil,
                        q.ClaimedBy, q.ClaimedAt, q.ErrorMessage, q.CompletedAt
-                FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
+                FROM dbo.InventorySnapshot_RebuildQueue q WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+                WHERE q.ID = @Candidate_ID
+                  AND (@Kho_ID IS NULL OR q.Kho_ID = @Kho_ID)
                   AND (@San_Pham_ID IS NULL OR q.San_Pham_ID = @San_Pham_ID)
                   AND
                   (
@@ -1058,6 +2125,94 @@ BEGIN
             FROM #Claimed;
             DELETE FROM #Claimed;
             COMMIT TRANSACTION;
+            END TRY
+            BEGIN CATCH
+                DECLARE @Claim_Error_Number INT = ERROR_NUMBER();
+                DECLARE @Claim_Error_Message NVARCHAR(4000) = LEFT(ERROR_MESSAGE(), 4000);
+                IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+
+                IF dbo.fn_Inventory_Fence_Is_Transient_Contention(@Claim_Error_Number, @Claim_Error_Message) = 1
+                BEGIN
+                    DECLARE @Claim_Failure_Queue_ID BIGINT = COALESCE(@QueueId, @Candidate_ID);
+                    DECLARE @Claim_Next_Attempt_Count INT;
+                    DECLARE @Claim_Is_Final BIT;
+                    DECLARE @Claim_Failure_At DATETIME2 = SYSUTCDATETIME();
+
+                    SET @TickHadFailure = 1;
+                    SET @TickLastError = @Claim_Error_Message;
+
+                    BEGIN TRY
+                        BEGIN TRANSACTION;
+
+                        SELECT @Claim_Next_Attempt_Count = AttemptCount + 1
+                        FROM dbo.InventorySnapshot_RebuildQueue WITH (UPDLOCK, HOLDLOCK)
+                        WHERE ID = @Claim_Failure_Queue_ID
+                          AND LifecycleStatus IN (N'WAITING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED');
+
+                        SET @Claim_Is_Final = CASE
+                            WHEN @Claim_Next_Attempt_Count IS NOT NULL
+                             AND @Claim_Next_Attempt_Count >= @Max_Retry_Count
+                            THEN 1 ELSE 0 END;
+
+                        IF @Claim_Next_Attempt_Count IS NOT NULL
+                        BEGIN
+                            UPDATE dbo.InventorySnapshot_RebuildQueue
+                            SET AttemptCount = @Claim_Next_Attempt_Count,
+                                LastAttemptAt = @Claim_Failure_At,
+                                LastError = @Claim_Error_Message,
+                                ErrorMessage = @Claim_Error_Message,
+                                LifecycleStatus = CASE WHEN @Claim_Is_Final = 1 THEN N'FAILED_FINAL' ELSE N'RETRY_WAITING' END,
+                                Status = CASE WHEN @Claim_Is_Final = 1 THEN N'FAILED' ELSE N'WAITING' END,
+                                NextAttemptAt = CASE WHEN @Claim_Is_Final = 1 THEN NULL
+                                                     ELSE DATEADD(MINUTE,
+                                                                  CASE @Claim_Next_Attempt_Count
+                                                                      WHEN 1 THEN 1
+                                                                      WHEN 2 THEN 5
+                                                                      WHEN 3 THEN 15
+                                                                      ELSE 60
+                                                                  END,
+                                                                  @Claim_Failure_At)
+                                                END,
+                                LeaseUntil = NULL,
+                                ClaimedBy = NULL,
+                                ClaimedAt = NULL,
+                                Claimed_Version = NULL,
+                                CompletedAt = CASE WHEN @Claim_Is_Final = 1 THEN @Claim_Failure_At ELSE NULL END
+                            WHERE ID = @Claim_Failure_Queue_ID
+                              AND LifecycleStatus IN (N'WAITING', N'RETRY_WAITING', N'INITIALIZE_REQUIRED');
+
+                            IF @Claim_Is_Final = 1
+                                INSERT dbo.InventorySnapshot_RebuildDeadLetter
+                                (
+                                    Queue_ID, Kho_ID, San_Pham_ID, From_Date, RequestType,
+                                    AttemptCount, LastError, FailedAt
+                                )
+                                SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.RequestType,
+                                       q.AttemptCount, q.LastError, @Claim_Failure_At
+                                FROM dbo.InventorySnapshot_RebuildQueue q
+                                WHERE q.ID = @Claim_Failure_Queue_ID
+                                  AND q.LifecycleStatus = N'FAILED_FINAL'
+                                  AND NOT EXISTS
+                                  (
+                                      SELECT 1
+                                      FROM dbo.InventorySnapshot_RebuildDeadLetter d
+                                      WHERE d.Queue_ID = q.ID
+                                  );
+                        END;
+
+                        COMMIT TRANSACTION;
+                    END TRY
+                    BEGIN CATCH
+                        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+                        THROW;
+                    END CATCH;
+
+                    SET @Processed += 1;
+                    CONTINUE;
+                END;
+
+                THROW;
+            END CATCH;
 
             IF @QueueId IS NULL BREAK;
 
@@ -1094,7 +2249,10 @@ BEGIN
                   AND Claimed_Version = @Claimed_Version
                   AND Requested_Version = @Claimed_Version;
 
-                DECLARE @IsTransient BIT = CASE WHEN @ErrorNumber IN (1205, 1222, 51224, 51226, 51305) THEN 1 ELSE 0 END;
+                DECLARE @IsTransient BIT = CASE
+                    WHEN @ErrorNumber IN (1205, 1222, 51224, 51226, 51305)
+                      OR dbo.fn_Inventory_Fence_Is_Transient_Contention(@ErrorNumber, @ErrorMessage) = 1
+                    THEN 1 ELSE 0 END;
                 DECLARE @HasCurrentClaim BIT = CASE WHEN @NextAttemptCount IS NULL THEN 0 ELSE 1 END;
                 DECLARE @IsFinal BIT = CASE WHEN @HasCurrentClaim = 1 AND (@IsTransient = 0 OR @NextAttemptCount >= @Max_Retry_Count) THEN 1 ELSE 0 END;
                 DECLARE @FailureAt DATETIME2 = SYSUTCDATETIME();
@@ -1176,14 +2334,11 @@ BEGIN
             @Succeeded = @TickSucceeded,
             @LastError = @TickLastError;
 
-        EXEC sys.sp_releaseapplock
-            @Resource = N'InventorySnapshotRebuildWorker',
-            @LockOwner = N'Session';
+        EXEC dbo.sp_Inventory_Fence_Release_Snapshot_Worker_Singleton;
     END TRY
     BEGIN CATCH
-        EXEC sys.sp_releaseapplock
-            @Resource = N'InventorySnapshotRebuildWorker',
-            @LockOwner = N'Session';
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        EXEC dbo.sp_Inventory_Fence_Release_Snapshot_Worker_Singleton;
         THROW;
     END CATCH
 END
@@ -1306,21 +2461,58 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Adjust
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     IF @Delta = 0 RETURN;
+    IF @Kho_ID IS NULL OR @Kho_ID <= 0 OR @San_Pham_ID IS NULL OR @San_Pham_ID <= 0
+        THROW 51442, N'Reservation adjustment contains an invalid scope.', 1;
 
-    DECLARE @CurrentQuantity DECIMAL(18,3), @ReservedQuantity DECIMAL(18,3);
-    SELECT @CurrentQuantity = CurrentQuantity, @ReservedQuantity = ReservedQuantity
-    FROM dbo.InventoryBalance_Current WITH (UPDLOCK, HOLDLOCK)
-    WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
 
-    IF @CurrentQuantity IS NULL OR @Delta > 0 AND @CurrentQuantity - @ReservedQuantity < @Delta
-        THROW 51140, N'Tồn khả dụng không đủ để giữ cho phiếu xuất nháp.', 1;
-    IF @Delta < 0 AND @ReservedQuantity < -@Delta
-        THROW 51141, N'Dữ liệu giữ chỗ tồn kho không hợp lệ.', 1;
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
 
-    UPDATE dbo.InventoryBalance_Current
-    SET ReservedQuantity = ReservedQuantity + @Delta, UpdatedAt = SYSUTCDATETIME()
-    WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        DECLARE @CurrentQuantity DECIMAL(18,3), @ReservedQuantity DECIMAL(18,3);
+        SELECT @CurrentQuantity = CurrentQuantity, @ReservedQuantity = ReservedQuantity
+        FROM dbo.InventoryBalance_Current WITH (UPDLOCK, HOLDLOCK)
+        WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+
+        IF @CurrentQuantity IS NULL OR @Delta > 0 AND @CurrentQuantity - @ReservedQuantity < @Delta
+            THROW 51140, N'Tồn khả dụng không đủ để giữ cho phiếu xuất nháp.', 1;
+        IF @Delta < 0 AND @ReservedQuantity < -@Delta
+            THROW 51141, N'Dữ liệu giữ chỗ tồn kho không hợp lệ.', 1;
+
+        UPDATE dbo.InventoryBalance_Current
+        SET ReservedQuantity = ReservedQuantity + @Delta, UpdatedAt = SYSUTCDATETIME()
+        WHERE Kho_ID = @Kho_ID AND San_Pham_ID = @San_Pham_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -1329,31 +2521,95 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Move_Document
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     IF @Old_Kho_ID = @New_Kho_ID RETURN;
+    IF @Xuat_Kho_ID IS NULL OR @Xuat_Kho_ID <= 0
+       OR @Old_Kho_ID IS NULL OR @Old_Kho_ID <= 0
+       OR @New_Kho_ID IS NULL OR @New_Kho_ID <= 0
+        THROW 51443, N'Reservation move contains an invalid document or warehouse.', 1;
 
-    DECLARE @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
-    DECLARE reservation_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT r.San_Pham_ID, SUM(r.ReservedQuantity)
-        FROM dbo.InventoryReservation_Current r
-        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
-        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.Kho_ID = @Old_Kho_ID
-        GROUP BY r.San_Pham_ID;
+    DECLARE @CandidateScopeSet dbo.InventoryFenceScopeSetType;
+    INSERT @CandidateScopeSet(Kho_ID, San_Pham_ID)
+    SELECT @Old_Kho_ID, d.San_Pham_ID
+    FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d
+    WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
+    UNION
+    SELECT @New_Kho_ID, d.San_Pham_ID
+    FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d
+    WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID;
 
-    OPEN reservation_cursor;
-    FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
-    WHILE @@FETCH_STATUS = 0
+    IF NOT EXISTS (SELECT 1 FROM @CandidateScopeSet) RETURN;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
     BEGIN
-        SET @Delta = -@ReservedQuantity;
-        EXEC dbo.sp_XNK_Reservation_Adjust @Old_Kho_ID, @San_Pham_ID, @Delta;
-        EXEC dbo.sp_XNK_Reservation_Adjust @New_Kho_ID, @San_Pham_ID, @ReservedQuantity;
-        UPDATE r SET Kho_ID = @New_Kho_ID, UpdatedAt = SYSUTCDATETIME()
-        FROM dbo.InventoryReservation_Current r
-        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
-        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.Kho_ID = @Old_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
-        FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
     END
-    CLOSE reservation_cursor;
-    DEALLOCATE reservation_cursor;
+
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Old_Kho_ID), (@New_Kho_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @CandidateScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @CandidateScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        DECLARE @VerifiedScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @VerifiedScopeSet(Kho_ID, San_Pham_ID)
+        SELECT @Old_Kho_ID, d.San_Pham_ID
+        FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK)
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
+        UNION
+        SELECT @New_Kho_ID, d.San_Pham_ID
+        FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK)
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID;
+
+        IF EXISTS (SELECT Kho_ID, San_Pham_ID FROM @CandidateScopeSet EXCEPT SELECT Kho_ID, San_Pham_ID FROM @VerifiedScopeSet)
+           OR EXISTS (SELECT Kho_ID, San_Pham_ID FROM @VerifiedScopeSet EXCEPT SELECT Kho_ID, San_Pham_ID FROM @CandidateScopeSet)
+            THROW 51331, N'Chi tiết phiếu xuất đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
+
+        DECLARE @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
+        DECLARE reservation_cursor CURSOR LOCAL FAST_FORWARD FOR
+            SELECT r.San_Pham_ID, SUM(r.ReservedQuantity)
+            FROM dbo.InventoryReservation_Current r WITH (UPDLOCK, HOLDLOCK)
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK) ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+            WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.Kho_ID = @Old_Kho_ID
+            GROUP BY r.San_Pham_ID;
+
+        OPEN reservation_cursor;
+        FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @Delta = -@ReservedQuantity;
+            EXEC dbo.sp_XNK_Reservation_Adjust @Old_Kho_ID, @San_Pham_ID, @Delta;
+            EXEC dbo.sp_XNK_Reservation_Adjust @New_Kho_ID, @San_Pham_ID, @ReservedQuantity;
+            UPDATE r SET Kho_ID = @New_Kho_ID, UpdatedAt = SYSUTCDATETIME()
+            FROM dbo.InventoryReservation_Current r
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+            WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.Kho_ID = @Old_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
+            FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+        END
+        CLOSE reservation_cursor;
+        DEALLOCATE reservation_cursor;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF CURSOR_STATUS('local', 'reservation_cursor') >= 0 CLOSE reservation_cursor;
+        IF CURSOR_STATUS('local', 'reservation_cursor') > -3 DEALLOCATE reservation_cursor;
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -1362,15 +2618,71 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Release_Detail
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @Xuat_Kho_Detail_ID IS NULL OR @Xuat_Kho_Detail_ID <= 0
+        THROW 51444, N'Reservation detail identifier is invalid.', 1;
+
     DECLARE @Kho_ID BIGINT, @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
     SELECT @Kho_ID = Kho_ID, @San_Pham_ID = San_Pham_ID, @ReservedQuantity = ReservedQuantity
-    FROM dbo.InventoryReservation_Current WITH (UPDLOCK, HOLDLOCK)
+    FROM dbo.InventoryReservation_Current
     WHERE Xuat_Kho_Detail_ID = @Xuat_Kho_Detail_ID;
     IF @ReservedQuantity IS NULL RETURN;
+    DECLARE @Candidate_Kho_ID BIGINT = @Kho_ID;
+    DECLARE @Candidate_San_Pham_ID BIGINT = @San_Pham_ID;
+    DECLARE @Candidate_ReservedQuantity DECIMAL(18,3) = @ReservedQuantity;
 
-    SET @Delta = -@ReservedQuantity;
-    EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @Delta;
-    DELETE dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @Xuat_Kho_Detail_ID;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        SELECT @Kho_ID = Kho_ID,
+               @San_Pham_ID = San_Pham_ID,
+               @ReservedQuantity = ReservedQuantity
+        FROM dbo.InventoryReservation_Current WITH (UPDLOCK, HOLDLOCK)
+        WHERE Xuat_Kho_Detail_ID = @Xuat_Kho_Detail_ID;
+        IF @ReservedQuantity IS NULL
+        BEGIN
+            IF @OwnTransaction = 1 COMMIT TRANSACTION;
+            RETURN;
+        END;
+        IF @Kho_ID <> @Candidate_Kho_ID
+           OR @San_Pham_ID <> @Candidate_San_Pham_ID
+           OR @ReservedQuantity <> @Candidate_ReservedQuantity
+            THROW 51331, N'Reservation detail đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
+
+        SET @Delta = -@ReservedQuantity;
+        EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @Delta;
+        DELETE dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @Xuat_Kho_Detail_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -1379,32 +2691,90 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Reservation_Release_Document
 AS
 BEGIN
     SET NOCOUNT ON;
-    DECLARE @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3);
-    DECLARE reservation_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT r.San_Pham_ID, SUM(r.ReservedQuantity)
-        FROM dbo.InventoryReservation_Current r
-        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
-        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
-        GROUP BY r.San_Pham_ID;
+    SET XACT_ABORT ON;
+    IF @Xuat_Kho_ID IS NULL OR @Xuat_Kho_ID <= 0
+        THROW 51445, N'Reservation document identifier is invalid.', 1;
 
-    OPEN reservation_cursor;
-    FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
-    WHILE @@FETCH_STATUS = 0
+    DECLARE @CandidateScopeSet dbo.InventoryFenceScopeSetType;
+    INSERT @CandidateScopeSet(Kho_ID, San_Pham_ID)
+    SELECT r.Kho_ID, r.San_Pham_ID
+    FROM dbo.InventoryReservation_Current r
+    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+    WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
+    GROUP BY r.Kho_ID, r.San_Pham_ID;
+    IF NOT EXISTS (SELECT 1 FROM @CandidateScopeSet) RETURN;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
     BEGIN
-        SELECT TOP (1) @Delta = -@ReservedQuantity;
-        DECLARE @Kho_ID BIGINT = (SELECT TOP (1) r.Kho_ID
-                                  FROM dbo.InventoryReservation_Current r
-                                  JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
-                                  WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.San_Pham_ID = @San_Pham_ID);
-        EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @Delta;
-        DELETE r
-        FROM dbo.InventoryReservation_Current r
-        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
-        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
-        FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
     END
-    CLOSE reservation_cursor;
-    DEALLOCATE reservation_cursor;
+
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        INSERT @GroupSet(Kho_ID)
+        SELECT DISTINCT Kho_ID FROM @CandidateScopeSet;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @CandidateScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @CandidateScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        DECLARE @VerifiedScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @VerifiedScopeSet(Kho_ID, San_Pham_ID)
+        SELECT r.Kho_ID, r.San_Pham_ID
+        FROM dbo.InventoryReservation_Current r WITH (UPDLOCK, HOLDLOCK)
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK) ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+        WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
+        GROUP BY r.Kho_ID, r.San_Pham_ID;
+        IF EXISTS (SELECT Kho_ID, San_Pham_ID FROM @CandidateScopeSet EXCEPT SELECT Kho_ID, San_Pham_ID FROM @VerifiedScopeSet)
+           OR EXISTS (SELECT Kho_ID, San_Pham_ID FROM @VerifiedScopeSet EXCEPT SELECT Kho_ID, San_Pham_ID FROM @CandidateScopeSet)
+            THROW 51331, N'Reservation document đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
+
+        DECLARE @San_Pham_ID BIGINT, @ReservedQuantity DECIMAL(18,3), @Delta DECIMAL(18,3), @Kho_ID BIGINT;
+        DECLARE reservation_cursor CURSOR LOCAL FAST_FORWARD FOR
+            SELECT r.San_Pham_ID, SUM(r.ReservedQuantity)
+            FROM dbo.InventoryReservation_Current r WITH (UPDLOCK, HOLDLOCK)
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK) ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+            WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID
+            GROUP BY r.San_Pham_ID;
+
+        OPEN reservation_cursor;
+        FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @Delta = -@ReservedQuantity;
+            SELECT TOP (1) @Kho_ID = r.Kho_ID
+            FROM dbo.InventoryReservation_Current r
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+            WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
+            EXEC dbo.sp_XNK_Reservation_Adjust @Kho_ID, @San_Pham_ID, @Delta;
+            DELETE r
+            FROM dbo.InventoryReservation_Current r
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+            WHERE d.Xuat_Kho_ID = @Xuat_Kho_ID AND r.San_Pham_ID = @San_Pham_ID;
+            FETCH NEXT FROM reservation_cursor INTO @San_Pham_ID, @ReservedQuantity;
+        END
+        CLOSE reservation_cursor;
+        DEALLOCATE reservation_cursor;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF CURSOR_STATUS('local', 'reservation_cursor') >= 0 CLOSE reservation_cursor;
+        IF CURSOR_STATUS('local', 'reservation_cursor') > -3 DEALLOCATE reservation_cursor;
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -1419,6 +2789,7 @@ BEGIN
         SET @OwnTransaction = 1;
     END
     BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
         DELETE FROM dbo.InventoryReservation_Current;
         UPDATE dbo.InventoryBalance_Current SET ReservedQuantity = 0, UpdatedAt = SYSUTCDATETIME();
         INSERT dbo.InventoryReservation_Current(Xuat_Kho_Detail_ID, Kho_ID, San_Pham_ID, ReservedQuantity)
@@ -1610,12 +2981,46 @@ BEGIN
        historical cutoff and must use the historical Daily projection. */
     DECLARE @Is_Current_Mode BIT = CASE WHEN @As_Of_Date IS NULL THEN 1 ELSE 0 END;
     DECLARE @Effective_As_Of_Date DATE = COALESCE(@As_Of_Date, CONVERT(DATE, SYSDATETIME()));
+    IF @Kho_ID IS NOT NULL AND @Kho_ID <= 0
+        THROW 51405, N'Inventory fence Kho_ID must be a positive canonical identifier.', 1;
+    IF @San_Pham_ID IS NOT NULL AND @San_Pham_ID <= 0
+        THROW 51423, N'Inventory fence San_Pham_ID must be a positive canonical identifier.', 1;
 
-    INSERT dbo.InventoryReconciliation_Run(As_Of_Date, Kho_ID, San_Pham_ID, Status, StartedAt)
-    VALUES (@Effective_As_Of_Date, @Kho_ID, @San_Pham_ID, N'RUNNING', SYSUTCDATETIME());
-    SET @Run_ID = SCOPE_IDENTITY();
-
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
     BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        IF @Kho_ID IS NOT NULL AND @Kho_ID > 0
+           AND @San_Pham_ID IS NOT NULL AND @San_Pham_ID > 0
+        BEGIN
+            INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+                @GroupSet = @GroupSet,
+                @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+                @ScopeSet = @ScopeSet,
+                @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Require_Context
+                @GroupSet = @GroupSet,
+                @ScopeSet = @ScopeSet,
+                @RequiredRootMode = N'Shared',
+                @RequiredGroupMode = N'Shared',
+                @RequiredScopeMode = N'Shared';
+        END
+        ELSE
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        INSERT dbo.InventoryReconciliation_Run(As_Of_Date, Kho_ID, San_Pham_ID, Status, StartedAt)
+        VALUES (@Effective_As_Of_Date, @Kho_ID, @San_Pham_ID, N'RUNNING', SYSUTCDATETIME());
+        SET @Run_ID = SCOPE_IDENTITY();
+
         CREATE TABLE #LedgerDaily
         (
             Movement_Date DATE NOT NULL,
@@ -1971,8 +3376,10 @@ BEGIN
                CompletedAt = SYSUTCDATETIME(),
                ErrorMessage = NULL
          WHERE ID = @Run_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
         UPDATE dbo.InventoryReconciliation_Run
            SET Status = N'FAILED',
                CompletedAt = SYSUTCDATETIME(),
@@ -2100,19 +3507,71 @@ CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Snapshot_Invalidate_From
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
     IF @From_Date IS NULL
         THROW 51301, N'Ngày bắt đầu invalidate không được để trống.', 1;
+    IF @Kho_ID IS NOT NULL AND @Kho_ID <= 0
+        THROW 51405, N'Inventory fence Kho_ID must be a positive canonical identifier.', 1;
+    IF @San_Pham_ID IS NOT NULL AND @San_Pham_ID <= 0
+        THROW 51423, N'Inventory fence Snapshot San_Pham_ID must be a positive canonical identifier.', 1;
     SET @InvalidReason = COALESCE(NULLIF(LTRIM(RTRIM(@InvalidReason)), N''), N'BACK_DATE_POST');
 
-    DECLARE @Affected dbo.InventorySnapshotAffectedType;
-    INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
-    SELECT DISTINCT Kho_ID, San_Pham_ID, @From_Date, @InvalidReason
-    FROM dbo.InventoryBalance_Snapshot_Daily
-    WHERE Snapshot_Date >= @From_Date
-      AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
-      AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID);
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
 
-    EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+    BEGIN TRY
+        DECLARE @Affected dbo.InventorySnapshotAffectedType;
+        DECLARE @WholeDomain BIT = CASE WHEN @Kho_ID IS NULL OR @San_Pham_ID IS NULL THEN 1 ELSE 0 END;
+
+        IF @WholeDomain = 1
+        BEGIN
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Exclusive';
+        END
+        ELSE
+        BEGIN
+            DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+            DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+            INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+                @GroupSet = @GroupSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+                @ScopeSet = @ScopeSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Snapshot_Set
+                @ScopeSet = @ScopeSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Require_Context
+                @GroupSet = @GroupSet,
+                @ScopeSet = @ScopeSet,
+                @RequiredRootMode = N'Shared',
+                @RequiredGroupMode = N'Exclusive',
+                @RequiredScopeMode = N'Exclusive';
+        END;
+
+        INSERT @Affected(Kho_ID, San_Pham_ID, From_Date, InvalidReason)
+        SELECT DISTINCT Kho_ID, San_Pham_ID, @From_Date, @InvalidReason
+        FROM dbo.InventoryBalance_Snapshot_Daily
+        WHERE Snapshot_Date >= @From_Date
+          AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID)
+          AND (@San_Pham_ID IS NULL OR San_Pham_ID = @San_Pham_ID);
+
+        EXEC dbo.sp_Inventory_Snapshot_Apply_Invalidation @Affected = @Affected;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -2138,13 +3597,33 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_Delete @Entity NVARCHAR(30), @Auto_ID BIGINT
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF @Entity=N'DonViTinh' DELETE FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID=@Auto_ID;
-    ELSE IF @Entity=N'LoaiSanPham' DELETE FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID=@Auto_ID;
-    ELSE IF @Entity=N'SanPham' DELETE FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@Auto_ID;
-    ELSE IF @Entity=N'NCC' DELETE FROM dbo.tbl_DM_NCC WHERE Auto_ID=@Auto_ID;
-    ELSE IF @Entity=N'Kho' DELETE FROM dbo.tbl_DM_Kho WHERE Auto_ID=@Auto_ID;
-    ELSE IF @Entity=N'KhoUser' DELETE FROM dbo.tbl_DM_Kho_User WHERE Auto_ID=@Auto_ID;
-    ELSE THROW 51060,N'Loại danh mục không hợp lệ.',1;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+
+    BEGIN TRY
+        /* Warehouse/product identity changes can alter future scope
+           derivation.  Treat all master deletes as root-exclusive
+           maintenance, even when the selected entity is not inventory data. */
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        IF @Entity=N'DonViTinh' DELETE FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID=@Auto_ID;
+        ELSE IF @Entity=N'LoaiSanPham' DELETE FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID=@Auto_ID;
+        ELSE IF @Entity=N'SanPham' DELETE FROM dbo.tbl_DM_San_Pham WHERE Auto_ID=@Auto_ID;
+        ELSE IF @Entity=N'NCC' DELETE FROM dbo.tbl_DM_NCC WHERE Auto_ID=@Auto_ID;
+        ELSE IF @Entity=N'Kho' DELETE FROM dbo.tbl_DM_Kho WHERE Auto_ID=@Auto_ID;
+        ELSE THROW 51060,N'Loại danh mục không hợp lệ.',1;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -2167,8 +3646,6 @@ BEGIN
         SELECT Auto_ID, Ma_NCC AS Code, Ten_NCC AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
     ELSE IF @Entity=N'Kho'
         SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Kho AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
-    ELSE IF @Entity=N'KhoUser'
-        SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, CAST(N'' AS NVARCHAR(255)) AS Name, u.Kho_ID AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, u.Ma_Dang_Nhap AS Login_Name, CAST(N'' AS NVARCHAR(1000)) AS Ghi_Chu FROM dbo.tbl_DM_Kho_User u ORDER BY u.Ma_Dang_Nhap, u.Kho_ID;
     ELSE THROW 51060, N'Loại danh mục không hợp lệ.', 1;
 END
 GO
@@ -2222,11 +3699,6 @@ BEGIN
         SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Kho WHERE @Search_Text=N'' OR Ten_Kho LIKE @Filter;
         SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Kho AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Kho WHERE @Search_Text=N'' OR Ten_Kho LIKE @Filter ORDER BY Ten_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
     END
-    ELSE IF @Entity=N'KhoUser'
-    BEGIN
-        SELECT COUNT(*) AS Total_Count FROM dbo.tbl_DM_Kho_User u WHERE @Search_Text=N'' OR u.Ma_Dang_Nhap LIKE @Filter;
-        SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, CAST(N'' AS NVARCHAR(255)) AS Name, u.Kho_ID AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, u.Ma_Dang_Nhap AS Login_Name, CAST(N'' AS NVARCHAR(1000)) AS Ghi_Chu FROM dbo.tbl_DM_Kho_User u WHERE @Search_Text=N'' OR u.Ma_Dang_Nhap LIKE @Filter ORDER BY u.Ma_Dang_Nhap, u.Kho_ID OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
-    END
     ELSE THROW 51060, N'Loại danh mục không hợp lệ.', 1;
 END
 GO
@@ -2274,13 +3746,29 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_Don_Vi_Tinh_Save
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
 AS
 BEGIN
-    SET NOCOUNT ON; SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
-    IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
-    IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI=@Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
-    IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Don_Vi_Tinh,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
-    ELSE UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh=@Ten_Don_Vi_Tinh,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
-    IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY();
-    SELECT @Auto_ID AS Auto_ID;
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
+        IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI=@Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
+        IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Don_Vi_Tinh,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        ELSE UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh=@Ten_Don_Vi_Tinh,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY();
+        SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -2290,13 +3778,29 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_Loai_San_Pham_Save
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
 AS
 BEGIN
-    SET NOCOUNT ON; SET @Ma_LSP=LTRIM(RTRIM(ISNULL(@Ma_LSP,N''))); SET @Ten_LSP=LTRIM(RTRIM(ISNULL(@Ten_LSP,N'')));
-    IF @Ma_LSP=N'' THROW 51010,N'Mã loại sản phẩm không được để trống.',1;
-    IF @Ten_LSP=N'' THROW 51012,N'Tên loại sản phẩm không được để trống.',1;
-    IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Loai_San_Pham WHERE (Ma_LSP=@Ma_LSP OR Ten_LSP=@Ten_LSP) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51011,N'Mã hoặc tên loại sản phẩm đã tồn tại.',1;
-    IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Loai_San_Pham(Ma_LSP,Ten_LSP,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_LSP,@Ten_LSP,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
-    ELSE UPDATE dbo.tbl_DM_Loai_San_Pham SET Ma_LSP=@Ma_LSP,Ten_LSP=@Ten_LSP,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
-    IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_LSP=LTRIM(RTRIM(ISNULL(@Ma_LSP,N''))); SET @Ten_LSP=LTRIM(RTRIM(ISNULL(@Ten_LSP,N'')));
+        IF @Ma_LSP=N'' THROW 51010,N'Mã loại sản phẩm không được để trống.',1;
+        IF @Ten_LSP=N'' THROW 51012,N'Tên loại sản phẩm không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Loai_San_Pham WHERE (Ma_LSP=@Ma_LSP OR Ten_LSP=@Ten_LSP) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51011,N'Mã hoặc tên loại sản phẩm đã tồn tại.',1;
+        IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Loai_San_Pham(Ma_LSP,Ten_LSP,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_LSP,@Ten_LSP,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        ELSE UPDATE dbo.tbl_DM_Loai_San_Pham SET Ma_LSP=@Ma_LSP,Ten_LSP=@Ten_LSP,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -2460,12 +3964,32 @@ BEGIN
         SET @SavepointCreated = 1;
     END
     BEGIN TRY
+        DECLARE @Old_Kho_ID BIGINT, @Is_Posted BIT;
+        IF ISNULL(@Auto_ID, 0) <> 0
+            SELECT @Old_Kho_ID = Kho_ID
+            FROM dbo.tbl_XNK_Nhap_Kho
+            WHERE Auto_ID = @Auto_ID;
+        DECLARE @Candidate_Old_Kho_ID BIGINT = @Old_Kho_ID;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        IF @Kho_ID IS NOT NULL AND @Kho_ID > 0 INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        IF @Old_Kho_ID IS NOT NULL AND @Old_Kho_ID > 0 INSERT @GroupSet(Kho_ID) VALUES (@Old_Kho_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Shared';
+
         SET @So_Phieu_Nhap_Kho = LTRIM(RTRIM(ISNULL(@So_Phieu_Nhap_Kho, N'')));
         IF @So_Phieu_Nhap_Kho = N'' THROW 51100, N'Số phiếu nhập không được để trống.', 1;
         IF @Ngay_Nhap_Kho IS NULL THROW 51104, N'Ngày nhập kho không được để trống.', 1;
         IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_NCC WHERE Auto_ID = @NCC_ID) THROW 51103, N'Nhà cung cấp không hợp lệ.', 1;
 
-        DECLARE @Old_Kho_ID BIGINT, @Is_Posted BIT;
         IF ISNULL(@Auto_ID, 0) = 0
         BEGIN
             IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho = @So_Phieu_Nhap_Kho) THROW 51101, N'Số phiếu nhập đã tồn tại.', 1;
@@ -2491,6 +4015,8 @@ BEGIN
             FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK)
             WHERE Auto_ID = @Auto_ID;
             IF @Old_Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+            IF @Candidate_Old_Kho_ID <> @Old_Kho_ID
+                THROW 51331, N'Phiếu nhập đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
             IF @Is_Posted = 1 THROW 51163, N'Không được sửa phiếu đã Post.', 1;
             IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID = @Kho_ID) THROW 51102, N'Kho không hợp lệ.', 1;
             EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Old_Kho_ID;
@@ -2538,6 +4064,25 @@ BEGIN
         SET @SavepointCreated = 1;
     END
     BEGIN TRY
+        DECLARE @Candidate_Kho_ID BIGINT;
+        SELECT @Candidate_Kho_ID = Kho_ID
+        FROM dbo.tbl_XNK_Nhap_Kho
+        WHERE Auto_ID = @Nhap_Kho_ID;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        IF @Candidate_Kho_ID IS NOT NULL AND @Candidate_Kho_ID > 0
+            INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Shared';
+
         DECLARE @Kho_ID BIGINT, @Is_Posted BIT;
         SELECT @Kho_ID = Kho_ID, @Is_Posted = Is_Posted
         FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK)
@@ -2598,11 +4143,50 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Delete_Header
 AS
 BEGIN
     SET NOCOUNT ON;
-    DECLARE @Kho_ID BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Auto_ID);
-    IF @Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
-    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Auto_ID AND Is_Posted = 1) THROW 51163, N'Không được xóa phiếu đã Post.', 1;
-    DELETE FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Auto_ID;
+    SET XACT_ABORT ON;
+    IF @Auto_ID IS NULL OR @Auto_ID <= 0
+        THROW 51446, N'Receipt document identifier is invalid.', 1;
+    DECLARE @Candidate_Kho_ID BIGINT;
+    SELECT @Candidate_Kho_ID = Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Auto_ID;
+    IF @Candidate_Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Shared';
+
+        DECLARE @Kho_ID BIGINT, @Is_Posted BIT;
+        SELECT @Kho_ID = Kho_ID, @Is_Posted = Is_Posted
+        FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK)
+        WHERE Auto_ID = @Auto_ID;
+        IF @Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+        IF @Kho_ID <> @Candidate_Kho_ID
+            THROW 51331, N'Phiếu nhập đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
+        EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+        IF @Is_Posted = 1 THROW 51163, N'Không được xóa phiếu đã Post.', 1;
+        DELETE FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -2650,66 +4234,136 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Post
 AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON; SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    CREATE TABLE #Delta
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        Delta DECIMAL(18,3) NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID)
+    );
+
+    /* Candidate discovery is intentionally lock-free.  It only derives the
+       complete group/scope set.  The protected transaction re-reads and
+       verifies the exact header/detail identity after the new fence is held. */
+    DECLARE @Movement_Date DATE;
+    DECLARE @Candidate_Kho_ID BIGINT;
+    IF @Is_Receipt = 1
+    BEGIN
+        SELECT @Candidate_Kho_ID = Kho_ID, @Movement_Date = Ngay_Nhap_Kho
+        FROM dbo.tbl_XNK_Nhap_Kho
+        WHERE Auto_ID = @Document_ID;
+        IF @Candidate_Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+        IF NOT EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @Document_ID)
+            THROW 51161, N'Không thể Post phiếu không có chi tiết.', 1;
+        INSERT #Delta
+        SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(d.SL_Nhap AS DECIMAL(18,3)))
+        FROM dbo.tbl_XNK_Nhap_Kho h
+        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+        WHERE h.Auto_ID = @Document_ID
+        GROUP BY h.Kho_ID, d.San_Pham_ID;
+    END
+    ELSE
+    BEGIN
+        SELECT @Candidate_Kho_ID = Kho_ID, @Movement_Date = Ngay_Xuat_Kho
+        FROM dbo.tbl_XNK_Xuat_Kho
+        WHERE Auto_ID = @Document_ID;
+        IF @Candidate_Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        IF NOT EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Document_ID)
+            THROW 51161, N'Không thể Post phiếu không có chi tiết.', 1;
+        INSERT #Delta
+        SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(-d.SL_Xuat AS DECIMAL(18,3)))
+        FROM dbo.tbl_XNK_Xuat_Kho h
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+        WHERE h.Auto_ID = @Document_ID
+        GROUP BY h.Kho_ID, d.San_Pham_ID;
+    END;
+
+    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Candidate_Kho_ID;
+
     BEGIN TRY
         BEGIN TRANSACTION;
-        DECLARE @BootstrapPostLockResult INT;
-        EXEC @BootstrapPostLockResult = sys.sp_getapplock
-            @Resource = N'InventoryMovement:Bootstrap',
-            @LockMode = N'Shared',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @BootstrapPostLockResult < 0
-            THROW 51226, N'Movement Aggregate đang bảo trì bootstrap. Không thể Post chứng từ lúc này.', 1;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Shared';
 
-        CREATE TABLE #Delta(Kho_ID BIGINT NOT NULL, San_Pham_ID BIGINT NOT NULL, Delta DECIMAL(18,3) NOT NULL, PRIMARY KEY(Kho_ID, San_Pham_ID));
-        DECLARE @Movement_Date DATE;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID)
+        SELECT DISTINCT Kho_ID FROM #Delta;
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID)
+        SELECT Kho_ID, San_Pham_ID FROM #Delta;
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        /* The row locks are deliberately taken only after Root/Group/Scope.
+           Any change to the candidate identity fails closed and is retried by
+           the caller instead of posting a mixed-generation document. */
+        DECLARE @Verified_Kho_ID BIGINT;
+        DECLARE @Verified_Movement_Date DATE;
+        DECLARE @Verified_Is_Posted BIT;
+        DECLARE @VerifiedDetailCount INT;
+        DECLARE @CandidateDetailCount INT = (SELECT COUNT(*) FROM #Delta);
+        CREATE TABLE #VerifiedDelta
+        (
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            Delta DECIMAL(18,3) NOT NULL,
+            PRIMARY KEY (Kho_ID, San_Pham_ID)
+        );
+
         IF @Is_Receipt = 1
         BEGIN
-            DECLARE @ReceiptWarehouse BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Document_ID);
-            SELECT @Movement_Date = Ngay_Nhap_Kho FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID;
-            IF @ReceiptWarehouse IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
-            EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @ReceiptWarehouse;
-            IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51162, N'Phiếu đã Post.', 1;
-            IF NOT EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Nhap_Kho_ID = @Document_ID) THROW 51161, N'Không thể Post phiếu không có chi tiết.', 1;
-            INSERT #Delta SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(d.SL_Nhap AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID WHERE h.Auto_ID = @Document_ID GROUP BY h.Kho_ID, d.San_Pham_ID;
+            SELECT @Verified_Kho_ID = Kho_ID,
+                   @Verified_Movement_Date = Ngay_Nhap_Kho,
+                   @Verified_Is_Posted = Is_Posted
+            FROM dbo.tbl_XNK_Nhap_Kho WITH (UPDLOCK, HOLDLOCK)
+            WHERE Auto_ID = @Document_ID;
+            IF @Verified_Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
+            IF @Verified_Is_Posted = 1 THROW 51162, N'Phiếu đã Post.', 1;
+            INSERT #VerifiedDelta
+            SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(d.SL_Nhap AS DECIMAL(18,3)))
+            FROM dbo.tbl_XNK_Nhap_Kho h WITH (UPDLOCK, HOLDLOCK)
+            JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK) ON d.Nhap_Kho_ID = h.Auto_ID
+            WHERE h.Auto_ID = @Document_ID
+            GROUP BY h.Kho_ID, d.San_Pham_ID;
         END
         ELSE
         BEGIN
-            DECLARE @IssueWarehouse BIGINT = (SELECT Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Document_ID);
-            SELECT @Movement_Date = Ngay_Xuat_Kho FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID;
-            IF @IssueWarehouse IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
-            EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @IssueWarehouse;
-            IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51162, N'Phiếu đã Post.', 1;
-            IF NOT EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data WHERE Xuat_Kho_ID = @Document_ID) THROW 51161, N'Không thể Post phiếu không có chi tiết.', 1;
-            INSERT #Delta SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(-d.SL_Xuat AS DECIMAL(18,3))) FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID WHERE h.Auto_ID = @Document_ID GROUP BY h.Kho_ID, d.San_Pham_ID;
-        END
-        /* Post is the exclusive side of the same projection fence used by
-           Finalize/report reads and Daily rebuild. */
-        DECLARE @PostScopeLockResult INT;
-        DECLARE @PostScopeLockResource NVARCHAR(255);
-        DECLARE @PostScopeKho_ID BIGINT, @PostScopeSan_Pham_ID BIGINT;
-        DECLARE post_scope_cursor CURSOR LOCAL FAST_FORWARD FOR
-            SELECT Kho_ID, San_Pham_ID FROM #Delta ORDER BY Kho_ID, San_Pham_ID;
-        OPEN post_scope_cursor;
-        FETCH NEXT FROM post_scope_cursor INTO @PostScopeKho_ID, @PostScopeSan_Pham_ID;
-        WHILE @@FETCH_STATUS = 0
-        BEGIN
-            SET @PostScopeLockResource = CONCAT(N'InventoryMovement:', @PostScopeKho_ID, N':', @PostScopeSan_Pham_ID);
-            EXEC @PostScopeLockResult = sys.sp_getapplock
-                @Resource = @PostScopeLockResource,
-                @LockMode = N'Exclusive',
-                @LockOwner = N'Transaction',
-                @LockTimeout = 0;
-            IF @PostScopeLockResult < 0
-            BEGIN
-                CLOSE post_scope_cursor;
-                DEALLOCATE post_scope_cursor;
-                THROW 51322, N'Projection scope đang được Finalize hoặc rebuild; Post phải chạy lại.', 1;
-            END
-            FETCH NEXT FROM post_scope_cursor INTO @PostScopeKho_ID, @PostScopeSan_Pham_ID;
-        END
-        CLOSE post_scope_cursor;
-        DEALLOCATE post_scope_cursor;
+            SELECT @Verified_Kho_ID = Kho_ID,
+                   @Verified_Movement_Date = Ngay_Xuat_Kho,
+                   @Verified_Is_Posted = Is_Posted
+            FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK)
+            WHERE Auto_ID = @Document_ID;
+            IF @Verified_Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+            IF @Verified_Is_Posted = 1 THROW 51162, N'Phiếu đã Post.', 1;
+            INSERT #VerifiedDelta
+            SELECT h.Kho_ID, d.San_Pham_ID, SUM(CAST(-d.SL_Xuat AS DECIMAL(18,3)))
+            FROM dbo.tbl_XNK_Xuat_Kho h WITH (UPDLOCK, HOLDLOCK)
+            JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK) ON d.Xuat_Kho_ID = h.Auto_ID
+            WHERE h.Auto_ID = @Document_ID
+            GROUP BY h.Kho_ID, d.San_Pham_ID;
+        END;
+
+        SELECT @VerifiedDetailCount = COUNT(*) FROM #VerifiedDelta;
+        IF @Verified_Kho_ID <> @Candidate_Kho_ID
+           OR @Verified_Movement_Date <> @Movement_Date
+           OR @VerifiedDetailCount <> @CandidateDetailCount
+           OR EXISTS (SELECT Kho_ID, San_Pham_ID, Delta FROM #Delta EXCEPT SELECT Kho_ID, San_Pham_ID, Delta FROM #VerifiedDelta)
+           OR EXISTS (SELECT Kho_ID, San_Pham_ID, Delta FROM #VerifiedDelta EXCEPT SELECT Kho_ID, San_Pham_ID, Delta FROM #Delta)
+            THROW 51331, N'Chứng từ hoặc chi tiết đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
+
+        EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Verified_Kho_ID;
+        SET @Movement_Date = @Verified_Movement_Date;
 
         /* Scope catalog is the optimistic report boundary.  A new scope is
            recorded in this transaction before the Posted header/Current
@@ -2891,6 +4545,8 @@ BEGIN
         SET @OwnTransaction = 1;
     END
     BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Exclusive';
         DELETE FROM dbo.InventoryBalance_Current;
         ;WITH Delta AS
         (
@@ -2927,8 +4583,17 @@ BEGIN
         VALUES(@Ma_Dang_Nhap, @Kho_ID, COALESCE(@Created_By, @Last_Updated_By), COALESCE(@Created_By_Function, @Last_Updated_By_Function), SYSUTCDATETIME(), @Last_Updated_By, @Last_Updated_By_Function);
     ELSE
         UPDATE dbo.tbl_DM_Kho_User SET Ma_Dang_Nhap = @Ma_Dang_Nhap, Kho_ID = @Kho_ID, Last_Updated = SYSUTCDATETIME(), Last_Updated_By = @Last_Updated_By, Last_Updated_By_Function = @Last_Updated_By_Function WHERE Auto_ID = @Auto_ID;
-    IF ISNULL(@Auto_ID, 0) = 0 SET @Auto_ID = SCOPE_IDENTITY();
+IF ISNULL(@Auto_ID, 0) = 0 SET @Auto_ID = SCOPE_IDENTITY();
     SELECT @Auto_ID AS Auto_ID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_DM_Kho_User_Delete
+    @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM dbo.tbl_DM_Kho_User WHERE Auto_ID=@Auto_ID;
 END
 GO
 
@@ -3043,13 +4708,29 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_San_Pham_Save
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
 AS
 BEGIN
-    SET NOCOUNT ON; SET @Ma_San_Pham=LTRIM(RTRIM(ISNULL(@Ma_San_Pham,N''))); SET @Ten_San_Pham=LTRIM(RTRIM(ISNULL(@Ten_San_Pham,N'')));
-    IF @Ma_San_Pham=N'' THROW 51020,N'Mã sản phẩm không được để trống.',1; IF @Ten_San_Pham=N'' THROW 51022,N'Tên sản phẩm không được để trống.',1;
-    IF EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Ma_San_Pham=@Ma_San_Pham AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51021,N'Mã sản phẩm đã tồn tại.',1;
-    IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID=@Loai_San_Pham_ID) THROW 51023,N'Loại sản phẩm không hợp lệ.',1; IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID=@Don_Vi_Tinh_ID) THROW 51024,N'Đơn vị tính không hợp lệ.',1;
-    IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham,Ten_San_Pham,Loai_San_Pham_ID,Don_Vi_Tinh_ID,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_San_Pham,@Ten_San_Pham,@Loai_San_Pham_ID,@Don_Vi_Tinh_ID,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
-    ELSE UPDATE dbo.tbl_DM_San_Pham SET Ma_San_Pham=@Ma_San_Pham,Ten_San_Pham=@Ten_San_Pham,Loai_San_Pham_ID=@Loai_San_Pham_ID,Don_Vi_Tinh_ID=@Don_Vi_Tinh_ID,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
-    IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_San_Pham=LTRIM(RTRIM(ISNULL(@Ma_San_Pham,N''))); SET @Ten_San_Pham=LTRIM(RTRIM(ISNULL(@Ten_San_Pham,N'')));
+        IF @Ma_San_Pham=N'' THROW 51020,N'Mã sản phẩm không được để trống.',1; IF @Ten_San_Pham=N'' THROW 51022,N'Tên sản phẩm không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Ma_San_Pham=@Ma_San_Pham AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51021,N'Mã sản phẩm đã tồn tại.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID=@Loai_San_Pham_ID) THROW 51023,N'Loại sản phẩm không hợp lệ.',1; IF NOT EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID=@Don_Vi_Tinh_ID) THROW 51024,N'Đơn vị tính không hợp lệ.',1;
+        IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham,Ten_San_Pham,Loai_San_Pham_ID,Don_Vi_Tinh_ID,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_San_Pham,@Ten_San_Pham,@Loai_San_Pham_ID,@Don_Vi_Tinh_ID,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        ELSE UPDATE dbo.tbl_DM_San_Pham SET Ma_San_Pham=@Ma_San_Pham,Ten_San_Pham=@Ten_San_Pham,Loai_San_Pham_ID=@Loai_San_Pham_ID,Don_Vi_Tinh_ID=@Don_Vi_Tinh_ID,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -3059,12 +4740,28 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_NCC_Save
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
 AS
 BEGIN
-    SET NOCOUNT ON; SET @Ma_NCC=LTRIM(RTRIM(ISNULL(@Ma_NCC,N''))); SET @Ten_NCC=LTRIM(RTRIM(ISNULL(@Ten_NCC,N'')));
-    IF @Ma_NCC=N'' THROW 51030,N'Mã nhà cung cấp không được để trống.',1; IF @Ten_NCC=N'' THROW 51032,N'Tên nhà cung cấp không được để trống.',1;
-    IF EXISTS(SELECT 1 FROM dbo.tbl_DM_NCC WHERE (Ma_NCC=@Ma_NCC OR Ten_NCC=@Ten_NCC) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51031,N'Mã hoặc tên nhà cung cấp đã tồn tại.',1;
-    IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_NCC(Ma_NCC,Ten_NCC,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_NCC,@Ten_NCC,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
-    ELSE UPDATE dbo.tbl_DM_NCC SET Ma_NCC=@Ma_NCC,Ten_NCC=@Ten_NCC,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
-    IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_NCC=LTRIM(RTRIM(ISNULL(@Ma_NCC,N''))); SET @Ten_NCC=LTRIM(RTRIM(ISNULL(@Ten_NCC,N'')));
+        IF @Ma_NCC=N'' THROW 51030,N'Mã nhà cung cấp không được để trống.',1; IF @Ten_NCC=N'' THROW 51032,N'Tên nhà cung cấp không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_NCC WHERE (Ma_NCC=@Ma_NCC OR Ten_NCC=@Ten_NCC) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51031,N'Mã hoặc tên nhà cung cấp đã tồn tại.',1;
+        IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_NCC(Ma_NCC,Ten_NCC,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_NCC,@Ten_NCC,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        ELSE UPDATE dbo.tbl_DM_NCC SET Ma_NCC=@Ma_NCC,Ten_NCC=@Ten_NCC,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -3074,11 +4771,27 @@ CREATE OR ALTER PROCEDURE dbo.sp_DM_Kho_Save
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
 AS
 BEGIN
-    SET NOCOUNT ON; SET @Ten_Kho=LTRIM(RTRIM(ISNULL(@Ten_Kho,N'')));
-    IF @Ten_Kho=N'' THROW 51040,N'Tên kho không được để trống.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho WHERE Ten_Kho=@Ten_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51041,N'Tên kho đã tồn tại.',1;
-    IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Kho(Ten_Kho,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Kho,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
-    ELSE UPDATE dbo.tbl_DM_Kho SET Ten_Kho=@Ten_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
-    IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ten_Kho=LTRIM(RTRIM(ISNULL(@Ten_Kho,N'')));
+        IF @Ten_Kho=N'' THROW 51040,N'Tên kho không được để trống.',1; IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Kho WHERE Ten_Kho=@Ten_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51041,N'Tên kho đã tồn tại.',1;
+        IF ISNULL(@Auto_ID,0)=0 INSERT dbo.tbl_DM_Kho(Ten_Kho,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Kho,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        ELSE UPDATE dbo.tbl_DM_Kho SET Ten_Kho=@Ten_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        IF ISNULL(@Auto_ID,0)=0 SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -3102,11 +4815,45 @@ BEGIN
         SET @SavepointCreated = 1;
     END
     BEGIN TRY
+        DECLARE @Old_Kho_ID BIGINT, @Is_Posted BIT;
+        IF ISNULL(@Auto_ID, 0) <> 0
+            SELECT @Old_Kho_ID = Kho_ID
+            FROM dbo.tbl_XNK_Xuat_Kho
+            WHERE Auto_ID = @Auto_ID;
+        DECLARE @Candidate_Old_Kho_ID BIGINT = @Old_Kho_ID;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        IF @Kho_ID IS NOT NULL AND @Kho_ID > 0 INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        IF @Old_Kho_ID IS NOT NULL AND @Old_Kho_ID > 0 INSERT @GroupSet(Kho_ID) VALUES (@Old_Kho_ID);
+        IF @Old_Kho_ID IS NOT NULL AND @Old_Kho_ID > 0 AND @Kho_ID IS NOT NULL AND @Kho_ID > 0
+        BEGIN
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID)
+            SELECT @Old_Kho_ID, d.San_Pham_ID
+            FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d
+            WHERE d.Xuat_Kho_ID = @Auto_ID
+            UNION
+            SELECT @Kho_ID, d.San_Pham_ID
+            FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d
+            WHERE d.Xuat_Kho_ID = @Auto_ID;
+        END;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
         SET @So_Phieu_Xuat_Kho = LTRIM(RTRIM(ISNULL(@So_Phieu_Xuat_Kho, N'')));
         IF @So_Phieu_Xuat_Kho = N'' THROW 51130, N'Số phiếu xuất không được để trống.', 1;
         IF @Ngay_Xuat_Kho IS NULL THROW 51133, N'Ngày xuất kho không được để trống.', 1;
 
-        DECLARE @Old_Kho_ID BIGINT, @Is_Posted BIT;
         IF ISNULL(@Auto_ID, 0) = 0
         BEGIN
             IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho = @So_Phieu_Xuat_Kho) THROW 51131, N'Số phiếu xuất đã tồn tại.', 1;
@@ -3130,6 +4877,8 @@ BEGIN
         BEGIN
             SELECT @Old_Kho_ID = Kho_ID, @Is_Posted = Is_Posted FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Auto_ID;
             IF @Old_Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+            IF @Candidate_Old_Kho_ID <> @Old_Kho_ID
+                THROW 51331, N'Phiếu xuất đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
             IF @Is_Posted = 1 THROW 51163, N'Không được sửa phiếu đã Post.', 1;
             IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho WHERE Auto_ID = @Kho_ID) THROW 51132, N'Kho không hợp lệ.', 1;
             EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Old_Kho_ID;
@@ -3177,9 +4926,55 @@ BEGIN
         SET @SavepointCreated = 1;
     END
     BEGIN TRY
+        DECLARE @Candidate_Kho_ID BIGINT;
+        DECLARE @Candidate_Old_San_Pham_ID BIGINT;
+        SELECT @Candidate_Kho_ID = Kho_ID
+        FROM dbo.tbl_XNK_Xuat_Kho
+        WHERE Auto_ID = @Xuat_Kho_ID;
+        IF ISNULL(@Auto_ID, 0) <> 0
+            SELECT @Candidate_Old_San_Pham_ID = San_Pham_ID
+            FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data
+            WHERE Auto_ID = @Auto_ID;
+        DECLARE @Candidate_Reservation_Kho_ID BIGINT;
+        IF ISNULL(@Auto_ID, 0) <> 0
+            SELECT @Candidate_Reservation_Kho_ID = Kho_ID
+            FROM dbo.InventoryReservation_Current
+            WHERE Xuat_Kho_Detail_ID = @Auto_ID;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        IF @Candidate_Kho_ID IS NOT NULL AND @Candidate_Kho_ID > 0
+            INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        IF @Candidate_Reservation_Kho_ID IS NOT NULL AND @Candidate_Reservation_Kho_ID > 0
+            INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Reservation_Kho_ID);
+        IF @Candidate_Kho_ID IS NOT NULL AND @Candidate_Kho_ID > 0
+        BEGIN
+            IF @San_Pham_ID IS NOT NULL AND @San_Pham_ID > 0
+                INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @San_Pham_ID);
+            IF @Candidate_Old_San_Pham_ID IS NOT NULL AND @Candidate_Old_San_Pham_ID > 0
+                INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_Old_San_Pham_ID);
+        END;
+        IF @Candidate_Reservation_Kho_ID IS NOT NULL AND @Candidate_Reservation_Kho_ID > 0
+           AND @Candidate_Old_San_Pham_ID IS NOT NULL AND @Candidate_Old_San_Pham_ID > 0
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Reservation_Kho_ID, @Candidate_Old_San_Pham_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
         DECLARE @Kho_ID BIGINT, @Old_San_Pham_ID BIGINT, @Old_ReservedQuantity DECIMAL(18,3) = 0, @Reservation_Kho_ID BIGINT;
         SELECT @Kho_ID = Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK) WHERE Auto_ID = @Xuat_Kho_ID;
         IF @Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        IF @Candidate_Kho_ID IS NOT NULL AND @Candidate_Kho_ID <> @Kho_ID
+            THROW 51331, N'Phiếu xuất đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
         EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
         IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Xuat_Kho_ID AND Is_Posted = 1) THROW 51163, N'Không được sửa chi tiết của phiếu đã Post.', 1;
         IF NOT EXISTS (SELECT 1 FROM dbo.tbl_DM_San_Pham WHERE Auto_ID = @San_Pham_ID) THROW 51135, N'Sản phẩm không hợp lệ.', 1;
@@ -3256,12 +5051,54 @@ CREATE OR ALTER PROCEDURE dbo.sp_XNK_Nhap_Kho_Delete_Detail
 AS
 BEGIN
     SET NOCOUNT ON;
-    DECLARE @Kho_ID BIGINT, @Document_ID BIGINT;
-    SELECT @Kho_ID = h.Kho_ID, @Document_ID = h.Auto_ID FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = d.Nhap_Kho_ID WHERE d.Auto_ID = @Auto_ID;
-    IF @Kho_ID IS NULL THROW 51105, N'Chi tiết phiếu nhập không tồn tại.', 1;
-    EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    IF EXISTS (SELECT 1 FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID AND Is_Posted = 1) THROW 51163, N'Không được xóa chi tiết của phiếu đã Post.', 1;
-    DELETE dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Auto_ID;
+    SET XACT_ABORT ON;
+    IF @Auto_ID IS NULL OR @Auto_ID <= 0
+        THROW 51447, N'Receipt detail identifier is invalid.', 1;
+    DECLARE @Candidate_Kho_ID BIGINT, @Candidate_Document_ID BIGINT;
+    SELECT @Candidate_Kho_ID = h.Kho_ID, @Candidate_Document_ID = h.Auto_ID
+    FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d
+    JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID = d.Nhap_Kho_ID
+    WHERE d.Auto_ID = @Auto_ID;
+    IF @Candidate_Kho_ID IS NULL THROW 51105, N'Chi tiết phiếu nhập không tồn tại.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Shared';
+
+        DECLARE @Kho_ID BIGINT, @Document_ID BIGINT, @Is_Posted BIT;
+        SELECT @Kho_ID = h.Kho_ID, @Document_ID = h.Auto_ID, @Is_Posted = h.Is_Posted
+        FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d WITH (UPDLOCK, HOLDLOCK)
+        JOIN dbo.tbl_XNK_Nhap_Kho h WITH (UPDLOCK, HOLDLOCK) ON h.Auto_ID = d.Nhap_Kho_ID
+        WHERE d.Auto_ID = @Auto_ID;
+        IF @Kho_ID IS NULL THROW 51105, N'Chi tiết phiếu nhập không tồn tại.', 1;
+        IF @Kho_ID <> @Candidate_Kho_ID OR @Document_ID <> @Candidate_Document_ID
+            THROW 51331, N'Chi tiết phiếu nhập đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
+        EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
+        IF @Is_Posted = 1 THROW 51163, N'Không được xóa chi tiết của phiếu đã Post.', 1;
+        DELETE dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -3283,6 +5120,44 @@ BEGIN
     END
 
     BEGIN TRY
+        DECLARE @Candidate_Document_ID BIGINT, @Candidate_Kho_ID BIGINT, @Candidate_San_Pham_ID BIGINT;
+        SELECT @Candidate_Document_ID = Xuat_Kho_ID, @Candidate_San_Pham_ID = San_Pham_ID
+        FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data
+        WHERE Auto_ID = @Auto_ID;
+        IF @Candidate_Document_ID IS NULL THROW 51134, N'Chi tiết phiếu xuất không tồn tại.', 1;
+        SELECT @Candidate_Kho_ID = Kho_ID
+        FROM dbo.tbl_XNK_Xuat_Kho
+        WHERE Auto_ID = @Candidate_Document_ID;
+        IF @Candidate_Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        DECLARE @Candidate_Reservation_Kho_ID BIGINT, @Candidate_Reservation_San_Pham_ID BIGINT;
+        SELECT @Candidate_Reservation_Kho_ID = Kho_ID,
+               @Candidate_Reservation_San_Pham_ID = San_Pham_ID
+        FROM dbo.InventoryReservation_Current
+        WHERE Xuat_Kho_Detail_ID = @Auto_ID;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_San_Pham_ID);
+        IF @Candidate_Reservation_Kho_ID IS NOT NULL AND @Candidate_Reservation_Kho_ID > 0
+        BEGIN
+            INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Reservation_Kho_ID);
+            IF @Candidate_Reservation_San_Pham_ID IS NOT NULL AND @Candidate_Reservation_San_Pham_ID > 0
+                INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Reservation_Kho_ID, @Candidate_Reservation_San_Pham_ID);
+        END;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
         DECLARE @Kho_ID BIGINT, @Document_ID BIGINT, @Is_Posted BIT;
         SELECT @Document_ID = Xuat_Kho_ID
         FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data
@@ -3294,6 +5169,8 @@ BEGIN
         FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK)
         WHERE Auto_ID = @Document_ID;
         IF @Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        IF @Document_ID <> @Candidate_Document_ID OR @Kho_ID <> @Candidate_Kho_ID
+            THROW 51331, N'Chi tiết phiếu xuất đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
         EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
         IF @Is_Posted = 1 THROW 51163, N'Không được xóa chi tiết của phiếu đã Post.', 1;
         IF NOT EXISTS
@@ -3335,12 +5212,41 @@ BEGIN
     END
 
     BEGIN TRY
+        DECLARE @Candidate_Kho_ID BIGINT;
+        SELECT @Candidate_Kho_ID = Kho_ID
+        FROM dbo.tbl_XNK_Xuat_Kho
+        WHERE Auto_ID = @Auto_ID;
+        IF @Candidate_Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID)
+        SELECT r.Kho_ID, r.San_Pham_ID
+        FROM dbo.InventoryReservation_Current r
+        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID
+        WHERE d.Xuat_Kho_ID = @Auto_ID;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
         DECLARE @Kho_ID BIGINT, @Is_Posted BIT;
         /* The parent lock covers validation, reservation release and cascade. */
         SELECT @Kho_ID = Kho_ID, @Is_Posted = Is_Posted
         FROM dbo.tbl_XNK_Xuat_Kho WITH (UPDLOCK, HOLDLOCK)
         WHERE Auto_ID = @Auto_ID;
         IF @Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
+        IF @Kho_ID <> @Candidate_Kho_ID
+            THROW 51331, N'Phiếu xuất đã thay đổi sau khi khóa Inventory Fence; vui lòng thử lại.', 1;
         EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
         IF @Is_Posted = 1 THROW 51163, N'Không được xóa phiếu đã Post.', 1;
 
@@ -3484,10 +5390,118 @@ RETURN
 );
 GO
 
-/* Report reads share the same per-scope fence as Post and projection rebuilds.
-   The helper captures a cutoff-aware catalog watermark before materializing
-   and locking scopes.  Per-scope applocks protect scopes already present;
-   final watermark validation catches a newly introduced relevant scope. */
+/* PERF-06D historical reader fence.
+   LEGACY preserves the existing report-side per-scope Shared lock contract.
+   GROUP removes that normal-path fan-out: Root Shared is acquired first,
+   candidate groups are deduplicated/sorted and acquired through the PERF-06A
+   seam, then the authoritative scope state is re-materialized and compared
+   exactly before the caller performs COUNT/PAGE.  No reader fallback occurs
+   after a GROUP transaction has started. */
+/* PERF-06D final exact validation.  The public report creates the two local
+   tables below before entering the helper.  A nested procedure can see those
+   caller-owned temp tables, so GROUP mode can retain its protected state
+   without a caller-controlled session flag or public bypass parameter. */
+CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Report_Validate_Scope_Fence
+    @Tu_Ngay DATE,
+    @Den_Ngay DATE,
+    @Ma_Dang_Nhap NVARCHAR(100),
+    @Kho_ID BIGINT = NULL,
+    @Is_Current_Report BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF OBJECT_ID(N'tempdb..#ReportFenceMode') IS NULL
+        RETURN;
+
+    IF NOT EXISTS (SELECT 1 FROM #ReportFenceMode WHERE Fence_Mode = N'GROUP')
+        RETURN;
+
+    IF OBJECT_ID(N'tempdb..#ReportFenceExpectedState') IS NULL
+        THROW 51452, N'GROUP report validation state is missing.', 1;
+
+    CREATE TABLE #ReportFenceStateCurrent
+    (
+        Source_Name NVARCHAR(16) NOT NULL,
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        Boundary_Start DATE NULL,
+        Boundary_End DATE NULL,
+        Version_Value BIGINT NULL,
+        Identity_Value BIGINT NULL,
+        Is_Current_Value BIT NULL,
+        Is_Valid_Value BIT NULL,
+        Value_Decimal DECIMAL(18,3) NULL,
+        Value_Decimal_2 DECIMAL(18,3) NULL
+    );
+
+    INSERT #ReportFenceStateCurrent
+    (
+        Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+        Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+        Value_Decimal, Value_Decimal_2
+    )
+    SELECT N'SNAPSHOT', s.Kho_ID, s.San_Pham_ID, s.Snapshot_Date, NULL,
+           CONVERT(BIGINT, s.[Version]), CONVERT(BIGINT, s.ID), NULL, s.IsValid,
+           s.ClosingQuantity, NULL
+    FROM dbo.InventoryBalance_Snapshot_Daily s
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
+      AND s.Snapshot_Date < @Tu_Ngay
+    UNION ALL
+    SELECT N'DAILY', s.Kho_ID, s.San_Pham_ID, s.First_Balance_Date, s.Last_Balance_Date,
+           CONVERT(BIGINT, s.[Version]), NULL, NULL, NULL, NULL, NULL
+    FROM dbo.Inventory_Balance_Daily_Scope s
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
+      AND s.First_Balance_Date <= @Den_Ngay
+    UNION ALL
+    SELECT N'CATALOG', c.Kho_ID, c.San_Pham_ID, c.First_Posted_Date, c.Last_Posted_Date,
+           CONVERT(BIGINT, c.[Version]), c.Catalog_ID, c.Is_Current, NULL, NULL, NULL
+    FROM dbo.Inventory_Report_Scope_Catalog c
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = c.Kho_ID
+    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR c.Kho_ID = @Kho_ID)
+      AND (@Is_Current_Report = 1 OR c.First_Posted_Date <= @Den_Ngay)
+    UNION ALL
+    SELECT N'CURRENT', b.Kho_ID, b.San_Pham_ID, NULL, NULL,
+           NULL, NULL, NULL, NULL, b.CurrentQuantity, b.ReservedQuantity
+    FROM dbo.InventoryBalance_Current b
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = b.Kho_ID
+    WHERE @Is_Current_Report = 1
+      AND ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR b.Kho_ID = @Kho_ID);
+
+    IF EXISTS
+       (
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceStateCurrent
+           EXCEPT
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceExpectedState
+       )
+       OR EXISTS
+       (
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceExpectedState
+           EXCEPT
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceStateCurrent
+       )
+        THROW 51451, N'Phạm vi báo cáo thay đổi trong lúc COUNT/PAGE; vui lòng thử lại.', 1;
+END
+GO
+
 CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Report_Acquire_Scope_Fence
     @Tu_Ngay DATE,
     @Den_Ngay DATE,
@@ -3500,86 +5514,276 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT @Catalog_Scope_Count = COUNT_BIG(*),
-           @Catalog_Max_ID = COALESCE(MAX(c.Catalog_ID), 0)
-    FROM dbo.Inventory_Report_Scope_Catalog c
-    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = c.Kho_ID
-    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
-      AND (@Kho_ID IS NULL OR c.Kho_ID = @Kho_ID)
-      AND (@Is_Current_Report = 1 OR c.First_Posted_Date <= @Den_Ngay);
+    IF OBJECT_ID(N'dbo.Inventory_Report_Fence_Config', N'U') IS NULL
+        THROW 51450, N'Historical report fence mode configuration is missing.', 1;
 
-    CREATE TABLE #ReportScope
+    DECLARE @Fence_Mode NVARCHAR(8);
+    DECLARE @Fence_Mode_Row_Count INT;
+    SELECT @Fence_Mode_Row_Count = COUNT(*),
+           @Fence_Mode = MAX(CASE WHEN Config_ID = 1 THEN Historical_Report_Mode END)
+    FROM dbo.Inventory_Report_Fence_Config;
+
+    IF @Fence_Mode_Row_Count <> 1
+       OR @Fence_Mode IS NULL
+       OR @Fence_Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'LEGACY', N'GROUP')
+        THROW 51450, N'Historical report fence mode configuration is invalid.', 1;
+
+    IF @Fence_Mode = N'GROUP'
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+
+    CREATE TABLE #ReportFenceStateCandidate
     (
+        Source_Name NVARCHAR(16) NOT NULL,
         Kho_ID BIGINT NOT NULL,
         San_Pham_ID BIGINT NOT NULL,
-        PRIMARY KEY (Kho_ID, San_Pham_ID)
+        Boundary_Start DATE NULL,
+        Boundary_End DATE NULL,
+        Version_Value BIGINT NULL,
+        Identity_Value BIGINT NULL,
+        Is_Current_Value BIT NULL,
+        Is_Valid_Value BIT NULL,
+        Value_Decimal DECIMAL(18,3) NULL,
+        Value_Decimal_2 DECIMAL(18,3) NULL
     );
 
-    INSERT #ReportScope(Kho_ID, San_Pham_ID)
-    SELECT s.Kho_ID, s.San_Pham_ID
+    /* First-pass state is the complete report-visible scope/boundary union.
+       Source-specific metadata makes stabilization an exact relational
+       comparison, not a weak aggregate checksum. */
+    INSERT #ReportFenceStateCandidate
+    (
+        Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+        Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+        Value_Decimal, Value_Decimal_2
+    )
+    SELECT N'SNAPSHOT', s.Kho_ID, s.San_Pham_ID, s.Snapshot_Date, NULL,
+           CONVERT(BIGINT, s.[Version]), CONVERT(BIGINT, s.ID), NULL, s.IsValid,
+           s.ClosingQuantity, NULL
     FROM dbo.InventoryBalance_Snapshot_Daily s
     JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
     WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
       AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
       AND s.Snapshot_Date < @Tu_Ngay
-    UNION
-    SELECT s.Kho_ID, s.San_Pham_ID
+    UNION ALL
+    SELECT N'DAILY', s.Kho_ID, s.San_Pham_ID, s.First_Balance_Date, s.Last_Balance_Date,
+           CONVERT(BIGINT, s.[Version]), NULL, NULL, NULL, NULL, NULL
     FROM dbo.Inventory_Balance_Daily_Scope s
     JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
     WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
       AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
       AND s.First_Balance_Date <= @Den_Ngay
-    UNION
-    SELECT h.Kho_ID, d.San_Pham_ID
-    FROM dbo.tbl_XNK_Nhap_Kho h
-    JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
-    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = h.Kho_ID
+    UNION ALL
+    SELECT N'CATALOG', c.Kho_ID, c.San_Pham_ID, c.First_Posted_Date, c.Last_Posted_Date,
+           CONVERT(BIGINT, c.[Version]), c.Catalog_ID, c.Is_Current, NULL, NULL, NULL
+    FROM dbo.Inventory_Report_Scope_Catalog c
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = c.Kho_ID
     WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
-      AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
-      AND h.Is_Posted = 1
-      AND h.Ngay_Nhap_Kho <= @Den_Ngay
-    UNION
-    SELECT h.Kho_ID, d.San_Pham_ID
-    FROM dbo.tbl_XNK_Xuat_Kho h
-    JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
-    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = h.Kho_ID
-    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
-      AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
-      AND h.Is_Posted = 1
-      AND h.Ngay_Xuat_Kho <= @Den_Ngay
-    UNION
-    SELECT b.Kho_ID, b.San_Pham_ID
+      AND (@Kho_ID IS NULL OR c.Kho_ID = @Kho_ID)
+      AND (@Is_Current_Report = 1 OR c.First_Posted_Date <= @Den_Ngay)
+    UNION ALL
+    SELECT N'CURRENT', b.Kho_ID, b.San_Pham_ID, NULL, NULL,
+           NULL, NULL, NULL, NULL, b.CurrentQuantity, b.ReservedQuantity
     FROM dbo.InventoryBalance_Current b
     JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = b.Kho_ID
     WHERE @Is_Current_Report = 1
       AND ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
       AND (@Kho_ID IS NULL OR b.Kho_ID = @Kho_ID);
 
-    DECLARE @LockResult INT;
-    DECLARE @LockResource NVARCHAR(255);
-    DECLARE @ScopeKho_ID BIGINT, @ScopeSan_Pham_ID BIGINT;
-    DECLARE report_scope_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT Kho_ID, San_Pham_ID FROM #ReportScope ORDER BY Kho_ID, San_Pham_ID;
-    OPEN report_scope_cursor;
-    FETCH NEXT FROM report_scope_cursor INTO @ScopeKho_ID, @ScopeSan_Pham_ID;
-    WHILE @@FETCH_STATUS = 0
+    CREATE TABLE #ReportScopeCandidate
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID)
+    );
+
+    INSERT #ReportScopeCandidate(Kho_ID, San_Pham_ID)
+    SELECT DISTINCT Kho_ID, San_Pham_ID
+    FROM #ReportFenceStateCandidate;
+
+    SELECT @Catalog_Scope_Count = COUNT_BIG(*),
+           @Catalog_Max_ID = COALESCE(MAX(Identity_Value), 0)
+    FROM #ReportFenceStateCandidate
+    WHERE Source_Name = N'CATALOG';
+
+    IF @Fence_Mode = N'LEGACY'
     BEGIN
-        SET @LockResource = CONCAT(N'InventoryMovement:', @ScopeKho_ID, N':', @ScopeSan_Pham_ID);
-        EXEC @LockResult = sys.sp_getapplock
-            @Resource = @LockResource,
-            @LockMode = N'Shared',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @LockResult < 0
-        BEGIN
-            CLOSE report_scope_cursor;
-            DEALLOCATE report_scope_cursor;
-            THROW 51323, N'Báo cáo đang chờ Post hoặc projection rebuild cùng scope; vui lòng thử lại.', 1;
-        END
+        /* Preserve the legacy report-side error and lock shape.  Resource
+           naming still goes through the canonical fence function, while the
+           legacy path intentionally does not acquire Root/Group locks. */
+        DECLARE @LockResult INT;
+        DECLARE @LockResource NVARCHAR(255);
+        DECLARE @ScopeKho_ID BIGINT, @ScopeSan_Pham_ID BIGINT;
+        DECLARE report_scope_cursor CURSOR LOCAL FAST_FORWARD FOR
+            SELECT Kho_ID, San_Pham_ID
+            FROM #ReportScopeCandidate
+            ORDER BY Kho_ID, San_Pham_ID;
+        OPEN report_scope_cursor;
         FETCH NEXT FROM report_scope_cursor INTO @ScopeKho_ID, @ScopeSan_Pham_ID;
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @LockResource = dbo.fn_Inventory_Fence_Scope_Resource(@ScopeKho_ID, @ScopeSan_Pham_ID);
+            EXEC @LockResult = sys.sp_getapplock
+                @Resource = @LockResource,
+                @LockMode = N'Shared',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 0;
+            IF @LockResult < 0
+            BEGIN
+                CLOSE report_scope_cursor;
+                DEALLOCATE report_scope_cursor;
+                THROW 51323, N'Báo cáo đang chờ Post hoặc projection rebuild cùng scope; vui lòng thử lại.', 1;
+            END;
+
+            FETCH NEXT FROM report_scope_cursor INTO @ScopeKho_ID, @ScopeSan_Pham_ID;
+        END
+        CLOSE report_scope_cursor;
+        DEALLOCATE report_scope_cursor;
+        RETURN;
     END
-    CLOSE report_scope_cursor;
-    DEALLOCATE report_scope_cursor;
+
+    DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+    INSERT @GroupSet(Kho_ID)
+    SELECT DISTINCT Kho_ID
+    FROM #ReportScopeCandidate;
+
+    /* GroupSet performs ascending de-duplicated acquisition through the only
+       public Group seam.  No Scope resource is requested on this path. */
+    EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+        @GroupSet = @GroupSet,
+        @Mode = N'Shared';
+
+    DECLARE @EmptyScopeSet dbo.InventoryFenceScopeSetType;
+    EXEC dbo.sp_Inventory_Fence_Require_Context
+        @GroupSet = @GroupSet,
+        @ScopeSet = @EmptyScopeSet,
+        @RequiredRootMode = N'Shared',
+        @RequiredGroupMode = N'Shared',
+        @RequiredScopeMode = N'Shared';
+
+    /* Protected second pass.  Candidate and protected state are compared by
+       exact set equality plus source boundary/version/value columns. */
+    CREATE TABLE #ReportFenceStateProtected
+    (
+        Source_Name NVARCHAR(16) NOT NULL,
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        Boundary_Start DATE NULL,
+        Boundary_End DATE NULL,
+        Version_Value BIGINT NULL,
+        Identity_Value BIGINT NULL,
+        Is_Current_Value BIT NULL,
+        Is_Valid_Value BIT NULL,
+        Value_Decimal DECIMAL(18,3) NULL,
+        Value_Decimal_2 DECIMAL(18,3) NULL
+    );
+
+    INSERT #ReportFenceStateProtected
+    (
+        Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+        Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+        Value_Decimal, Value_Decimal_2
+    )
+    SELECT N'SNAPSHOT', s.Kho_ID, s.San_Pham_ID, s.Snapshot_Date, NULL,
+           CONVERT(BIGINT, s.[Version]), CONVERT(BIGINT, s.ID), NULL, s.IsValid,
+           s.ClosingQuantity, NULL
+    FROM dbo.InventoryBalance_Snapshot_Daily s
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
+      AND s.Snapshot_Date < @Tu_Ngay
+    UNION ALL
+    SELECT N'DAILY', s.Kho_ID, s.San_Pham_ID, s.First_Balance_Date, s.Last_Balance_Date,
+           CONVERT(BIGINT, s.[Version]), NULL, NULL, NULL, NULL, NULL
+    FROM dbo.Inventory_Balance_Daily_Scope s
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
+    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
+      AND s.First_Balance_Date <= @Den_Ngay
+    UNION ALL
+    SELECT N'CATALOG', c.Kho_ID, c.San_Pham_ID, c.First_Posted_Date, c.Last_Posted_Date,
+           CONVERT(BIGINT, c.[Version]), c.Catalog_ID, c.Is_Current, NULL, NULL, NULL
+    FROM dbo.Inventory_Report_Scope_Catalog c
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = c.Kho_ID
+    WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR c.Kho_ID = @Kho_ID)
+      AND (@Is_Current_Report = 1 OR c.First_Posted_Date <= @Den_Ngay)
+    UNION ALL
+    SELECT N'CURRENT', b.Kho_ID, b.San_Pham_ID, NULL, NULL,
+           NULL, NULL, NULL, NULL, b.CurrentQuantity, b.ReservedQuantity
+    FROM dbo.InventoryBalance_Current b
+    JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = b.Kho_ID
+    WHERE @Is_Current_Report = 1
+      AND ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
+      AND (@Kho_ID IS NULL OR b.Kho_ID = @Kho_ID);
+
+    CREATE TABLE #ReportScopeProtected
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        PRIMARY KEY (Kho_ID, San_Pham_ID)
+    );
+    INSERT #ReportScopeProtected(Kho_ID, San_Pham_ID)
+    SELECT DISTINCT Kho_ID, San_Pham_ID
+    FROM #ReportFenceStateProtected;
+
+    IF EXISTS
+       (
+           SELECT Kho_ID, San_Pham_ID FROM #ReportScopeCandidate
+           EXCEPT
+           SELECT Kho_ID, San_Pham_ID FROM #ReportScopeProtected
+       )
+       OR EXISTS
+       (
+           SELECT Kho_ID, San_Pham_ID FROM #ReportScopeProtected
+           EXCEPT
+           SELECT Kho_ID, San_Pham_ID FROM #ReportScopeCandidate
+       )
+       OR EXISTS
+       (
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceStateCandidate
+           EXCEPT
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceStateProtected
+       )
+       OR EXISTS
+       (
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceStateProtected
+           EXCEPT
+           SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+                  Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+                  Value_Decimal, Value_Decimal_2
+           FROM #ReportFenceStateCandidate
+       )
+        THROW 51451, N'Phạm vi báo cáo thay đổi sau khi ổn định Group fence; vui lòng thử lại.', 1;
+
+    /* The public report creates these caller-owned temp tables before this
+       helper is entered.  Retain the protected state for the final exact
+       validation after COUNT/PAGE.  Direct helper callers do not get a
+       hidden session flag or a partial result contract. */
+    IF OBJECT_ID(N'tempdb..#ReportFenceMode') IS NOT NULL
+    BEGIN
+        IF OBJECT_ID(N'tempdb..#ReportFenceExpectedState') IS NULL
+            THROW 51452, N'GROUP report validation state is missing.', 1;
+
+        INSERT #ReportFenceMode(Fence_Mode) VALUES (N'GROUP');
+        INSERT #ReportFenceExpectedState
+        (
+            Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+            Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+            Value_Decimal, Value_Decimal_2
+        )
+        SELECT Source_Name, Kho_ID, San_Pham_ID, Boundary_Start, Boundary_End,
+               Version_Value, Identity_Value, Is_Current_Value, Is_Valid_Value,
+               Value_Decimal, Value_Decimal_2
+        FROM #ReportFenceStateProtected;
+    END;
 END
 GO
 
@@ -3601,6 +5805,24 @@ BEGIN
         IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
         DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
         DECLARE @Catalog_Scope_Count BIGINT, @Catalog_Max_ID BIGINT;
+        CREATE TABLE #ReportFenceExpectedState
+        (
+            Source_Name NVARCHAR(16) NOT NULL,
+            Kho_ID BIGINT NOT NULL,
+            San_Pham_ID BIGINT NOT NULL,
+            Boundary_Start DATE NULL,
+            Boundary_End DATE NULL,
+            Version_Value BIGINT NULL,
+            Identity_Value BIGINT NULL,
+            Is_Current_Value BIT NULL,
+            Is_Valid_Value BIT NULL,
+            Value_Decimal DECIMAL(18,3) NULL,
+            Value_Decimal_2 DECIMAL(18,3) NULL
+        );
+        CREATE TABLE #ReportFenceMode
+        (
+            Fence_Mode NVARCHAR(8) NOT NULL
+        );
         EXEC dbo.sp_Inventory_Report_Acquire_Scope_Fence
             @Tu_Ngay = @Tu_Ngay,
             @Den_Ngay = @Den_Ngay,
@@ -3680,6 +5902,13 @@ BEGIN
     INTO #ReportRows
     FROM dbo.fn_Inventory_Report_Snapshot(@Tu_Ngay, @Den_Ngay, @Ma_Dang_Nhap, IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0)) r
     WHERE @Kho_ID IS NULL OR r.Kho_ID = @Kho_ID;
+
+    EXEC dbo.sp_Inventory_Report_Validate_Scope_Fence
+        @Tu_Ngay = @Tu_Ngay,
+        @Den_Ngay = @Den_Ngay,
+        @Ma_Dang_Nhap = @Ma_Dang_Nhap,
+        @Kho_ID = @Kho_ID,
+        @Is_Current_Report = @Is_Current_Report;
 
     DECLARE @Current_Catalog_Scope_Count BIGINT, @Current_Catalog_Max_ID BIGINT;
     SELECT @Current_Catalog_Scope_Count = COUNT_BIG(*),
@@ -3794,20 +6023,42 @@ BEGIN
     WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap
       AND (@Kho_ID IS NULL OR Kho_ID = @Kho_ID);
 
-    DECLARE @Current_Report_Generation_Start BIGINT,
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID)
+        SELECT Kho_ID FROM #AuthorizedWarehouse;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Shared',
+            @RequiredScopeMode = N'Shared';
+
+        DECLARE @Current_Report_Generation_Start BIGINT,
             @Current_Report_Generation_End BIGINT;
-    SELECT @Current_Report_Generation_Start = Generation
+        SELECT @Current_Report_Generation_Start = Generation
     FROM dbo.Inventory_Current_Report_State
     WHERE State_ID = 1;
-    IF @Current_Report_Generation_Start IS NULL
-        THROW 51325, N'Generation báo cáo tồn kho hiện tại chưa được khởi tạo.', 1;
+        IF @Current_Report_Generation_Start IS NULL
+            THROW 51325, N'Generation báo cáo tồn kho hiện tại chưa được khởi tạo.', 1;
 
-    DECLARE @Total_Count INT;
-    SELECT @Total_Count = COUNT(*)
+        DECLARE @Total_Count INT;
+        SELECT @Total_Count = COUNT(*)
     FROM dbo.InventoryBalance_Current b
     JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID;
 
-    SELECT b.Kho_ID,
+        SELECT b.Kho_ID,
            k.Ten_Kho,
            b.San_Pham_ID,
            p.Ma_San_Pham,
@@ -3829,19 +6080,25 @@ BEGIN
     ORDER BY b.Kho_ID, b.San_Pham_ID
     OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
 
-    SELECT @Current_Report_Generation_End = Generation
+        SELECT @Current_Report_Generation_End = Generation
     FROM dbo.Inventory_Current_Report_State
     WHERE State_ID = 1;
-    IF @Current_Report_Generation_End IS NULL
-        THROW 51325, N'Generation báo cáo tồn kho hiện tại chưa được khởi tạo.', 1;
-    IF @Current_Report_Generation_End <> @Current_Report_Generation_Start
-        THROW 51324, N'Báo cáo tồn kho hiện tại đã thay đổi trong lúc đọc; vui lòng thử lại.', 1;
+        IF @Current_Report_Generation_End IS NULL
+            THROW 51325, N'Generation báo cáo tồn kho hiện tại chưa được khởi tạo.', 1;
+        IF @Current_Report_Generation_End <> @Current_Report_Generation_Start
+            THROW 51324, N'Báo cáo tồn kho hiện tại đã thay đổi trong lúc đọc; vui lòng thử lại.', 1;
 
-    SELECT @Total_Count AS Total_Count;
-    SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
-           SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
-    FROM #CurrentReportPage
-    ORDER BY Kho_ID, San_Pham_ID;
+        SELECT @Total_Count AS Total_Count;
+        SELECT Kho_ID, Ten_Kho, San_Pham_ID, Ma_San_Pham, Ten_San_Pham,
+               SL_Dau_Ky, SL_Nhap, SL_Xuat, SL_Cuoi_Ky, SL_Ton_Thuc_Te, SL_Dang_Giu, SL_Kha_Dung
+        FROM #CurrentReportPage
+        ORDER BY Kho_ID, San_Pham_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -3883,6 +6140,24 @@ BEGIN
     DECLARE @Is_Current_Report BIT = IIF(@Den_Ngay = CONVERT(DATE, SYSDATETIME()), 1, 0);
 
     DECLARE @Catalog_Scope_Count BIGINT, @Catalog_Max_ID BIGINT;
+    CREATE TABLE #ReportFenceExpectedState
+    (
+        Source_Name NVARCHAR(16) NOT NULL,
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        Boundary_Start DATE NULL,
+        Boundary_End DATE NULL,
+        Version_Value BIGINT NULL,
+        Identity_Value BIGINT NULL,
+        Is_Current_Value BIT NULL,
+        Is_Valid_Value BIT NULL,
+        Value_Decimal DECIMAL(18,3) NULL,
+        Value_Decimal_2 DECIMAL(18,3) NULL
+    );
+    CREATE TABLE #ReportFenceMode
+    (
+        Fence_Mode NVARCHAR(8) NOT NULL
+    );
     EXEC dbo.sp_Inventory_Report_Acquire_Scope_Fence
         @Tu_Ngay = @Tu_Ngay,
         @Den_Ngay = @Den_Ngay,
@@ -3905,27 +6180,16 @@ BEGIN
         THROW 51222, N'Movement Aggregate của báo cáo đang tái tạo. Vui lòng thử lại sau khi worker hoàn tất.', 1;
 
     DECLARE @Total_Count INT;
-    ;WITH AuthorizedScope AS
+
+    /* Candidate A: preserve the old ending-row eligibility exactly, but keep
+       only the eligible scope keys before applying the public ordering/page.
+       The intermediate tables intentionally have no uniqueness constraint so
+       the existing authorization join's row semantics are not changed. */
+    CREATE TABLE #ReportEligibleScope
     (
-        SELECT s.Kho_ID, s.San_Pham_ID
-        FROM dbo.Inventory_Balance_Daily_Scope s
-        JOIN dbo.tbl_DM_Kho_User ku ON ku.Kho_ID = s.Kho_ID
-        WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap
-          AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
-          AND s.First_Balance_Date <= @Den_Ngay
-    )
-    SELECT @Total_Count = COUNT(*)
-    FROM AuthorizedScope s
-    CROSS APPLY
-    (
-        SELECT TOP (1) b.Balance_Date
-        FROM dbo.Inventory_Balance_Daily b WITH (INDEX(IX_Inventory_Balance_Daily_Scope))
-        WHERE b.Kho_ID = s.Kho_ID
-          AND b.San_Pham_ID = s.San_Pham_ID
-          AND b.Balance_Date <= @Den_Ngay
-          AND b.IsValid = 1
-        ORDER BY b.Balance_Date DESC
-    ) ending;
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL
+    );
 
     ;WITH AuthorizedScope AS
     (
@@ -3936,6 +6200,37 @@ BEGIN
           AND (@Kho_ID IS NULL OR s.Kho_ID = @Kho_ID)
           AND s.First_Balance_Date <= @Den_Ngay
     )
+    INSERT #ReportEligibleScope(Kho_ID, San_Pham_ID)
+    SELECT s.Kho_ID, s.San_Pham_ID
+    FROM AuthorizedScope s
+    WHERE EXISTS
+    (
+        SELECT 1
+        FROM dbo.Inventory_Balance_Daily b WITH (INDEX(IX_Inventory_Balance_Daily_Scope))
+        WHERE b.Kho_ID = s.Kho_ID
+          AND b.San_Pham_ID = s.San_Pham_ID
+          AND b.Balance_Date <= @Den_Ngay
+          AND b.IsValid = 1
+    )
+    OPTION (MAXDOP 1);
+
+    SELECT @Total_Count = COUNT(*)
+    FROM #ReportEligibleScope;
+
+    CREATE TABLE #ReportPageKeys
+    (
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL
+    );
+
+    INSERT #ReportPageKeys(Kho_ID, San_Pham_ID)
+    SELECT e.Kho_ID, e.San_Pham_ID
+    FROM #ReportEligibleScope e
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = e.Kho_ID
+    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = e.San_Pham_ID
+    ORDER BY k.Ten_Kho, p.Ma_San_Pham
+    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+
     SELECT s.Kho_ID,
            k.Ten_Kho,
            s.San_Pham_ID,
@@ -3953,10 +6248,10 @@ BEGIN
            CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.CurrentQuantity, 0) ELSE ending.ClosingQuantity END AS DECIMAL(18,3)) AS SL_Ton_Thuc_Te,
            CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.ReservedQuantity, 0) ELSE 0 END AS DECIMAL(18,3)) AS SL_Dang_Giu,
            CAST(CASE WHEN @Is_Current_Report = 1 THEN ISNULL(currentBalance.CurrentQuantity, 0) - ISNULL(currentBalance.ReservedQuantity, 0) ELSE ending.ClosingQuantity END AS DECIMAL(18,3)) AS SL_Kha_Dung
-    INTO #ReportPage
-    FROM AuthorizedScope s
-    CROSS APPLY
-    (
+     INTO #ReportPage
+     FROM #ReportPageKeys s
+     CROSS APPLY
+     (
         SELECT TOP (1)
                b.OpeningQuantity,
                b.ClosingQuantity,
@@ -3986,10 +6281,15 @@ BEGIN
       ON currentBalance.Kho_ID = s.Kho_ID
      AND currentBalance.San_Pham_ID = s.San_Pham_ID
      AND @Is_Current_Report = 1
-    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = s.Kho_ID
-    JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = s.San_Pham_ID
-    ORDER BY k.Ten_Kho, p.Ma_San_Pham
-    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+     JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = s.Kho_ID
+     JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = s.San_Pham_ID;
+
+    EXEC dbo.sp_Inventory_Report_Validate_Scope_Fence
+        @Tu_Ngay = @Tu_Ngay,
+        @Den_Ngay = @Den_Ngay,
+        @Ma_Dang_Nhap = @Ma_Dang_Nhap,
+        @Kho_ID = @Kho_ID,
+        @Is_Current_Report = @Is_Current_Report;
 
     DECLARE @Current_Catalog_Scope_Count BIGINT, @Current_Catalog_Max_ID BIGINT;
     SELECT @Current_Catalog_Scope_Count = COUNT_BIG(*),
@@ -4030,14 +6330,53 @@ BEGIN
     SET NOCOUNT ON;
     IF NOT EXISTS (SELECT 1 FROM @Affected) RETURN;
 
-    ;WITH Normalized AS
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @Affected
+        WHERE Kho_ID IS NULL OR Kho_ID <= 0
+           OR San_Pham_ID IS NULL OR San_Pham_ID <= 0
+           OR Movement_Date IS NULL
+    )
+        THROW 51440, N'Movement invalidation contains an invalid scope or date.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID)
+        SELECT DISTINCT Kho_ID FROM @Affected;
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID)
+        SELECT DISTINCT Kho_ID, San_Pham_ID FROM @Affected;
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        ;WITH Normalized AS
     (
         SELECT Kho_ID, San_Pham_ID, Movement_Date,
                MAX(InvalidReason) AS InvalidReason
         FROM @Affected
         GROUP BY Kho_ID, San_Pham_ID, Movement_Date
     )
-    UPDATE d
+        UPDATE d
     SET IsValid = 0,
         InvalidatedAt = SYSUTCDATETIME(),
         InvalidReason = n.InvalidReason,
@@ -4047,14 +6386,14 @@ BEGIN
                      AND n.San_Pham_ID = d.San_Pham_ID
                      AND n.Movement_Date = d.Movement_Date;
 
-    CREATE TABLE #Scope
+        CREATE TABLE #Scope
     (
         Kho_ID BIGINT NOT NULL,
         San_Pham_ID BIGINT NOT NULL,
         Movement_Date DATE NOT NULL,
         PRIMARY KEY (Kho_ID, San_Pham_ID, Movement_Date)
     );
-    INSERT #Scope(Kho_ID, San_Pham_ID, Movement_Date)
+        INSERT #Scope(Kho_ID, San_Pham_ID, Movement_Date)
     SELECT Kho_ID, San_Pham_ID, Movement_Date
     FROM @Affected
     GROUP BY Kho_ID, San_Pham_ID, Movement_Date;
@@ -4062,7 +6401,7 @@ BEGIN
     /* There is exactly one active daily queue row.  A repeated invalidation of
        a claimed row advances Requested_Version rather than creating a second
        worker.  The claimant must then return it to WAITING after its old build. */
-    UPDATE q
+        UPDATE q
     SET Status = CASE WHEN q.Status IN (N'WAITING', N'RETRY_WAITING', N'FAILED_FINAL') THEN N'WAITING' ELSE q.Status END,
         Requested_Version = q.Requested_Version + 1,
         NextRetryAt = NULL,
@@ -4075,7 +6414,7 @@ BEGIN
                  AND s.Movement_Date = q.From_Date
     WHERE q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL');
 
-    UPDATE dl
+        UPDATE dl
     SET ResolvedAt = SYSUTCDATETIME(),
         ResolutionNote = N'Reactivated by a newer movement invalidation.'
     FROM dbo.InventoryMovement_RebuildDeadLetter dl
@@ -4086,19 +6425,26 @@ BEGIN
     WHERE dl.ResolvedAt IS NULL
       AND q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING');
 
-    INSERT dbo.InventoryMovement_RebuildQueue
+        INSERT dbo.InventoryMovement_RebuildQueue
     (Kho_ID, San_Pham_ID, From_Date, To_Date, Status, Requested_Version)
     SELECT s.Kho_ID, s.San_Pham_ID, s.Movement_Date, s.Movement_Date, N'WAITING', 1
     FROM #Scope s
-    WHERE NOT EXISTS
-    (
-        SELECT 1
-        FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
-        WHERE q.Kho_ID = s.Kho_ID
-          AND q.San_Pham_ID = s.San_Pham_ID
-          AND q.From_Date = s.Movement_Date
-          AND q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL')
-    );
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK)
+            WHERE q.Kho_ID = s.Kho_ID
+              AND q.San_Pham_ID = s.San_Pham_ID
+              AND q.From_Date = s.Movement_Date
+              AND q.Status IN (N'WAITING', N'PROCESSING', N'RETRY_WAITING', N'FAILED_FINAL')
+        );
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -4113,7 +6459,40 @@ BEGIN
     IF @Queue_ID IS NULL OR @Claimed_Version IS NULL
         THROW 51227, N'Queue claim không hợp lệ.', 1;
 
-    UPDATE q
+    DECLARE @Candidate_Kho_ID BIGINT, @Candidate_San_Pham_ID BIGINT;
+    SELECT @Candidate_Kho_ID = Kho_ID, @Candidate_San_Pham_ID = San_Pham_ID
+    FROM dbo.InventoryMovement_RebuildQueue
+    WHERE ID = @Queue_ID;
+    IF @Candidate_Kho_ID IS NULL OR @Candidate_San_Pham_ID IS NULL
+        THROW 51229, N'Queue claim không còn tồn tại.', 1;
+
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END
+    BEGIN TRY
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_San_Pham_ID);
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
+
+        UPDATE q
     SET Status = CASE WHEN q.Requested_Version = @Claimed_Version THEN N'COMPLETED' ELSE N'WAITING' END,
         Retry_Count = CASE WHEN q.Requested_Version = @Claimed_Version THEN q.Retry_Count ELSE 0 END,
         ProcessedAt = CASE WHEN q.Requested_Version = @Claimed_Version THEN SYSUTCDATETIME() ELSE NULL END,
@@ -4125,19 +6504,24 @@ BEGIN
       AND q.Status = N'PROCESSING'
       AND q.Claimed_Version = @Claimed_Version;
 
-    IF @@ROWCOUNT <> 1
-        THROW 51229, N'Queue claim không còn hợp lệ hoặc đã bị worker khác hoàn tất.', 1;
+        IF @@ROWCOUNT <> 1
+            THROW 51229, N'Queue claim không còn hợp lệ hoặc đã bị worker khác hoàn tất.', 1;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 
 /* Build the historical report read model only in the asynchronous worker.
-   The optional lock flag is internal: movement rebuild already owns the same
-   transaction-scoped applock for the complete movement-to-balance cutover. */
+   The worker acquires a verified Root/Group/Scope context; nested callers do
+   not pass a caller-controlled lock-held flag. */
 CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Balance_Daily_Rebuild
     @Kho_ID BIGINT,
     @San_Pham_ID BIGINT,
-    @From_Date DATE,
-    @Scope_Lock_Held BIT = 0
+    @From_Date DATE
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -4153,18 +6537,24 @@ BEGIN
     END
 
     BEGIN TRY
-        IF @Scope_Lock_Held = 0
-        BEGIN
-            DECLARE @StandaloneLockResult INT;
-            DECLARE @StandaloneLockResource NVARCHAR(255) = CONCAT(N'InventoryMovement:', @Kho_ID, N':', @San_Pham_ID);
-            EXEC @StandaloneLockResult = sys.sp_getapplock
-                @Resource = @StandaloneLockResource,
-                @LockMode = N'Exclusive',
-                @LockOwner = N'Transaction',
-                @LockTimeout = 0;
-            IF @StandaloneLockResult < 0
-                THROW 51224, N'Movement Aggregate scope đang được rebuild bởi worker khác.', 1;
-        END
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
+
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
 
         DECLARE @Base_Balance_Date DATE = NULL;
         DECLARE @Base_Closing DECIMAL(18,3) = 0;
@@ -4352,13 +6742,12 @@ GO
 /* Controlled initial cutover.  The procedure is intentionally separate from
    deployment so a production-sized backfill is scheduled explicitly. */
 CREATE OR ALTER PROCEDURE dbo.sp_Inventory_Balance_Daily_Bootstrap_From_Movement
-    @Bootstrap_Lock_Held BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @Bootstrap_Lock_Held = 0 AND NOT EXISTS
+    IF NOT EXISTS
     (
         SELECT 1
         FROM dbo.InventoryMovement_AggregateState
@@ -4374,17 +6763,8 @@ BEGIN
     END
 
     BEGIN TRY
-        IF @Bootstrap_Lock_Held = 0
-        BEGIN
-            DECLARE @BootstrapLockResult INT;
-            EXEC @BootstrapLockResult = sys.sp_getapplock
-                @Resource = N'InventoryMovement:Bootstrap',
-                @LockMode = N'Exclusive',
-                @LockOwner = N'Transaction',
-                @LockTimeout = 0;
-            IF @BootstrapLockResult < 0
-                THROW 51225, N'Balance Daily đang được bootstrap bởi phiên khác.', 1;
-        END
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Exclusive';
 
         DELETE FROM dbo.Inventory_Balance_Daily_Scope;
         DELETE FROM dbo.Inventory_Balance_Daily;
@@ -4526,24 +6906,25 @@ BEGIN
 
     BEGIN TRY
         BEGIN TRANSACTION;
-        DECLARE @BootstrapLockResult INT;
-        EXEC @BootstrapLockResult = sys.sp_getapplock
-            @Resource = N'InventoryMovement:Bootstrap',
-            @LockMode = N'Shared',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @BootstrapLockResult < 0
-            THROW 51226, N'Movement Aggregate đang bảo trì bootstrap. Vui lòng thử lại sau.', 1;
+        DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+        DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+        INSERT @GroupSet(Kho_ID) VALUES (@Kho_ID);
+        INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Kho_ID, @San_Pham_ID);
 
-        DECLARE @AppLockResult INT;
-        DECLARE @AppLockResource NVARCHAR(255) = CONCAT(N'InventoryMovement:', @Kho_ID, N':', @San_Pham_ID);
-        EXEC @AppLockResult = sys.sp_getapplock
-            @Resource = @AppLockResource,
-            @LockMode = N'Exclusive',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @AppLockResult < 0
-            THROW 51224, N'Movement Aggregate scope đang được rebuild bởi worker khác.', 1;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Shared';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+            @GroupSet = @GroupSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+            @ScopeSet = @ScopeSet,
+            @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Require_Context
+            @GroupSet = @GroupSet,
+            @ScopeSet = @ScopeSet,
+            @RequiredRootMode = N'Shared',
+            @RequiredGroupMode = N'Exclusive',
+            @RequiredScopeMode = N'Exclusive';
 
         CREATE TABLE #Rebuilt
         (
@@ -4619,8 +7000,7 @@ BEGIN
         EXEC dbo.sp_Inventory_Balance_Daily_Rebuild
             @Kho_ID = @Kho_ID,
             @San_Pham_ID = @San_Pham_ID,
-            @From_Date = @From_Date,
-            @Scope_Lock_Held = 1;
+            @From_Date = @From_Date;
 
         COMMIT TRANSACTION;
     END TRY
@@ -4649,43 +7029,50 @@ BEGIN
        the lease; an active worker never has its claim stolen.  A crashed claim
        consumes retry budget and can itself become a dead-letter. */
     DECLARE @Recovery_At DATETIME2 = SYSUTCDATETIME();
-    BEGIN TRANSACTION;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
 
-    UPDATE dbo.InventoryMovement_RebuildQueue
-    SET Status = N'FAILED_FINAL',
-        Retry_Count = Retry_Count + 1,
-        ProcessedAt = @Recovery_At,
-        NextRetryAt = NULL,
-        LastError = N'Worker claim lease expired before rebuild completion.',
-        ErrorMessage = NULL
-    WHERE Status = N'PROCESSING'
-      AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At))
-      AND Retry_Count + 1 >= @Max_Retry_Count;
+        UPDATE dbo.InventoryMovement_RebuildQueue
+        SET Status = N'FAILED_FINAL',
+            Retry_Count = Retry_Count + 1,
+            ProcessedAt = @Recovery_At,
+            NextRetryAt = NULL,
+            LastError = N'Worker claim lease expired before rebuild completion.',
+            ErrorMessage = NULL
+        WHERE Status = N'PROCESSING'
+          AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At))
+          AND Retry_Count + 1 >= @Max_Retry_Count;
 
-    INSERT dbo.InventoryMovement_RebuildDeadLetter
-    (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
-    SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
-    FROM dbo.InventoryMovement_RebuildQueue q
-    WHERE q.Status = N'FAILED_FINAL'
-      AND q.LastError = N'Worker claim lease expired before rebuild completion.'
-      AND NOT EXISTS
-      (
-          SELECT 1
-          FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
-          WHERE dl.Queue_ID = q.ID
-      );
+        INSERT dbo.InventoryMovement_RebuildDeadLetter
+        (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
+        SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
+        FROM dbo.InventoryMovement_RebuildQueue q
+        WHERE q.Status = N'FAILED_FINAL'
+          AND q.LastError = N'Worker claim lease expired before rebuild completion.'
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
+              WHERE dl.Queue_ID = q.ID
+          );
 
-    UPDATE dbo.InventoryMovement_RebuildQueue
-    SET Status = N'RETRY_WAITING',
-        Retry_Count = Retry_Count + 1,
-        Claimed_Version = NULL,
-        NextRetryAt = @Recovery_At,
-        LastError = N'Worker claim lease expired before rebuild completion.',
-        ErrorMessage = NULL
-    WHERE Status = N'PROCESSING'
-      AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At));
+        UPDATE dbo.InventoryMovement_RebuildQueue
+        SET Status = N'RETRY_WAITING',
+            Retry_Count = Retry_Count + 1,
+            Claimed_Version = NULL,
+            NextRetryAt = @Recovery_At,
+            LastError = N'Worker claim lease expired before rebuild completion.',
+            ErrorMessage = NULL
+        WHERE Status = N'PROCESSING'
+          AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At));
 
-    COMMIT TRANSACTION;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 
     DECLARE @Processed INT = 0;
     DECLARE @Queue_ID BIGINT;
@@ -4698,62 +7085,181 @@ BEGIN
     WHILE @Processed < @Batch_Size
     BEGIN
         SET @Queue_ID = NULL;
-        BEGIN TRANSACTION;
-        DECLARE @Claimed TABLE
-        (
-            ID BIGINT NOT NULL,
-            Kho_ID BIGINT NOT NULL,
-            San_Pham_ID BIGINT NOT NULL,
-            From_Date DATE NOT NULL,
-            To_Date DATE NOT NULL,
-            Claimed_Version INT NOT NULL
-        );
-
-        ;WITH NextItem AS
-        (
-            SELECT TOP (1) q.*
-            FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, READPAST, ROWLOCK)
-            WHERE q.Status = N'WAITING'
-               OR (q.Status = N'RETRY_WAITING' AND q.NextRetryAt <= SYSUTCDATETIME())
-            ORDER BY CASE WHEN q.Status = N'WAITING' THEN 0 ELSE 1 END,
-                     q.NextRetryAt,
-                     q.CreatedAt,
-                     q.ID
-        )
-        UPDATE NextItem
-        SET Status = N'PROCESSING',
-            Claimed_Version = Requested_Version,
-            LastAttemptAt = SYSUTCDATETIME(),
-            NextRetryAt = NULL,
-            ProcessedAt = NULL,
-            ErrorMessage = NULL
-        OUTPUT inserted.ID,
-               inserted.Kho_ID,
-               inserted.San_Pham_ID,
-               inserted.From_Date,
-               inserted.To_Date,
-               inserted.Claimed_Version
-        INTO @Claimed;
-
+        DECLARE @Candidate_ID BIGINT = NULL;
+        DECLARE @Candidate_Kho_ID BIGINT;
+        DECLARE @Candidate_San_Pham_ID BIGINT;
         SELECT TOP (1)
-               @Queue_ID = ID,
-               @Kho_ID = Kho_ID,
-               @San_Pham_ID = San_Pham_ID,
-               @From_Date = From_Date,
-               @To_Date = To_Date,
-               @Claimed_Version = Claimed_Version
-        FROM @Claimed;
+               @Candidate_ID = q.ID,
+               @Candidate_Kho_ID = q.Kho_ID,
+               @Candidate_San_Pham_ID = q.San_Pham_ID
+        FROM dbo.InventoryMovement_RebuildQueue q WITH (READPAST)
+        WHERE q.Status = N'WAITING'
+           OR (q.Status = N'RETRY_WAITING' AND q.NextRetryAt <= SYSUTCDATETIME())
+        ORDER BY CASE WHEN q.Status = N'WAITING' THEN 0 ELSE 1 END,
+                 q.NextRetryAt,
+                 q.CreatedAt,
+                 q.ID;
 
-        IF @Queue_ID IS NULL
-        BEGIN
+        IF @Candidate_ID IS NULL BREAK;
+
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            DECLARE @Claimed TABLE
+            (
+                ID BIGINT NOT NULL,
+                Kho_ID BIGINT NOT NULL,
+                San_Pham_ID BIGINT NOT NULL,
+                From_Date DATE NOT NULL,
+                To_Date DATE NOT NULL,
+                Claimed_Version INT NOT NULL
+            );
+
+            DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+            DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+            INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
+            INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_San_Pham_ID);
+
+            EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Shared';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Group_Set
+                @GroupSet = @GroupSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Scope_Set
+                @ScopeSet = @ScopeSet,
+                @Mode = N'Exclusive';
+            EXEC dbo.sp_Inventory_Fence_Require_Context
+                @GroupSet = @GroupSet,
+                @ScopeSet = @ScopeSet,
+                @RequiredRootMode = N'Shared',
+                @RequiredGroupMode = N'Exclusive',
+                @RequiredScopeMode = N'Exclusive';
+
+            ;WITH NextItem AS
+            (
+                SELECT TOP (1) q.*
+                FROM dbo.InventoryMovement_RebuildQueue q WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+                WHERE q.ID = @Candidate_ID
+                  AND (q.Status = N'WAITING'
+                   OR (q.Status = N'RETRY_WAITING' AND q.NextRetryAt <= SYSUTCDATETIME())
+                  )
+                ORDER BY CASE WHEN q.Status = N'WAITING' THEN 0 ELSE 1 END,
+                         q.NextRetryAt,
+                         q.CreatedAt,
+                         q.ID
+            )
+            UPDATE NextItem
+            SET Status = N'PROCESSING',
+                Claimed_Version = Requested_Version,
+                LastAttemptAt = SYSUTCDATETIME(),
+                NextRetryAt = NULL,
+                ProcessedAt = NULL,
+                ErrorMessage = NULL
+            OUTPUT inserted.ID,
+                   inserted.Kho_ID,
+                   inserted.San_Pham_ID,
+                   inserted.From_Date,
+                   inserted.To_Date,
+                   inserted.Claimed_Version
+            INTO @Claimed;
+
+            SELECT TOP (1)
+                   @Queue_ID = ID,
+                   @Kho_ID = Kho_ID,
+                   @San_Pham_ID = San_Pham_ID,
+                   @From_Date = From_Date,
+                   @To_Date = To_Date,
+                   @Claimed_Version = Claimed_Version
+            FROM @Claimed;
+
+            IF @Queue_ID IS NULL
+            BEGIN
+                COMMIT TRANSACTION;
+                BREAK;
+            END
+
+            UPDATE dbo.InventoryMovement_RebuildQueue
+            SET Status = N'PROCESSING', ErrorMessage = NULL
+            WHERE ID = @Queue_ID;
             COMMIT TRANSACTION;
-            BREAK;
-        END
+        END TRY
+        BEGIN CATCH
+            DECLARE @Claim_Error_Number INT = ERROR_NUMBER();
+            DECLARE @Claim_Error_Message NVARCHAR(4000) = LEFT(ERROR_MESSAGE(), 4000);
+            IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
 
-        UPDATE dbo.InventoryMovement_RebuildQueue
-        SET Status = N'PROCESSING', ErrorMessage = NULL
-        WHERE ID = @Queue_ID;
-        COMMIT TRANSACTION;
+            IF dbo.fn_Inventory_Fence_Is_Transient_Contention(@Claim_Error_Number, @Claim_Error_Message) = 1
+            BEGIN
+                DECLARE @Claim_Failure_Queue_ID BIGINT = COALESCE(@Queue_ID, @Candidate_ID);
+                DECLARE @Claim_Retry_After INT;
+                DECLARE @Claim_Next_Status NVARCHAR(20);
+                DECLARE @Claim_Delay_Seconds INT;
+                DECLARE @Claim_Failure_At DATETIME2 = SYSUTCDATETIME();
+
+                BEGIN TRY
+                    BEGIN TRANSACTION;
+
+                    SELECT @Claim_Retry_After = Retry_Count + 1
+                    FROM dbo.InventoryMovement_RebuildQueue WITH (UPDLOCK, HOLDLOCK)
+                    WHERE ID = @Claim_Failure_Queue_ID
+                      AND Status IN (N'WAITING', N'RETRY_WAITING');
+
+                    IF @Claim_Retry_After IS NOT NULL
+                    BEGIN
+                        SET @Claim_Next_Status =
+                            CASE WHEN @Claim_Retry_After < @Max_Retry_Count
+                                 THEN N'RETRY_WAITING'
+                                 ELSE N'FAILED_FINAL'
+                            END;
+                        SET @Claim_Delay_Seconds =
+                            CASE
+                                WHEN @Claim_Next_Status <> N'RETRY_WAITING' THEN NULL
+                                WHEN @Base_Retry_Delay_Seconds = 0 THEN 0
+                                WHEN @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Claim_Retry_After - 1) > 3600 THEN 3600
+                                ELSE CONVERT(INT, @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Claim_Retry_After - 1))
+                            END;
+
+                        UPDATE dbo.InventoryMovement_RebuildQueue
+                        SET Status = @Claim_Next_Status,
+                            Retry_Count = @Claim_Retry_After,
+                            Claimed_Version = NULL,
+                            ProcessedAt = CASE WHEN @Claim_Next_Status = N'FAILED_FINAL' THEN @Claim_Failure_At ELSE NULL END,
+                            NextRetryAt = CASE WHEN @Claim_Next_Status = N'RETRY_WAITING'
+                                               THEN DATEADD(SECOND, @Claim_Delay_Seconds, @Claim_Failure_At)
+                                               ELSE NULL
+                                          END,
+                            LastAttemptAt = @Claim_Failure_At,
+                            LastError = @Claim_Error_Message,
+                            ErrorMessage = NULL
+                        WHERE ID = @Claim_Failure_Queue_ID
+                          AND Status IN (N'WAITING', N'RETRY_WAITING');
+
+                        IF @Claim_Next_Status = N'FAILED_FINAL'
+                            INSERT dbo.InventoryMovement_RebuildDeadLetter
+                            (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
+                            SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
+                            FROM dbo.InventoryMovement_RebuildQueue q
+                            WHERE q.ID = @Claim_Failure_Queue_ID
+                              AND NOT EXISTS
+                              (
+                                  SELECT 1
+                                  FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
+                                  WHERE dl.Queue_ID = q.ID
+                              );
+                    END;
+
+                    COMMIT TRANSACTION;
+                END TRY
+                BEGIN CATCH
+                    IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+                    THROW;
+                END CATCH;
+
+                SET @Processed += 1;
+                CONTINUE;
+            END;
+
+            THROW;
+        END CATCH;
 
         BEGIN TRY
             EXEC dbo.sp_Inventory_Movement_Rebuild
@@ -4770,52 +7276,61 @@ BEGIN
             DECLARE @Error_Number INT = ERROR_NUMBER();
             DECLARE @Error_Message NVARCHAR(4000) = LEFT(ERROR_MESSAGE(), 4000);
             DECLARE @Retry_After INT;
-            DECLARE @Is_Transient BIT = CASE WHEN @Error_Number IN (1205, 1222, 51224, 51226) THEN 1 ELSE 0 END;
+            DECLARE @Is_Transient BIT = CASE
+                WHEN @Error_Number IN (1205, 1222, 51224, 51226)
+                  OR dbo.fn_Inventory_Fence_Is_Transient_Contention(@Error_Number, @Error_Message) = 1
+                THEN 1 ELSE 0 END;
             DECLARE @Next_Status NVARCHAR(20);
             DECLARE @Delay_Seconds INT;
 
-            BEGIN TRANSACTION;
-            SELECT @Retry_After = Retry_Count + 1
-            FROM dbo.InventoryMovement_RebuildQueue WITH (UPDLOCK, HOLDLOCK)
-            WHERE ID = @Queue_ID
-              AND Status = N'PROCESSING'
-              AND Claimed_Version = @Claimed_Version;
-
-            IF @Retry_After IS NOT NULL
-            BEGIN
-                SET @Next_Status = CASE WHEN @Is_Transient = 1 AND @Retry_After < @Max_Retry_Count THEN N'RETRY_WAITING' ELSE N'FAILED_FINAL' END;
-                SET @Delay_Seconds = CASE
-                    WHEN @Next_Status <> N'RETRY_WAITING' THEN NULL
-                    WHEN @Base_Retry_Delay_Seconds = 0 THEN 0
-                    WHEN @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Retry_After - 1) > 3600 THEN 3600
-                    ELSE CONVERT(INT, @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Retry_After - 1))
-                END;
-
-                UPDATE dbo.InventoryMovement_RebuildQueue
-                SET Status = @Next_Status,
-                    Retry_Count = @Retry_After,
-                    ProcessedAt = CASE WHEN @Next_Status = N'FAILED_FINAL' THEN SYSUTCDATETIME() ELSE NULL END,
-                    NextRetryAt = CASE WHEN @Next_Status = N'RETRY_WAITING' THEN DATEADD(SECOND, @Delay_Seconds, SYSUTCDATETIME()) ELSE NULL END,
-                    LastError = @Error_Message,
-                    ErrorMessage = NULL
+            BEGIN TRY
+                BEGIN TRANSACTION;
+                SELECT @Retry_After = Retry_Count + 1
+                FROM dbo.InventoryMovement_RebuildQueue WITH (UPDLOCK, HOLDLOCK)
                 WHERE ID = @Queue_ID
                   AND Status = N'PROCESSING'
                   AND Claimed_Version = @Claimed_Version;
 
-                IF @Next_Status = N'FAILED_FINAL'
-                    INSERT dbo.InventoryMovement_RebuildDeadLetter
-                    (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
-                    SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
-                    FROM dbo.InventoryMovement_RebuildQueue q
-                    WHERE q.ID = @Queue_ID
-                      AND NOT EXISTS
-                      (
-                          SELECT 1
-                          FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
-                          WHERE dl.Queue_ID = q.ID
-                      );
-            END
-            COMMIT TRANSACTION;
+                IF @Retry_After IS NOT NULL
+                BEGIN
+                    SET @Next_Status = CASE WHEN @Is_Transient = 1 AND @Retry_After < @Max_Retry_Count THEN N'RETRY_WAITING' ELSE N'FAILED_FINAL' END;
+                    SET @Delay_Seconds = CASE
+                        WHEN @Next_Status <> N'RETRY_WAITING' THEN NULL
+                        WHEN @Base_Retry_Delay_Seconds = 0 THEN 0
+                        WHEN @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Retry_After - 1) > 3600 THEN 3600
+                        ELSE CONVERT(INT, @Base_Retry_Delay_Seconds * POWER(CAST(2 AS FLOAT), @Retry_After - 1))
+                    END;
+
+                    UPDATE dbo.InventoryMovement_RebuildQueue
+                    SET Status = @Next_Status,
+                        Retry_Count = @Retry_After,
+                        ProcessedAt = CASE WHEN @Next_Status = N'FAILED_FINAL' THEN SYSUTCDATETIME() ELSE NULL END,
+                        NextRetryAt = CASE WHEN @Next_Status = N'RETRY_WAITING' THEN DATEADD(SECOND, @Delay_Seconds, SYSUTCDATETIME()) ELSE NULL END,
+                        LastError = @Error_Message,
+                        ErrorMessage = NULL
+                    WHERE ID = @Queue_ID
+                      AND Status = N'PROCESSING'
+                      AND Claimed_Version = @Claimed_Version;
+
+                    IF @Next_Status = N'FAILED_FINAL'
+                        INSERT dbo.InventoryMovement_RebuildDeadLetter
+                        (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
+                        SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
+                        FROM dbo.InventoryMovement_RebuildQueue q
+                        WHERE q.ID = @Queue_ID
+                          AND NOT EXISTS
+                          (
+                              SELECT 1
+                              FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
+                              WHERE dl.Queue_ID = q.ID
+                          );
+                END
+                COMMIT TRANSACTION;
+            END TRY
+            BEGIN CATCH
+                IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+                THROW;
+            END CATCH
         END CATCH
 
         SET @Processed += 1;
@@ -4832,14 +7347,8 @@ BEGIN
     SET XACT_ABORT ON;
     BEGIN TRY
         BEGIN TRANSACTION;
-        DECLARE @AppLockResult INT;
-        EXEC @AppLockResult = sys.sp_getapplock
-            @Resource = N'InventoryMovement:Bootstrap',
-            @LockMode = N'Exclusive',
-            @LockOwner = N'Transaction',
-            @LockTimeout = 0;
-        IF @AppLockResult < 0
-            THROW 51225, N'Movement Aggregate đang được bootstrap bởi phiên khác.', 1;
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        EXEC dbo.sp_Inventory_Fence_Acquire_Legacy_Movement_Bootstrap @Mode = N'Exclusive';
 
         CREATE TABLE #Rebuilt
         (
@@ -4913,8 +7422,7 @@ BEGIN
         /* Bootstrap publishes the balance read model before marking the
            movement aggregate healthy, so report cutover cannot expose a
            partially backfilled balance table. */
-        EXEC dbo.sp_Inventory_Balance_Daily_Bootstrap_From_Movement
-            @Bootstrap_Lock_Held = 1;
+        EXEC dbo.sp_Inventory_Balance_Daily_Bootstrap_From_Movement;
 
         /* Bootstrap has rebuilt the authoritative ledger while the exclusive
            maintenance lock excluded Post and normal workers.  Any prior retry

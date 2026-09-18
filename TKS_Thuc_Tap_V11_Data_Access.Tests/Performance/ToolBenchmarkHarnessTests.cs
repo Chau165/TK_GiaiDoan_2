@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Benchmarks;
+using System.Text.Json;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests.Performance;
@@ -36,21 +37,80 @@ public sealed class ToolBenchmarkHarnessTests
         var names = WarehouseScenarioCatalog.Names;
 
         Assert.Equal(
-            new[] { "MasterPaged", "LookupPaged", "DocumentPaged", "DetailReportPaged", "InventoryReportPaged" },
+            new[]
+            {
+                "MasterPaged",
+                "LookupPaged",
+                "DocumentPaged",
+                "DetailReportPaged",
+                "InventoryHistoricalReportPaged",
+                "InventoryCurrentBalancePaged"
+            },
             names);
     }
 
     [Fact]
-    public void Scenario_selection_can_limit_load_to_named_paths()
+    public void Legacy_inventory_name_aliases_to_historical_report_only()
     {
         var settings = BenchmarkSettings.FromEnvironment(new Dictionary<string, string?>
         {
-            ["TKS_NBOMBER_SCENARIOS"] = "MasterPaged, LookupPaged, DocumentPaged"
+            ["TKS_NBOMBER_SCENARIOS"] = "InventoryReportPaged"
         });
 
+        Assert.Equal(new[] { "InventoryHistoricalReportPaged" }, settings.NBomberScenarioNames);
+    }
+
+    [Fact]
+    public void Default_scenario_selection_preserves_the_fixed_five_path_workload()
+    {
+        var settings = BenchmarkSettings.FromEnvironment(new Dictionary<string, string?>());
+
         Assert.Equal(
-            new[] { "MasterPaged", "LookupPaged", "DocumentPaged" },
+            new[]
+            {
+                "MasterPaged",
+                "LookupPaged",
+                "DocumentPaged",
+                "DetailReportPaged",
+                "InventoryHistoricalReportPaged"
+            },
             settings.NBomberScenarioNames);
+    }
+
+    [Fact]
+    public void Current_balance_runner_uses_a_distinct_scenario_contract()
+    {
+        var runner = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Benchmarks",
+            "Run-InventoryReportPagedLoadMatrix.ps1"));
+
+        Assert.Contains("InventoryCurrentBalancePaged", runner, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TKS_NBOMBER_SCENARIOS = 'InventoryReportPaged'", runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sp_BC_Ton_Kho_Hien_Tai_Page", runner, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Benchmark_manifest_declares_closure_and_two_inventory_names()
+    {
+        var manifestPath = FindRepositoryPath("TKS_Thuc_Tap_V11_Benchmarks", "benchmark-manifest.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        var root = document.RootElement;
+
+        Assert.Equal(
+            "TKS_Thuc_Tap_V11_Perf_10000000",
+            root.GetProperty("database").GetProperty("name").GetString());
+        Assert.Contains(
+            "InventoryHistoricalReportPaged",
+            root.GetProperty("scenarios").GetProperty("canonical").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "InventoryCurrentBalancePaged",
+            root.GetProperty("scenarios").GetProperty("canonical").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            "InventoryHistoricalReportPaged",
+            root.GetProperty("scenarios").GetProperty("aliases").GetProperty("InventoryReportPaged").GetString());
+        Assert.True(root.GetProperty("requiredObjects").GetProperty("tables").GetArrayLength() > 0);
+        Assert.True(root.GetProperty("requiredObjects").GetProperty("procedures").GetArrayLength() > 0);
+        Assert.True(root.GetProperty("requiredObjects").GetProperty("indexes").GetArrayLength() > 0);
     }
 
     [Fact]
@@ -88,4 +148,5 @@ public sealed class ToolBenchmarkHarnessTests
 
         throw new FileNotFoundException($"Repository file was not found: {Path.Combine(parts)}");
     }
+
 }

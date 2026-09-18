@@ -97,6 +97,70 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
     }
 
     [Fact]
+    public async Task Scope_lock_contention_is_retried_then_succeeds_after_fence_release()
+    {
+        var scope = await CreatePersistentScopeAsync();
+        var day = new DateTime(2099, 3, 17);
+
+        try
+        {
+            await SeedValidSnapshotAnchorAsync(scope, new DateTime(2099, 3, 1));
+            await ApplyInvalidationAsync(scope, day);
+
+            await using var lockConnection = new SqlConnection(ConnectionString);
+            await lockConnection.OpenAsync();
+            await using var lockTransaction = lockConnection.BeginTransaction();
+            await AcquireExclusiveLockAsync(lockConnection, lockTransaction, ScopeResource(scope));
+
+            await ProcessQueueAsync(maxRetryCount: 3, retryDelaySeconds: 0);
+            var retrying = await ReadQueueStateAsync(scope, day);
+            Assert.Equal("RETRY_WAITING", retrying.Status);
+            Assert.Equal(1, retrying.RetryCount);
+
+            await lockTransaction.RollbackAsync();
+            await ProcessQueueAsync(maxRetryCount: 3, retryDelaySeconds: 0);
+
+            var completed = await ReadQueueStateAsync(scope, day);
+            Assert.Equal("COMPLETED", completed.Status);
+            Assert.Equal(1, completed.RetryCount);
+            Assert.Equal(0, await CountAsync(scope, day, "dbo.InventoryMovement_RebuildDeadLetter"));
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(scope);
+        }
+    }
+
+    [Theory]
+    [InlineData(51403, "Inventory fence Root acquisition failed. Result=-1", true)]
+    [InlineData(51403, "Inventory fence Root acquisition failed. Result=-2", true)]
+    [InlineData(51403, "Inventory fence Root acquisition failed. Result=-3", true)]
+    [InlineData(51407, "Inventory fence Group acquisition failed. Result=-1", true)]
+    [InlineData(51412, "Inventory fence legacy Scope acquisition failed. Result=-1", true)]
+    [InlineData(51424, "Inventory fence legacy Snapshot acquisition failed. Result=-1", true)]
+    [InlineData(51428, "Inventory movement bootstrap compatibility fence is busy.", true)]
+    [InlineData(51431, "Legacy snapshot bootstrap compatibility fence is busy.", true)]
+    [InlineData(51403, "Inventory fence Root acquisition failed. Result=-999", false)]
+    [InlineData(51403, "Inventory fence Root acquisition failed. Result=-10", false)]
+    [InlineData(51406, "Inventory fence Group requires Root first.", false)]
+    [InlineData(51413, "Inventory fence legacy Scope verification failed.", false)]
+    [InlineData(51420, "Inventory fence context is missing required Group mode.", false)]
+    public async Task Fence_classifier_retries_only_expected_contention(
+        int errorNumber,
+        string errorMessage,
+        bool expectedTransient)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        var actual = await ScalarAsync(connection, null,
+            "SELECT dbo.fn_Inventory_Fence_Is_Transient_Contention(@ErrorNumber, @ErrorMessage);",
+            Int("@ErrorNumber", errorNumber), Text("@ErrorMessage", errorMessage, 4000));
+
+        Assert.Equal(expectedTransient, Convert.ToBoolean(actual));
+    }
+
+    [Fact]
     public async Task Balance_daily_rebuild_is_rejected_while_another_worker_owns_the_scope()
     {
         var scope = await CreatePersistentScopeAsync();
@@ -119,7 +183,8 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
                 BigInt("@San_Pham_ID", scope.ProductId),
                 Date("@From_Date", new DateTime(2099, 3, 20))));
 
-            Assert.Equal(51224, error.Number);
+            Assert.Equal(51412, error.Number);
+            Assert.Contains("Inventory fence legacy Scope acquisition failed", error.Message, StringComparison.Ordinal);
             await lockTransaction.RollbackAsync();
         }
         finally
@@ -205,7 +270,8 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
             Assert.Equal("RETRY_WAITING", retrying.Status);
 
             var postError = await Assert.ThrowsAsync<SqlException>(() => PostReceiptAsync(scope.Login!, receiptId));
-            Assert.Equal(51226, postError.Number);
+            Assert.Equal(51428, postError.Number);
+            Assert.Contains("compatibility fence is busy", postError.Message, StringComparison.Ordinal);
 
             await lockTransaction.RollbackAsync();
         }

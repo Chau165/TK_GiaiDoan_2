@@ -1,0 +1,144 @@
+{
+  "protocolVersion": "WAREHOUSE_BENCHMARK_V2_1_MIXED",
+  "protocolSemanticVersion": "2.1.1",
+  "profileType": "ADDITIONAL_PROFILE_ONLY",
+  "coreBaselineId": "BENCHMARK_V2_1_BASELINE_20260915-185645",
+  "coreBaselinePolicy": "IMMUTABLE; MIXED_RESULTS_MUST_NOT_BE_MERGED_INTO_ISOLATED_BASELINE",
+  "runnerSha256": "D3524053EE0145EFE20F0938C8C72DEF747B8DF89A6DC5E89CC1959A3A0AAAE5",
+  "coreRunnerSha256": "0338A1D59BD3C1680B955793D6CDAC64F60479AF72E11EC7ABFCDE7BE9988470",
+  "coreManifestSha256": "39321648149B6A3213B7E88455E38CAD87B33FA78015D240E1ED88363F99D3EF",
+  "benchmarkDllSha256": "DCB75373489DC1CC3288142D02484327E1369EF8B6A522C80BC6108D06B3BA84",
+  "dataAccessDllSha256": "9262DDA93A1CBCEC7B2F188BB0E2FCFE92CEC09846741E32C9427FAFDFB9CAC1",
+  "runtimeBundleManifestSha256": "2DEE48CC2D9E8ECE7B1D5A483E694DEC83F159C5F33489791BB9BCB37F413C6C",
+  "runtimeDirectory": "P:\\Warehouse-Benchmark-V2\\WAREHOUSE_BENCHMARK_V2_1-20260915-211500\\runtime",
+  "target": {
+    "server": "localhost\\MSSQLSERVER19",
+    "database": "TKS_Thuc_Tap_V11_Perf_10000000",
+    "databaseId": 5
+  },
+  "scenarioCatalog": [
+    {
+      "name": "MasterPaged",
+      "operation": "CWarehouseMaster_Controller.List_Master_Page_Async",
+      "parameters": "SanPham, page=1, pageSize=10, search=''"
+    },
+    {
+      "name": "LookupPaged",
+      "operation": "CWarehouseMaster_Controller.List_Lookup_Page_Async",
+      "parameters": "SanPham, page=1, pageSize=10, search=''"
+    },
+    {
+      "name": "DocumentPaged",
+      "operation": "CWarehouseDocument_Controller.List_Documents_Page_Async",
+      "parameters": "isReceipt=true, page=1, pageSize=10, search='', login=PERF_USER"
+    },
+    {
+      "name": "DetailReportPaged",
+      "operation": "CWarehouseReport_Controller.Detail_Report_Page_Async",
+      "parameters": "isReceipt=true, 2025-01-01..2026-12-31, page=1, pageSize=10, login=PERF_USER"
+    },
+    {
+      "name": "InventoryHistoricalReportPaged",
+      "operation": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+      "parameters": "2025-01-01..2026-12-31, page=1, pageSize=10, login=PERF_USER, UseCurrentBalance=false"
+    },
+    {
+      "name": "InventoryCurrentBalancePaged",
+      "operation": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+      "parameters": "2025-01-01..2026-12-31, page=1, pageSize=10, login=PERF_USER, UseCurrentBalance=true"
+    }
+  ],
+  "parameters": {
+    "page": 1,
+    "pageSize": 10,
+    "fromDate": "2025-01-01",
+    "toDate": "2026-12-31",
+    "login": "PERF_USER",
+    "useSnapshot": false,
+    "historicalUseCurrentBalance": false,
+    "currentUseCurrentBalance": true,
+    "applicationTimeoutSeconds": 30,
+    "warmupSeconds": 3,
+    "durationSeconds": 15,
+    "simulation": "Simulation.KeepConstant",
+    "oneCopyMeaning": "one real NBomber worker executing one real Data Access scenario",
+    "noAdditionalRequestPacing": true
+  },
+  "mixedLevels": [
+    {
+      "label": "MIXED-L1",
+      "workersPerScenario": 1,
+      "simulatedConcurrentWorkers": 6,
+      "scenarioCount": 6
+    },
+    {
+      "label": "MIXED-L2",
+      "workersPerScenario": 2,
+      "simulatedConcurrentWorkers": 12,
+      "scenarioCount": 6
+    },
+    {
+      "label": "MIXED-L4",
+      "workersPerScenario": 4,
+      "simulatedConcurrentWorkers": 24,
+      "scenarioCount": 6
+    },
+    {
+      "label": "MIXED-L8",
+      "workersPerScenario": 8,
+      "simulatedConcurrentWorkers": 48,
+      "scenarioCount": 6
+    }
+  ],
+  "concurrencyContract": {
+    "allSixRunConcurrently": true,
+    "sharedWarmupSeconds": 3,
+    "sharedMeasuredSeconds": 15,
+    "meaningfulAllSixOverlapSeconds": 10,
+    "actualWorkerCountMustEqual": {
+      "MIXED-L1": 6,
+      "MIXED-L2": 12,
+      "MIXED-L4": 24,
+      "MIXED-L8": 48
+    },
+    "aggregatePercentiles": "NOT_COMPUTED; do not average six per-scenario percentiles"
+  },
+  "adaptiveSafety": {
+    "hardFloorFreePhysicalRamMb": 512,
+    "emergencyMarginMb": 128,
+    "predictedSafeMinimumMb": 640,
+    "idealStartMb": 1024,
+    "admission": "current free RAM minus conservative prediction from the previous mixed level must remain above 640 MB",
+    "hardStopAction": "stop only the active mixed level and preserve completed lower levels",
+    "l8HostLimitClassification": "MIXED_L8_HOST_CAPACITY_LIMIT"
+  },
+  "comparisonPolicy": {
+    "isolatedBaseline": "V2.1 core NBomber C1/C2 and extended C4",
+    "sameLevelComparisons": "MIXED-L1 vs C1; MIXED-L2 vs C2; MIXED-L4 vs C4",
+    "mixedL8": "MIXED_L8_STANDALONE_CAPACITY_RESULT; no exact isolated C8 baseline",
+    "deltaPolicy": "descriptive numeric deltas only; no arbitrary pass threshold"
+  },
+  "execution": {
+    "reuseFrozenRuntime": true,
+    "build": "NONE",
+    "restore": "NONE",
+    "benchmarkDotNet": false,
+    "businessDatabase": false,
+    "sqlAgentMutation": false,
+    "productSqlMutation": false,
+    "fixtureMutation": false,
+    "currentRebuild": false,
+    "cacheFlush": false
+  },
+  "outputs": [
+    "mixed-run-metadata.json",
+    "mixed-per-scenario.csv",
+    "mixed-level-summary.csv",
+    "mixed-host-telemetry.csv",
+    "mixed-sql-telemetry.csv",
+    "mixed-consistency-before.json",
+    "mixed-consistency-after.json",
+    "mixed-result.json",
+    "Benchmark-V2.1-All-Six-Mixed-Report.md"
+  ]
+}

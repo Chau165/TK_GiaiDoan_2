@@ -52,7 +52,7 @@ public sealed class PerformanceBenchmarkTests
         Assert.Contains("MasterFullLoad", names);
         Assert.Contains("MasterPaged", names);
         Assert.Contains("DetailReportPaged", names);
-        Assert.Contains("InventoryReportPaged", names);
+        Assert.Contains("InventoryHistoricalReportPaged", names);
         Assert.Contains("ConcurrentMixedWorkload", names);
         Assert.Contains("CrudContract", names);
     }
@@ -119,7 +119,7 @@ public sealed class PerformanceBenchmarkTests
         var report = await PerformanceBenchmark.RunDatabaseAsync(options);
 
         Assert.Contains(report.Metrics, metric => metric.Scenario == "MasterPaged" && metric.Error is null);
-        Assert.Contains(report.Metrics, metric => metric.Scenario == "InventoryReportPaged" && metric.Error is null);
+        Assert.Contains(report.Metrics, metric => metric.Scenario == "InventoryHistoricalReportPaged" && metric.Error is null);
     }
 
     private static string FindRepositoryPath(params string[] parts)

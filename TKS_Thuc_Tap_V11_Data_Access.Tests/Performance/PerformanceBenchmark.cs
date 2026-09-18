@@ -129,7 +129,7 @@ public static class PerformanceBenchmark
         "DetailReportFullLoad",
         "DetailReportPaged",
         "InventoryReportFullLoad",
-        "InventoryReportPaged",
+        "InventoryHistoricalReportPaged",
         "ConcurrentMixedWorkload",
         "CrudContract"
     };
@@ -240,7 +240,7 @@ public static class PerformanceBenchmark
         await AddMetricAsync(v_metrics, "DetailReportPaged", p_options, () =>
             new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
-        await AddMetricAsync(v_metrics, "InventoryReportPaged", p_options, () =>
+        await AddMetricAsync(v_metrics, "InventoryHistoricalReportPaged", p_options, () =>
             new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
 

@@ -105,7 +105,34 @@ public class WarehouseDatabaseBenchmarks
     public Task<int> DetailReportPaged() => m_operations.DetailReportPagedAsync();
 
     [Benchmark]
-    public Task<int> InventoryReportPaged() => m_operations.InventoryReportPagedAsync();
+    public Task<int> InventoryHistoricalReportPaged() => m_operations.InventoryHistoricalReportPagedAsync();
+
+    private static async Task ValidateDatabaseAsync(string p_connectionString)
+    {
+        await using var v_connection = new Microsoft.Data.SqlClient.SqlConnection(p_connectionString);
+        await v_connection.OpenAsync();
+        await using var v_command = v_connection.CreateCommand();
+        v_command.CommandText = "SELECT DB_NAME();";
+        _ = await v_command.ExecuteScalarAsync();
+    }
+}
+
+[MemoryDiagnoser]
+public class WarehouseCurrentBalanceBenchmarks
+{
+    private WarehouseReadOperations m_operations = null!;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        var v_settings = BenchmarkSettings.FromEnvironment();
+        v_settings.RequireDatabase();
+        m_operations = new WarehouseReadOperations(v_settings);
+        ValidateDatabaseAsync(v_settings.ConnectionString).GetAwaiter().GetResult();
+    }
+
+    [Benchmark]
+    public Task<int> InventoryCurrentBalancePaged() => m_operations.InventoryCurrentBalancePagedAsync();
 
     private static async Task ValidateDatabaseAsync(string p_connectionString)
     {

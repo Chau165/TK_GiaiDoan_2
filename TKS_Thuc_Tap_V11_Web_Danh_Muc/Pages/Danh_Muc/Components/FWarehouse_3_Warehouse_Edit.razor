@@ -4,38 +4,41 @@
     <div class="card-body">
         @if (m_strEditor_Type == "Master")
         {
-            <EditForm Model="@m_objMaster" OnValidSubmit="Save_Master_Async">
-                <DataAnnotationsValidator />
-                <div class="row g-3 align-items-end">
-                    @if (m_strMaster_Type is "LoaiSanPham" or "SanPham" or "NCC")
-                    {
-                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objMaster.Code" /></div>
-                    }
-                    @if (m_strMaster_Type == "KhoUser")
-                    {
-                        <div class="col-md-4"><label class="form-label">Mã đăng nhập / user</label><TelerikDropDownList Data="@m_arrUser" TItem="CWarehouseLookup" TValue="string" Value="@m_objMaster.Login_Name" ValueChanged="@On_Login_Name_Changed" ValueExpression="@(() => m_objMaster.Login_Name)" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn user --" /></div>
-                        <div class="col-md-4"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrAvailableWarehouse" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
-                        @if (m_arrAvailableWarehouse.Count == 0 && !string.IsNullOrWhiteSpace(m_objMaster.Login_Name))
+            @if (m_strMaster_Type == "KhoUser")
+            {
+                <EditForm Model="@m_objPermission" OnValidSubmit="Save_Permission_Async">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4"><label class="form-label">Mã đăng nhập / user</label><TelerikDropDownList Data="@m_arrUser" TItem="CWarehouseLookup" TValue="string" Value="@m_objPermission.Login_Name" ValueChanged="@On_Login_Name_Changed" ValueExpression="@(() => m_objPermission.Login_Name)" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn user --" /></div>
+                        <div class="col-md-4"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrAvailableWarehouse" @bind-Value="m_objPermission.Warehouse_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
+                        @if (m_arrAvailableWarehouse.Count == 0 && !string.IsNullOrWhiteSpace(m_objPermission.Login_Name))
                         {
                             <div class="col-12"><div class="form-text text-warning">User này đã được gắn tất cả kho.</div></div>
                         }
-                    }
-                    else
-                    {
+                        <div class="col-md-2 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objPermission.Permission_ID == 0 ? "Thêm" : "Lưu")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                    </div>
+                </EditForm>
+            }
+            else
+            {
+                <EditForm Model="@m_objMaster" OnValidSubmit="Save_Master_Async">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3 align-items-end">
+                        @if (m_strMaster_Type is "LoaiSanPham" or "SanPham" or "NCC")
+                        {
+                            <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objMaster.Code" /></div>
+                        }
                         <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objMaster.Name" /></div>
-                    }
-                    @if (m_strMaster_Type == "SanPham")
-                    {
-                        <div class="col-md-3"><label class="form-label">Loại sản phẩm</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn loại --" /></div>
-                        <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objMaster.Related_ID_2" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
-                    }
-                    @if (m_strMaster_Type != "KhoUser")
-                    {
+                        @if (m_strMaster_Type == "SanPham")
+                        {
+                            <div class="col-md-3"><label class="form-label">Loại sản phẩm</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn loại --" /></div>
+                            <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objMaster.Related_ID_2" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
+                        }
                         <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objMaster.Ghi_Chu" /></div>
-                    }
-                    <div class="col-md-2 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objMaster.Auto_ID == 0 ? "Thêm" : "Lưu")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
-                </div>
-            </EditForm>
+                        <div class="col-md-2 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objMaster.Auto_ID == 0 ? "Thêm" : "Lưu")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                    </div>
+                </EditForm>
+            }
         }
         else if (m_strEditor_Type == "Document")
         {
@@ -75,6 +78,7 @@
     [Parameter] public string m_strMaster_Type { get; set; } = "";
     [Parameter] public bool m_bIs_Receipt { get; set; }
     [Parameter] public CWarehouseMaster m_objMaster { get; set; } = new();
+    [Parameter] public CWarehousePermission m_objPermission { get; set; } = new();
     [Parameter] public CWarehouseDocument m_objDocument { get; set; } = new();
     [Parameter] public CWarehouseDocumentDetail m_objDetail { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
@@ -82,9 +86,10 @@
     [Parameter] public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
-    [Parameter] public List<CWarehouseMaster> m_arrWarehouseUser { get; set; } = new();
+    [Parameter] public List<CWarehousePermission> m_arrWarehouseUser { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
     [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
+    [Parameter] public EventCallback<CWarehousePermission> OnSave_Permission { get; set; }
     [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
     [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
@@ -97,7 +102,7 @@
         base.OnParametersSet();
         if (m_strEditor_Type == "Master" && m_strMaster_Type == "KhoUser")
         {
-            m_strBound_Login_Name = m_objMaster.Login_Name;
+            m_strBound_Login_Name = m_objPermission.Login_Name;
             Refresh_Available_Warehouses();
         }
     }
@@ -105,9 +110,9 @@
     private Task On_Login_Name_Changed(string p_strLogin_Name)
     {
         if (!string.Equals(m_strBound_Login_Name, p_strLogin_Name, StringComparison.OrdinalIgnoreCase))
-            m_objMaster.Related_ID = 0;
+            m_objPermission.Warehouse_ID = 0;
 
-        m_objMaster.Login_Name = p_strLogin_Name;
+        m_objPermission.Login_Name = p_strLogin_Name;
         m_strBound_Login_Name = p_strLogin_Name;
         Refresh_Available_Warehouses();
         return Task.CompletedTask;
@@ -116,10 +121,11 @@
     private void Refresh_Available_Warehouses()
     {
         m_arrAvailableWarehouse = CWarehousePermissionFilter.List_Available_Warehouses(
-            m_arrWarehouse, m_arrWarehouseUser, m_objMaster.Login_Name, m_objMaster.Auto_ID);
+            m_arrWarehouse, m_arrWarehouseUser, m_objPermission.Login_Name, m_objPermission.Permission_ID);
     }
 
     private Task Save_Master_Async() => OnSave_Master.InvokeAsync(m_objMaster);
+    private Task Save_Permission_Async() => OnSave_Permission.InvokeAsync(m_objPermission);
     private Task Save_Document_Async() => OnSave_Document.InvokeAsync(m_objDocument);
     private Task Save_Detail_Async() => OnSave_Detail.InvokeAsync(m_objDetail);
     private Task Cancel_Async() => OnCancel.InvokeAsync();
