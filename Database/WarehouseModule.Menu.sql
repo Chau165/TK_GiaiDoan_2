@@ -11,6 +11,10 @@ DECLARE @Issue_ID BIGINT = 110000103;
 DECLARE @Inventory_ID BIGINT = 110000104;
 DECLARE @Report_ID BIGINT = 110000105;
 DECLARE @Warehouse_Permission_ID BIGINT = 110000106;
+DECLARE @Master_Unit_ID BIGINT = 110000107;
+DECLARE @Master_Category_ID BIGINT = 110000108;
+DECLARE @Master_Product_ID BIGINT = 110000109;
+DECLARE @Master_Supplier_ID BIGINT = 110000110;
 DECLARE @Administration_ID BIGINT =
 (
     SELECT TOP (1) Auto_ID
@@ -20,6 +24,18 @@ DECLARE @Administration_ID BIGINT =
       AND Ten_Chuc_Nang COLLATE DATABASE_DEFAULT LIKE N'Quản trị%'
     ORDER BY Sort_Priority, Auto_ID
 );
+DECLARE @System_ID BIGINT =
+(
+    SELECT TOP (1) Auto_ID
+    FROM dbo.tbl_Sys_Chuc_Nang
+    WHERE Chuc_Nang_Parent_ID = @Administration_ID
+      AND ISNULL(deleted, 0) = 0
+      AND Ten_Chuc_Nang COLLATE DATABASE_DEFAULT LIKE N'Hệ thống%'
+    ORDER BY Sort_Priority, Auto_ID
+);
+
+IF @System_ID IS NULL
+    THROW 52105, 'Warehouse menu deployment requires the Hệ thống menu group.', 1;
 
 DECLARE @MenuDefinition TABLE
 (
@@ -43,19 +59,20 @@ INSERT @MenuDefinition
     (Auto_ID, Ma_Chuc_Nang, Ten_Chuc_Nang, Sort_Priority, Chuc_Nang_Parent_ID, Nhom_Chuc_Nang_ID, Func_URL, Image_URL, Is_View, Is_New, Is_Edit, Is_Delete, Is_Export, Ghi_Chu)
 VALUES
     (@Master_Warehouse_ID, N'2009', N'Kho', 4, @Master_Data_ID, 1, N'/Kho/Quan_Ly', N'', 1, 1, 1, 1, 1, N'Module thực tập quản lý kho'),
+    (@Master_Unit_ID, N'2016', N'Đơn vị tính', 5, @Master_Data_ID, 1, N'/Kho/Don_Vi_Tinh', N'', 1, 1, 1, 1, 1, N'Quản lý đơn vị tính'),
+    (@Master_Category_ID, N'2017', N'Loại sản phẩm', 6, @Master_Data_ID, 1, N'/Kho/Loai_San_Pham', N'', 1, 1, 1, 1, 1, N'Quản lý loại sản phẩm'),
+    (@Master_Product_ID, N'2018', N'Sản phẩm', 7, @Master_Data_ID, 1, N'/Kho/San_Pham', N'', 1, 1, 1, 1, 1, N'Quản lý sản phẩm'),
+    (@Master_Supplier_ID, N'2019', N'Nhà cung cấp', 8, @Master_Data_ID, 1, N'/Kho/Nha_Cung_Cap', N'', 1, 1, 1, 1, 1, N'Quản lý nhà cung cấp'),
     (@Warehouse_Management_ID, N'2010', N'Quản lý kho', 5, 0, 1, N'#', N'ri-archive-line', 1, 0, 0, 0, 0, N'Bài tập thực tập giai đoạn 2'),
     (@Receipt_ID, N'2011', N'Nhập kho', 1, @Warehouse_Management_ID, 1, N'/Kho/Nhap_Kho', N'', 1, 1, 1, 1, 1, N'Quản lý phiếu nhập kho'),
     (@Issue_ID, N'2012', N'Xuất kho', 2, @Warehouse_Management_ID, 1, N'/Kho/Xuat_Kho', N'', 1, 1, 1, 1, 1, N'Quản lý phiếu xuất kho'),
     (@Inventory_ID, N'2013', N'Tồn kho', 3, @Warehouse_Management_ID, 1, N'/Kho/Ton_Kho', N'', 1, 0, 0, 0, 1, N'Xem tồn kho hiện tại'),
     (@Report_ID, N'2014', N'Báo cáo', 4, @Warehouse_Management_ID, 1, N'/Kho/Bao_Cao', N'', 1, 0, 0, 0, 1, N'Báo cáo nhập, xuất và tồn theo kỳ');
 
-IF @Administration_ID IS NOT NULL
-BEGIN
-    INSERT @MenuDefinition
-        (Auto_ID, Ma_Chuc_Nang, Ten_Chuc_Nang, Sort_Priority, Chuc_Nang_Parent_ID, Nhom_Chuc_Nang_ID, Func_URL, Image_URL, Is_View, Is_New, Is_Edit, Is_Delete, Is_Export, Ghi_Chu)
-    VALUES
-        (@Warehouse_Permission_ID, N'2015', N'Phân quyền kho-user', 5, @Administration_ID, 1, N'/Kho/Phan_Quyen', N'', 1, 1, 1, 1, 1, N'Phân quyền user theo kho');
-END;
+INSERT @MenuDefinition
+    (Auto_ID, Ma_Chuc_Nang, Ten_Chuc_Nang, Sort_Priority, Chuc_Nang_Parent_ID, Nhom_Chuc_Nang_ID, Func_URL, Image_URL, Is_View, Is_New, Is_Edit, Is_Delete, Is_Export, Ghi_Chu)
+VALUES
+    (@Warehouse_Permission_ID, N'2015', N'Phân quyền kho-user', 6, @System_ID, 1, N'/Kho/Phan_Quyen', N'', 1, 1, 1, 1, 1, N'Phân quyền user theo kho');
 
 UPDATE target
 SET Ma_Chuc_Nang = source.Ma_Chuc_Nang,

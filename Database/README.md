@@ -56,12 +56,16 @@ scope, the report returns a retryable freshness error rather than stale stock da
 
 Restart the Blazor application after the menu script runs so its function/permission cache reloads. The warehouse routes are:
 
+- `/Kho/Don_Vi_Tinh` for Master Data > Đơn vị tính.
+- `/Kho/Loai_San_Pham` for Master Data > Loại sản phẩm.
+- `/Kho/San_Pham` for Master Data > Sản phẩm.
 - `/Kho/Quan_Ly` for Master Data > Kho.
+- `/Kho/Nha_Cung_Cap` for Master Data > Nhà cung cấp.
 - `/Kho/Nhap_Kho` for Quản lý kho > Nhập kho.
 - `/Kho/Xuat_Kho` for Quản lý kho > Xuất kho.
 - `/Kho/Ton_Kho` for Quản lý kho > Tồn kho.
 - `/Kho/Bao_Cao` for Quản lý kho > Báo cáo.
-- `/Kho/Phan_Quyen` for Quản trị > Phân quyền kho-user.
+- `/Kho/Phan_Quyen` for Quản trị > Hệ thống > Phân quyền kho-user.
 
 ## Authoritative final local-demo deployment order
 

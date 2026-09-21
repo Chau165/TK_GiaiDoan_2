@@ -32,7 +32,7 @@ public sealed class WarehouseUiWorkflowTests
         var page = File.ReadAllText(FindWarehousePage());
         var list = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("<FWarehouse_1_Warehouse_List m_strSection=\"Master\" />", page);
+        Assert.Contains("<FWarehouse_1_Warehouse_List m_strSection=\"Master\" m_strInitial_Master_Type=\"Kho\" m_bMaster_Type_Only=\"true\" />", page);
         Assert.Contains("@inherits FBase", list);
         Assert.Contains("FWarehouse_2_Warehouse_Info", list);
         Assert.Contains("FWarehouse_3_Warehouse_Edit", list);

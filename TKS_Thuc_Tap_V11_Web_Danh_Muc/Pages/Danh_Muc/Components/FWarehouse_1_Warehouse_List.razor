@@ -18,21 +18,17 @@
         @if (m_strSection == "Master")
         {
             <div class="d-flex justify-content-between align-items-end gap-3">
-                <div style="min-width: 280px;"><label class="form-label">Loại danh mục</label><select class="form-select" @bind="m_strMaster_Type" @bind:after="Load_Master_Async">
-                    @if (!m_bWarehouse_Permission_Only)
-                    {
+                @if (!m_bMaster_Type_Only && !m_bWarehouse_Permission_Only)
+                {
+                    <div style="min-width: 280px;"><label class="form-label">Loại danh mục</label><select class="form-select" @bind="m_strMaster_Type" @bind:after="Load_Master_Async">
                         <option value="DonViTinh">Đơn vị tính</option>
                         <option value="LoaiSanPham">Loại sản phẩm</option>
                         <option value="SanPham">Sản phẩm</option>
                         <option value="NCC">Nhà cung cấp</option>
                         <option value="Kho">Kho</option>
-                    }
-                    @if (m_bWarehouse_Permission_Only)
-                    {
-                        <option value="KhoUser">Phân quyền kho - user</option>
-                    }
-                </select></div>
-                <div class="d-flex gap-2">
+                    </select></div>
+                }
+                <div class="d-flex gap-2 ms-auto">
                     @if (r_objChuc_Nang.Is_Have_Add_Permission)
                     {
                         <button type="button" class="btn btn-primary" @onclick="New_Master">Thêm</button>
@@ -47,7 +43,7 @@
                     }
                 </div>
             </div>
-            <h5 class="mt-3">Danh sách @((m_strMaster_Type == "KhoUser") ? "phân quyền kho - user" : "danh mục")</h5>
+            <h5 class="mt-3">Danh sách @Master_Type_Title</h5>
             @if (m_strMaster_Type == "KhoUser")
             {
                 <TelerikGrid TItem="CWarehousePermission" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Kho_User_Async" @ref="m_grdPermission">
@@ -224,7 +220,9 @@
 
 @code {
     [Parameter] public string m_strSection { get; set; } = "Master";
+    [Parameter] public string m_strInitial_Master_Type { get; set; } = "DonViTinh";
     [Parameter] public string m_strInitial_Report_Type { get; set; } = "Receipt";
+    [Parameter] public bool m_bMaster_Type_Only { get; set; }
     [Parameter] public bool m_bWarehouse_Permission_Only { get; set; }
 
     private readonly CWarehouseMaster_Controller m_objMasterController = new();
@@ -261,10 +259,21 @@
     private TelerikGrid<CWarehouseDetailReport> m_grdReportDetail = new();
     private TelerikGrid<CWarehouseInventoryReport> m_grdInventory = new();
 
+    private string Master_Type_Title => m_strMaster_Type switch
+    {
+        "DonViTinh" => "Đơn vị tính",
+        "LoaiSanPham" => "Loại sản phẩm",
+        "SanPham" => "Sản phẩm",
+        "NCC" => "Nhà cung cấp",
+        "Kho" => "Kho",
+        "KhoUser" => "Phân quyền kho - user",
+        _ => "Danh mục"
+    };
+
     private string Section_Title => m_strSection switch
     {
         "Master" when m_bWarehouse_Permission_Only => "Phân quyền kho - user",
-        "Master" => "Danh mục kho",
+        "Master" => $"Master Data - {Master_Type_Title}",
         "Receipt" => "Nhập kho",
         "Issue" => "Xuất kho",
         _ when Is_Current_Inventory_Report => "Tồn kho",
@@ -275,7 +284,9 @@
     {
         if (!m_bRouteParametersApplied)
         {
-            m_strMaster_Type = m_bWarehouse_Permission_Only ? "KhoUser" : "DonViTinh";
+            m_strMaster_Type = m_bWarehouse_Permission_Only
+                ? "KhoUser"
+                : string.IsNullOrWhiteSpace(m_strInitial_Master_Type) ? "DonViTinh" : m_strInitial_Master_Type;
             m_strReport_Type = string.IsNullOrWhiteSpace(m_strInitial_Report_Type)
                 ? "Receipt"
                 : m_strInitial_Report_Type;
