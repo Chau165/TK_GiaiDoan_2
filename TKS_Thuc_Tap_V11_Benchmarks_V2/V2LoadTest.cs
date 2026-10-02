@@ -26,12 +26,12 @@ public static class V2LoadTest
                     GC.KeepAlive(v_rows);
                     return Response.Ok();
                 }
-                catch (Exception p_exception)
+                catch (Exception v_Exception)
                 {
-                    var v_classification = ClassifyException(p_exception);
+                    var v_classification = ClassifyException(v_Exception);
                     return Response.Fail(
                         v_classification,
-                        p_exception.Message,
+                        v_Exception.Message,
                         0L,
                         0d);
                 }
@@ -78,6 +78,11 @@ public static class V2LoadTest
     private static int ParseCopies()
     {
         var v_raw = Environment.GetEnvironmentVariable("TKS_V2_NBOMBER_COPIES");
-        return int.TryParse(v_raw, out var v_copies) ? Math.Clamp(v_copies, 1, 256) : 1;
+        if (int.TryParse(v_raw, out var v_copies))
+        {
+            return Math.Clamp(v_copies, 1, 256);
+        }
+
+        return 1;
     }
 }

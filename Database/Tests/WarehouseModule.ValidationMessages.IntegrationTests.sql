@@ -32,7 +32,7 @@ BEGIN TRY
 
     /* Danh mục: unit, category, product, supplier, warehouse, warehouse-user. */
     BEGIN TRY
-        EXEC dbo.sp_DM_Don_Vi_Tinh_Save @Auto_ID = @Id OUTPUT, @Ten_Don_Vi_Tinh = N'', @Ghi_Chu = N'';
+        EXEC dbo.F2016_sp_ins_Don_Vi_Tinh @Auto_ID = @Id OUTPUT, @Ten_Don_Vi_Tinh = N'', @Ghi_Chu = N'';
         THROW 53000, 'Expected empty unit validation.', 1;
     END TRY
     BEGIN CATCH
@@ -41,7 +41,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_DM_Don_Vi_Tinh_Save @Auto_ID = @Id OUTPUT, @Ten_Don_Vi_Tinh = N'Cái', @Ghi_Chu = N'';
+        EXEC dbo.F2016_sp_ins_Don_Vi_Tinh @Auto_ID = @Id OUTPUT, @Ten_Don_Vi_Tinh = N'Cái', @Ghi_Chu = N'';
         THROW 53002, 'Expected duplicate unit validation.', 1;
     END TRY
     BEGIN CATCH
@@ -50,7 +50,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_DM_Loai_San_Pham_Save @Auto_ID = @Id OUTPUT, @Ma_LSP = N'', @Ten_LSP = N'X', @Ghi_Chu = N'';
+        EXEC dbo.F2017_sp_ins_Loai_San_Pham @Auto_ID = @Id OUTPUT, @Ma_LSP = N'', @Ten_LSP = N'X', @Ghi_Chu = N'';
         THROW 53004, 'Expected empty category-code validation.', 1;
     END TRY
     BEGIN CATCH
@@ -59,7 +59,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_DM_San_Pham_Save @Auto_ID = @Id OUTPUT, @Ma_San_Pham = N'UT-ERR', @Ten_San_Pham = N'X', @Loai_San_Pham_ID = 0, @Don_Vi_Tinh_ID = 6, @Ghi_Chu = N'';
+        EXEC dbo.F2018_sp_ins_San_Pham @Auto_ID = @Id OUTPUT, @Ma_San_Pham = N'UT-ERR', @Ten_San_Pham = N'X', @Loai_San_Pham_ID = 0, @Don_Vi_Tinh_ID = 6, @Ghi_Chu = N'';
         THROW 53006, 'Expected invalid category validation.', 1;
     END TRY
     BEGIN CATCH
@@ -68,7 +68,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_DM_NCC_Save @Auto_ID = @Id OUTPUT, @Ma_NCC = N'', @Ten_NCC = N'X', @Ghi_Chu = N'';
+        EXEC dbo.F2019_sp_ins_NCC @Auto_ID = @Id OUTPUT, @Ma_NCC = N'', @Ten_NCC = N'X', @Ghi_Chu = N'';
         THROW 53008, 'Expected empty supplier-code validation.', 1;
     END TRY
     BEGIN CATCH
@@ -77,7 +77,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_DM_Kho_Save @Auto_ID = @Id OUTPUT, @Ten_Kho = N'', @Ghi_Chu = N'';
+        EXEC dbo.F2009_sp_ins_Kho @Auto_ID = @Id OUTPUT, @Ten_Kho = N'', @Ghi_Chu = N'';
         THROW 53010, 'Expected empty warehouse validation.', 1;
     END TRY
     BEGIN CATCH
@@ -86,7 +86,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_DM_Kho_User_Save @Auto_ID = @Id OUTPUT, @Ma_Dang_Nhap = N'', @Kho_ID = 6;
+        EXEC dbo.F2015_sp_ins_Kho_User @Auto_ID = @Id OUTPUT, @Ma_Dang_Nhap = N'', @Kho_ID = 6;
         THROW 53012, 'Expected empty warehouse-user validation.', 1;
     END TRY
     BEGIN CATCH
@@ -96,7 +96,7 @@ BEGIN TRY
 
     /* Phiếu nhập: missing/duplicate header and invalid detail data. */
     BEGIN TRY
-        EXEC dbo.sp_XNK_Nhap_Kho_Save_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'', @Kho_ID = 6, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F2011_sp_ins_Nhap_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'', @Kho_ID = 6, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53014, 'Expected empty receipt-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -105,7 +105,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_XNK_Nhap_Kho_Save_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'SEED-PNK-0003', @Kho_ID = 7, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F2011_sp_ins_Nhap_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'SEED-PNK-0003', @Kho_ID = 7, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53016, 'Expected duplicate receipt-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -114,7 +114,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_XNK_Nhap_Kho_Save_Detail @Auto_ID = 0, @Nhap_Kho_ID = 10, @San_Pham_ID = 0, @SL_Nhap = 1, @Don_Gia_Nhap = 1;
+        EXEC dbo.F2011_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = 10, @San_Pham_ID = 0, @SL_Nhap = 1, @Don_Gia_Nhap = 1;
         THROW 53018, 'Expected invalid receipt-product validation.', 1;
     END TRY
     BEGIN CATCH
@@ -124,7 +124,7 @@ BEGIN TRY
 
     /* Phiếu xuất: missing/duplicate header and invalid detail data. */
     BEGIN TRY
-        EXEC dbo.sp_XNK_Xuat_Kho_Save_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'', @Kho_ID = 6, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F2012_sp_ins_Xuat_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'', @Kho_ID = 6, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53020, 'Expected empty issue-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -133,7 +133,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_XNK_Xuat_Kho_Save_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'SEED-PXK-0002', @Kho_ID = 7, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F2012_sp_ins_Xuat_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'SEED-PXK-0002', @Kho_ID = 7, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53022, 'Expected duplicate issue-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -142,7 +142,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_XNK_Xuat_Kho_Save_Detail @Auto_ID = 0, @Xuat_Kho_ID = 10, @San_Pham_ID = 0, @SL_Xuat = 1, @Don_Gia_Xuat = 1;
+        EXEC dbo.F2012_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = 10, @San_Pham_ID = 0, @SL_Xuat = 1, @Don_Gia_Xuat = 1;
         THROW 53024, 'Expected invalid issue-product validation.', 1;
     END TRY
     BEGIN CATCH
@@ -176,15 +176,6 @@ BEGIN TRY
     BEGIN CATCH
         IF ERROR_NUMBER() <> 51200 OR ERROR_MESSAGE() <> N'Khoảng ngày báo cáo không hợp lệ.'
             THROW 53033, 'Issue-report validation message is not Unicode-safe.', 1;
-    END CATCH;
-
-    BEGIN TRY
-        EXEC dbo.sp_DM_Delete @Entity = N'Unknown', @Auto_ID = 0;
-        THROW 53028, 'Expected invalid master-type validation.', 1;
-    END TRY
-    BEGIN CATCH
-        IF ERROR_NUMBER() <> 51060 OR ERROR_MESSAGE() <> N'Loại danh mục không hợp lệ.'
-            THROW 53029, 'Delete validation message is not Unicode-safe.', 1;
     END CATCH;
 
     ROLLBACK TRANSACTION;

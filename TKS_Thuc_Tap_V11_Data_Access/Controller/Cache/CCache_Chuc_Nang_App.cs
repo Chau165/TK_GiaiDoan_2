@@ -12,17 +12,17 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 {
 	public class CCache_Chuc_Nang_App
 	{
-		private static List<CSys_Chuc_Nang_App> Arr_Data = new();
-		private static Dictionary<long, CSys_Chuc_Nang_App> Dic_Data_ID = new();
-        private static Dictionary<string, CSys_Chuc_Nang_App> Dic_Data_Code = new();
-        private static Dictionary<long, List<CSys_Chuc_Nang_App>> Dic_Data_Nhom_PDA = new();
+		private static List<CSys_Chuc_Nang_App> g_arrData = new();
+		private static Dictionary<long, CSys_Chuc_Nang_App> g_dicData_ID = new();
+        private static Dictionary<string, CSys_Chuc_Nang_App> g_dicData_Code = new();
+        private static Dictionary<long, List<CSys_Chuc_Nang_App>> g_dicData_Nhom_PDA = new();
 
 		public static void Load_Cache_Chuc_Nang_App()
 		{
-			Arr_Data.Clear();
-			Dic_Data_ID.Clear();
-			Dic_Data_Code.Clear();
-            Dic_Data_Nhom_PDA.Clear();
+			g_arrData.Clear();
+			g_dicData_ID.Clear();
+			g_dicData_Code.Clear();
+            g_dicData_Nhom_PDA.Clear();
 
 			CSys_Chuc_Nang_App_Controller v_objCtrData = new();
             //List<CSys_Chuc_Nang_App> v_arrTemp_Data = v_objCtrData.List_Sys_Chuc_Nang_App(); //
@@ -33,25 +33,25 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
 		public static void Add_Data(CSys_Chuc_Nang_App p_objData)
 		{
-			if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
+			if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
 				return;
 
-			Dic_Data_ID.Add(p_objData.Auto_ID, p_objData);
-			Arr_Data.Add(p_objData);
+			g_dicData_ID.Add(p_objData.Auto_ID, p_objData);
+			g_arrData.Add(p_objData);
 
 			string v_strKey_Code = CUtility.Tao_Key(p_objData.Nhom_PDA_ID);
-            if (Dic_Data_Code.ContainsKey(v_strKey_Code) == false)
-                Dic_Data_Code.Add(v_strKey_Code, p_objData);
+            if (g_dicData_Code.ContainsKey(v_strKey_Code) == false)
+                g_dicData_Code.Add(v_strKey_Code, p_objData);
 
-            if (Dic_Data_Nhom_PDA.ContainsKey(p_objData.Nhom_PDA_ID) == false)
-				Dic_Data_Nhom_PDA.Add(p_objData.Nhom_PDA_ID, new());
+            if (g_dicData_Nhom_PDA.ContainsKey(p_objData.Nhom_PDA_ID) == false)
+				g_dicData_Nhom_PDA.Add(p_objData.Nhom_PDA_ID, new());
 
-			Dic_Data_Nhom_PDA[p_objData.Nhom_PDA_ID].Add(p_objData);
+			g_dicData_Nhom_PDA[p_objData.Nhom_PDA_ID].Add(p_objData);
 		}
 
 		public static void Update_Data(CSys_Chuc_Nang_App p_objData)
 		{
-			if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
+			if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
 				return;
 
 			Delete_Data(p_objData.Auto_ID);
@@ -60,30 +60,30 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
 		public static void Delete_Data(long p_iAuto_ID)
 		{
-			if (Dic_Data_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
+			if (g_dicData_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
 				return;
 
-			CSys_Chuc_Nang_App v_objData = Dic_Data_ID[p_iAuto_ID];
+			CSys_Chuc_Nang_App v_objData = g_dicData_ID[p_iAuto_ID];
 
-			Arr_Data.Remove(v_objData);
-			Dic_Data_ID.Remove(p_iAuto_ID);
+			g_arrData.Remove(v_objData);
+			g_dicData_ID.Remove(p_iAuto_ID);
 			string v_strKey_Code = CUtility.Tao_Key(v_objData.Nhom_PDA_ID);
-			Dic_Data_Code.Remove(v_strKey_Code);
-			Dic_Data_Nhom_PDA[v_objData.Nhom_PDA_ID].Remove(v_objData);
+			g_dicData_Code.Remove(v_strKey_Code);
+			g_dicData_Nhom_PDA[v_objData.Nhom_PDA_ID].Remove(v_objData);
 		}
 
 		public static CSys_Chuc_Nang_App Get_Data_By_ID(long p_iID)
 		{
-			if (Dic_Data_ID.ContainsKey(p_iID) == true)
-				return Dic_Data_ID[p_iID];
+			if (g_dicData_ID.ContainsKey(p_iID) == true)
+				return g_dicData_ID[p_iID];
 
 			return null;
 		}
 
 		public static List<CSys_Chuc_Nang_App> List_Data_By_Nhom_PDA(long p_iNhom_PDA_ID)
 		{
-			if (Dic_Data_Nhom_PDA.ContainsKey(p_iNhom_PDA_ID) == true)
-				return Dic_Data_Nhom_PDA[p_iNhom_PDA_ID].ToList();
+			if (g_dicData_Nhom_PDA.ContainsKey(p_iNhom_PDA_ID) == true)
+				return g_dicData_Nhom_PDA[p_iNhom_PDA_ID].ToList();
 
 			return new List<CSys_Chuc_Nang_App>();
 		}
@@ -91,15 +91,15 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
         public static CSys_Chuc_Nang_App Get_Data_By_Code(long p_iNhom_PDA_ID)
         {
             string v_strKey = CUtility.Tao_Key(p_iNhom_PDA_ID);
-            if (Dic_Data_Code.ContainsKey(v_strKey) == true)
-                return Dic_Data_Code[v_strKey];
+            if (g_dicData_Code.ContainsKey(v_strKey) == true)
+                return g_dicData_Code[v_strKey];
 
             return null;
         }
 
 		public static List<CSys_Chuc_Nang_App> List_Data_All()
 		{
-			return Arr_Data;
+			return g_arrData;
 		}
 	}
 }

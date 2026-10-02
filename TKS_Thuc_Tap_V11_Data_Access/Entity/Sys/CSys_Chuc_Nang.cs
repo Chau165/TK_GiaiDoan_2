@@ -13,18 +13,18 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private long m_lngAuto_ID;
         private string m_strMa_Chuc_Nang;
         private string m_strTen_Chuc_Nang;
-        private int m_intSort_Priority;
+        private int m_iSort_Priority;
         private long m_lngChuc_Nang_Parent_ID;
-        private int m_intNhom_Chuc_Nang_ID;
+        private int m_iNhom_Chuc_Nang_ID;
         private string m_strFunc_URL;
         private string m_strImage_URL;
-        private bool m_blnIs_View;
-        private bool m_blnIs_New;
-        private bool m_blnIs_Edit;
-        private bool m_blnIs_Delete;
-        private bool m_blnIs_Export;
+        private bool m_bIs_View;
+        private bool m_bIs_New;
+        private bool m_bIs_Edit;
+        private bool m_bIs_Delete;
+        private bool m_bIs_Export;
         private string m_strGhi_Chu;
-        private int m_intdeleted;
+        private int m_iDeleted;
         private DateTime? m_dtmCreated;
         private string m_strCreated_By;
         private string m_strCreated_By_Function;
@@ -32,11 +32,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private string m_strLast_Updated_By;
         private string m_strLast_Updated_By_Function;
 
-		private bool m_blnIs_Have_View_Permission;
-		private bool m_blnIs_Have_Add_Permission;
-		private bool m_blnIs_Have_Edit_Permission;
-		private bool m_blnIs_Have_Delete_Permission;
-		private bool m_blnIs_Have_Export_Permission;
+		private bool m_bIs_Have_View_Permission;
+		private bool m_bIs_Have_Add_Permission;
+		private bool m_bIs_Have_Edit_Permission;
+		private bool m_bIs_Have_Delete_Permission;
+		private bool m_bIs_Have_Export_Permission;
         private string m_strKhach_Hang_ID;
 
         public CSys_Chuc_Nang()
@@ -49,18 +49,18 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_lngAuto_ID = CConst.INT_VALUE_NULL;
             m_strMa_Chuc_Nang = CConst.STR_VALUE_NULL;
             m_strTen_Chuc_Nang = CConst.STR_VALUE_NULL;
-            m_intSort_Priority = CConst.INT_VALUE_NULL;
+            m_iSort_Priority = CConst.INT_VALUE_NULL;
             m_lngChuc_Nang_Parent_ID = CConst.INT_VALUE_NULL;
-            m_intNhom_Chuc_Nang_ID = CConst.INT_VALUE_NULL;
+            m_iNhom_Chuc_Nang_ID = CConst.INT_VALUE_NULL;
             m_strFunc_URL = CConst.STR_VALUE_NULL;
             m_strImage_URL = CConst.STR_VALUE_NULL;
-            m_blnIs_View = CConst.BL_VALUE_NULL;
-            m_blnIs_New = CConst.BL_VALUE_NULL;
-            m_blnIs_Edit = CConst.BL_VALUE_NULL;
-            m_blnIs_Delete = CConst.BL_VALUE_NULL;
-            m_blnIs_Export = CConst.BL_VALUE_NULL;
+            m_bIs_View = CConst.BL_VALUE_NULL;
+            m_bIs_New = CConst.BL_VALUE_NULL;
+            m_bIs_Edit = CConst.BL_VALUE_NULL;
+            m_bIs_Delete = CConst.BL_VALUE_NULL;
+            m_bIs_Export = CConst.BL_VALUE_NULL;
             m_strGhi_Chu = CConst.STR_VALUE_NULL;
-            m_intdeleted = CConst.INT_VALUE_NULL;
+            m_iDeleted = CConst.INT_VALUE_NULL;
             m_dtmCreated = CConst.DTM_VALUE_NULL;
             m_strCreated_By = CConst.STR_VALUE_NULL;
             m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -68,11 +68,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_strLast_Updated_By = CConst.STR_VALUE_NULL;
             m_strLast_Updated_By_Function = CConst.STR_VALUE_NULL;
 
-			m_blnIs_Have_View_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Add_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Edit_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Delete_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Export_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_View_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Add_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Edit_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Delete_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Export_Permission = CConst.BL_VALUE_NULL;
             m_strKhach_Hang_ID = CConst.STR_VALUE_NULL;
         }
 
@@ -116,11 +116,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intSort_Priority;
+                return m_iSort_Priority;
             }
             set
             {
-                m_intSort_Priority = value;
+                m_iSort_Priority = value;
             }
         }
 
@@ -140,11 +140,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intNhom_Chuc_Nang_ID;
+                return m_iNhom_Chuc_Nang_ID;
             }
             set
             {
-                m_intNhom_Chuc_Nang_ID = value;
+                m_iNhom_Chuc_Nang_ID = value;
             }
         }
 
@@ -176,11 +176,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_blnIs_View;
+                return m_bIs_View;
             }
             set
             {
-                m_blnIs_View = value;
+                m_bIs_View = value;
             }
         }
 
@@ -188,11 +188,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_blnIs_New;
+                return m_bIs_New;
             }
             set
             {
-                m_blnIs_New = value;
+                m_bIs_New = value;
             }
         }
 
@@ -200,11 +200,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_blnIs_Edit;
+                return m_bIs_Edit;
             }
             set
             {
-                m_blnIs_Edit = value;
+                m_bIs_Edit = value;
             }
         }
 
@@ -212,11 +212,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_blnIs_Delete;
+                return m_bIs_Delete;
             }
             set
             {
-                m_blnIs_Delete = value;
+                m_bIs_Delete = value;
             }
         }
 
@@ -224,11 +224,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_blnIs_Export;
+                return m_bIs_Export;
             }
             set
             {
-                m_blnIs_Export = value;
+                m_bIs_Export = value;
             }
         }
 
@@ -248,11 +248,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intdeleted;
+                return m_iDeleted;
             }
             set
             {
-                m_intdeleted = value;
+                m_iDeleted = value;
             }
         }
 
@@ -350,11 +350,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_View_Permission;
+				return m_bIs_Have_View_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_View_Permission = value;
+				m_bIs_Have_View_Permission = value;
 			}
 		}
 
@@ -362,11 +362,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Add_Permission;
+				return m_bIs_Have_Add_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Add_Permission = value;
+				m_bIs_Have_Add_Permission = value;
 			}
 		}
 
@@ -374,11 +374,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Edit_Permission;
+				return m_bIs_Have_Edit_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Edit_Permission = value;
+				m_bIs_Have_Edit_Permission = value;
 			}
 		}
 
@@ -386,11 +386,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Delete_Permission;
+				return m_bIs_Have_Delete_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Delete_Permission = value;
+				m_bIs_Have_Delete_Permission = value;
 			}
 		}
 
@@ -398,11 +398,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Export_Permission;
+				return m_bIs_Have_Export_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Export_Permission = value;
+				m_bIs_Have_Export_Permission = value;
 			}
 		}
 

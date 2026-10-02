@@ -63,9 +63,9 @@ public sealed class WarehousePermissionRefactorTests
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehousePermission_Controller.cs"));
 
         Assert.DoesNotContain("sp_DM_Kho_User_List_Allowed", v_strMasterSource);
-        Assert.DoesNotContain("sp_DM_Kho_User_User_List", v_strMasterSource);
+        Assert.DoesNotContain("F2015_sp_sel_List_Sys_Thanh_Vien_Cho_Phan_Quyen_Kho", v_strMasterSource);
         Assert.Contains("sp_DM_Kho_User_List_Allowed", v_strPermissionSource);
-        Assert.Contains("sp_DM_Kho_User_User_List", v_strPermissionSource);
+        Assert.Contains("F2015_sp_sel_List_Sys_Thanh_Vien_Cho_Phan_Quyen_Kho", v_strPermissionSource);
     }
 
     [Fact]
@@ -79,8 +79,8 @@ public sealed class WarehousePermissionRefactorTests
     public void Master_sql_list_and_page_contracts_do_not_contain_kho_user_branch()
     {
         var v_strSource = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_iMasterListStart = v_strSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Master_List", StringComparison.Ordinal);
-        var v_iLookupStart = v_strSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Lookup_List", StringComparison.Ordinal);
+        var v_iMasterListStart = v_strSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.F2009_sp_sel_List_Kho", StringComparison.Ordinal);
+        var v_iLookupStart = v_strSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.F2009_sp_sel_List_Kho_Lookup", StringComparison.Ordinal);
         var v_iMasterPageStart = v_strSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Master_Page", StringComparison.Ordinal);
         var v_iDocumentPageStart = v_strSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_XNK_Document_Page", StringComparison.Ordinal);
 
@@ -100,12 +100,12 @@ public sealed class WarehousePermissionRefactorTests
         var v_strControllerSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehousePermission_Controller.cs"));
         var v_strSqlSource = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_iDeleteStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Delete", StringComparison.Ordinal);
-        var v_iMasterListStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Master_List", StringComparison.Ordinal);
-        var v_iPermissionDeleteStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Kho_User_Delete", StringComparison.Ordinal);
-        var v_iPermissionListStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_DM_Kho_User_List\n", StringComparison.Ordinal);
+        var v_iDeleteStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.F2009_sp_del_Kho", StringComparison.Ordinal);
+        var v_iMasterListStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.F2009_sp_sel_List_Kho", StringComparison.Ordinal);
+        var v_iPermissionDeleteStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.F2015_sp_del_Kho_User", StringComparison.Ordinal);
+        var v_iPermissionListStart = v_strSqlSource.IndexOf("CREATE OR ALTER PROCEDURE dbo.F2015_sp_sel_List_Kho_User\n", StringComparison.Ordinal);
 
-        Assert.Contains("sp_DM_Kho_User_Delete", v_strControllerSource);
+        Assert.Contains("F2015_sp_del_Kho_User", v_strControllerSource);
         Assert.DoesNotContain("Execute_Procedure(\"sp_DM_Delete\", \"KhoUser\"", v_strControllerSource);
         Assert.True(v_iDeleteStart >= 0 && v_iMasterListStart > v_iDeleteStart);
         Assert.True(v_iPermissionDeleteStart >= 0 && v_iPermissionListStart > v_iPermissionDeleteStart);
@@ -125,7 +125,7 @@ public sealed class WarehousePermissionRefactorTests
 
         Assert.DoesNotContain("if (p_strMaster_Type == \"KhoUser\")", v_strSource);
         Assert.DoesNotContain("\"KhoUser\" =>", v_strSource);
-        Assert.DoesNotContain("sp_DM_Kho_User_List\"", v_strSource);
+        Assert.DoesNotContain("F2015_sp_sel_List_Kho_User\"", v_strSource);
         Assert.DoesNotContain("sp_DM_Kho_User_Page", v_strSource);
         Assert.DoesNotContain("sp_DM_Kho_User_Save", v_strSource);
     }
@@ -153,15 +153,15 @@ public sealed class WarehousePermissionRefactorTests
         Assert.Contains("CWarehousePermission", v_strWrapperSource);
     }
 
-    private static string FindRepositoryPath(params string[] parts)
+    private static string FindRepositoryPath(params string[] p_arrParts)
     {
         for (var v_objDirectory = new DirectoryInfo(AppContext.BaseDirectory); v_objDirectory is not null; v_objDirectory = v_objDirectory.Parent)
         {
-            var v_strCandidate = Path.Combine(new[] { v_objDirectory.FullName }.Concat(parts).ToArray());
+            var v_strCandidate = Path.Combine(new[] { v_objDirectory.FullName }.Concat(p_arrParts).ToArray());
             if (File.Exists(v_strCandidate))
                 return v_strCandidate;
         }
 
-        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(parts)}");
+        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(p_arrParts)}");
     }
 }

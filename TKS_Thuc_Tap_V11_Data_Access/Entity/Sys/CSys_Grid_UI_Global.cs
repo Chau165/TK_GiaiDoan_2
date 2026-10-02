@@ -14,9 +14,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private string m_strMa_Chuc_Nang;
         private string m_strField_Name;
         private string m_strTieu_De_Column;
-        private int m_intColumn_Width;
-        private int m_intSort_Priority;
-        private int m_intdeleted;
+        private int m_iColumn_Width;
+        private int m_iSort_Priority;
+        private int m_iDeleted;
         private DateTime? m_dtmCreated;
         private string m_strCreated_By;
         private string m_strCreated_By_Function;
@@ -24,7 +24,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private string m_strLast_Updated_By;
         private string m_strLast_Updated_By_Function;
         private long m_intGrid_Field_ID;
-        private int m_intField_Type_ID;
+        private int m_iField_Type_ID;
 
         public CSys_Grid_UI_Global()
         {
@@ -38,9 +38,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_strMa_Chuc_Nang = CConst.STR_VALUE_NULL;
             m_strField_Name = CConst.STR_VALUE_NULL;
             m_strTieu_De_Column = CConst.STR_VALUE_NULL;
-            m_intColumn_Width = CConst.INT_VALUE_NULL;
-            m_intSort_Priority = CConst.INT_VALUE_NULL;
-            m_intdeleted = CConst.INT_VALUE_NULL;
+            m_iColumn_Width = CConst.INT_VALUE_NULL;
+            m_iSort_Priority = CConst.INT_VALUE_NULL;
+            m_iDeleted = CConst.INT_VALUE_NULL;
             m_dtmCreated = CConst.DTM_VALUE_NULL;
             m_strCreated_By = CConst.STR_VALUE_NULL;
             m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -48,7 +48,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_strLast_Updated_By = CConst.STR_VALUE_NULL;
             m_strLast_Updated_By_Function = CConst.STR_VALUE_NULL;
             m_intGrid_Field_ID = CConst.INT_VALUE_NULL;
-            m_intField_Type_ID = CConst.INT_VALUE_NULL;
+            m_iField_Type_ID = CConst.INT_VALUE_NULL;
 
 
         }
@@ -117,11 +117,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intColumn_Width;
+                return m_iColumn_Width;
             }
             set
             {
-                m_intColumn_Width = value;
+                m_iColumn_Width = value;
             }
         }
 
@@ -129,11 +129,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intSort_Priority;
+                return m_iSort_Priority;
             }
             set
             {
-                m_intSort_Priority = value;
+                m_iSort_Priority = value;
             }
         }
 
@@ -141,11 +141,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intdeleted;
+                return m_iDeleted;
             }
             set
             {
-                m_intdeleted = value;
+                m_iDeleted = value;
             }
         }
 
@@ -237,11 +237,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intField_Type_ID;
+                return m_iField_Type_ID;
             }
             set
             {
-                m_intField_Type_ID = value;
+                m_iField_Type_ID = value;
             }
         }
 

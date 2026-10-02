@@ -12,12 +12,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		private long m_lngAuto_ID;
 		private long m_lngNhom_Thanh_Vien_ID;
 		private long m_lngChuc_Nang_ID;
-		private bool m_blnIs_Have_View_Permission;
-		private bool m_blnIs_Have_Add_Permission;
-		private bool m_blnIs_Have_Edit_Permission;
-		private bool m_blnIs_Have_Delete_Permission;
-		private bool m_blnIs_Have_Export_Permission;
-		private int m_intdeleted;
+		private bool m_bIs_Have_View_Permission;
+		private bool m_bIs_Have_Add_Permission;
+		private bool m_bIs_Have_Edit_Permission;
+		private bool m_bIs_Have_Delete_Permission;
+		private bool m_bIs_Have_Export_Permission;
+		private int m_iDeleted;
 		private DateTime? m_dtmCreated;
 		private string m_strCreated_By;
 		private string m_strCreated_By_Function;
@@ -35,12 +35,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 			m_lngAuto_ID = CConst.INT_VALUE_NULL;
 			m_lngNhom_Thanh_Vien_ID = CConst.INT_VALUE_NULL;
 			m_lngChuc_Nang_ID = CConst.INT_VALUE_NULL;
-			m_blnIs_Have_View_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Add_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Edit_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Delete_Permission = CConst.BL_VALUE_NULL;
-			m_blnIs_Have_Export_Permission = CConst.BL_VALUE_NULL;
-			m_intdeleted = CConst.INT_VALUE_NULL;
+			m_bIs_Have_View_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Add_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Edit_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Delete_Permission = CConst.BL_VALUE_NULL;
+			m_bIs_Have_Export_Permission = CConst.BL_VALUE_NULL;
+			m_iDeleted = CConst.INT_VALUE_NULL;
 			m_dtmCreated = CConst.DTM_VALUE_NULL;
 			m_strCreated_By = CConst.STR_VALUE_NULL;
 			m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -89,11 +89,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_View_Permission;
+				return m_bIs_Have_View_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_View_Permission = value;
+				m_bIs_Have_View_Permission = value;
 			}
 		}
 
@@ -101,11 +101,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Add_Permission;
+				return m_bIs_Have_Add_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Add_Permission = value;
+				m_bIs_Have_Add_Permission = value;
 			}
 		}
 
@@ -113,11 +113,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Edit_Permission;
+				return m_bIs_Have_Edit_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Edit_Permission = value;
+				m_bIs_Have_Edit_Permission = value;
 			}
 		}
 
@@ -125,11 +125,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Delete_Permission;
+				return m_bIs_Have_Delete_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Delete_Permission = value;
+				m_bIs_Have_Delete_Permission = value;
 			}
 		}
 
@@ -137,11 +137,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_blnIs_Have_Export_Permission;
+				return m_bIs_Have_Export_Permission;
 			}
 			set
 			{
-				m_blnIs_Have_Export_Permission = value;
+				m_bIs_Have_Export_Permission = value;
 			}
 		}
 
@@ -149,11 +149,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intdeleted;
+				return m_iDeleted;
 			}
 			set
 			{
-				m_intdeleted = value;
+				m_iDeleted = value;
 			}
 		}
 

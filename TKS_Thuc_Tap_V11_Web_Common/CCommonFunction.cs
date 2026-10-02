@@ -43,9 +43,9 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
         {
             string v_strRes = "";
 
-            var uri = p_objNav_Manager.ToAbsoluteUri(p_objNav_Manager.Uri);
-            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue(p_strPara_Name, out var param))
-                v_strRes = param.First();
+            var v_uri = p_objNav_Manager.ToAbsoluteUri(p_objNav_Manager.Uri);
+            if (QueryHelpers.ParseQuery(v_uri.Query).TryGetValue(p_strPara_Name, out var v_param))
+                v_strRes = v_param.First();
 
             return v_strRes;
         }
@@ -71,10 +71,10 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
             {
                 //Step 1
                 // Lấy type của object
-                Type type = p_arrObjectPar.FirstOrDefault().GetType();
+                Type v_type = p_arrObjectPar.FirstOrDefault().GetType();
 
                 // Lấy tất cả thuộc của object
-                PropertyInfo[] propertyInfos = type.GetProperties();
+                PropertyInfo[] v_arrPropertyInfos = v_type.GetProperties();
 
                 //Step 2
                 //Xử lý key tìm kiếm (tách ra thành nhiều phần tử theo "p_strSep")
@@ -96,22 +96,22 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
                 //Sau mỗi vòng lặp trong key tìm kiếm thì cập nhật lại grid mới với data là grid tạm đã xử lý
                 if (v_arrKey_Tim_Kiem.Length > 0 && v_arrKey_Tim_Kiem[0].Trim() != "")
                 {
-                    foreach (string item in v_arrKey_Tim_Kiem)
+                    foreach (string v_item in v_arrKey_Tim_Kiem)
                     {
                         v_arrTemp = new List<T>();
-                        for (int i = 0; i < v_iCount; i++)
+                        for (int v_iIndex = 0; v_iIndex < v_iCount; v_iIndex++)
                         {
-                            var v_obj = p_arrObjectPar[i];
-                            foreach (var prop in propertyInfos)
+                            var v_obj = p_arrObjectPar[v_iIndex];
+                            foreach (var v_prop in v_arrPropertyInfos)
                             {
                                 //chỉ xét những field đang hiển thị trên grid
-                                if (v_arrAll_Columns.Contains(prop.Name))
+                                if (v_arrAll_Columns.Contains(v_prop.Name))
                                 {
                                     //Lấy giá trị ngay tại field đó
-                                    bool isContains = CUtility.Convert_To_String(prop.GetValue(v_obj)).ToUpper().Contains(item.ToUpper());
+                                    bool v_bIsContains = CUtility.Convert_To_String(v_prop.GetValue(v_obj)).ToUpper().Contains(v_item.ToUpper());
 
                                     //Bước này phải kiểm tra xem object đó đã tồn tại trong bảng tạm hay chưa để tránh object bị thêm nhiều lần
-                                    if (isContains && !v_arrTemp.Contains(v_obj))
+                                    if (v_bIsContains && !v_arrTemp.Contains(v_obj))
                                     {
                                         v_arrTemp.Add(v_obj);
                                         break;
@@ -158,56 +158,56 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
                 var v_arrProps = v_objCol.GetType().GetProperties(BindingFlags.Instance | BindingFlags.NonPublic).ToList();//get các object ẩn
                 if (v_arrProps.Count > 0)
                 {
-                    var obj = v_arrProps.FirstOrDefault(x => x.Name == "Column"); //lấy object Column
-                    if (obj != null)
+                    var v_prop = v_arrProps.FirstOrDefault(x => x.Name == "Column"); //lấy object Column
+                    if (v_prop != null)
                     {
-                        var data = obj.GetValue(v_objCol) as Telerik.Blazor.Common.Columns.IColumn;
+                        var v_data = v_prop.GetValue(v_objCol) as Telerik.Blazor.Common.Columns.IColumn;
                         //data.Title = "Title Test"; //set Title cho Column của Grid
 
                         //ẩn các filter icon
-                        var v_blnIsShowFilterCellButton = data.GetType().GetProperties().FirstOrDefault(x => x.Name == "ShowFilterCellButtons");
+                        var v_blnIsShowFilterCellButton = v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "ShowFilterCellButtons");
                         if (v_blnIsShowFilterCellButton != null)
                         {
                             object v_objNew_Value_Data = false;
-                            v_blnIsShowFilterCellButton.SetValue(data, v_objNew_Value_Data);
+                            v_blnIsShowFilterCellButton.SetValue(v_data, v_objNew_Value_Data);
                         }
 
-                        var v_bCheck_Box_Only_Select = data.GetType().GetProperties().FirstOrDefault(x => x.Name == "CheckBoxOnlySelection");
+                        var v_bCheck_Box_Only_Select = v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "CheckBoxOnlySelection");
                         if (v_bCheck_Box_Only_Select != null)
                         {
                             object v_objNew_Value_Data = true;
-                            v_bCheck_Box_Only_Select.SetValue(data, v_objNew_Value_Data);
+                            v_bCheck_Box_Only_Select.SetValue(v_data, v_objNew_Value_Data);
                         }
 
                         if (CUtility.Convert_To_String(v_objCol.Field) != "")
                         {
                             v_iSTT_Col++;
 
-                            var dataType = data.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).FirstOrDefault(x => x.Name == "PropertyType").GetValue(data); //lấy kiểu dữ liệu của column
-                            string v_strType_Name = dataType.ToString(); // lấy tên của kiểu dữ liệu ("System.String", "System.Int32", ...)
+                            var v_objDataType = v_data.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).FirstOrDefault(x => x.Name == "PropertyType").GetValue(v_data); //lấy kiểu dữ liệu của column
+                            string v_strType_Name = v_objDataType.ToString(); // lấy tên của kiểu dữ liệu ("System.String", "System.Int32", ...)
 
                             // Xử lý format
                             if (v_strType_Name.ToLower() == "system.datetime")
                             {
                                 if (v_objCol.Field.ToLower().StartsWith("ngay_gio") || v_objCol.Field.ToLower() == "created" || v_objCol.Field.ToLower() == "last_updated")
-                                    data.GetType().GetProperties().FirstOrDefault(x => x.Name == "DisplayFormat").SetValue(data, "{0: " + CConfig.FullTime_Format_String + "}");
+                                    v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "DisplayFormat").SetValue(v_data, "{0: " + CConfig.FullTime_Format_String + "}");
                                 else
-                                    data.GetType().GetProperties().FirstOrDefault(x => x.Name == "DisplayFormat").SetValue(data, "{0: " + CConfig.Date_Format_String + "}");
+                                    v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "DisplayFormat").SetValue(v_data, "{0: " + CConfig.Date_Format_String + "}");
                             }
 
                             if (v_strType_Name.ToLower() == "system.int32" || v_strType_Name.ToLower() == "system.int64" || v_strType_Name.ToLower() == "system.double")
                             {
                                 if (v_objCol.Field.ToLower() != "auto_id")
                                 {
-                                    data.GetType().GetProperties().FirstOrDefault(x => x.Name == "DisplayFormat").SetValue(data, "{0: " + CConfig.Number_Format_String + "}");
-                                    data.GetType().GetProperties().FirstOrDefault(x => x.Name == "TextAlign").SetValue(data, ColumnTextAlign.Right);
+                                    v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "DisplayFormat").SetValue(v_data, "{0: " + CConfig.Number_Format_String + "}");
+                                    v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "TextAlign").SetValue(v_data, ColumnTextAlign.Right);
                                 }
                             }
 
                             // Setup multilanguage
-                            string v_strTitle = CCache_Language.Get_String_Label_By_Field(data.Title, p_strLanguage);
-                            if (v_strTitle != data.Title)
-                                data.Title = v_strTitle;
+                            string v_strTitle = CCache_Language.Get_String_Label_By_Field(v_data.Title, p_strLanguage);
+                            if (v_strTitle != v_data.Title)
+                                v_data.Title = v_strTitle;
 
                             // Setup hiện / ẩn column
                             // Lấy tất cả
@@ -215,9 +215,9 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
                             if (v_objH1 != null)
                             {
                                 if (v_objH1.Option_ID == (int)EHien_An_Option_ID.Hide)
-                                    data.Visible = false;
+                                    v_data.Visible = false;
                                 else
-                                    data.Visible = true;
+                                    v_data.Visible = true;
                             }
 
                             // Lấy theo chức năng
@@ -225,9 +225,9 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
                             if (v_objH1 != null)
                             {
                                 if (v_objH1.Option_ID == (int)EHien_An_Option_ID.Hide)
-                                    data.Visible = false;
+                                    v_data.Visible = false;
                                 else
-                                    data.Visible = true;
+                                    v_data.Visible = true;
                             }
 
                             // Setup độ rộng cột
@@ -249,8 +249,8 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
                         {
                             if (v_objCol.Locked == true)
                             {
-                                var v_objCellRender = data.GetType().GetProperties().FirstOrDefault(x => x.Name == "OnCellRender");
-                                v_objCellRender.SetValue(data, (GridCellRenderEventArgs args) => { OnCellRenderHandler(args); });
+                                var v_objCellRender = v_data.GetType().GetProperties().FirstOrDefault(x => x.Name == "OnCellRender");
+                                v_objCellRender.SetValue(v_data, (GridCellRenderEventArgs args) => { OnCellRenderHandler(args); });
                             }
                         }
                     }
@@ -260,9 +260,9 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
             p_grid.SetStateAsync(v_objState); //sau khi thay đổi trong for thì phải SetState để thay đổi Grid
         }
 
-        private static void OnCellRenderHandler(GridCellRenderEventArgs args)
+        private static void OnCellRenderHandler(GridCellRenderEventArgs p_args)
         {
-            args.Class = "myCustomCellFormatting";
+            p_args.Class = "myCustomCellFormatting";
         }
         public static string Set_Error_MessageBox(string p_strMessage)
         {
@@ -293,18 +293,18 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
             System.Drawing.Image v_objImage = System.Drawing.Image.FromStream(v_objMS, true);//Exception occurs here
 
             // lấy chiều rộng và chiều cao ban đầu của ảnh
-            int originalW = v_objImage.Width;
-            int originalH = v_objImage.Height;
+            int v_iOriginalWidth = v_objImage.Width;
+            int v_iOriginalHeight = v_objImage.Height;
 
-            float v_iTy_Le_Width_Height = (float)originalW / originalH;
+            float v_fTy_Le_Width_Height = (float)v_iOriginalWidth / v_iOriginalHeight;
 
-            if (originalW > 800)
+            if (v_iOriginalWidth > 800)
             {
-                originalW = 800;
-                originalH = (int)Math.Round(originalW / v_iTy_Le_Width_Height);
+                v_iOriginalWidth = 800;
+                v_iOriginalHeight = (int)Math.Round(v_iOriginalWidth / v_fTy_Le_Width_Height);
             }
 
-            Bitmap v_objBitmap = Resize_And_Crop_Image((Bitmap)v_objImage, new Size(originalW, originalH));
+            Bitmap v_objBitmap = Resize_And_Crop_Image((Bitmap)v_objImage, new Size(v_iOriginalWidth, v_iOriginalHeight));
 
             MemoryStream v_objStream = new MemoryStream();
             v_objBitmap.Save(v_objStream, ImageFormat.Jpeg);
@@ -316,40 +316,40 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
 
         public static Bitmap Resize_And_Crop_Image(Bitmap imgToResize, Size destinationSize)
         {
-            var originalWidth = imgToResize.Width;
-            var originalHeight = imgToResize.Height;
+            var v_iOriginalWidth = imgToResize.Width;
+            var v_iOriginalHeight = imgToResize.Height;
 
             //how many units are there to make the original length
-            var hRatio = (float)originalHeight / destinationSize.Height;
-            var wRatio = (float)originalWidth / destinationSize.Width;
+            var v_fHeightRatio = (float)v_iOriginalHeight / destinationSize.Height;
+            var v_fWidthRatio = (float)v_iOriginalWidth / destinationSize.Width;
 
             //get the shorter side
-            var ratio = Math.Min(hRatio, wRatio);
+            var v_fRatio = Math.Min(v_fHeightRatio, v_fWidthRatio);
 
-            var hScale = Convert.ToInt32(destinationSize.Height * ratio);
-            var wScale = Convert.ToInt32(destinationSize.Width * ratio);
+            var v_iHScale = Convert.ToInt32(destinationSize.Height * v_fRatio);
+            var v_iWScale = Convert.ToInt32(destinationSize.Width * v_fRatio);
 
             //start cropping from the center
-            var startX = (originalWidth - wScale) / 2;
-            var startY = (originalHeight - hScale) / 2;
+            var v_iStartX = (v_iOriginalWidth - v_iWScale) / 2;
+            var v_iStartY = (v_iOriginalHeight - v_iHScale) / 2;
 
             //crop the image from the specified location and size
-            var sourceRectangle = new Rectangle(startX, startY, wScale, hScale);
+            var v_sourceRectangle = new Rectangle(v_iStartX, v_iStartY, v_iWScale, v_iHScale);
 
             //the future size of the image
-            var bitmap = new Bitmap(destinationSize.Width, destinationSize.Height);
+            var v_bitmap = new Bitmap(destinationSize.Width, destinationSize.Height);
 
             //fill-in the whole bitmap
-            var destinationRectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+            var v_destinationRectangle = new Rectangle(0, 0, v_bitmap.Width, v_bitmap.Height);
 
             //generate the new image
-            using (var g = Graphics.FromImage(bitmap))
+            using (var v_graphics = Graphics.FromImage(v_bitmap))
             {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.DrawImage(imgToResize, destinationRectangle, sourceRectangle, GraphicsUnit.Pixel);
+                v_graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                v_graphics.DrawImage(imgToResize, v_destinationRectangle, v_sourceRectangle, GraphicsUnit.Pixel);
             }
 
-            return bitmap;
+            return v_bitmap;
 
         }
 
@@ -360,18 +360,18 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
             System.Drawing.Image v_objImage = System.Drawing.Image.FromStream(v_objMS, true);//Exception occurs here
 
             // lấy chiều rộng và chiều cao ban đầu của ảnh
-            int originalW = v_objImage.Width;
-            int originalH = v_objImage.Height;
+            int v_iOriginalWidth = v_objImage.Width;
+            int v_iOriginalHeight = v_objImage.Height;
 
-            float v_iTy_Le_Width_Height = (float)originalW / originalH;
+            float v_fTy_Le_Width_Height = (float)v_iOriginalWidth / v_iOriginalHeight;
 
-            if (originalW > 150)
+            if (v_iOriginalWidth > 150)
             {
-                originalW = 150;
-                originalH = (int)Math.Round(originalW / v_iTy_Le_Width_Height);
+                v_iOriginalWidth = 150;
+                v_iOriginalHeight = (int)Math.Round(v_iOriginalWidth / v_fTy_Le_Width_Height);
             }
 
-            Bitmap v_objBitmap = Resize_And_Crop_Image((Bitmap)v_objImage, new Size(originalW, originalH));
+            Bitmap v_objBitmap = Resize_And_Crop_Image((Bitmap)v_objImage, new Size(v_iOriginalWidth, v_iOriginalHeight));
 
             MemoryStream v_objStream = new MemoryStream();
             v_objBitmap.Save(v_objStream, ImageFormat.Jpeg);
@@ -423,8 +423,8 @@ namespace TKS_Thuc_Tap_V11_Web_Common.Common
             //code mới
             Task.Run(async () =>
             {
-                await using FileStream fs = new(v_strPath_File_New, FileMode.Create);
-                await v_objFile.OpenReadStream(1024000).CopyToAsync(fs);
+                await using FileStream v_fs = new(v_strPath_File_New, FileMode.Create);
+                await v_objFile.OpenReadStream(1024000).CopyToAsync(v_fs);
             });
 
             return v_strURL_Save;

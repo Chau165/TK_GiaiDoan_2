@@ -52,9 +52,9 @@ public static class WarehouseLoadTest
                 GC.KeepAlive(v_rows);
                 return Response.Ok();
             }
-            catch (Exception p_exception)
+            catch (Exception v_Exception)
             {
-                return Response.Fail("-101", p_exception.Message, 0L, 0d);
+                return Response.Fail("-101", v_Exception.Message, 0L, 0d);
             }
         }).WithLoadSimulations(Simulation.KeepConstant(
             copies: p_settings.NBomberCopies,

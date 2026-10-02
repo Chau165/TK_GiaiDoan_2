@@ -13,14 +13,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
     {
         public static List<CSys_Filter_Date_Default> Arr_Data = new List<CSys_Filter_Date_Default>();
 
-        private static Dictionary<string, CSys_Filter_Date_Default> Dic_Data_Code = new Dictionary<string, CSys_Filter_Date_Default>();
-        private static Dictionary<long, CSys_Filter_Date_Default> Dic_Data_ID = new Dictionary<long, CSys_Filter_Date_Default>();
+        private static Dictionary<string, CSys_Filter_Date_Default> g_dicData_Code = new Dictionary<string, CSys_Filter_Date_Default>();
+        private static Dictionary<long, CSys_Filter_Date_Default> g_dicData_ID = new Dictionary<long, CSys_Filter_Date_Default>();
 
         public static void Load_Cache_Filter_Date_Default()
         {
 			Arr_Data.Clear();
-			Dic_Data_Code.Clear();
-			Dic_Data_ID.Clear();
+			g_dicData_Code.Clear();
+			g_dicData_ID.Clear();
 
 			CSys_Filter_Date_Default_Controller v_objCtrData = new CSys_Filter_Date_Default_Controller();
             List<CSys_Filter_Date_Default> v_arrTemp = v_objCtrData.FQ_512_FDD_sp_sel_List_For_Cache();
@@ -31,19 +31,19 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static void Add_Data(CSys_Filter_Date_Default p_objData)
         {
-            if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
                 return;
 
-            Dic_Data_ID.Add(p_objData.Auto_ID, p_objData);
+            g_dicData_ID.Add(p_objData.Auto_ID, p_objData);
             Arr_Data.Add(p_objData);
 
-            if (Dic_Data_Code.ContainsKey(p_objData.Ma_Chuc_Nang.ToLower()) == false)
-                Dic_Data_Code.Add(p_objData.Ma_Chuc_Nang.ToLower(), p_objData);
+            if (g_dicData_Code.ContainsKey(p_objData.Ma_Chuc_Nang.ToLower()) == false)
+                g_dicData_Code.Add(p_objData.Ma_Chuc_Nang.ToLower(), p_objData);
         }
 
         public static void Update_Data(CSys_Filter_Date_Default p_objData)
         {
-            if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
                 return;
 
 			Delete_Data(p_objData.Auto_ID);
@@ -52,29 +52,29 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static void Delete_Data(long p_iAuto_ID)
         {
-            if (Dic_Data_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
                 return;
 
-            CSys_Filter_Date_Default v_objData = Dic_Data_ID[p_iAuto_ID];
+            CSys_Filter_Date_Default v_objData = g_dicData_ID[p_iAuto_ID];
 
             Arr_Data.Remove(v_objData);
-            Dic_Data_ID.Remove(p_iAuto_ID);
+            g_dicData_ID.Remove(p_iAuto_ID);
 
-            Dic_Data_Code.Remove(v_objData.Ma_Chuc_Nang.ToLower());
+            g_dicData_Code.Remove(v_objData.Ma_Chuc_Nang.ToLower());
         }
 
         public static CSys_Filter_Date_Default Get_Data_By_ID(long p_iID)
         {
-            if (Dic_Data_ID.ContainsKey(p_iID) == true)
-                return Dic_Data_ID[p_iID];
+            if (g_dicData_ID.ContainsKey(p_iID) == true)
+                return g_dicData_ID[p_iID];
 
             return null;
         }
 
         public static CSys_Filter_Date_Default Get_Data_By_Code(string p_strCode)
         {
-            if (Dic_Data_Code.ContainsKey(p_strCode.ToLower()) == true)
-                return Dic_Data_Code[p_strCode.ToLower()];
+            if (g_dicData_Code.ContainsKey(p_strCode.ToLower()) == true)
+                return g_dicData_Code[p_strCode.ToLower()];
 
             return null;
         }

@@ -11,9 +11,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
     {
         private long m_lngAuto_ID;
         private string m_strField_Name;
-        private int m_intDo_Rong;
+        private int m_iDo_Rong;
         private string m_strFormat_Number;
-        private int m_intdeleted;
+        private int m_iDeleted;
         private DateTime? m_dtmCreated;
         private string m_strCreated_By;
         private string m_strCreated_By_Function;
@@ -30,9 +30,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             m_lngAuto_ID = CConst.INT_VALUE_NULL;
             m_strField_Name = CConst.STR_VALUE_NULL;
-            m_intDo_Rong = CConst.INT_VALUE_NULL;
+            m_iDo_Rong = CConst.INT_VALUE_NULL;
             m_strFormat_Number = CConst.STR_VALUE_NULL;
-            m_intdeleted = CConst.INT_VALUE_NULL;
+            m_iDeleted = CConst.INT_VALUE_NULL;
             m_dtmCreated = CConst.DTM_VALUE_NULL;
             m_strCreated_By = CConst.STR_VALUE_NULL;
             m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -69,11 +69,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intDo_Rong;
+                return m_iDo_Rong;
             }
             set
             {
-                m_intDo_Rong = value;
+                m_iDo_Rong = value;
             }
         }
 
@@ -93,11 +93,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intdeleted;
+                return m_iDeleted;
             }
             set
             {
-                m_intdeleted = value;
+                m_iDeleted = value;
             }
         }
 

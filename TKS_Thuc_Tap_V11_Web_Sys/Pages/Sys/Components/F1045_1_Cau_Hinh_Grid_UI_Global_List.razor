@@ -256,7 +256,16 @@
 
     private void InsertItem(GridRowDropEventArgs<CSys_Grid_UI_Global> args)
     {
-        var v_arrData = args.DestinationGrid == grdDa_Khai_Bao ? m_arrDa_Khai_Bao : m_arrChua_Khai_Bao;
+        List<CSys_Grid_UI_Global> v_arrData;
+        if (args.DestinationGrid == grdDa_Khai_Bao)
+        {
+            v_arrData = m_arrDa_Khai_Bao;
+        }
+        else
+        {
+            v_arrData = m_arrChua_Khai_Bao;
+        }
+
         var v_iDestinationIndex = 0;
         if (args.DestinationItem != null)
         {

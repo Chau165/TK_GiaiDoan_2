@@ -242,20 +242,28 @@ DEALLOCATE protected_object_cursor;
 
 DECLARE @ApprovedProcedures TABLE(Object_Name sysname NOT NULL PRIMARY KEY);
 INSERT @ApprovedProcedures(Object_Name) VALUES
-    (N'dbo.sp_XNK_Nhap_Kho_Save_Header'),
-    (N'dbo.sp_XNK_Nhap_Kho_Save_Detail'),
-    (N'dbo.sp_XNK_Nhap_Kho_Delete_Header'),
-    (N'dbo.sp_XNK_Nhap_Kho_Delete_Detail'),
-    (N'dbo.sp_XNK_Xuat_Kho_Save_Header'),
-    (N'dbo.sp_XNK_Xuat_Kho_Save_Detail'),
-    (N'dbo.sp_XNK_Xuat_Kho_Delete_Header'),
-    (N'dbo.sp_XNK_Xuat_Kho_Delete_Detail'),
+    (N'dbo.F2011_sp_ins_Nhap_Kho_Header'),
+    (N'dbo.F2011_sp_upd_Nhap_Kho_Header'),
+    (N'dbo.F2011_sp_ins_Nhap_Kho_Detail'),
+    (N'dbo.F2011_sp_upd_Nhap_Kho_Detail'),
+    (N'dbo.F2011_sp_del_Nhap_Kho_Header'),
+    (N'dbo.F2011_sp_del_Nhap_Kho_Detail'),
+    (N'dbo.F2012_sp_ins_Xuat_Kho_Header'),
+    (N'dbo.F2012_sp_upd_Xuat_Kho_Header'),
+    (N'dbo.F2012_sp_ins_Xuat_Kho_Detail'),
+    (N'dbo.F2012_sp_upd_Xuat_Kho_Detail'),
+    (N'dbo.F2012_sp_del_Xuat_Kho_Header'),
+    (N'dbo.F2012_sp_del_Xuat_Kho_Detail'),
+    (N'dbo.F2011_sp_sel_List_Nhap_Kho'),
+    (N'dbo.F2012_sp_sel_List_Xuat_Kho'),
+    (N'dbo.F2011_sp_sel_List_Nhap_Kho_Detail'),
+    (N'dbo.F2012_sp_sel_List_Xuat_Kho_Detail'),
     (N'dbo.sp_XNK_Document_Post'),
     (N'dbo.sp_BC_Xuat_Nhap_Ton'),
     (N'dbo.sp_BC_Xuat_Nhap_Ton_Page'),
     (N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page'),
     (N'dbo.sp_DM_Kho_User_List_Allowed'),
-    (N'dbo.sp_DM_Kho_User_Delete');
+    (N'dbo.F2015_sp_del_Kho_User');
 
 DECLARE approved_procedure_cursor CURSOR LOCAL FAST_FORWARD FOR
     SELECT Object_Name FROM @ApprovedProcedures ORDER BY Object_Name;

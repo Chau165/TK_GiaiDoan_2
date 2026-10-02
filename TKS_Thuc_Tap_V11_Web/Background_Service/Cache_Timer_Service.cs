@@ -44,9 +44,9 @@ namespace TKS_Thuc_Tap_V11_Web.Background_Service
 				CCache_Common_Controller.Is_Completed_Load_Cache = true;
             }
 
-            catch (Exception ex)
+            catch (Exception v_Ex)
             {
-                CLogger.Error("Cache_Timer_Service", "Load_Cache", ex.Message);
+                CLogger.Error("Cache_Timer_Service", "Load_Cache", v_Ex.Message);
             }
         }
     }

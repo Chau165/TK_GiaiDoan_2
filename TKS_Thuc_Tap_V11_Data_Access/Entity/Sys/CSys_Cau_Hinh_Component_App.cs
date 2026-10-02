@@ -11,11 +11,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
     {
         private long m_lngAuto_ID;
         private long m_lngChu_Hang_ID;
-        private int m_lngComponent_ID;
+        private int m_iComponent_ID;
         private string m_strField_Name;
-        private bool m_blnIs_View;
+        private bool m_bIs_View;
         private string m_strNotes;
-        private int m_intdeleted;
+        private int m_iDeleted;
         private DateTime? m_dtmCreated;
         private string m_strCreated_By;
         private string m_strCreated_By_Function;
@@ -33,11 +33,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             m_lngAuto_ID = CConst.INT_VALUE_NULL;
             m_lngChu_Hang_ID = CConst.INT_VALUE_NULL;
-            m_lngComponent_ID = CConst.INT_VALUE_NULL;
+            m_iComponent_ID = CConst.INT_VALUE_NULL;
             m_strField_Name = CConst.STR_VALUE_NULL;
-            m_blnIs_View = CConst.BL_VALUE_NULL;
+            m_bIs_View = CConst.BL_VALUE_NULL;
             m_strNotes = CConst.STR_VALUE_NULL;
-            m_intdeleted = CConst.INT_VALUE_NULL;
+            m_iDeleted = CConst.INT_VALUE_NULL;
             m_dtmCreated = CConst.DTM_VALUE_NULL;
             m_strCreated_By = CConst.STR_VALUE_NULL;
             m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -75,11 +75,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_lngComponent_ID;
+                return m_iComponent_ID;
             }
             set
             {
-                m_lngComponent_ID = value;
+                m_iComponent_ID = value;
             }
         }
 
@@ -110,11 +110,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_blnIs_View;
+                return m_bIs_View;
             }
             set
             {
-                m_blnIs_View = value;
+                m_bIs_View = value;
             }
         }
 
@@ -134,11 +134,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intdeleted;
+                return m_iDeleted;
             }
             set
             {
-                m_intdeleted = value;
+                m_iDeleted = value;
             }
         }
 

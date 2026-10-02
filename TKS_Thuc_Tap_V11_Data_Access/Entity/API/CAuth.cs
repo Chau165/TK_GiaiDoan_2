@@ -11,8 +11,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
     {
         private string m_strToken;  // 
         private string m_strMa_Dang_Nhap;
-        private int m_intType_ID;  // 
-        private int m_intPrototype_ID;  // 
+        private int m_iType_ID;  // 
+        private int m_iPrototype_ID;  // 
         private string m_strDevice_ID;  // 
         private string m_strFunction_Name;
 
@@ -28,8 +28,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
         {
             m_strToken = CConst.STR_VALUE_NULL;
             m_strMa_Dang_Nhap = CConst.STR_VALUE_NULL;
-            m_intType_ID = CConst.INT_VALUE_NULL;
-            m_intPrototype_ID = CConst.INT_VALUE_NULL;
+            m_iType_ID = CConst.INT_VALUE_NULL;
+            m_iPrototype_ID = CConst.INT_VALUE_NULL;
             m_strFunction_Name = CConst.STR_VALUE_NULL;
             m_strDevice_ID = CConst.STR_VALUE_NULL;
         }
@@ -60,10 +60,10 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
         /// </summary>
         public int Type_ID
         {
-            get { return m_intType_ID; }
+            get { return m_iType_ID; }
             set
             {
-                m_intType_ID = value;
+                m_iType_ID = value;
             }
         }
 
@@ -72,10 +72,10 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
         /// </summary>
         public int Prototype_ID
         {
-            get { return m_intPrototype_ID; }
+            get { return m_iPrototype_ID; }
             set
             {
-                m_intPrototype_ID = value;
+                m_iPrototype_ID = value;
             }
         }
 

@@ -19,12 +19,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         private long m_iId_1;  // 
         private long m_iId_2;  // 
 
-		private bool m_blStatus_Filter_1;
-        private bool m_blStatus_Filter_2;
-        private bool m_blStatus_Filter_3;
-        private bool m_blStatus_Filter_4;
-        private bool m_blStatus_Filter_5;
-        private bool m_blStatus_Filter_6;
+		private bool m_bStatus_Filter_1;
+        private bool m_bStatus_Filter_2;
+        private bool m_bStatus_Filter_3;
+        private bool m_bStatus_Filter_4;
+        private bool m_bStatus_Filter_5;
+        private bool m_bStatus_Filter_6;
 
         private double m_dblNumber_1;
         private double m_dblNumber_2;
@@ -49,12 +49,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
             m_strKey_5 = CConst.STR_VALUE_NULL;
             m_iId_1 = CConst.INT_VALUE_NULL;
             m_iId_2 = CConst.INT_VALUE_NULL;
-			m_blStatus_Filter_1 = CConst.BL_VALUE_NULL;
-            m_blStatus_Filter_2 = CConst.BL_VALUE_NULL;
-            m_blStatus_Filter_3 = CConst.BL_VALUE_NULL;
-            m_blStatus_Filter_4 = CConst.BL_VALUE_NULL;
-            m_blStatus_Filter_5 = CConst.BL_VALUE_NULL;
-            m_blStatus_Filter_6 = CConst.BL_VALUE_NULL;
+			m_bStatus_Filter_1 = CConst.BL_VALUE_NULL;
+            m_bStatus_Filter_2 = CConst.BL_VALUE_NULL;
+            m_bStatus_Filter_3 = CConst.BL_VALUE_NULL;
+            m_bStatus_Filter_4 = CConst.BL_VALUE_NULL;
+            m_bStatus_Filter_5 = CConst.BL_VALUE_NULL;
+            m_bStatus_Filter_6 = CConst.BL_VALUE_NULL;
             m_dblNumber_1 = CConst.DB_VALUE_NULL;
             m_dblNumber_2 = CConst.DB_VALUE_NULL;
             m_dblNumber_3 = CConst.DB_VALUE_NULL;
@@ -174,62 +174,105 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
 
 		public bool Status_Filter_1
         {
-            get { return m_blStatus_Filter_1; }
+            get { return m_bStatus_Filter_1; }
             set
             {
-                m_blStatus_Filter_1 = value;
+                m_bStatus_Filter_1 = value;
             }
         }
 
         public bool Status_Filter_2
         {
-            get { return m_blStatus_Filter_2; }
+            get { return m_bStatus_Filter_2; }
             set
             {
-                m_blStatus_Filter_2 = value;
+                m_bStatus_Filter_2 = value;
             }
         }
 
         public bool Status_Filter_3
         {
-            get { return m_blStatus_Filter_3; }
+            get { return m_bStatus_Filter_3; }
             set
             {
-                m_blStatus_Filter_3 = value;
+                m_bStatus_Filter_3 = value;
             }
         }
 
         public bool Status_Filter_4
         {
-            get { return m_blStatus_Filter_4; }
+            get { return m_bStatus_Filter_4; }
             set
             {
-                m_blStatus_Filter_4 = value;
+                m_bStatus_Filter_4 = value;
             }
         }
 
         public bool Status_Filter_5
         {
-            get { return m_blStatus_Filter_5; }
+            get { return m_bStatus_Filter_5; }
             set
             {
-                m_blStatus_Filter_5 = value;
+                m_bStatus_Filter_5 = value;
             }
         }
 
         public bool Status_Filter_6
         {
-            get { return m_blStatus_Filter_6; }
+            get { return m_bStatus_Filter_6; }
             set
             {
-                m_blStatus_Filter_6 = value;
+                m_bStatus_Filter_6 = value;
             }
         }
 
-        public double Number_1 { get => m_dblNumber_1; set => m_dblNumber_1 = value; }
-        public double Number_2 { get => m_dblNumber_2; set => m_dblNumber_2 = value; }
-        public double Number_3 { get => m_dblNumber_3; set => m_dblNumber_3 = value; }
-        public double Number_4 { get => m_dblNumber_4; set => m_dblNumber_4 = value; }
+        public double Number_1
+        {
+            get
+            {
+                return m_dblNumber_1;
+            }
+            set
+            {
+                m_dblNumber_1 = value;
+            }
+        }
+
+        public double Number_2
+        {
+            get
+            {
+                return m_dblNumber_2;
+            }
+            set
+            {
+                m_dblNumber_2 = value;
+            }
+        }
+
+        public double Number_3
+        {
+            get
+            {
+                return m_dblNumber_3;
+            }
+            set
+            {
+                m_dblNumber_3 = value;
+            }
+        }
+
+        public double Number_4
+        {
+            get
+            {
+                return m_dblNumber_4;
+            }
+            set
+            {
+                m_dblNumber_4 = value;
+            }
+        }
 
         public DateTime? Date_Filter_1
         {

@@ -18,13 +18,41 @@ public sealed record BenchmarkSettings
     public bool RunDatabaseBenchmarks { get; init; }
     public bool UseCurrentInventoryBalance { get; init; }
 
-    public bool DatabaseConfigured => !string.IsNullOrWhiteSpace(ConnectionString);
+    public bool DatabaseConfigured
+    {
+        get
+        {
+            return !string.IsNullOrWhiteSpace(ConnectionString);
+        }
+    }
 
     public static BenchmarkSettings FromEnvironment(IReadOnlyDictionary<string, string?>? p_environment = null)
     {
         p_environment ??= Environment.GetEnvironmentVariables()
             .Cast<System.Collections.DictionaryEntry>()
             .ToDictionary(v_item => (string)v_item.Key, v_item => v_item.Value?.ToString());
+
+        var v_loginName = ReadString(p_environment, "TKS_PERF_LOGIN");
+        string v_LoginName;
+        if (v_loginName is { Length: > 0 })
+        {
+            v_LoginName = v_loginName;
+        }
+        else
+        {
+            v_LoginName = "PERF_USER";
+        }
+
+        var v_reportDirectory = ReadString(p_environment, "TKS_BENCH_REPORT_DIR");
+        string v_ReportDirectory;
+        if (v_reportDirectory is { Length: > 0 })
+        {
+            v_ReportDirectory = v_reportDirectory;
+        }
+        else
+        {
+            v_ReportDirectory = "docs/testing/performance/tool-benchmarks";
+        }
 
         return new BenchmarkSettings
         {
@@ -34,13 +62,9 @@ public sealed record BenchmarkSettings
             NBomberDurationSeconds = ReadInt(p_environment, "TKS_NBOMBER_DURATION_SECONDS", 15, 1, 3_600),
             ReportFromDate = ReadDate(p_environment, "TKS_PERF_FROM_DATE", new DateTime(2025, 1, 1)),
             ReportToDate = ReadDate(p_environment, "TKS_PERF_TO_DATE", new DateTime(2026, 12, 31)),
-            LoginName = ReadString(p_environment, "TKS_PERF_LOGIN") is { Length: > 0 } v_loginName
-                ? v_loginName
-                : "PERF_USER",
+            LoginName = v_LoginName,
             ConnectionString = ReadString(p_environment, "TKS_PERF_CONNECTION_STRING"),
-            ReportDirectory = ReadString(p_environment, "TKS_BENCH_REPORT_DIR") is { Length: > 0 } v_reportDirectory
-                ? v_reportDirectory
-                : "docs/testing/performance/tool-benchmarks",
+            ReportDirectory = v_ReportDirectory,
             NBomberScenarioNames = ReadScenarioNames(p_environment),
             RunDatabaseBenchmarks = ReadBool(p_environment, "TKS_BDN_DATABASE"),
             UseCurrentInventoryBalance = ReadBool(p_environment, "TKS_PERF_USE_CURRENT_BALANCE")
@@ -60,13 +84,16 @@ public sealed record BenchmarkSettings
     private static int ReadInt(
         IReadOnlyDictionary<string, string?> p_environment,
         string p_name,
-        int p_default,
-        int p_min,
-        int p_max)
+        int p_iDefault,
+        int p_iMin,
+        int p_iMax)
     {
-        return int.TryParse(ReadString(p_environment, p_name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v_value)
-            ? Math.Clamp(v_value, p_min, p_max)
-            : p_default;
+        if (int.TryParse(ReadString(p_environment, p_name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v_value))
+        {
+            return Math.Clamp(v_value, p_iMin, p_iMax);
+        }
+
+        return p_iDefault;
     }
 
     private static bool ReadBool(IReadOnlyDictionary<string, string?> p_environment, string p_name)
@@ -77,21 +104,29 @@ public sealed record BenchmarkSettings
     private static DateTime ReadDate(
         IReadOnlyDictionary<string, string?> p_environment,
         string p_name,
-        DateTime p_default)
+        DateTime p_dtmDefault)
     {
-        return DateTime.TryParseExact(
+        if (DateTime.TryParseExact(
             ReadString(p_environment, p_name),
             "yyyy-MM-dd",
             CultureInfo.InvariantCulture,
             DateTimeStyles.None,
-            out var v_value)
-            ? v_value
-            : p_default;
+            out var v_value))
+        {
+            return v_value;
+        }
+
+        return p_dtmDefault;
     }
 
     private static string ReadString(IReadOnlyDictionary<string, string?> p_environment, string p_name)
     {
-        return p_environment.TryGetValue(p_name, out var v_value) ? v_value ?? "" : "";
+        if (p_environment.TryGetValue(p_name, out var v_value))
+        {
+            return v_value ?? "";
+        }
+
+        return "";
     }
 
     private static IReadOnlyList<string> ReadScenarioNames(IReadOnlyDictionary<string, string?> p_environment)
@@ -140,10 +175,13 @@ public static class WarehouseScenarioCatalog
 
     public static string Canonicalize(string p_name)
     {
-        return p_name switch
+        switch (p_name)
         {
-            "InventoryReportPaged" => "InventoryHistoricalReportPaged",
-            _ => p_name
-        };
+            case "InventoryReportPaged":
+                return "InventoryHistoricalReportPaged";
+
+            default:
+                return p_name;
+        }
     }
 }

@@ -12,7 +12,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private long m_lngAuto_ID;
         private string m_strToken_ID;
         private string m_strMa_Dang_Nhap;
-        private int m_intdeleted;
+        private int m_iDeleted;
         private DateTime? m_dtmCreated;
         private string m_strCreated_By;
         private string m_strCreated_By_Function;
@@ -28,7 +28,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private long m_lngKho_ID;
         private long m_lngChu_Hang_ID;
         private string m_strTen_Chu_Hang;
-        private int m_intKhach_Hang_ID;
+        private int m_iKhach_Hang_ID;
 
         private DateTime? m_dtmToken_Expired;
 
@@ -42,7 +42,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_lngAuto_ID = CConst.INT_VALUE_NULL;
             m_strToken_ID = CConst.STR_VALUE_NULL;
             m_strMa_Dang_Nhap = CConst.STR_VALUE_NULL;
-            m_intdeleted = CConst.INT_VALUE_NULL;
+            m_iDeleted = CConst.INT_VALUE_NULL;
             m_dtmCreated = CConst.DTM_VALUE_NULL;
             m_strCreated_By = CConst.STR_VALUE_NULL;
             m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -58,7 +58,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_lngKho_ID = CConst.FLT_VALUE_NULL;
             m_lngChu_Hang_ID = CConst.FLT_VALUE_NULL;
             m_strTen_Chu_Hang = CConst.STR_VALUE_NULL;
-            m_intKhach_Hang_ID = CConst.INT_VALUE_NULL;
+            m_iKhach_Hang_ID = CConst.INT_VALUE_NULL;
 			m_dtmToken_Expired = CConst.DTM_VALUE_NULL;
 		}
 
@@ -102,11 +102,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intdeleted;
+                return m_iDeleted;
             }
             set
             {
-                m_intdeleted = value;
+                m_iDeleted = value;
             }
         }
 
@@ -294,11 +294,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intKhach_Hang_ID;
+				return m_iKhach_Hang_ID;
 			}
 			set
 			{
-				m_intKhach_Hang_ID = value;
+				m_iKhach_Hang_ID = value;
 			}
 		}
 

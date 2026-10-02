@@ -9,7 +9,13 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     private readonly string m_strTag = $"TDD-CRUD-{Guid.NewGuid():N}"[..21];
     private long m_iUnitId;
@@ -196,7 +202,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         using var v_objConnection = new SqlConnection(ConnectionString);
         await v_objConnection.OpenAsync();
         using var v_objTransaction = v_objConnection.BeginTransaction();
-        using var v_objDelete = new SqlCommand("dbo.sp_XNK_Nhap_Kho_Delete_Header", v_objConnection, v_objTransaction)
+        using var v_objDelete = new SqlCommand("dbo.F2011_sp_del_Nhap_Kho_Header", v_objConnection, v_objTransaction)
         {
             CommandType = CommandType.StoredProcedure
         };
@@ -237,36 +243,63 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         Assert.Equal(10L, await ScalarLongAsync("SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;", BigInt("@WarehouseId", m_iWarehouseAId), BigInt("@ProductId", m_iProductId)));
     }
 
-    private CWarehouseDocument Receipt(string p_strSuffix, long p_iWarehouseId, DateTime p_dtmDate) => new()
+    private CWarehouseDocument Receipt(string p_strSuffix, long p_iWarehouseId, DateTime p_dtmDate)
     {
-        Is_Receipt = true,
-        So_Phieu = $"{m_strTag}-{p_strSuffix}",
-        Kho_ID = p_iWarehouseId,
-        NCC_ID = m_iSupplierId,
-        Ngay_Chung_Tu = p_dtmDate,
-        Ghi_Chu = "warehouse CRUD contract test"
-    };
+        return new()
+        {
+            Is_Receipt = true,
+            So_Phieu = $"{m_strTag}-{p_strSuffix}",
+            Kho_ID = p_iWarehouseId,
+            NCC_ID = m_iSupplierId,
+            Ngay_Chung_Tu = p_dtmDate,
+            Ghi_Chu = "warehouse CRUD contract test"
+        };
+    }
 
-    private CWarehouseDocument Issue(string p_strSuffix, long p_iWarehouseId, DateTime p_dtmDate) => new()
+    private CWarehouseDocument Issue(string p_strSuffix, long p_iWarehouseId, DateTime p_dtmDate)
     {
-        Is_Receipt = false,
-        So_Phieu = $"{m_strTag}-{p_strSuffix}",
-        Kho_ID = p_iWarehouseId,
-        Ngay_Chung_Tu = p_dtmDate,
-        Ghi_Chu = "warehouse CRUD contract test"
-    };
+        return new()
+        {
+            Is_Receipt = false,
+            So_Phieu = $"{m_strTag}-{p_strSuffix}",
+            Kho_ID = p_iWarehouseId,
+            Ngay_Chung_Tu = p_dtmDate,
+            Ghi_Chu = "warehouse CRUD contract test"
+        };
+    }
 
-    private static CWarehouseDocumentDetail Detail(long p_iDocumentId, long p_iProductId, decimal p_decQuantity, decimal p_decPrice) => new()
+    private static CWarehouseDocumentDetail Detail(long p_iDocumentId, long p_iProductId, decimal p_decQuantity, decimal p_decPrice)
     {
-        Document_ID = p_iDocumentId,
-        San_Pham_ID = p_iProductId,
-        So_Luong = p_decQuantity,
-        Don_Gia = p_decPrice
-    };
+        return new()
+        {
+            Document_ID = p_iDocumentId,
+            San_Pham_ID = p_iProductId,
+            So_Luong = p_decQuantity,
+            Don_Gia = p_decPrice
+        };
+    }
 
-    private static SqlParameter BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt) { Value = p_iValue };
-    private static SqlParameter Date(string p_strName, DateTime p_dtmValue) => new(p_strName, SqlDbType.Date) { Value = p_dtmValue.Date };
-    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize) => new(p_strName, SqlDbType.NVarChar, p_iSize) { Value = p_strValue };
+    private static SqlParameter BigInt(string p_strName, long p_iValue)
+    {
+        return new(p_strName, SqlDbType.BigInt)
+        {
+            Value = p_iValue
+        };
+    }
+    private static SqlParameter Date(string p_strName, DateTime p_dtmValue)
+    {
+        return new(p_strName, SqlDbType.Date)
+        {
+            Value = p_dtmValue.Date
+        };
+    }
+    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize)
+    {
+        return new(p_strName, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_strValue
+        };
+    }
 
     private static async Task<long> InsertIdAsync(string p_strSql, params SqlParameter[] p_arrParameters)
     {

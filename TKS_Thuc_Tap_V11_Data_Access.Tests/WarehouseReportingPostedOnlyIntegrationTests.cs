@@ -6,69 +6,75 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseReportingPostedOnlyIntegrationTests
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     [Fact]
     public async Task Reports_include_posted_documents_but_exclude_drafts()
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var transaction = connection.BeginTransaction();
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = v_Connection.BeginTransaction();
 
         try
         {
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "UPDATE dbo.InventoryMovement_AggregateState SET IsInitialized = 1 WHERE State_ID = 1; UPDATE dbo.InventoryBalance_Daily_AggregateState SET IsInitialized = 1 WHERE State_ID = 1;");
-            var tag = $"TDD-POSTED-{Guid.NewGuid():N}";
-            var login = $"{tag}-login";
+            var v_Tag = $"TDD-POSTED-{Guid.NewGuid():N}";
+            var v_Login = $"{v_Tag}-login";
 
-            var unitId = await InsertIdAsync(connection, transaction,
+            var unitId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
-                Text("@Name", $"{tag}-unit", 200));
-            var categoryId = await InsertIdAsync(connection, transaction,
+                Text("@Name", $"{v_Tag}-unit", 200));
+            var categoryId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Loai_San_Pham(Ma_LSP, Ten_LSP, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, N'');",
-                Text("@Code", $"{tag}-category-code", 100), Text("@Name", $"{tag}-category", 200));
-            var productId = await InsertIdAsync(connection, transaction,
+                Text("@Code", $"{v_Tag}-category-code", 100), Text("@Name", $"{v_Tag}-category", 200));
+            var productId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, @CategoryId, @UnitId, N'');",
-                Text("@Code", $"{tag}-product-code", 100), Text("@Name", $"{tag}-product", 255), BigInt("@CategoryId", categoryId), BigInt("@UnitId", unitId));
-            var supplierId = await InsertIdAsync(connection, transaction,
+                Text("@Code", $"{v_Tag}-product-code", 100), Text("@Name", $"{v_Tag}-product", 255), BigInt("@CategoryId", categoryId), BigInt("@UnitId", unitId));
+            var supplierId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_NCC(Ma_NCC, Ten_NCC, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, N'');",
-                Text("@Code", $"{tag}-supplier-code", 100), Text("@Name", $"{tag}-supplier", 200));
-            var warehouseId = await InsertIdAsync(connection, transaction,
+                Text("@Code", $"{v_Tag}-supplier-code", 100), Text("@Name", $"{v_Tag}-supplier", 200));
+            var warehouseId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
-                Text("@Name", $"{tag}-warehouse", 255));
-            await ExecuteAsync(connection, transaction,
+                Text("@Name", $"{v_Tag}-warehouse", 255));
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
-                Text("@Login", login, 100), BigInt("@WarehouseId", warehouseId));
+                Text("@Login", v_Login, 100), BigInt("@WarehouseId", warehouseId));
 
-            var draftReceiptId = await InsertIdAsync(connection, transaction,
+            var draftReceiptId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-20', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
-            var postedReceiptId = await InsertIdAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
+            var postedReceiptId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-20', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
-            await ExecuteAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@ReceiptId, @ProductId, @Quantity, 100);",
                 BigInt("@ReceiptId", draftReceiptId), BigInt("@ProductId", productId), Decimal("@Quantity", 5m));
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@ReceiptId, @ProductId, @Quantity, 100);",
                 BigInt("@ReceiptId", postedReceiptId), BigInt("@ProductId", productId), Decimal("@Quantity", 10m));
 
-            var draftIssueId = await InsertIdAsync(connection, transaction,
+            var draftIssueId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-21', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
-            var postedIssueId = await InsertIdAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
+            var postedIssueId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-21', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
-            await ExecuteAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@IssueId, @ProductId, @Quantity, 100);",
                 BigInt("@IssueId", draftIssueId), BigInt("@ProductId", productId), Decimal("@Quantity", 2m));
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@IssueId, @ProductId, @Quantity, 100);",
                 BigInt("@IssueId", postedIssueId), BigInt("@ProductId", productId), Decimal("@Quantity", 3m));
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 """
                 INSERT dbo.Inventory_Movement_Daily(Movement_Date, Kho_ID, San_Pham_ID, Total_Receipt, Total_Issue, IsValid)
                 VALUES ('2026-08-20', @WarehouseId, @ProductId, 10, 0, 1), ('2026-08-21', @WarehouseId, @ProductId, 0, 3, 1);
@@ -79,192 +85,218 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
                 """,
                 BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
 
-            var receiptRows = await ReadDetailReportAsync(connection, transaction, "sp_BC_Chi_Tiet_Nhap", login);
-            Assert.Single(receiptRows);
-            Assert.Equal($"{tag}-posted-receipt", receiptRows[0].DocumentNumber);
-            Assert.Equal(10m, receiptRows[0].Quantity);
+            var v_arrReceiptRows = await ReadDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap", v_Login);
+            Assert.Single(v_arrReceiptRows);
+            Assert.Equal($"{v_Tag}-posted-receipt", v_arrReceiptRows[0].DocumentNumber);
+            Assert.Equal(10m, v_arrReceiptRows[0].Quantity);
 
-            var issueRows = await ReadDetailReportAsync(connection, transaction, "sp_BC_Chi_Tiet_Xuat", login);
-            Assert.Single(issueRows);
-            Assert.Equal($"{tag}-posted-issue", issueRows[0].DocumentNumber);
-            Assert.Equal(3m, issueRows[0].Quantity);
+            var v_arrIssueRows = await ReadDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Xuat", v_Login);
+            Assert.Single(v_arrIssueRows);
+            Assert.Equal($"{v_Tag}-posted-issue", v_arrIssueRows[0].DocumentNumber);
+            Assert.Equal(3m, v_arrIssueRows[0].Quantity);
 
-            var inventoryRows = await ReadInventoryReportAsync(connection, transaction, "sp_BC_Xuat_Nhap_Ton", login);
-            var inventory = Assert.Single(inventoryRows);
-            Assert.Equal(productId, inventory.ProductId);
-            Assert.Equal(10m, inventory.Received);
-            Assert.Equal(3m, inventory.Issued);
-            Assert.Equal(7m, inventory.Closing);
+            var v_arrInventoryRows = await ReadInventoryReportAsync(v_Connection, v_Transaction, "sp_BC_Xuat_Nhap_Ton", v_Login);
+            var v_Inventory = Assert.Single(v_arrInventoryRows);
+            Assert.Equal(productId, v_Inventory.ProductId);
+            Assert.Equal(10m, v_Inventory.Received);
+            Assert.Equal(3m, v_Inventory.Issued);
+            Assert.Equal(7m, v_Inventory.Closing);
 
-            var receiptPage = await ReadPagedDetailReportAsync(connection, transaction, "sp_BC_Chi_Tiet_Nhap_Page", login);
-            Assert.Equal(1, receiptPage.TotalCount);
-            Assert.Single(receiptPage.Rows);
-            var issuePage = await ReadPagedDetailReportAsync(connection, transaction, "sp_BC_Chi_Tiet_Xuat_Page", login);
-            Assert.Equal(1, issuePage.TotalCount);
-            Assert.Single(issuePage.Rows);
+            var v_ReceiptPage = await ReadPagedDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap_Page", v_Login);
+            Assert.Equal(1, v_ReceiptPage.TotalCount);
+            Assert.Single(v_ReceiptPage.Rows);
+            var v_IssuePage = await ReadPagedDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Xuat_Page", v_Login);
+            Assert.Equal(1, v_IssuePage.TotalCount);
+            Assert.Single(v_IssuePage.Rows);
 
-            var inventoryPage = await ReadPagedInventoryReportAsync(connection, transaction, login);
-            Assert.Equal(1, inventoryPage.TotalCount);
-            var pagedInventory = Assert.Single(inventoryPage.Rows);
-            Assert.Equal(10m, pagedInventory.Received);
-            Assert.Equal(3m, pagedInventory.Issued);
-            Assert.Equal(7m, pagedInventory.Closing);
+            var v_InventoryPage = await ReadPagedInventoryReportAsync(v_Connection, v_Transaction, v_Login);
+            Assert.Equal(1, v_InventoryPage.TotalCount);
+            var v_PagedInventory = Assert.Single(v_InventoryPage.Rows);
+            Assert.Equal(10m, v_PagedInventory.Received);
+            Assert.Equal(3m, v_PagedInventory.Issued);
+            Assert.Equal(7m, v_PagedInventory.Closing);
         }
         finally
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
         }
     }
 
     [Fact]
     public async Task Document_page_returns_the_persisted_post_status()
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var transaction = connection.BeginTransaction();
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = v_Connection.BeginTransaction();
 
         try
         {
-            var tag = $"TDD-DOCUMENT-STATUS-{Guid.NewGuid():N}";
-            var login = $"{tag}-login";
-            var supplierId = await InsertIdAsync(connection, transaction,
+            var v_Tag = $"TDD-DOCUMENT-STATUS-{Guid.NewGuid():N}";
+            var v_Login = $"{v_Tag}-login";
+            var supplierId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_NCC(Ma_NCC, Ten_NCC, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, N'');",
-                Text("@Code", $"{tag}-supplier-code", 100), Text("@Name", $"{tag}-supplier", 200));
-            var warehouseId = await InsertIdAsync(connection, transaction,
+                Text("@Code", $"{v_Tag}-supplier-code", 100), Text("@Name", $"{v_Tag}-supplier", 200));
+            var warehouseId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
-                Text("@Name", $"{tag}-warehouse", 255));
-            await ExecuteAsync(connection, transaction,
+                Text("@Name", $"{v_Tag}-warehouse", 255));
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
-                Text("@Login", login, 100), BigInt("@WarehouseId", warehouseId));
+                Text("@Login", v_Login, 100), BigInt("@WarehouseId", warehouseId));
 
-            await InsertIdAsync(connection, transaction,
+            await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
-            await InsertIdAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-draft-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
+            await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, '2026-08-25', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
-            await InsertIdAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-posted-receipt", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId));
+            await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-25', 0, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
-            await InsertIdAsync(connection, transaction,
+                Text("@Number", $"{v_Tag}-draft-issue", 100), BigInt("@WarehouseId", warehouseId));
+            await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, '2026-08-25', 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-                Text("@Number", $"{tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
+                Text("@Number", $"{v_Tag}-posted-issue", 100), BigInt("@WarehouseId", warehouseId));
 
-            var receiptRows = await ReadDocumentPageAsync(connection, transaction, true, login);
-            Assert.Equal(2, receiptRows.Count);
-            Assert.False(receiptRows.Single(row => row.DocumentNumber == $"{tag}-draft-receipt").IsPosted);
-            Assert.True(receiptRows.Single(row => row.DocumentNumber == $"{tag}-posted-receipt").IsPosted);
+            var v_arrReceiptRows = await ReadDocumentPageAsync(v_Connection, v_Transaction, true, v_Login);
+            Assert.Equal(2, v_arrReceiptRows.Count);
+            Assert.False(v_arrReceiptRows.Single(row => row.DocumentNumber == $"{v_Tag}-draft-receipt").IsPosted);
+            Assert.True(v_arrReceiptRows.Single(row => row.DocumentNumber == $"{v_Tag}-posted-receipt").IsPosted);
 
-            var issueRows = await ReadDocumentPageAsync(connection, transaction, false, login);
-            Assert.Equal(2, issueRows.Count);
-            Assert.False(issueRows.Single(row => row.DocumentNumber == $"{tag}-draft-issue").IsPosted);
-            Assert.True(issueRows.Single(row => row.DocumentNumber == $"{tag}-posted-issue").IsPosted);
+            var v_arrIssueRows = await ReadDocumentPageAsync(v_Connection, v_Transaction, false, v_Login);
+            Assert.Equal(2, v_arrIssueRows.Count);
+            Assert.False(v_arrIssueRows.Single(row => row.DocumentNumber == $"{v_Tag}-draft-issue").IsPosted);
+            Assert.True(v_arrIssueRows.Single(row => row.DocumentNumber == $"{v_Tag}-posted-issue").IsPosted);
         }
         finally
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
         }
     }
 
-    private static async Task<long> InsertIdAsync(SqlConnection connection, SqlTransaction transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<long> InsertIdAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        return Convert.ToInt64(await command.ExecuteScalarAsync());
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        return Convert.ToInt64(await v_Command.ExecuteScalarAsync());
     }
 
-    private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction transaction, string sql, params SqlParameter[] parameters)
+    private static async Task ExecuteAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        await command.ExecuteNonQueryAsync();
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        await v_Command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<List<DetailRow>> ReadDetailReportAsync(SqlConnection connection, SqlTransaction transaction, string procedure, string login)
+    private static async Task<List<DetailRow>> ReadDetailReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Procedure, string p_Login)
     {
-        await using var command = ReportCommand(connection, transaction, procedure, login);
-        await using var reader = await command.ExecuteReaderAsync();
-        var rows = new List<DetailRow>();
-        while (await reader.ReadAsync())
-            rows.Add(new DetailRow(reader.GetString(1), reader.GetDecimal(5)));
-        return rows;
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, p_Procedure, p_Login);
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        var v_arrRows = new List<DetailRow>();
+        while (await v_Reader.ReadAsync())
+            v_arrRows.Add(new DetailRow(v_Reader.GetString(1), v_Reader.GetDecimal(5)));
+        return v_arrRows;
     }
 
-    private static async Task<List<InventoryRow>> ReadInventoryReportAsync(SqlConnection connection, SqlTransaction transaction, string procedure, string login)
+    private static async Task<List<InventoryRow>> ReadInventoryReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Procedure, string p_Login)
     {
-        await using var command = ReportCommand(connection, transaction, procedure, login);
-        await using var reader = await command.ExecuteReaderAsync();
-        var rows = new List<InventoryRow>();
-        while (await reader.ReadAsync())
-            rows.Add(new InventoryRow(reader.GetInt64(2), reader.GetDecimal(6), reader.GetDecimal(7), reader.GetDecimal(8)));
-        return rows;
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, p_Procedure, p_Login);
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        var v_arrRows = new List<InventoryRow>();
+        while (await v_Reader.ReadAsync())
+            v_arrRows.Add(new InventoryRow(v_Reader.GetInt64(2), v_Reader.GetDecimal(6), v_Reader.GetDecimal(7), v_Reader.GetDecimal(8)));
+        return v_arrRows;
     }
 
-    private static async Task<List<DocumentRow>> ReadDocumentPageAsync(SqlConnection connection, SqlTransaction transaction, bool isReceipt, string login)
+    private static async Task<List<DocumentRow>> ReadDocumentPageAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, bool p_bIsReceipt, string p_Login)
     {
-        await using var command = new SqlCommand("sp_XNK_Document_Page", connection, transaction) { CommandType = CommandType.StoredProcedure };
-        command.Parameters.Add(new SqlParameter("@Is_Receipt", SqlDbType.Bit) { Value = isReceipt });
-        command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
-        command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 100 });
-        command.Parameters.Add(Text("@Search_Text", "", 100));
-        command.Parameters.Add(Text("@Ma_Dang_Nhap", login, 100));
+        await using var v_Command = new SqlCommand("sp_XNK_Document_Page", p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
+        v_Command.Parameters.Add(new SqlParameter("@Is_Receipt", SqlDbType.Bit) { Value = p_bIsReceipt });
+        v_Command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
+        v_Command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 100 });
+        v_Command.Parameters.Add(Text("@Search_Text", "", 100));
+        v_Command.Parameters.Add(Text("@Ma_Dang_Nhap", p_Login, 100));
 
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        Assert.Equal(2, reader.GetInt32(0));
-        Assert.True(await reader.NextResultAsync());
-        var documentNumberOrdinal = reader.GetOrdinal("So_Phieu");
-        var statusOrdinal = reader.GetOrdinal("Is_Posted");
-        var rows = new List<DocumentRow>();
-        while (await reader.ReadAsync())
-            rows.Add(new DocumentRow(reader.GetString(documentNumberOrdinal), reader.GetBoolean(statusOrdinal)));
-        return rows;
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        Assert.True(await v_Reader.ReadAsync());
+        Assert.Equal(2, v_Reader.GetInt32(0));
+        Assert.True(await v_Reader.NextResultAsync());
+        var v_iDocumentNumberOrdinal = v_Reader.GetOrdinal("So_Phieu");
+        var v_iStatusOrdinal = v_Reader.GetOrdinal("Is_Posted");
+        var v_arrRows = new List<DocumentRow>();
+        while (await v_Reader.ReadAsync())
+            v_arrRows.Add(new DocumentRow(v_Reader.GetString(v_iDocumentNumberOrdinal), v_Reader.GetBoolean(v_iStatusOrdinal)));
+        return v_arrRows;
     }
 
-    private static async Task<(int TotalCount, List<DetailRow> Rows)> ReadPagedDetailReportAsync(SqlConnection connection, SqlTransaction transaction, string procedure, string login)
+    private static async Task<(int TotalCount, List<DetailRow> Rows)> ReadPagedDetailReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Procedure, string p_Login)
     {
-        await using var command = ReportCommand(connection, transaction, procedure, login, paged: true);
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        var totalCount = reader.GetInt32(0);
-        Assert.True(await reader.NextResultAsync());
-        var rows = new List<DetailRow>();
-        while (await reader.ReadAsync())
-            rows.Add(new DetailRow(reader.GetString(1), reader.GetDecimal(5)));
-        return (totalCount, rows);
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, p_Procedure, p_Login, p_bPaged: true);
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        Assert.True(await v_Reader.ReadAsync());
+        var v_iTotalCount = v_Reader.GetInt32(0);
+        Assert.True(await v_Reader.NextResultAsync());
+        var v_arrRows = new List<DetailRow>();
+        while (await v_Reader.ReadAsync())
+            v_arrRows.Add(new DetailRow(v_Reader.GetString(1), v_Reader.GetDecimal(5)));
+        return (v_iTotalCount, v_arrRows);
     }
 
-    private static async Task<(int TotalCount, List<InventoryRow> Rows)> ReadPagedInventoryReportAsync(SqlConnection connection, SqlTransaction transaction, string login)
+    private static async Task<(int TotalCount, List<InventoryRow> Rows)> ReadPagedInventoryReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login)
     {
-        await using var command = ReportCommand(connection, transaction, "sp_BC_Xuat_Nhap_Ton_Page", login, paged: true);
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        var totalCount = reader.GetInt32(0);
-        Assert.True(await reader.NextResultAsync());
-        var rows = new List<InventoryRow>();
-        while (await reader.ReadAsync())
-            rows.Add(new InventoryRow(reader.GetInt64(2), reader.GetDecimal(6), reader.GetDecimal(7), reader.GetDecimal(8)));
-        return (totalCount, rows);
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton_Page", p_Login, p_bPaged: true);
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        Assert.True(await v_Reader.ReadAsync());
+        var v_iTotalCount = v_Reader.GetInt32(0);
+        Assert.True(await v_Reader.NextResultAsync());
+        var v_arrRows = new List<InventoryRow>();
+        while (await v_Reader.ReadAsync())
+            v_arrRows.Add(new InventoryRow(v_Reader.GetInt64(2), v_Reader.GetDecimal(6), v_Reader.GetDecimal(7), v_Reader.GetDecimal(8)));
+        return (v_iTotalCount, v_arrRows);
     }
 
-    private static SqlCommand ReportCommand(SqlConnection connection, SqlTransaction transaction, string procedure, string login, bool paged = false)
+    private static SqlCommand ReportCommand(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Procedure, string p_Login, bool p_bPaged = false)
     {
-        var command = new SqlCommand(procedure, connection, transaction) { CommandType = CommandType.StoredProcedure };
-        command.Parameters.Add(Date("@Tu_Ngay", new DateTime(2026, 8, 1)));
-        command.Parameters.Add(Date("@Den_Ngay", new DateTime(2026, 8, 31)));
-        if (paged)
+        var v_Command = new SqlCommand(p_Procedure, p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
+        v_Command.Parameters.Add(Date("@Tu_Ngay", new DateTime(2026, 8, 1)));
+        v_Command.Parameters.Add(Date("@Den_Ngay", new DateTime(2026, 8, 31)));
+        if (p_bPaged)
         {
-            command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
-            command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 100 });
+            v_Command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
+            v_Command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 100 });
         }
-        command.Parameters.Add(Text("@Ma_Dang_Nhap", login, 100));
-        return command;
+        v_Command.Parameters.Add(Text("@Ma_Dang_Nhap", p_Login, 100));
+        return v_Command;
     }
 
-    private static SqlParameter Text(string name, string value, int size) => new(name, SqlDbType.NVarChar, size) { Value = value };
-    private static SqlParameter BigInt(string name, long value) => new(name, SqlDbType.BigInt) { Value = value };
-    private static SqlParameter Decimal(string name, decimal value) => new(name, SqlDbType.Decimal) { Precision = 18, Scale = 3, Value = value };
-    private static SqlParameter Date(string name, DateTime value) => new(name, SqlDbType.Date) { Value = value.Date };
+    private static SqlParameter Text(string p_Name, string p_Value, int p_iSize)
+    {
+        return new(p_Name, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_Value
+        };
+    }
+    private static SqlParameter BigInt(string p_Name, long value)
+    {
+        return new(p_Name, SqlDbType.BigInt)
+        {
+            Value = value
+        };
+    }
+    private static SqlParameter Decimal(string p_Name, decimal p_Value)
+    {
+        return new(p_Name, SqlDbType.Decimal)
+        {
+            Precision = 18,
+            Scale = 3,
+            Value = p_Value
+        };
+    }
+    private static SqlParameter Date(string p_Name, DateTime p_dtmValue)
+    {
+        return new(p_Name, SqlDbType.Date)
+        {
+            Value = p_dtmValue.Date
+        };
+    }
 
     private sealed record DetailRow(string DocumentNumber, decimal Quantity);
     private sealed record InventoryRow(long ProductId, decimal Received, decimal Issued, decimal Closing);

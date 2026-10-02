@@ -16,97 +16,97 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		private long m_lngAuto_ID;
 		private long m_lngNhom_PDA_ID;
 
-		private int m_intFApp_M01_ID;
+		private int m_iFApp_M01_ID;
 		private string m_strFApp_M01_Label;
 
-		private int m_intFApp_ID;
+		private int m_iFApp_ID;
 		private string m_strFApp_Label;
 
-		private int m_intFApp_M02_ID;
+		private int m_iFApp_M02_ID;
 		private string m_strFApp_M02_Label;
-		private int m_intFApp_M03_ID;
+		private int m_iFApp_M03_ID;
 		private string m_strFApp_M03_Label;
-		private int m_intFApp_M04_ID;
+		private int m_iFApp_M04_ID;
 		private string m_strFApp_M04_Label;
-		private int m_intFApp_M05_ID;
+		private int m_iFApp_M05_ID;
 		private string m_strFApp_M05_Label;
-		private int m_intFApp_M06_ID;
+		private int m_iFApp_M06_ID;
 		private string m_strFApp_M06_Label;
-		private int m_intFApp_M07_ID;
+		private int m_iFApp_M07_ID;
 		private string m_strFApp_M07_Label;
-		private int m_intFApp_M08_ID;
+		private int m_iFApp_M08_ID;
 		private string m_strFApp_M08_Label;
-		private int m_intFApp_M09_ID;
+		private int m_iFApp_M09_ID;
 		private string m_strFApp_M09_Label;
-		private int m_intFApp_M10_ID;
+		private int m_iFApp_M10_ID;
 		private string m_strFApp_M10_Label;
-		private int m_intFApp_M11_ID;
+		private int m_iFApp_M11_ID;
 		private string m_strFApp_M11_Label;
-		private int m_intFApp_M12_ID;
+		private int m_iFApp_M12_ID;
 		private string m_strFApp_M12_Label;
-		private int m_intFApp_M13_ID;
+		private int m_iFApp_M13_ID;
 		private string m_strFApp_M13_Label;
-		private int m_intFApp_M14_ID;
+		private int m_iFApp_M14_ID;
 		private string m_strFApp_M14_Label;
-		private int m_intFApp_M15_ID;
+		private int m_iFApp_M15_ID;
 		private string m_strFApp_M15_Label;
-		private int m_intFApp_M16_ID;
+		private int m_iFApp_M16_ID;
 		private string m_strFApp_M16_Label;
-		private int m_intFApp_M17_ID;
+		private int m_iFApp_M17_ID;
 		private string m_strFApp_M17_Label;
-		private int m_intFApp_M18_ID;
+		private int m_iFApp_M18_ID;
 		private string m_strFApp_M18_Label;
-		private int m_intFApp_M19_ID;
+		private int m_iFApp_M19_ID;
 		private string m_strFApp_M19_Label;
-		private int m_intFApp_M20_ID;
+		private int m_iFApp_M20_ID;
 		private string m_strFApp_M20_Label;
-		private int m_intFApp_M21_ID;
+		private int m_iFApp_M21_ID;
 		private string m_strFApp_M21_Label;
-		private int m_intFApp_M22_ID;
+		private int m_iFApp_M22_ID;
 		private string m_strFApp_M22_Label;
-		private int m_intFApp_M23_ID;
+		private int m_iFApp_M23_ID;
 		private string m_strFApp_M23_Label;
-		private int m_intFApp_M24_ID;
+		private int m_iFApp_M24_ID;
 		private string m_strFApp_M24_Label;
-		private int m_intFApp_M25_ID;
+		private int m_iFApp_M25_ID;
 		private string m_strFApp_M25_Label;
-		private int m_intFApp_M26_ID;
+		private int m_iFApp_M26_ID;
 		private string m_strFApp_M26_Label;
-		private int m_intFApp_M27_ID;
+		private int m_iFApp_M27_ID;
 		private string m_strFApp_M27_Label;
-		private int m_intFApp_M28_ID;
+		private int m_iFApp_M28_ID;
 		private string m_strFApp_M28_Label;
-		private int m_intFApp_M29_ID;
+		private int m_iFApp_M29_ID;
 		private string m_strFApp_M29_Label;
-		private int m_intFApp_M30_ID;
+		private int m_iFApp_M30_ID;
 		private string m_strFApp_M30_Label;
-		private int m_intFApp_M31_ID;
+		private int m_iFApp_M31_ID;
 		private string m_strFApp_M31_Label;
-		private int m_intFApp_M32_ID;
+		private int m_iFApp_M32_ID;
 		private string m_strFApp_M32_Label;
-		private int m_intFApp_M33_ID;
+		private int m_iFApp_M33_ID;
 		private string m_strFApp_M33_Label;
-		private int m_intFApp_M34_ID;
+		private int m_iFApp_M34_ID;
 		private string m_strFApp_M34_Label;
-		private int m_intFApp_M35_ID;
+		private int m_iFApp_M35_ID;
 		private string m_strFApp_M35_Label;
-		private int m_intFApp_M36_ID;
+		private int m_iFApp_M36_ID;
 		private string m_strFApp_M36_Label;
-		private int m_intFApp_M37_ID;
+		private int m_iFApp_M37_ID;
 		private string m_strFApp_M37_Label;
-		private int m_intFApp_M38_ID;
+		private int m_iFApp_M38_ID;
 		private string m_strFApp_M38_Label;
-		private int m_intFApp_M39_ID;
+		private int m_iFApp_M39_ID;
 		private string m_strFApp_M39_Label;
-		private int m_intFApp_M40_ID;
+		private int m_iFApp_M40_ID;
 		private string m_strFApp_M40_Label;
-		private int m_intFApp_M41_ID;
+		private int m_iFApp_M41_ID;
 		private string m_strFApp_M41_Label;
-		private int m_intFApp_M42_ID;
+		private int m_iFApp_M42_ID;
 		private string m_strFApp_M42_Label;
-		private int m_intFApp_M43_ID;
+		private int m_iFApp_M43_ID;
 		private string m_strFApp_M43_Label;
-		private int m_intdeleted;
+		private int m_iDeleted;
 		private DateTime? m_dtmCreated;
 		private string m_strCreated_By;
 		private string m_strCreated_By_Function;
@@ -125,96 +125,96 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 			m_lngAuto_ID = CConst.INT_VALUE_NULL;
 			m_lngNhom_PDA_ID = CConst.INT_VALUE_NULL;
 
-			m_intFApp_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_Label = CConst.STR_VALUE_NULL;
 
-			m_intFApp_M01_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M01_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M01_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M02_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M02_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M02_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M03_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M03_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M03_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M04_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M04_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M04_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M05_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M05_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M05_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M06_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M06_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M06_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M07_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M07_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M07_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M08_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M08_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M08_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M09_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M09_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M09_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M10_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M10_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M10_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M11_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M11_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M11_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M12_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M12_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M12_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M13_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M13_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M13_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M14_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M14_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M14_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M15_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M15_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M15_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M16_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M16_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M16_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M17_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M17_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M17_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M18_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M18_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M18_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M19_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M19_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M19_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M20_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M20_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M20_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M21_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M21_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M21_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M22_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M22_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M22_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M23_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M23_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M23_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M24_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M24_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M24_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M25_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M25_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M25_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M26_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M26_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M26_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M27_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M27_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M27_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M28_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M28_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M28_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M29_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M29_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M29_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M30_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M30_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M30_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M31_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M31_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M31_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M32_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M32_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M32_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M33_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M33_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M33_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M34_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M34_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M34_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M35_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M35_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M35_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M36_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M36_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M36_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M37_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M37_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M37_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M38_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M38_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M38_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M39_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M39_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M39_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M40_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M40_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M40_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M41_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M41_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M41_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M42_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M42_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M42_Label = CConst.STR_VALUE_NULL;
-			m_intFApp_M43_ID = CConst.INT_VALUE_NULL;
+			m_iFApp_M43_ID = CConst.INT_VALUE_NULL;
 			m_strFApp_M43_Label = CConst.STR_VALUE_NULL;
-			m_intdeleted = CConst.INT_VALUE_NULL;
+			m_iDeleted = CConst.INT_VALUE_NULL;
 			m_dtmCreated = CConst.DTM_VALUE_NULL;
 			m_strCreated_By = CConst.STR_VALUE_NULL;
 			m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -252,11 +252,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_ID;
+				return m_iFApp_ID;
 			}
 			set
 			{
-				m_intFApp_ID = value;
+				m_iFApp_ID = value;
 			}
 		}
 
@@ -276,11 +276,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M01_ID;
+				return m_iFApp_M01_ID;
 			}
 			set
 			{
-				m_intFApp_M01_ID = value;
+				m_iFApp_M01_ID = value;
 			}
 		}
 
@@ -300,11 +300,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M02_ID;
+				return m_iFApp_M02_ID;
 			}
 			set
 			{
-				m_intFApp_M02_ID = value;
+				m_iFApp_M02_ID = value;
 			}
 		}
 
@@ -324,11 +324,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M03_ID;
+				return m_iFApp_M03_ID;
 			}
 			set
 			{
-				m_intFApp_M03_ID = value;
+				m_iFApp_M03_ID = value;
 			}
 		}
 
@@ -348,11 +348,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M04_ID;
+				return m_iFApp_M04_ID;
 			}
 			set
 			{
-				m_intFApp_M04_ID = value;
+				m_iFApp_M04_ID = value;
 			}
 		}
 
@@ -372,11 +372,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M05_ID;
+				return m_iFApp_M05_ID;
 			}
 			set
 			{
-				m_intFApp_M05_ID = value;
+				m_iFApp_M05_ID = value;
 			}
 		}
 
@@ -396,11 +396,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M06_ID;
+				return m_iFApp_M06_ID;
 			}
 			set
 			{
-				m_intFApp_M06_ID = value;
+				m_iFApp_M06_ID = value;
 			}
 		}
 
@@ -420,11 +420,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M07_ID;
+				return m_iFApp_M07_ID;
 			}
 			set
 			{
-				m_intFApp_M07_ID = value;
+				m_iFApp_M07_ID = value;
 			}
 		}
 
@@ -444,11 +444,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M08_ID;
+				return m_iFApp_M08_ID;
 			}
 			set
 			{
-				m_intFApp_M08_ID = value;
+				m_iFApp_M08_ID = value;
 			}
 		}
 
@@ -468,11 +468,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M09_ID;
+				return m_iFApp_M09_ID;
 			}
 			set
 			{
-				m_intFApp_M09_ID = value;
+				m_iFApp_M09_ID = value;
 			}
 		}
 
@@ -492,11 +492,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M10_ID;
+				return m_iFApp_M10_ID;
 			}
 			set
 			{
-				m_intFApp_M10_ID = value;
+				m_iFApp_M10_ID = value;
 			}
 		}
 
@@ -516,11 +516,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M11_ID;
+				return m_iFApp_M11_ID;
 			}
 			set
 			{
-				m_intFApp_M11_ID = value;
+				m_iFApp_M11_ID = value;
 			}
 		}
 
@@ -540,11 +540,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M12_ID;
+				return m_iFApp_M12_ID;
 			}
 			set
 			{
-				m_intFApp_M12_ID = value;
+				m_iFApp_M12_ID = value;
 			}
 		}
 
@@ -564,11 +564,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M13_ID;
+				return m_iFApp_M13_ID;
 			}
 			set
 			{
-				m_intFApp_M13_ID = value;
+				m_iFApp_M13_ID = value;
 			}
 		}
 
@@ -588,11 +588,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M14_ID;
+				return m_iFApp_M14_ID;
 			}
 			set
 			{
-				m_intFApp_M14_ID = value;
+				m_iFApp_M14_ID = value;
 			}
 		}
 
@@ -612,11 +612,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M15_ID;
+				return m_iFApp_M15_ID;
 			}
 			set
 			{
-				m_intFApp_M15_ID = value;
+				m_iFApp_M15_ID = value;
 			}
 		}
 
@@ -636,11 +636,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M16_ID;
+				return m_iFApp_M16_ID;
 			}
 			set
 			{
-				m_intFApp_M16_ID = value;
+				m_iFApp_M16_ID = value;
 			}
 		}
 
@@ -660,11 +660,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M17_ID;
+				return m_iFApp_M17_ID;
 			}
 			set
 			{
-				m_intFApp_M17_ID = value;
+				m_iFApp_M17_ID = value;
 			}
 		}
 
@@ -684,11 +684,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M18_ID;
+				return m_iFApp_M18_ID;
 			}
 			set
 			{
-				m_intFApp_M18_ID = value;
+				m_iFApp_M18_ID = value;
 			}
 		}
 
@@ -708,11 +708,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M19_ID;
+				return m_iFApp_M19_ID;
 			}
 			set
 			{
-				m_intFApp_M19_ID = value;
+				m_iFApp_M19_ID = value;
 			}
 		}
 
@@ -732,11 +732,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M20_ID;
+				return m_iFApp_M20_ID;
 			}
 			set
 			{
-				m_intFApp_M20_ID = value;
+				m_iFApp_M20_ID = value;
 			}
 		}
 
@@ -756,11 +756,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M21_ID;
+				return m_iFApp_M21_ID;
 			}
 			set
 			{
-				m_intFApp_M21_ID = value;
+				m_iFApp_M21_ID = value;
 			}
 		}
 
@@ -780,11 +780,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M22_ID;
+				return m_iFApp_M22_ID;
 			}
 			set
 			{
-				m_intFApp_M22_ID = value;
+				m_iFApp_M22_ID = value;
 			}
 		}
 
@@ -804,11 +804,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M23_ID;
+				return m_iFApp_M23_ID;
 			}
 			set
 			{
-				m_intFApp_M23_ID = value;
+				m_iFApp_M23_ID = value;
 			}
 		}
 
@@ -828,11 +828,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M24_ID;
+				return m_iFApp_M24_ID;
 			}
 			set
 			{
-				m_intFApp_M24_ID = value;
+				m_iFApp_M24_ID = value;
 			}
 		}
 
@@ -852,11 +852,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M25_ID;
+				return m_iFApp_M25_ID;
 			}
 			set
 			{
-				m_intFApp_M25_ID = value;
+				m_iFApp_M25_ID = value;
 			}
 		}
 
@@ -876,11 +876,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M26_ID;
+				return m_iFApp_M26_ID;
 			}
 			set
 			{
-				m_intFApp_M26_ID = value;
+				m_iFApp_M26_ID = value;
 			}
 		}
 
@@ -900,11 +900,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M27_ID;
+				return m_iFApp_M27_ID;
 			}
 			set
 			{
-				m_intFApp_M27_ID = value;
+				m_iFApp_M27_ID = value;
 			}
 		}
 
@@ -924,11 +924,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M28_ID;
+				return m_iFApp_M28_ID;
 			}
 			set
 			{
-				m_intFApp_M28_ID = value;
+				m_iFApp_M28_ID = value;
 			}
 		}
 
@@ -948,11 +948,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M29_ID;
+				return m_iFApp_M29_ID;
 			}
 			set
 			{
-				m_intFApp_M29_ID = value;
+				m_iFApp_M29_ID = value;
 			}
 		}
 
@@ -972,11 +972,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M30_ID;
+				return m_iFApp_M30_ID;
 			}
 			set
 			{
-				m_intFApp_M30_ID = value;
+				m_iFApp_M30_ID = value;
 			}
 		}
 
@@ -996,11 +996,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M31_ID;
+				return m_iFApp_M31_ID;
 			}
 			set
 			{
-				m_intFApp_M31_ID = value;
+				m_iFApp_M31_ID = value;
 			}
 		}
 
@@ -1020,11 +1020,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M32_ID;
+				return m_iFApp_M32_ID;
 			}
 			set
 			{
-				m_intFApp_M32_ID = value;
+				m_iFApp_M32_ID = value;
 			}
 		}
 
@@ -1044,11 +1044,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M33_ID;
+				return m_iFApp_M33_ID;
 			}
 			set
 			{
-				m_intFApp_M33_ID = value;
+				m_iFApp_M33_ID = value;
 			}
 		}
 
@@ -1068,11 +1068,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M34_ID;
+				return m_iFApp_M34_ID;
 			}
 			set
 			{
-				m_intFApp_M34_ID = value;
+				m_iFApp_M34_ID = value;
 			}
 		}
 
@@ -1092,11 +1092,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M35_ID;
+				return m_iFApp_M35_ID;
 			}
 			set
 			{
-				m_intFApp_M35_ID = value;
+				m_iFApp_M35_ID = value;
 			}
 		}
 
@@ -1116,11 +1116,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M36_ID;
+				return m_iFApp_M36_ID;
 			}
 			set
 			{
-				m_intFApp_M36_ID = value;
+				m_iFApp_M36_ID = value;
 			}
 		}
 
@@ -1140,11 +1140,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M37_ID;
+				return m_iFApp_M37_ID;
 			}
 			set
 			{
-				m_intFApp_M37_ID = value;
+				m_iFApp_M37_ID = value;
 			}
 		}
 
@@ -1164,11 +1164,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M38_ID;
+				return m_iFApp_M38_ID;
 			}
 			set
 			{
-				m_intFApp_M38_ID = value;
+				m_iFApp_M38_ID = value;
 			}
 		}
 
@@ -1188,11 +1188,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M39_ID;
+				return m_iFApp_M39_ID;
 			}
 			set
 			{
-				m_intFApp_M39_ID = value;
+				m_iFApp_M39_ID = value;
 			}
 		}
 
@@ -1212,11 +1212,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M40_ID;
+				return m_iFApp_M40_ID;
 			}
 			set
 			{
-				m_intFApp_M40_ID = value;
+				m_iFApp_M40_ID = value;
 			}
 		}
 
@@ -1236,11 +1236,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M41_ID;
+				return m_iFApp_M41_ID;
 			}
 			set
 			{
-				m_intFApp_M41_ID = value;
+				m_iFApp_M41_ID = value;
 			}
 		}
 
@@ -1260,11 +1260,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M42_ID;
+				return m_iFApp_M42_ID;
 			}
 			set
 			{
-				m_intFApp_M42_ID = value;
+				m_iFApp_M42_ID = value;
 			}
 		}
 
@@ -1284,11 +1284,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intFApp_M43_ID;
+				return m_iFApp_M43_ID;
 			}
 			set
 			{
-				m_intFApp_M43_ID = value;
+				m_iFApp_M43_ID = value;
 			}
 		}
 
@@ -1308,11 +1308,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intdeleted;
+				return m_iDeleted;
 			}
 			set
 			{
-				m_intdeleted = value;
+				m_iDeleted = value;
 			}
 		}
 

@@ -4,9 +4,9 @@ namespace TKS_Thuc_Tap_V11_Benchmarks;
 
 public static class Program
 {
-    public static int Main(string[] p_args)
+    public static int Main(string[] p_arrArgs)
     {
-        if (p_args.Any(v_arg => string.Equals(v_arg, "--nbomber", StringComparison.OrdinalIgnoreCase)))
+        if (p_arrArgs.Any(v_arg => string.Equals(v_arg, "--nbomber", StringComparison.OrdinalIgnoreCase)))
             return WarehouseLoadTest.Run();
 
         var v_settings = BenchmarkSettings.FromEnvironment();
@@ -16,11 +16,11 @@ public static class Program
             {
                 typeof(WarehouseDatabaseBenchmarks),
                 typeof(WarehouseCurrentBalanceBenchmarks)
-            }).Run(p_args);
+            }).Run(p_arrArgs);
         }
         else
         {
-            BenchmarkSwitcher.FromTypes(new[] { typeof(WarehouseSyntheticBenchmarks) }).Run(p_args);
+            BenchmarkSwitcher.FromTypes(new[] { typeof(WarehouseSyntheticBenchmarks) }).Run(p_arrArgs);
         }
 
         return 0;

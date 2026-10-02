@@ -7,201 +7,274 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 [Collection("Warehouse inventory database")]
 public sealed class WarehousePhase10N04M05IntegrationTests
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     [Fact]
     public async Task N04_expired_lease_terminal_failure_is_not_reported_as_tick_success()
     {
-        var fixture = await CreateFixtureAsync("TDD-N04-EXPIRED", createExpiredLease: true);
+        var v_Fixture = await CreateFixtureAsync("TDD-N04-EXPIRED", p_bCreateExpiredLease: true);
         try
         {
-            await RunWorkerAsync(fixture, maxRetryCount: 1);
-            var heartbeat = await ReadHeartbeatAsync(fixture.WorkerName);
+            await RunWorkerAsync(v_Fixture, p_iMaxRetryCount: 1);
+            var v_Heartbeat = await ReadHeartbeatAsync(v_Fixture.WorkerName);
 
-            Assert.NotNull(heartbeat.LastFailureAt);
-            Assert.Contains("LEASE_EXPIRED", heartbeat.LastError ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-            Assert.True(heartbeat.LastSuccessAt is null || heartbeat.LastSuccessAt < heartbeat.LastFailureAt);
+            Assert.NotNull(v_Heartbeat.LastFailureAt);
+            Assert.Contains("LEASE_EXPIRED", v_Heartbeat.LastError ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            Assert.True(v_Heartbeat.LastSuccessAt is null || v_Heartbeat.LastSuccessAt < v_Heartbeat.LastFailureAt);
         }
         finally
         {
-            await CleanupFixtureAsync(fixture);
+            await CleanupFixtureAsync(v_Fixture);
         }
     }
 
     [Fact]
     public async Task M05_idle_worker_tick_updates_liveness_without_queue_work()
     {
-        var fixture = await CreateFixtureAsync("TDD-M05-IDLE", createExpiredLease: false);
+        var v_Fixture = await CreateFixtureAsync("TDD-M05-IDLE", p_bCreateExpiredLease: false);
         try
         {
-            await RunWorkerAsync(fixture, maxRetryCount: 3);
-            var heartbeat = await ReadHeartbeatAsync(fixture.WorkerName);
+            await RunWorkerAsync(v_Fixture, p_iMaxRetryCount: 3);
+            var v_Heartbeat = await ReadHeartbeatAsync(v_Fixture.WorkerName);
 
-            Assert.NotNull(heartbeat.LastHeartbeatAt);
-            Assert.NotNull(heartbeat.LastSuccessAt);
-            Assert.Null(heartbeat.LastFailureAt);
-            Assert.Null(heartbeat.LastError);
+            Assert.NotNull(v_Heartbeat.LastHeartbeatAt);
+            Assert.NotNull(v_Heartbeat.LastSuccessAt);
+            Assert.Null(v_Heartbeat.LastFailureAt);
+            Assert.Null(v_Heartbeat.LastError);
         }
         finally
         {
-            await CleanupFixtureAsync(fixture);
+            await CleanupFixtureAsync(v_Fixture);
         }
     }
 
     [Fact]
     public async Task M05_sparse_daily_without_backlog_is_not_reported_as_daily_stale()
     {
-        var fixture = await CreateFixtureAsync("TDD-M05-SPARSE", createExpiredLease: false);
+        var v_Fixture = await CreateFixtureAsync("TDD-M05-SPARSE", p_bCreateExpiredLease: false);
         try
         {
-            await RunWorkerAsync(fixture, maxRetryCount: 3);
-            var dailyStale = await ReadMonitorMetricAsync("DAILY_STALE");
+            await RunWorkerAsync(v_Fixture, p_iMaxRetryCount: 3);
+            var v_DailyStale = await ReadMonitorMetricAsync("DAILY_STALE");
 
-            Assert.Equal(0L, dailyStale.MetricValue);
-            Assert.Equal("INFO", dailyStale.Severity);
+            Assert.Equal(0L, v_DailyStale.MetricValue);
+            Assert.Equal("INFO", v_DailyStale.Severity);
         }
         finally
         {
-            await CleanupFixtureAsync(fixture);
+            await CleanupFixtureAsync(v_Fixture);
         }
     }
 
     [Fact]
     public async Task M05_failed_final_remains_degraded_even_after_a_worker_tick()
     {
-        var fixture = await CreateFixtureAsync("TDD-M05-FAILED", createExpiredLease: true);
+        var v_Fixture = await CreateFixtureAsync("TDD-M05-FAILED", p_bCreateExpiredLease: true);
         try
         {
-            await RunWorkerAsync(fixture, maxRetryCount: 1);
-            var failureMetric = await ReadMonitorMetricAsync("SNAPSHOT_FAILED_FINAL");
+            await RunWorkerAsync(v_Fixture, p_iMaxRetryCount: 1);
+            var v_FailureMetric = await ReadMonitorMetricAsync("SNAPSHOT_FAILED_FINAL");
 
-            Assert.True(failureMetric.MetricValue >= 1);
-            Assert.Equal("CRITICAL", failureMetric.Severity);
+            Assert.True(v_FailureMetric.MetricValue >= 1);
+            Assert.Equal("CRITICAL", v_FailureMetric.Severity);
         }
         finally
         {
-            await CleanupFixtureAsync(fixture);
+            await CleanupFixtureAsync(v_Fixture);
         }
     }
 
-    private static async Task<WorkerFixture> CreateFixtureAsync(string prefix, bool createExpiredLease)
+    private static async Task<WorkerFixture> CreateFixtureAsync(string p_Prefix, bool p_bCreateExpiredLease)
     {
-        var tag = $"{prefix}-{Guid.NewGuid():N}"[..40];
-        var workerName = $"{tag}-worker";
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var transaction = connection.BeginTransaction();
+        var v_Tag = $"{p_Prefix}-{Guid.NewGuid():N}"[..40];
+        var v_WorkerName = $"{v_Tag}-worker";
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = v_Connection.BeginTransaction();
         try
         {
-            var productId = await LongScalarAsync(connection, transaction, "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_San_Pham ORDER BY Auto_ID;");
-            var warehouseId = await LongScalarAsync(connection, transaction,
+            var productId = await LongScalarAsync(v_Connection, v_Transaction, "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_San_Pham ORDER BY Auto_ID;");
+            var warehouseId = await LongScalarAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'Phase 10 N04/M05');",
-                Text("@Name", tag, 255));
-            if (createExpiredLease)
+                Text("@Name", v_Tag, 255));
+            if (p_bCreateExpiredLease)
             {
-                await ExecuteAsync(connection, transaction,
+                await ExecuteAsync(v_Connection, v_Transaction,
                     "INSERT dbo.InventorySnapshot_RebuildQueue(Kho_ID, San_Pham_ID, From_Date, Status, RequestType, LifecycleStatus, CreatedAt, LastAttemptAt, NextAttemptAt, LeaseUntil, ClaimedBy, ClaimedAt, AttemptCount, LastError, ErrorMessage, Requested_Version, Claimed_Version) VALUES (@WarehouseId, @ProductId, @FromDate, N'PROCESSING', N'REBUILD', N'PROCESSING', SYSUTCDATETIME(), DATEADD(MINUTE, -10, SYSUTCDATETIME()), NULL, DATEADD(SECOND, -1, SYSUTCDATETIME()), @WorkerName, DATEADD(MINUTE, -10, SYSUTCDATETIME()), 0, N'old claim', N'old claim', 1, 1);",
-                    BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Date("@FromDate", new DateTime(2099, 8, 1)), Text("@WorkerName", workerName, 128));
+                    BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Date("@FromDate", new DateTime(2099, 8, 1)), Text("@WorkerName", v_WorkerName, 128));
             }
-            await transaction.CommitAsync();
-            return new WorkerFixture(tag, warehouseId, productId, workerName);
+            await v_Transaction.CommitAsync();
+            return new WorkerFixture(v_Tag, warehouseId, productId, v_WorkerName);
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
             throw;
         }
     }
 
-    private static async Task RunWorkerAsync(WorkerFixture fixture, int maxRetryCount)
+    private static async Task RunWorkerAsync(WorkerFixture p_Fixture, int p_iMaxRetryCount)
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await ExecuteStoredAsync(connection, null, "dbo.sp_Inventory_Snapshot_Process_RebuildQueue",
-            Int("@Batch_Size", 1), Int("@Max_Retry_Count", maxRetryCount), Int("@Processing_Lease_Seconds", 1),
-            Text("@Worker_Name", fixture.WorkerName, 128), BigInt("@Kho_ID", fixture.WarehouseId), BigInt("@San_Pham_ID", fixture.ProductId));
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await ExecuteStoredAsync(v_Connection, null, "dbo.sp_Inventory_Snapshot_Process_RebuildQueue",
+            Int("@Batch_Size", 1), Int("@Max_Retry_Count", p_iMaxRetryCount), Int("@Processing_Lease_Seconds", 1),
+            Text("@Worker_Name", p_Fixture.WorkerName, 128), BigInt("@Kho_ID", p_Fixture.WarehouseId), BigInt("@San_Pham_ID", p_Fixture.ProductId));
     }
 
-    private static async Task<Heartbeat> ReadHeartbeatAsync(string workerName)
+    private static async Task<Heartbeat> ReadHeartbeatAsync(string p_WorkerName)
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(
-            "SELECT LastHeartbeatAt, LastSuccessAt, LastFailureAt, LastError FROM dbo.InventorySnapshot_WorkerHeartbeat WHERE Worker_Name = @WorkerName;", connection);
-        command.Parameters.Add(Text("@WorkerName", workerName, 128));
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        return new Heartbeat(
-            reader.IsDBNull(0) ? null : reader.GetDateTime(0),
-            reader.IsDBNull(1) ? null : reader.GetDateTime(1),
-            reader.IsDBNull(2) ? null : reader.GetDateTime(2),
-            reader.IsDBNull(3) ? null : reader.GetString(3));
-    }
-
-    private static async Task<MonitorMetric> ReadMonitorMetricAsync(string checkName)
-    {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand("dbo.sp_Inventory_Snapshot_Monitor", connection) { CommandType = CommandType.StoredProcedure, CommandTimeout = 10 };
-        command.Parameters.Add(Int("@Snapshot_Backlog_Minutes", 60));
-        command.Parameters.Add(Int("@Processing_Lease_Seconds", 300));
-        command.Parameters.Add(Int("@Daily_Stale_Days", 1));
-        command.Parameters.Add(new SqlParameter("@Throw_On_Critical", SqlDbType.Bit) { Value = false });
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Command = new SqlCommand(
+            "SELECT LastHeartbeatAt, LastSuccessAt, LastFailureAt, LastError FROM dbo.InventorySnapshot_WorkerHeartbeat WHERE Worker_Name = @WorkerName;", v_Connection);
+        v_Command.Parameters.Add(Text("@WorkerName", p_WorkerName, 128));
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        Assert.True(await v_Reader.ReadAsync());
+        DateTime? v_dtmLastHeartbeatAt;
+        if (v_Reader.IsDBNull(0))
         {
-            if (reader.GetString(0) == checkName)
-                return new MonitorMetric(reader.GetString(1), reader.GetInt64(2));
+            v_dtmLastHeartbeatAt = null;
         }
-        throw new Xunit.Sdk.XunitException($"Monitor metric not returned: {checkName}");
+        else
+        {
+            v_dtmLastHeartbeatAt = v_Reader.GetDateTime(0);
+        }
+
+        DateTime? v_dtmLastSuccessAt;
+        if (v_Reader.IsDBNull(1))
+        {
+            v_dtmLastSuccessAt = null;
+        }
+        else
+        {
+            v_dtmLastSuccessAt = v_Reader.GetDateTime(1);
+        }
+
+        DateTime? v_dtmLastFailureAt;
+        if (v_Reader.IsDBNull(2))
+        {
+            v_dtmLastFailureAt = null;
+        }
+        else
+        {
+            v_dtmLastFailureAt = v_Reader.GetDateTime(2);
+        }
+
+        string? v_LastError;
+        if (v_Reader.IsDBNull(3))
+        {
+            v_LastError = null;
+        }
+        else
+        {
+            v_LastError = v_Reader.GetString(3);
+        }
+
+        return new Heartbeat(
+            v_dtmLastHeartbeatAt,
+            v_dtmLastSuccessAt,
+            v_dtmLastFailureAt,
+            v_LastError);
     }
 
-    private static async Task CleanupFixtureAsync(WorkerFixture fixture)
+    private static async Task<MonitorMetric> ReadMonitorMetricAsync(string p_CheckName)
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var transaction = connection.BeginTransaction();
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Command = new SqlCommand("dbo.sp_Inventory_Snapshot_Monitor", v_Connection) { CommandType = CommandType.StoredProcedure, CommandTimeout = 10 };
+        v_Command.Parameters.Add(Int("@Snapshot_Backlog_Minutes", 60));
+        v_Command.Parameters.Add(Int("@Processing_Lease_Seconds", 300));
+        v_Command.Parameters.Add(Int("@Daily_Stale_Days", 1));
+        v_Command.Parameters.Add(new SqlParameter("@Throw_On_Critical", SqlDbType.Bit) { Value = false });
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        while (await v_Reader.ReadAsync())
+        {
+            if (v_Reader.GetString(0) == p_CheckName)
+                return new MonitorMetric(v_Reader.GetString(1), v_Reader.GetInt64(2));
+        }
+        throw new Xunit.Sdk.XunitException($"Monitor metric not returned: {p_CheckName}");
+    }
+
+    private static async Task CleanupFixtureAsync(WorkerFixture p_Fixture)
+    {
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = v_Connection.BeginTransaction();
         try
         {
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "DELETE FROM dbo.InventorySnapshot_RebuildDeadLetter WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId; DELETE FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId; DELETE FROM dbo.InventorySnapshot_WorkerHeartbeat WHERE Worker_Name = @WorkerName; DELETE FROM dbo.tbl_DM_Kho_User WHERE Kho_ID = @WarehouseId; DELETE FROM dbo.tbl_DM_Kho WHERE Auto_ID = @WarehouseId;",
-                BigInt("@WarehouseId", fixture.WarehouseId), BigInt("@ProductId", fixture.ProductId), Text("@WorkerName", fixture.WorkerName, 128));
-            await transaction.CommitAsync();
+                BigInt("@WarehouseId", p_Fixture.WarehouseId), BigInt("@ProductId", p_Fixture.ProductId), Text("@WorkerName", p_Fixture.WorkerName, 128));
+            await v_Transaction.CommitAsync();
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
             throw;
         }
     }
 
-    private static async Task ExecuteStoredAsync(SqlConnection connection, SqlTransaction? transaction, string procedure, params SqlParameter[] parameters)
+    private static async Task ExecuteStoredAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Procedure, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(procedure, connection, transaction) { CommandType = CommandType.StoredProcedure, CommandTimeout = 10 };
-        command.Parameters.AddRange(parameters);
-        await command.ExecuteNonQueryAsync();
+        await using var v_Command = new SqlCommand(p_Procedure, p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure, CommandTimeout = 10 };
+        v_Command.Parameters.AddRange(p_arrParameters);
+        await v_Command.ExecuteNonQueryAsync();
     }
 
-    private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task ExecuteAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction) { CommandTimeout = 10 };
-        command.Parameters.AddRange(parameters);
-        await command.ExecuteNonQueryAsync();
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction) { CommandTimeout = 10 };
+        v_Command.Parameters.AddRange(p_arrParameters);
+        await v_Command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<object?> ScalarAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<object?> ScalarAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction) { CommandTimeout = 10 };
-        command.Parameters.AddRange(parameters);
-        return await command.ExecuteScalarAsync();
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction) { CommandTimeout = 10 };
+        v_Command.Parameters.AddRange(p_arrParameters);
+        return await v_Command.ExecuteScalarAsync();
     }
 
-    private static async Task<long> LongScalarAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters) => Convert.ToInt64(await ScalarAsync(connection, transaction, sql, parameters));
+    private static async Task<long> LongScalarAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
+    {
+        return Convert.ToInt64(await ScalarAsync(p_Connection, p_Transaction, p_Sql, p_arrParameters));
+    }
 
-    private static SqlParameter Text(string name, string value, int size) => new(name, SqlDbType.NVarChar, size) { Value = value };
-    private static SqlParameter BigInt(string name, long value) => new(name, SqlDbType.BigInt) { Value = value };
-    private static SqlParameter Int(string name, int value) => new(name, SqlDbType.Int) { Value = value };
-    private static SqlParameter Date(string name, DateTime value) => new(name, SqlDbType.Date) { Value = value.Date };
+    private static SqlParameter Text(string p_Name, string p_Value, int p_iSize)
+    {
+        return new(p_Name, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_Value
+        };
+    }
+    private static SqlParameter BigInt(string p_Name, long value)
+    {
+        return new(p_Name, SqlDbType.BigInt)
+        {
+            Value = value
+        };
+    }
+    private static SqlParameter Int(string p_Name, int p_iValue)
+    {
+        return new(p_Name, SqlDbType.Int)
+        {
+            Value = p_iValue
+        };
+    }
+    private static SqlParameter Date(string p_Name, DateTime p_dtmValue)
+    {
+        return new(p_Name, SqlDbType.Date)
+        {
+            Value = p_dtmValue.Date
+        };
+    }
 
     private sealed record WorkerFixture(string Tag, long WarehouseId, long ProductId, string WorkerName);
     private sealed record Heartbeat(DateTime? LastHeartbeatAt, DateTime? LastSuccessAt, DateTime? LastFailureAt, string? LastError);

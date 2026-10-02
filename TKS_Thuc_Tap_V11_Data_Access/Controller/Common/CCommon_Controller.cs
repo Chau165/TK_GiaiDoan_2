@@ -124,7 +124,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Common
             }
         }
 
-        private static string Replace_Quy_Tac_Phieu(long p_iChu_Hang_ID, string p_strQuy_Tac_Phieu, int p_iSTT, DateTime? p_dtmNgay_Giao_Dich, int p_intDigits)
+        private static string Replace_Quy_Tac_Phieu(long p_iChu_Hang_ID, string p_strQuy_Tac_Phieu, int p_iSTT, DateTime? p_dtmNgay_Giao_Dich, int p_iDigits)
         {
 
             string v_strRes = p_strQuy_Tac_Phieu;
@@ -174,9 +174,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Common
 
             //trong trường hợp KH muốn đặt STT ở đâu thì replace còn không thì mặc định thêm vào cuối để tạo không bị trùng
             if (v_strRes.Contains("[STT]"))
-                v_strRes = v_strRes.Replace("[STT]", p_iSTT.ToString("d" + p_intDigits));
+                v_strRes = v_strRes.Replace("[STT]", p_iSTT.ToString("d" + p_iDigits));
             else
-                v_strRes += "-" + p_iSTT.ToString("d" + p_intDigits);
+                v_strRes += "-" + p_iSTT.ToString("d" + p_iDigits);
 
 
             return v_strRes.ToUpper();

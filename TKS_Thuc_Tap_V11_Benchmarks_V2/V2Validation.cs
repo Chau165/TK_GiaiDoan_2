@@ -8,7 +8,7 @@ namespace TKS_Thuc_Tap_V11_Benchmarks_V2;
 
 public static class V2Validation
 {
-    private static readonly string[] RequiredProcedures =
+    private static readonly string[] m_arrRequiredProcedures =
     {
         "sp_DM_Master_Page",
         "sp_DM_Lookup_Page",
@@ -20,7 +20,7 @@ public static class V2Validation
         "sp_Inventory_Fence_Require_Context"
     };
 
-    private static readonly string[] RequiredTypes =
+    private static readonly string[] m_arrRequiredTypes =
     {
         "InventoryMovementAffectedType",
         "InventorySnapshotAffectedType",
@@ -28,7 +28,7 @@ public static class V2Validation
         "InventoryFenceScopeSetType"
     };
 
-    private static readonly string[] RequiredIndexes =
+    private static readonly string[] m_arrRequiredIndexes =
     {
         "PK_Inventory_Report_Scope_Catalog",
         "UQ_Inventory_Report_Scope_Catalog_Scope",
@@ -297,7 +297,7 @@ public static class V2Validation
             COALESCE((SELECT COUNT_BIG(*) FROM sys.dm_tran_locks WHERE request_session_id <> @@SPID AND resource_type = N'APPLICATION'), 0) AS ApplicationLocks;
         """;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions m_JsonOptions = new()
     {
         WriteIndented = true
     };
@@ -305,7 +305,7 @@ public static class V2Validation
     public static async Task<int> RunAsync(
         V2Settings p_settings,
         string p_outputPath,
-        bool p_includeReadSmoke)
+        bool p_bIncludeReadSmoke)
     {
         var v_result = new V2ValidationResult
         {
@@ -335,20 +335,20 @@ public static class V2Validation
             v_result.Consistency = await QueryConsistencyAsync(v_connection);
             v_result.CurrentRowsetSha256 = await QueryCurrentFingerprintAsync(v_connection);
 
-            if (p_includeReadSmoke)
+            if (p_bIncludeReadSmoke)
             {
                 var v_operations = new V2ReadOperations(p_settings);
-                foreach (var v_scenario in V2Constants.Scenarios)
+                foreach (var v_scenario in V2Constants.m_arrScenarios)
                 {
                     try
                     {
                         var v_rows = await v_operations.ExecuteAsync(v_scenario);
                         v_result.ReadPaths[v_scenario] = $"PASS|Rows={v_rows}";
                     }
-                    catch (Exception p_exception)
+                    catch (Exception v_Exception)
                     {
                         v_result.ReadPaths[v_scenario] =
-                            $"FAIL|{V2LoadTest.ClassifyException(p_exception)}|{p_exception.Message}";
+                            $"FAIL|{V2LoadTest.ClassifyException(v_Exception)}|{v_Exception.Message}";
                     }
                 }
             }
@@ -358,15 +358,30 @@ public static class V2Validation
                 && v_result.ObjectChecks.All(p_check => p_check.Passed)
                 && v_result.Consistency.Count == 11
                 && v_result.Consistency.All(p_check => p_check.MismatchCount == 0)
-                && (!p_includeReadSmoke || v_result.ReadPaths.Values.All(p_value => p_value.StartsWith("PASS|", StringComparison.Ordinal)));
-            v_result.Result = v_result.Passed ? "PASS" : "PRECONDITION_FAILED";
+                && (!p_bIncludeReadSmoke || v_result.ReadPaths.Values.All(p_value => p_value.StartsWith("PASS|", StringComparison.Ordinal)));
+            if (v_result.Passed)
+            {
+                v_result.Result = "PASS";
+            }
+            else
+            {
+                v_result.Result = "PRECONDITION_FAILED";
+            }
+
             WriteJson(p_outputPath, v_result);
-            return v_result.Passed ? 0 : 21;
+            if (v_result.Passed)
+            {
+                return 0;
+            }
+            else
+            {
+                return 21;
+            }
         }
-        catch (Exception p_exception)
+        catch (Exception v_Exception)
         {
             v_result.Result = "HARNESS_FAILURE";
-            v_result.Error = $"{p_exception.GetType().Name}: {p_exception.Message}";
+            v_result.Error = $"{v_Exception.GetType().Name}: {v_Exception.Message}";
             v_result.Passed = false;
             WriteJson(p_outputPath, v_result);
             return 1;
@@ -399,7 +414,7 @@ public static class V2Validation
 
         try
         {
-            if (!V2Constants.Scenarios.Contains(p_scenario, StringComparer.Ordinal))
+            if (!V2Constants.m_arrScenarios.Contains(p_scenario, StringComparer.Ordinal))
                 throw new ArgumentException($"Unknown V2 scenario: {p_scenario}");
             await AssertTargetDatabaseAsync(p_settings);
             var v_rows = await new V2ReadOperations(p_settings).ExecuteAsync(p_scenario);
@@ -408,10 +423,10 @@ public static class V2Validation
             WriteJson(p_outputPath, v_result);
             return 0;
         }
-        catch (Exception p_exception)
+        catch (Exception v_Exception)
         {
-            v_result.Result = V2LoadTest.ClassifyException(p_exception);
-            v_result.Error = p_exception.Message;
+            v_result.Result = V2LoadTest.ClassifyException(v_Exception);
+            v_result.Error = v_Exception.Message;
             WriteJson(p_outputPath, v_result);
             return 1;
         }
@@ -448,13 +463,28 @@ public static class V2Validation
                 ApplicationLocks = Convert.ToInt64(v_reader.GetValue(5), CultureInfo.InvariantCulture)
             };
             v_result.Passed = v_result.IsClean;
-            v_result.Result = v_result.Passed ? "PASS" : "RESIDUE_FOUND";
+            if (v_result.Passed)
+            {
+                v_result.Result = "PASS";
+            }
+            else
+            {
+                v_result.Result = "RESIDUE_FOUND";
+            }
+
             WriteJson(p_outputPath, v_result);
-            return v_result.Passed ? 0 : 22;
+            if (v_result.Passed)
+            {
+                return 0;
+            }
+            else
+            {
+                return 22;
+            }
         }
-        catch (Exception p_exception)
+        catch (Exception v_Exception)
         {
-            WriteJson(p_outputPath, new { Result = "HARNESS_FAILURE", Error = p_exception.Message });
+            WriteJson(p_outputPath, new { Result = "HARNESS_FAILURE", Error = v_Exception.Message });
             return 1;
         }
     }
@@ -485,35 +515,52 @@ public static class V2Validation
             Test("LEGACY is the standard mode", string.Equals("LEGACY", "LEGACY", StringComparison.Ordinal), true)
         };
 
+        string v_strResult;
+        if (v_tests.All(p_test => p_test.Passed))
+        {
+            v_strResult = "PASS";
+        }
+        else
+        {
+            v_strResult = "FAIL";
+        }
+
         var v_result = new
         {
-            Result = v_tests.All(p_test => p_test.Passed) ? "PASS" : "FAIL",
+            Result = v_strResult,
             CapturedAtUtc = DateTime.UtcNow,
             Tests = v_tests
         };
         WriteJson(p_outputPath, v_result);
-        return v_tests.All(p_test => p_test.Passed) ? 0 : 1;
+        if (v_tests.All(p_test => p_test.Passed))
+        {
+            return 0;
+        }
+        else
+        {
+            return 1;
+        }
     }
 
-    private static V2SelfTestCase Test(string p_name, bool p_actual, bool p_expected)
+    private static V2SelfTestCase Test(string p_name, bool p_bActual, bool p_bExpected)
     {
         return new V2SelfTestCase
         {
             Name = p_name,
-            Expected = p_expected,
-            Actual = p_actual,
-            Passed = p_actual == p_expected
+            Expected = p_bExpected,
+            Actual = p_bActual,
+            Passed = p_bActual == p_bExpected
         };
     }
 
-    private static bool IsTarget(string p_server, string p_database, int p_databaseId)
+    private static bool IsTarget(string p_server, string p_database, int p_iDatabaseId)
     {
         var v_serverOk =
             p_server.Equals(V2Constants.ExpectedServer, StringComparison.OrdinalIgnoreCase)
             || p_server.EndsWith(@"\MSSQLSERVER19", StringComparison.OrdinalIgnoreCase);
         return v_serverOk
             && string.Equals(p_database, V2Constants.ExpectedDatabase, StringComparison.OrdinalIgnoreCase)
-            && p_databaseId == V2Constants.ExpectedDatabaseId;
+            && p_iDatabaseId == V2Constants.ExpectedDatabaseId;
     }
 
     private static bool RejectsMalformedJson()
@@ -533,7 +580,7 @@ public static class V2Validation
     {
         var v_json = JsonSerializer.Serialize(
             new V2SmokeResult { Result = "PASS", Scenario = "MasterPaged", Rows = 10 },
-            JsonOptions);
+            m_JsonOptions);
         return v_json.Contains("\"Result\"", StringComparison.Ordinal)
             && v_json.Contains("\"Scenario\"", StringComparison.Ordinal);
     }
@@ -570,7 +617,7 @@ public static class V2Validation
 
     private static async Task<V2DatasetEvidence> QueryDatasetAsync(SqlConnection p_connection)
     {
-        var v_actual = V2Constants.DatasetExpectedRows.Keys
+        var v_actual = V2Constants.m_dicDatasetExpectedRows.Keys
             .ToDictionary(p_name => p_name, _ => 0L, StringComparer.Ordinal);
         await using var v_command = p_connection.CreateCommand();
         v_command.CommandText = DatasetSql;
@@ -590,11 +637,11 @@ public static class V2Validation
         return new V2DatasetEvidence
         {
             ActualRows = v_actual,
-            ExpectedRows = V2Constants.DatasetExpectedRows,
+            ExpectedRows = V2Constants.m_dicDatasetExpectedRows,
             FingerprintInput = v_fingerprintInput,
             FingerprintSha256 = Sha256(v_fingerprintInput),
             MatchesExpected = v_actual.All(p_item =>
-                V2Constants.DatasetExpectedRows.TryGetValue(p_item.Key, out var v_expected)
+                V2Constants.m_dicDatasetExpectedRows.TryGetValue(p_item.Key, out var v_expected)
                 && v_expected == p_item.Value)
         };
     }
@@ -602,9 +649,9 @@ public static class V2Validation
     private static async Task<IReadOnlyList<V2ObjectCheck>> QueryObjectChecksAsync(SqlConnection p_connection)
     {
         var v_sql = ObjectSql
-            .Replace("__PROCEDURES__", QuoteNames(RequiredProcedures), StringComparison.Ordinal)
-            .Replace("__TYPES__", QuoteNames(RequiredTypes), StringComparison.Ordinal)
-            .Replace("__INDEXES__", QuoteNames(RequiredIndexes), StringComparison.Ordinal);
+            .Replace("__PROCEDURES__", QuoteNames(m_arrRequiredProcedures), StringComparison.Ordinal)
+            .Replace("__TYPES__", QuoteNames(m_arrRequiredTypes), StringComparison.Ordinal)
+            .Replace("__INDEXES__", QuoteNames(m_arrRequiredIndexes), StringComparison.Ordinal);
         await using var v_command = p_connection.CreateCommand();
         v_command.CommandText = v_sql;
         v_command.CommandTimeout = 30;
@@ -616,19 +663,28 @@ public static class V2Validation
                 continue;
             var v_kind = Convert.ToString(v_reader.GetValue(0), CultureInfo.InvariantCulture) ?? "";
             var v_actual = Convert.ToInt64(v_reader.GetValue(1), CultureInfo.InvariantCulture);
-            var v_expected = v_kind switch
+            int v_iExpected;
+            switch (v_kind)
             {
-                "PROCEDURE" => RequiredProcedures.Length,
-                "TYPE" => RequiredTypes.Length,
-                "INDEX" => RequiredIndexes.Length,
-                _ => 0
-            };
+                case "PROCEDURE":
+                    v_iExpected = m_arrRequiredProcedures.Length;
+                    break;
+                case "TYPE":
+                    v_iExpected = m_arrRequiredTypes.Length;
+                    break;
+                case "INDEX":
+                    v_iExpected = m_arrRequiredIndexes.Length;
+                    break;
+                default:
+                    v_iExpected = 0;
+                    break;
+            }
             v_checks.Add(new V2ObjectCheck
             {
                 Kind = v_kind,
-                Expected = v_expected,
+                Expected = v_iExpected,
                 Actual = v_actual,
-                Passed = v_actual == v_expected
+                Passed = v_actual == v_iExpected
             });
         }
         while (await v_reader.NextResultAsync());
@@ -690,11 +746,16 @@ public static class V2Validation
             p_names.Select(p_name => "N'" + p_name.Replace("'", "''", StringComparison.Ordinal) + "'"));
     }
 
-    private static string ToInvariant(object p_value)
+    private static string ToInvariant(object p_objValue)
     {
-        return p_value == DBNull.Value
-            ? "NULL"
-            : Convert.ToString(p_value, CultureInfo.InvariantCulture) ?? "";
+        if (p_objValue == DBNull.Value)
+        {
+            return "NULL";
+        }
+        else
+        {
+            return Convert.ToString(p_objValue, CultureInfo.InvariantCulture) ?? "";
+        }
     }
 
     private static string Sha256(string p_value)
@@ -702,18 +763,18 @@ public static class V2Validation
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(p_value)));
     }
 
-    private static void WriteJson(string p_outputPath, object p_value)
+    private static void WriteJson(string p_outputPath, object p_objValue)
     {
         if (string.IsNullOrWhiteSpace(p_outputPath))
         {
-            Console.WriteLine(JsonSerializer.Serialize(p_value, JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(p_objValue, m_JsonOptions));
             return;
         }
 
         var v_directory = Path.GetDirectoryName(p_outputPath);
         if (!string.IsNullOrWhiteSpace(v_directory))
             Directory.CreateDirectory(v_directory);
-        File.WriteAllText(p_outputPath, JsonSerializer.Serialize(p_value, JsonOptions), new UTF8Encoding(false));
+        File.WriteAllText(p_outputPath, JsonSerializer.Serialize(p_objValue, m_JsonOptions), new UTF8Encoding(false));
         Console.WriteLine($"V2_OUTPUT|{p_outputPath}");
     }
 }
@@ -791,13 +852,13 @@ public sealed class V2ResidueResult
     public bool Passed { get; set; }
     public string Result { get; set; } = "";
 
-    public bool IsClean =>
-        ActiveRequests == 0
-        && BlockingRequests == 0
-        && PendingMemoryGrants == 0
-        && ResourceSemaphoreWaiters == 0
-        && OpenTransactions == 0
-        && ApplicationLocks == 0;
+    public bool IsClean
+    {
+        get
+        {
+            return ActiveRequests == 0 && BlockingRequests == 0 && PendingMemoryGrants == 0 && ResourceSemaphoreWaiters == 0 && OpenTransactions == 0 && ApplicationLocks == 0;
+        }
+    }
 }
 
 public sealed class V2SelfTestCase

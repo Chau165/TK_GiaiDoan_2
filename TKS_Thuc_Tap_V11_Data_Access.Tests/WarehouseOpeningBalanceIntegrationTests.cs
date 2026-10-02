@@ -7,248 +7,277 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 [Collection("Warehouse inventory database")]
 public sealed class WarehouseOpeningBalanceIntegrationTests
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     [Fact]
     public async Task Period_reports_use_the_last_balance_before_start_and_match_each_other()
     {
-        await using var connection = new SqlConnection(ConnectionString);
-        await connection.OpenAsync();
-        await using var transaction = connection.BeginTransaction();
+        await using var v_Connection = new SqlConnection(ConnectionString);
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = v_Connection.BeginTransaction();
 
         try
         {
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
-            var tag = $"TDD-OPEN-{Guid.NewGuid():N}";
-            var login = $"{tag}-login";
-            var productIds = await ReadProductIdsAsync(connection, transaction, 3);
-            var supplierId = await ReadIdAsync(connection, transaction,
+            var v_Tag = $"TDD-OPEN-{Guid.NewGuid():N}";
+            var v_Login = $"{v_Tag}-login";
+            var v_arrProductIds = await ReadProductIdsAsync(v_Connection, v_Transaction, 3);
+            var supplierId = await ReadIdAsync(v_Connection, v_Transaction,
                 "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_NCC ORDER BY Auto_ID;");
-            var warehouseId = await InsertIdAsync(connection, transaction,
+            var warehouseId = await InsertIdAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'Opening balance integration test');",
-                Text("@Name", $"{tag}-warehouse", 255));
-            await InsertIdAsync(connection, transaction,
+                Text("@Name", $"{v_Tag}-warehouse", 255));
+            await InsertIdAsync(v_Connection, v_Transaction,
                 "DECLARE @MemberId BIGINT; SELECT @MemberId = ISNULL(MAX(Auto_ID), 0) + 1 FROM dbo.tbl_Sys_Thanh_Vien WITH (TABLOCKX); INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, deleted) OUTPUT INSERTED.Auto_ID VALUES (@MemberId, @Login, @Name, 0);",
-                Text("@Login", login, 100), Text("@Name", $"{tag}-member", 200));
+                Text("@Login", v_Login, 100), Text("@Name", $"{v_Tag}-member", 200));
 
-            await ExecuteAsync(connection, transaction,
+            await ExecuteAsync(v_Connection, v_Transaction,
                 "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
-                Text("@Login", login, 100), BigInt("@WarehouseId", warehouseId));
+                Text("@Login", v_Login, 100), BigInt("@WarehouseId", warehouseId));
 
             /* Case 1: no balance before 2026-01-01.  The latest row has
                OpeningQuantity=5, which must not become the report opening. */
-            var noHistoryProduct = productIds[0];
-            await InsertReceiptAsync(connection, transaction, warehouseId, supplierId, noHistoryProduct, new DateTime(2026, 1, 3), 15, tag);
-            await InsertIssueAsync(connection, transaction, warehouseId, noHistoryProduct, new DateTime(2026, 2, 10), 3, tag);
-            await InsertIssueAsync(connection, transaction, warehouseId, noHistoryProduct, new DateTime(2026, 2, 24), 2, tag);
-            await InsertIssueAsync(connection, transaction, warehouseId, noHistoryProduct, new DateTime(2026, 3, 24), 3, tag);
-            await InsertIssueAsync(connection, transaction, warehouseId, noHistoryProduct, new DateTime(2026, 5, 24), 2, tag);
-            await InsertReceiptAsync(connection, transaction, warehouseId, supplierId, noHistoryProduct, new DateTime(2026, 6, 3), 17, tag);
-            await InsertDailyAsync(connection, transaction, warehouseId, noHistoryProduct,
+            var noHistoryProduct = v_arrProductIds[0];
+            await InsertReceiptAsync(v_Connection, v_Transaction, warehouseId, supplierId, noHistoryProduct, new DateTime(2026, 1, 3), 15, v_Tag);
+            await InsertIssueAsync(v_Connection, v_Transaction, warehouseId, noHistoryProduct, new DateTime(2026, 2, 10), 3, v_Tag);
+            await InsertIssueAsync(v_Connection, v_Transaction, warehouseId, noHistoryProduct, new DateTime(2026, 2, 24), 2, v_Tag);
+            await InsertIssueAsync(v_Connection, v_Transaction, warehouseId, noHistoryProduct, new DateTime(2026, 3, 24), 3, v_Tag);
+            await InsertIssueAsync(v_Connection, v_Transaction, warehouseId, noHistoryProduct, new DateTime(2026, 5, 24), 2, v_Tag);
+            await InsertReceiptAsync(v_Connection, v_Transaction, warehouseId, supplierId, noHistoryProduct, new DateTime(2026, 6, 3), 17, v_Tag);
+            await InsertDailyAsync(v_Connection, v_Transaction, warehouseId, noHistoryProduct,
                 new DateTime(2026, 6, 3), 5, 17, 0, 22, 32, 10);
-            await InsertScopeAsync(connection, transaction, warehouseId, noHistoryProduct,
+            await InsertScopeAsync(v_Connection, v_Transaction, warehouseId, noHistoryProduct,
                 new DateTime(2026, 6, 3), new DateTime(2026, 6, 3));
 
-            var noHistoryPaged = await ReadPagedReportAsync(connection, transaction, login, warehouseId, noHistoryProduct,
+            var v_NoHistoryPaged = await ReadPagedReportAsync(v_Connection, v_Transaction, v_Login, warehouseId, noHistoryProduct,
                 new DateTime(2026, 1, 1), new DateTime(2026, 9, 30));
-            var noHistoryFull = await ReadFullReportAsync(connection, transaction, login, warehouseId, noHistoryProduct,
+            var v_NoHistoryFull = await ReadFullReportAsync(v_Connection, v_Transaction, v_Login, warehouseId, noHistoryProduct,
                 new DateTime(2026, 1, 1), new DateTime(2026, 9, 30));
-            AssertReport(noHistoryPaged, 0, 32, 10, 22);
-            AssertReport(noHistoryFull, 0, 32, 10, 22);
+            AssertReport(v_NoHistoryPaged, 0, 32, 10, 22);
+            AssertReport(v_NoHistoryFull, 0, 32, 10, 22);
 
             /* Case 2: a balance exists on 2025-12-31 and must seed 2026-01-01. */
-            var priorPeriodProduct = productIds[1];
-            await InsertSnapshotAsync(connection, transaction, warehouseId, priorPeriodProduct,
+            var priorPeriodProduct = v_arrProductIds[1];
+            await InsertSnapshotAsync(v_Connection, v_Transaction, warehouseId, priorPeriodProduct,
                 new DateTime(2025, 12, 31), 100);
-            await InsertDailyAsync(connection, transaction, warehouseId, priorPeriodProduct,
+            await InsertDailyAsync(v_Connection, v_Transaction, warehouseId, priorPeriodProduct,
                 new DateTime(2025, 12, 31), 100, 0, 0, 100, 0, 0);
-            await InsertReceiptAsync(connection, transaction, warehouseId, supplierId, priorPeriodProduct,
-                new DateTime(2026, 1, 10), 20, tag);
-            await InsertDailyAsync(connection, transaction, warehouseId, priorPeriodProduct,
+            await InsertReceiptAsync(v_Connection, v_Transaction, warehouseId, supplierId, priorPeriodProduct,
+                new DateTime(2026, 1, 10), 20, v_Tag);
+            await InsertDailyAsync(v_Connection, v_Transaction, warehouseId, priorPeriodProduct,
                 new DateTime(2026, 1, 10), 100, 20, 0, 120, 20, 0);
-            await InsertScopeAsync(connection, transaction, warehouseId, priorPeriodProduct,
+            await InsertScopeAsync(v_Connection, v_Transaction, warehouseId, priorPeriodProduct,
                 new DateTime(2025, 12, 31), new DateTime(2026, 1, 10));
 
-            var priorPeriodPaged = await ReadPagedReportAsync(connection, transaction, login, warehouseId, priorPeriodProduct,
+            var v_PriorPeriodPaged = await ReadPagedReportAsync(v_Connection, v_Transaction, v_Login, warehouseId, priorPeriodProduct,
                 new DateTime(2026, 1, 1), new DateTime(2026, 1, 31));
-            var priorPeriodFull = await ReadFullReportAsync(connection, transaction, login, warehouseId, priorPeriodProduct,
+            var v_PriorPeriodFull = await ReadFullReportAsync(v_Connection, v_Transaction, v_Login, warehouseId, priorPeriodProduct,
                 new DateTime(2026, 1, 1), new DateTime(2026, 1, 31));
-            AssertReport(priorPeriodPaged, 100, 20, 0, 120);
-            AssertReport(priorPeriodFull, 100, 20, 0, 120);
+            AssertReport(v_PriorPeriodPaged, 100, 20, 0, 120);
+            AssertReport(v_PriorPeriodFull, 100, 20, 0, 120);
 
             /* Case 3: a mid-period snapshot on 2026-03-10 seeds a report
                beginning on 2026-03-15. */
-            var midPeriodProduct = productIds[2];
-            await InsertSnapshotAsync(connection, transaction, warehouseId, midPeriodProduct,
+            var midPeriodProduct = v_arrProductIds[2];
+            await InsertSnapshotAsync(v_Connection, v_Transaction, warehouseId, midPeriodProduct,
                 new DateTime(2026, 3, 10), 100);
-            await InsertDailyAsync(connection, transaction, warehouseId, midPeriodProduct,
+            await InsertDailyAsync(v_Connection, v_Transaction, warehouseId, midPeriodProduct,
                 new DateTime(2026, 3, 10), 100, 0, 0, 100, 0, 0);
-            await InsertReceiptAsync(connection, transaction, warehouseId, supplierId, midPeriodProduct,
-                new DateTime(2026, 3, 20), 20, tag);
-            await InsertDailyAsync(connection, transaction, warehouseId, midPeriodProduct,
+            await InsertReceiptAsync(v_Connection, v_Transaction, warehouseId, supplierId, midPeriodProduct,
+                new DateTime(2026, 3, 20), 20, v_Tag);
+            await InsertDailyAsync(v_Connection, v_Transaction, warehouseId, midPeriodProduct,
                 new DateTime(2026, 3, 20), 100, 20, 0, 120, 20, 0);
-            await InsertScopeAsync(connection, transaction, warehouseId, midPeriodProduct,
+            await InsertScopeAsync(v_Connection, v_Transaction, warehouseId, midPeriodProduct,
                 new DateTime(2026, 3, 10), new DateTime(2026, 3, 20));
 
-            var midPeriodPaged = await ReadPagedReportAsync(connection, transaction, login, warehouseId, midPeriodProduct,
+            var v_MidPeriodPaged = await ReadPagedReportAsync(v_Connection, v_Transaction, v_Login, warehouseId, midPeriodProduct,
                 new DateTime(2026, 3, 15), new DateTime(2026, 3, 31));
-            var midPeriodFull = await ReadFullReportAsync(connection, transaction, login, warehouseId, midPeriodProduct,
+            var v_MidPeriodFull = await ReadFullReportAsync(v_Connection, v_Transaction, v_Login, warehouseId, midPeriodProduct,
                 new DateTime(2026, 3, 15), new DateTime(2026, 3, 31));
-            AssertReport(midPeriodPaged, 100, 20, 0, 120);
-            AssertReport(midPeriodFull, 100, 20, 0, 120);
+            AssertReport(v_MidPeriodPaged, 100, 20, 0, 120);
+            AssertReport(v_MidPeriodFull, 100, 20, 0, 120);
         }
         finally
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
         }
     }
 
-    private static void AssertReport(ReportRow row, decimal opening, decimal received, decimal issued, decimal closing)
+    private static void AssertReport(ReportRow p_Row, decimal p_Opening, decimal p_Received, decimal p_Issued, decimal p_Closing)
     {
-        Assert.Equal(opening, row.Opening);
-        Assert.Equal(received, row.Received);
-        Assert.Equal(issued, row.Issued);
-        Assert.Equal(closing, row.Closing);
+        Assert.Equal(p_Opening, p_Row.Opening);
+        Assert.Equal(p_Received, p_Row.Received);
+        Assert.Equal(p_Issued, p_Row.Issued);
+        Assert.Equal(p_Closing, p_Row.Closing);
     }
 
     private static async Task<ReportRow> ReadPagedReportAsync(
-        SqlConnection connection, SqlTransaction transaction, string login, long warehouseId, long productId,
-        DateTime from, DateTime to)
+        SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login, long warehouseId, long productId,
+        DateTime p_dtmFrom, DateTime p_dtmTo)
     {
-        await using var command = ReportCommand(connection, transaction, "sp_BC_Xuat_Nhap_Ton_Page", login, warehouseId, from, to);
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        Assert.True(await reader.NextResultAsync());
-        while (await reader.ReadAsync())
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton_Page", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        Assert.True(await v_Reader.ReadAsync());
+        Assert.True(await v_Reader.NextResultAsync());
+        while (await v_Reader.ReadAsync())
         {
-            if (reader.GetInt64(2) == productId)
-                return ReadReportRow(reader);
+            if (v_Reader.GetInt64(2) == productId)
+                return ReadReportRow(v_Reader);
         }
 
         throw new Xunit.Sdk.XunitException($"Product {productId} was not returned by the paged report.");
     }
 
     private static async Task<ReportRow> ReadFullReportAsync(
-        SqlConnection connection, SqlTransaction transaction, string login, long warehouseId, long productId,
-        DateTime from, DateTime to)
+        SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login, long warehouseId, long productId,
+        DateTime p_dtmFrom, DateTime p_dtmTo)
     {
-        await using var command = ReportCommand(connection, transaction, "sp_BC_Xuat_Nhap_Ton", login, warehouseId, from, to);
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        while (await v_Reader.ReadAsync())
         {
-            if (reader.GetInt64(2) == productId)
-                return ReadReportRow(reader);
+            if (v_Reader.GetInt64(2) == productId)
+                return ReadReportRow(v_Reader);
         }
 
         throw new Xunit.Sdk.XunitException($"Product {productId} was not returned by the full report.");
     }
 
-    private static ReportRow ReadReportRow(SqlDataReader reader) => new(
-        reader.GetDecimal(5), reader.GetDecimal(6), reader.GetDecimal(7), reader.GetDecimal(8));
+    private static ReportRow ReadReportRow(SqlDataReader p_Reader)
+    {
+        return new(p_Reader.GetDecimal(5), p_Reader.GetDecimal(6), p_Reader.GetDecimal(7), p_Reader.GetDecimal(8));
+    }
 
     private static SqlCommand ReportCommand(
-        SqlConnection connection, SqlTransaction transaction, string procedure, string login, long warehouseId,
-        DateTime from, DateTime to)
+        SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Procedure, string p_Login, long warehouseId,
+        DateTime p_dtmFrom, DateTime p_dtmTo)
     {
-        var command = new SqlCommand(procedure, connection, transaction)
+        var v_Command = new SqlCommand(p_Procedure, p_Connection, p_Transaction)
         {
             CommandType = CommandType.StoredProcedure
         };
-        command.Parameters.Add(Date("@Tu_Ngay", from));
-        command.Parameters.Add(Date("@Den_Ngay", to));
-        if (procedure.EndsWith("_Page", StringComparison.Ordinal))
+        v_Command.Parameters.Add(Date("@Tu_Ngay", p_dtmFrom));
+        v_Command.Parameters.Add(Date("@Den_Ngay", p_dtmTo));
+        if (p_Procedure.EndsWith("_Page", StringComparison.Ordinal))
         {
-            command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
-            command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 20 });
+            v_Command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });
+            v_Command.Parameters.Add(new SqlParameter("@Page_Size", SqlDbType.Int) { Value = 20 });
         }
-        command.Parameters.Add(Text("@Ma_Dang_Nhap", login, 100));
-        command.Parameters.Add(BigInt("@Kho_ID", warehouseId));
-        return command;
+        v_Command.Parameters.Add(Text("@Ma_Dang_Nhap", p_Login, 100));
+        v_Command.Parameters.Add(BigInt("@Kho_ID", warehouseId));
+        return v_Command;
     }
 
-    private static async Task<List<long>> ReadProductIdsAsync(SqlConnection connection, SqlTransaction transaction, int count)
+    private static async Task<List<long>> ReadProductIdsAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, int p_iCount)
     {
-        await using var command = new SqlCommand(
-            "SELECT TOP (@Count) Auto_ID FROM dbo.tbl_DM_San_Pham ORDER BY Auto_ID;", connection, transaction);
-        command.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = count });
-        await using var reader = await command.ExecuteReaderAsync();
-        var result = new List<long>();
-        while (await reader.ReadAsync())
-            result.Add(reader.GetInt64(0));
-        Assert.Equal(count, result.Count);
-        return result;
+        await using var v_Command = new SqlCommand(
+            "SELECT TOP (@Count) Auto_ID FROM dbo.tbl_DM_San_Pham ORDER BY Auto_ID;", p_Connection, p_Transaction);
+        v_Command.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = p_iCount });
+        await using var v_Reader = await v_Command.ExecuteReaderAsync();
+        var v_arrResult = new List<long>();
+        while (await v_Reader.ReadAsync())
+            v_arrResult.Add(v_Reader.GetInt64(0));
+        Assert.Equal(p_iCount, v_arrResult.Count);
+        return v_arrResult;
     }
 
-    private static async Task<long> ReadIdAsync(SqlConnection connection, SqlTransaction transaction, string sql)
+    private static async Task<long> ReadIdAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Sql)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        var value = await command.ExecuteScalarAsync();
-        Assert.NotNull(value);
-        return Convert.ToInt64(value);
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        var v_objValue = await v_Command.ExecuteScalarAsync();
+        Assert.NotNull(v_objValue);
+        return Convert.ToInt64(v_objValue);
     }
 
-    private static async Task<long> InsertIdAsync(SqlConnection connection, SqlTransaction transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<long> InsertIdAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        return Convert.ToInt64(await command.ExecuteScalarAsync());
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        return Convert.ToInt64(await v_Command.ExecuteScalarAsync());
     }
 
-    private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction transaction, string sql, params SqlParameter[] parameters)
+    private static async Task ExecuteAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        await command.ExecuteNonQueryAsync();
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        await v_Command.ExecuteNonQueryAsync();
     }
 
-    private static async Task InsertReceiptAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long supplierId, long productId, DateTime date, decimal quantity, string tag)
+    private static async Task InsertReceiptAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, long warehouseId, long supplierId, long productId, DateTime p_dtmDate, decimal p_Quantity, string p_Tag)
     {
-        var documentId = await InsertIdAsync(connection, transaction,
+        var documentId = await InsertIdAsync(p_Connection, p_Transaction,
             "INSERT dbo.tbl_XNK_Nhap_Kho(So_Phieu_Nhap_Kho, Kho_ID, NCC_ID, Ngay_Nhap_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @SupplierId, @Date, 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-            Text("@Number", $"{tag}-receipt-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId), Date("@Date", date));
-        await ExecuteAsync(connection, transaction,
+            Text("@Number", $"{p_Tag}-receipt-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", warehouseId), BigInt("@SupplierId", supplierId), Date("@Date", p_dtmDate));
+        await ExecuteAsync(p_Connection, p_Transaction,
             "INSERT dbo.tbl_XNK_Nhap_Kho_Raw_Data(Nhap_Kho_ID, San_Pham_ID, SL_Nhap, Don_Gia_Nhap) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
-            BigInt("@DocumentId", documentId), BigInt("@ProductId", productId), Decimal("@Quantity", quantity));
+            BigInt("@DocumentId", documentId), BigInt("@ProductId", productId), Decimal("@Quantity", p_Quantity));
     }
 
-    private static async Task InsertIssueAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long productId, DateTime date, decimal quantity, string tag)
+    private static async Task InsertIssueAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, long warehouseId, long productId, DateTime p_dtmDate, decimal p_Quantity, string p_Tag)
     {
-        var documentId = await InsertIdAsync(connection, transaction,
+        var documentId = await InsertIdAsync(p_Connection, p_Transaction,
             "INSERT dbo.tbl_XNK_Xuat_Kho(So_Phieu_Xuat_Kho, Kho_ID, Ngay_Xuat_Kho, Is_Posted, Ghi_Chu) VALUES (@Number, @WarehouseId, @Date, 1, N''); SELECT CONVERT(BIGINT, SCOPE_IDENTITY());",
-            Text("@Number", $"{tag}-issue-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", warehouseId), Date("@Date", date));
-        await ExecuteAsync(connection, transaction,
+            Text("@Number", $"{p_Tag}-issue-{Guid.NewGuid():N}", 100), BigInt("@WarehouseId", warehouseId), Date("@Date", p_dtmDate));
+        await ExecuteAsync(p_Connection, p_Transaction,
             "INSERT dbo.tbl_XNK_Xuat_Kho_Raw_Data(Xuat_Kho_ID, San_Pham_ID, SL_Xuat, Don_Gia_Xuat) VALUES (@DocumentId, @ProductId, @Quantity, 1);",
-            BigInt("@DocumentId", documentId), BigInt("@ProductId", productId), Decimal("@Quantity", quantity));
+            BigInt("@DocumentId", documentId), BigInt("@ProductId", productId), Decimal("@Quantity", p_Quantity));
     }
 
-    private static Task InsertSnapshotAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long productId, DateTime date, decimal closing) =>
-        ExecuteAsync(connection, transaction,
-            "INSERT dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity, IsValid, [Version]) VALUES (@Date, @WarehouseId, @ProductId, @Closing, 1, 1);",
-            Date("@Date", date), BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Decimal("@Closing", closing));
-
-    private static Task InsertDailyAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long productId, DateTime date, decimal opening, decimal received, decimal issued, decimal closing, decimal cumulativeReceived, decimal cumulativeIssued) =>
-        ExecuteAsync(connection, transaction,
-            "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, @Opening, @Received, @Issued, @Closing, @CumulativeReceived, @CumulativeIssued, 1);",
-            Date("@Date", date), BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Decimal("@Opening", opening), Decimal("@Received", received), Decimal("@Issued", issued), Decimal("@Closing", closing), Decimal("@CumulativeReceived", cumulativeReceived), Decimal("@CumulativeIssued", cumulativeIssued));
-
-    private static Task InsertScopeAsync(SqlConnection connection, SqlTransaction transaction, long warehouseId, long productId, DateTime firstDate, DateTime lastDate) =>
-        ExecuteAsync(connection, transaction,
-            "INSERT dbo.Inventory_Balance_Daily_Scope(Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date) VALUES (@WarehouseId, @ProductId, @FirstDate, @LastDate);",
-            BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Date("@FirstDate", firstDate), Date("@LastDate", lastDate));
-
-    private static SqlParameter BigInt(string name, long value) => new(name, SqlDbType.BigInt) { Value = value };
-
-    private static SqlParameter Decimal(string name, decimal value) => new(name, SqlDbType.Decimal)
+    private static Task InsertSnapshotAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, long warehouseId, long productId, DateTime p_dtmDate, decimal p_Closing)
     {
-        Precision = 18,
-        Scale = 3,
-        Value = value
-    };
+        return ExecuteAsync(p_Connection, p_Transaction, "INSERT dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity, IsValid, [Version]) VALUES (@Date, @WarehouseId, @ProductId, @Closing, 1, 1);", Date("@Date", p_dtmDate), BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Decimal("@Closing", p_Closing));
+    }
 
-    private static SqlParameter Date(string name, DateTime value) => new(name, SqlDbType.Date) { Value = value.Date };
+    private static Task InsertDailyAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, long warehouseId, long productId, DateTime p_dtmDate, decimal p_Opening, decimal p_Received, decimal p_Issued, decimal p_Closing, decimal p_CumulativeReceived, decimal p_CumulativeIssued)
+    {
+        return ExecuteAsync(p_Connection, p_Transaction, "INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, @Opening, @Received, @Issued, @Closing, @CumulativeReceived, @CumulativeIssued, 1);", Date("@Date", p_dtmDate), BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Decimal("@Opening", p_Opening), Decimal("@Received", p_Received), Decimal("@Issued", p_Issued), Decimal("@Closing", p_Closing), Decimal("@CumulativeReceived", p_CumulativeReceived), Decimal("@CumulativeIssued", p_CumulativeIssued));
+    }
 
-    private static SqlParameter Text(string name, string value, int size) => new(name, SqlDbType.NVarChar, size) { Value = value };
+    private static Task InsertScopeAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, long warehouseId, long productId, DateTime p_dtmFirstDate, DateTime p_dtmLastDate)
+    {
+        return ExecuteAsync(p_Connection, p_Transaction, "INSERT dbo.Inventory_Balance_Daily_Scope(Kho_ID, San_Pham_ID, First_Balance_Date, Last_Balance_Date) VALUES (@WarehouseId, @ProductId, @FirstDate, @LastDate);", BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Date("@FirstDate", p_dtmFirstDate), Date("@LastDate", p_dtmLastDate));
+    }
+
+    private static SqlParameter BigInt(string p_Name, long value)
+    {
+        return new(p_Name, SqlDbType.BigInt)
+        {
+            Value = value
+        };
+    }
+
+    private static SqlParameter Decimal(string p_Name, decimal p_Value)
+    {
+        return new(p_Name, SqlDbType.Decimal)
+        {
+            Precision = 18,
+            Scale = 3,
+            Value = p_Value
+        };
+    }
+
+    private static SqlParameter Date(string p_Name, DateTime p_dtmValue)
+    {
+        return new(p_Name, SqlDbType.Date)
+        {
+            Value = p_dtmValue.Date
+        };
+    }
+
+    private static SqlParameter Text(string p_Name, string p_Value, int p_iSize)
+    {
+        return new(p_Name, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_Value
+        };
+    }
 
     private sealed record ReportRow(decimal Opening, decimal Received, decimal Issued, decimal Closing);
 }

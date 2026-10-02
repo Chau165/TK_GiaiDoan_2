@@ -16,8 +16,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         private string m_strLang_3;
         private string m_strLang_4;
         private string m_strLang_5;
-        private int m_intType_ID;
-        private int m_intdeleted;
+        private int m_iType_ID;
+        private int m_iDeleted;
         private DateTime? m_dtmCreated;
         private string m_strCreated_By;
         private string m_strCreated_By_Function;
@@ -39,8 +39,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
             m_strLang_3 = CConst.STR_VALUE_NULL;
             m_strLang_4 = CConst.STR_VALUE_NULL;
             m_strLang_5 = CConst.STR_VALUE_NULL;
-            m_intType_ID = CConst.INT_VALUE_NULL;
-            m_intdeleted = CConst.INT_VALUE_NULL;
+            m_iType_ID = CConst.INT_VALUE_NULL;
+            m_iDeleted = CConst.INT_VALUE_NULL;
             m_dtmCreated = CConst.DTM_VALUE_NULL;
             m_strCreated_By = CConst.STR_VALUE_NULL;
             m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -137,11 +137,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intType_ID;
+                return m_iType_ID;
             }
             set
             {
-                m_intType_ID = value;
+                m_iType_ID = value;
             }
         }
 
@@ -149,11 +149,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
         {
             get
             {
-                return m_intdeleted;
+                return m_iDeleted;
             }
             set
             {
-                m_intdeleted = value;
+                m_iDeleted = value;
             }
         }
 

@@ -8,7 +8,17 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
 {
     public Task<List<CWarehouseDocument>> List_Documents_Async(bool p_bIs_Receipt, string p_strCurrent_Login = "", long? p_iWarehouse_ID = null)
     {
-        return Task.FromResult(List_From_Procedure<CWarehouseDocument>("sp_XNK_Document_List", p_bIs_Receipt, p_strCurrent_Login, p_iWarehouse_ID));
+        string v_strProcedure;
+        if (p_bIs_Receipt)
+        {
+            v_strProcedure = "F2011_sp_sel_List_Nhap_Kho";
+        }
+        else
+        {
+            v_strProcedure = "F2012_sp_sel_List_Xuat_Kho";
+        }
+
+        return Task.FromResult(List_From_Procedure<CWarehouseDocument>(v_strProcedure, p_strCurrent_Login, p_iWarehouse_ID));
     }
 
     public Task<CWarehousePagedResult<CWarehouseDocument>> List_Documents_Page_Async(bool p_bIs_Receipt, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "", string p_strCurrent_Login = "", long? p_iWarehouse_ID = null)
@@ -30,7 +40,30 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
 
         if (p_objData.Is_Receipt)
         {
-            p_objData.Auto_ID = Scalar_ID("sp_XNK_Nhap_Kho_Save_Header",
+            string? v_strCreatedBy;
+            string? v_strCreatedByFunction;
+            if (v_bIsCreate)
+            {
+                v_strCreatedBy = p_objData.Created_By;
+                v_strCreatedByFunction = p_objData.Created_By_Function;
+            }
+            else
+            {
+                v_strCreatedBy = null;
+                v_strCreatedByFunction = null;
+            }
+
+            string v_strProcedure;
+            if (v_bIsCreate)
+            {
+                v_strProcedure = "F2011_sp_ins_Nhap_Kho_Header";
+            }
+            else
+            {
+                v_strProcedure = "F2011_sp_upd_Nhap_Kho_Header";
+            }
+
+            p_objData.Auto_ID = Scalar_ID(v_strProcedure,
                 InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
                 NVarChar("@So_Phieu_Nhap_Kho", p_objData.So_Phieu, 100),
                 BigInt("@Kho_ID", p_objData.Kho_ID),
@@ -38,22 +71,45 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
                 Date("@Ngay_Nhap_Kho", p_objData.Ngay_Chung_Tu),
                 NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
                 NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
-                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
-                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Created_By", v_strCreatedBy, 100),
+                NVarChar("@Created_By_Function", v_strCreatedByFunction, 100),
                 NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
                 NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
         else
         {
-            p_objData.Auto_ID = Scalar_ID("sp_XNK_Xuat_Kho_Save_Header",
+            string? v_strCreatedBy;
+            string? v_strCreatedByFunction;
+            if (v_bIsCreate)
+            {
+                v_strCreatedBy = p_objData.Created_By;
+                v_strCreatedByFunction = p_objData.Created_By_Function;
+            }
+            else
+            {
+                v_strCreatedBy = null;
+                v_strCreatedByFunction = null;
+            }
+
+            string v_strProcedure;
+            if (v_bIsCreate)
+            {
+                v_strProcedure = "F2012_sp_ins_Xuat_Kho_Header";
+            }
+            else
+            {
+                v_strProcedure = "F2012_sp_upd_Xuat_Kho_Header";
+            }
+
+            p_objData.Auto_ID = Scalar_ID(v_strProcedure,
                 InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
                 NVarChar("@So_Phieu_Xuat_Kho", p_objData.So_Phieu, 100),
                 BigInt("@Kho_ID", p_objData.Kho_ID),
                 Date("@Ngay_Xuat_Kho", p_objData.Ngay_Chung_Tu),
                 NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
                 NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
-                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
-                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Created_By", v_strCreatedBy, 100),
+                NVarChar("@Created_By_Function", v_strCreatedByFunction, 100),
                 NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
                 NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
@@ -64,7 +120,17 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     public Task Delete_Document_Async(bool p_bIs_Receipt, long p_iAuto_ID,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
-        Execute_Procedure(p_bIs_Receipt ? "sp_XNK_Nhap_Kho_Delete_Header" : "sp_XNK_Xuat_Kho_Delete_Header",
+        var v_strProcedure = "";
+        if (p_bIs_Receipt)
+        {
+            v_strProcedure = "F2011_sp_del_Nhap_Kho_Header";
+        }
+        else
+        {
+            v_strProcedure = "F2012_sp_del_Xuat_Kho_Header";
+        }
+
+        Execute_Procedure(v_strProcedure,
             BigInt("@Auto_ID", p_iAuto_ID),
             NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         return Task.CompletedTask;
@@ -84,7 +150,12 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
 
     public Task<List<CWarehouseDocumentDetail>> List_Document_Details_Async(bool p_bIs_Receipt, long p_iDocument_ID, string p_strCurrent_Login = "")
     {
-        return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("sp_XNK_Document_Detail_List", p_bIs_Receipt, p_iDocument_ID, p_strCurrent_Login));
+        if (p_bIs_Receipt)
+        {
+            return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("F2011_sp_sel_List_Nhap_Kho_Detail", p_iDocument_ID, p_strCurrent_Login));
+        }
+
+        return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("F2012_sp_sel_List_Xuat_Kho_Detail", p_iDocument_ID, p_strCurrent_Login));
     }
 
     public Task Save_Document_Detail_Async(bool p_bIs_Receipt, CWarehouseDocumentDetail p_objData,
@@ -101,29 +172,75 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
 
         if (p_bIs_Receipt)
         {
-            p_objData.Auto_ID = Scalar_ID("sp_XNK_Nhap_Kho_Save_Detail",
+            string? v_strCreatedBy;
+            string? v_strCreatedByFunction;
+            if (v_bIsCreate)
+            {
+                v_strCreatedBy = p_objData.Created_By;
+                v_strCreatedByFunction = p_objData.Created_By_Function;
+            }
+            else
+            {
+                v_strCreatedBy = null;
+                v_strCreatedByFunction = null;
+            }
+
+            string v_strProcedure;
+            if (v_bIsCreate)
+            {
+                v_strProcedure = "F2011_sp_ins_Nhap_Kho_Detail";
+            }
+            else
+            {
+                v_strProcedure = "F2011_sp_upd_Nhap_Kho_Detail";
+            }
+
+            p_objData.Auto_ID = Scalar_ID(v_strProcedure,
                 InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
                 BigInt("@Nhap_Kho_ID", p_objData.Document_ID),
                 BigInt("@San_Pham_ID", p_objData.San_Pham_ID),
                 Decimal("@SL_Nhap", p_objData.So_Luong, 18, 3),
                 Decimal("@Don_Gia_Nhap", p_objData.Don_Gia, 18, 2),
                 NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
-                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
-                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Created_By", v_strCreatedBy, 100),
+                NVarChar("@Created_By_Function", v_strCreatedByFunction, 100),
                 NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
                 NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
         else
         {
-            p_objData.Auto_ID = Scalar_ID("sp_XNK_Xuat_Kho_Save_Detail",
+            string? v_strCreatedBy;
+            string? v_strCreatedByFunction;
+            if (v_bIsCreate)
+            {
+                v_strCreatedBy = p_objData.Created_By;
+                v_strCreatedByFunction = p_objData.Created_By_Function;
+            }
+            else
+            {
+                v_strCreatedBy = null;
+                v_strCreatedByFunction = null;
+            }
+
+            string v_strProcedure;
+            if (v_bIsCreate)
+            {
+                v_strProcedure = "F2012_sp_ins_Xuat_Kho_Detail";
+            }
+            else
+            {
+                v_strProcedure = "F2012_sp_upd_Xuat_Kho_Detail";
+            }
+
+            p_objData.Auto_ID = Scalar_ID(v_strProcedure,
                 InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
                 BigInt("@Xuat_Kho_ID", p_objData.Document_ID),
                 BigInt("@San_Pham_ID", p_objData.San_Pham_ID),
                 Decimal("@SL_Xuat", p_objData.So_Luong, 18, 3),
                 Decimal("@Don_Gia_Xuat", p_objData.Don_Gia, 18, 2),
                 NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100),
-                NVarChar("@Created_By", v_bIsCreate ? p_objData.Created_By : null, 100),
-                NVarChar("@Created_By_Function", v_bIsCreate ? p_objData.Created_By_Function : null, 100),
+                NVarChar("@Created_By", v_strCreatedBy, 100),
+                NVarChar("@Created_By_Function", v_strCreatedByFunction, 100),
                 NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
                 NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
         }
@@ -134,33 +251,68 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     public Task Delete_Document_Detail_Async(bool p_bIs_Receipt, long p_iAuto_ID,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
-        Execute_Procedure(p_bIs_Receipt ? "sp_XNK_Nhap_Kho_Delete_Detail" : "sp_XNK_Xuat_Kho_Delete_Detail",
+        var v_strProcedure = "";
+        if (p_bIs_Receipt)
+        {
+            v_strProcedure = "F2011_sp_del_Nhap_Kho_Detail";
+        }
+        else
+        {
+            v_strProcedure = "F2012_sp_del_Xuat_Kho_Detail";
+        }
+
+        Execute_Procedure(v_strProcedure,
             BigInt("@Auto_ID", p_iAuto_ID),
             NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
         return Task.CompletedTask;
     }
 
-    private static SqlParameter BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt) { Value = p_iValue };
-
-    private static SqlParameter Bit(string p_strName, bool p_bValue) => new(p_strName, SqlDbType.Bit) { Value = p_bValue };
-
-    private static SqlParameter InputOutput_BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt)
+    private static SqlParameter BigInt(string p_strName, long p_iValue)
     {
-        Direction = ParameterDirection.InputOutput,
-        Value = p_iValue
-    };
+        return new SqlParameter(p_strName, SqlDbType.BigInt) { Value = p_iValue };
+    }
 
-    private static SqlParameter Date(string p_strName, DateTime p_dtmValue) => new(p_strName, SqlDbType.Date) { Value = p_dtmValue.Date };
-
-    private static SqlParameter Decimal(string p_strName, decimal p_decValue, byte p_bPrecision, byte p_bScale) => new(p_strName, SqlDbType.Decimal)
+    private static SqlParameter Bit(string p_strName, bool p_bValue)
     {
-        Precision = p_bPrecision,
-        Scale = p_bScale,
-        Value = p_decValue
-    };
+        return new SqlParameter(p_strName, SqlDbType.Bit) { Value = p_bValue };
+    }
 
-    private static SqlParameter NVarChar(string p_strName, string? p_strValue, int p_iSize) => new(p_strName, SqlDbType.NVarChar, p_iSize)
+    private static SqlParameter InputOutput_BigInt(string p_strName, long p_iValue)
     {
-        Value = string.IsNullOrEmpty(p_strValue) ? DBNull.Value : p_strValue
-    };
+        return new SqlParameter(p_strName, SqlDbType.BigInt)
+        {
+            Direction = ParameterDirection.InputOutput,
+            Value = p_iValue
+        };
+    }
+
+    private static SqlParameter Date(string p_strName, DateTime p_dtmValue)
+    {
+        return new SqlParameter(p_strName, SqlDbType.Date) { Value = p_dtmValue.Date };
+    }
+
+    private static SqlParameter Decimal(string p_strName, decimal p_decValue, byte p_bPrecision, byte p_bScale)
+    {
+        return new SqlParameter(p_strName, SqlDbType.Decimal)
+        {
+            Precision = p_bPrecision,
+            Scale = p_bScale,
+            Value = p_decValue
+        };
+    }
+
+    private static SqlParameter NVarChar(string p_strName, string? p_strValue, int p_iSize)
+    {
+        SqlParameter v_objParameter = new SqlParameter(p_strName, SqlDbType.NVarChar, p_iSize);
+        if (string.IsNullOrEmpty(p_strValue))
+        {
+            v_objParameter.Value = DBNull.Value;
+        }
+        else
+        {
+            v_objParameter.Value = p_strValue;
+        }
+
+        return v_objParameter;
+    }
 }

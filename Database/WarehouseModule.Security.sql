@@ -23,17 +23,23 @@ GO
 
 /* Approved Warehouse entry points.  Stored procedures and their dbo-owned
    nested calls use ownership chaining; the role receives no direct table DML. */
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Nhap_Kho_Save_Header TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Nhap_Kho_Save_Detail TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Nhap_Kho_Delete_Header TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Nhap_Kho_Delete_Detail TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Xuat_Kho_Save_Header TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Xuat_Kho_Save_Detail TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Xuat_Kho_Delete_Header TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Xuat_Kho_Delete_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_ins_Nhap_Kho_Header TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_upd_Nhap_Kho_Header TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_ins_Nhap_Kho_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_upd_Nhap_Kho_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_del_Nhap_Kho_Header TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_del_Nhap_Kho_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_ins_Xuat_Kho_Header TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_upd_Xuat_Kho_Header TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_ins_Xuat_Kho_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_upd_Xuat_Kho_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_del_Xuat_Kho_Header TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_del_Xuat_Kho_Detail TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Document_Post TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Document_List TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Document_Detail_List TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_sel_List_Nhap_Kho TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_sel_List_Xuat_Kho TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2011_sp_sel_List_Nhap_Kho_Detail TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2012_sp_sel_List_Xuat_Kho_Detail TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Document_Page TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_BC_Chi_Tiet_Nhap TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_BC_Chi_Tiet_Xuat TO [Warehouse_Application];
@@ -43,5 +49,5 @@ GRANT EXECUTE ON OBJECT::dbo.sp_BC_Xuat_Nhap_Ton TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_BC_Xuat_Nhap_Ton_Page TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_BC_Ton_Kho_Hien_Tai_Page TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_DM_Kho_User_List_Allowed TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_DM_Kho_User_Delete TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F2015_sp_del_Kho_User TO [Warehouse_Application];
 GO

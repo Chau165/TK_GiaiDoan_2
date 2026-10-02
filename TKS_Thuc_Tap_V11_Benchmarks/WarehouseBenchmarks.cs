@@ -13,7 +13,16 @@ public class WarehouseSyntheticBenchmarks
     [ParamsSource(nameof(RecordCounts))]
     public int RecordCount { get; set; }
 
-    public IEnumerable<int> RecordCounts => new[] { BenchmarkSettings.FromEnvironment().RecordCount };
+    public IEnumerable<int> RecordCounts
+    {
+        get
+        {
+            return new[]
+            {
+                BenchmarkSettings.FromEnvironment().RecordCount
+            };
+        }
+    }
 
     [GlobalSetup]
     public void Setup()
@@ -45,13 +54,23 @@ public class WarehouseSyntheticBenchmarks
         foreach (DataRow v_row in p_table.Rows)
         {
             var v_item = CUtility.Map_Row_To_Entity<CWarehouseMaster>(v_row);
-            v_count += v_item.Auto_ID > 0 ? 1 : 0;
+            int v_iCountIncrement;
+            if (v_item.Auto_ID > 0)
+            {
+                v_iCountIncrement = 1;
+            }
+            else
+            {
+                v_iCountIncrement = 0;
+            }
+
+            v_count += v_iCountIncrement;
         }
 
         return v_count;
     }
 
-    private static DataTable CreateSyntheticTable(int p_recordCount)
+    private static DataTable CreateSyntheticTable(int p_iRecordCount)
     {
         var v_table = new DataTable();
         v_table.Columns.Add("Auto_ID", typeof(long));
@@ -62,7 +81,7 @@ public class WarehouseSyntheticBenchmarks
         v_table.Columns.Add("Login_Name", typeof(string));
         v_table.Columns.Add("Ghi_Chu", typeof(string));
 
-        for (var v_index = 1; v_index <= p_recordCount; v_index++)
+        for (var v_index = 1; v_index <= p_iRecordCount; v_index++)
         {
             v_table.Rows.Add(
                 (long)v_index,
@@ -93,19 +112,34 @@ public class WarehouseDatabaseBenchmarks
     }
 
     [Benchmark(Baseline = true)]
-    public Task<int> MasterPaged() => m_operations.MasterPagedAsync();
+    public Task<int> MasterPaged()
+    {
+        return m_operations.MasterPagedAsync();
+    }
 
     [Benchmark]
-    public Task<int> LookupPaged() => m_operations.LookupPagedAsync();
+    public Task<int> LookupPaged()
+    {
+        return m_operations.LookupPagedAsync();
+    }
 
     [Benchmark]
-    public Task<int> DocumentPaged() => m_operations.DocumentPagedAsync();
+    public Task<int> DocumentPaged()
+    {
+        return m_operations.DocumentPagedAsync();
+    }
 
     [Benchmark]
-    public Task<int> DetailReportPaged() => m_operations.DetailReportPagedAsync();
+    public Task<int> DetailReportPaged()
+    {
+        return m_operations.DetailReportPagedAsync();
+    }
 
     [Benchmark]
-    public Task<int> InventoryHistoricalReportPaged() => m_operations.InventoryHistoricalReportPagedAsync();
+    public Task<int> InventoryHistoricalReportPaged()
+    {
+        return m_operations.InventoryHistoricalReportPagedAsync();
+    }
 
     private static async Task ValidateDatabaseAsync(string p_connectionString)
     {
@@ -132,7 +166,10 @@ public class WarehouseCurrentBalanceBenchmarks
     }
 
     [Benchmark]
-    public Task<int> InventoryCurrentBalancePaged() => m_operations.InventoryCurrentBalancePagedAsync();
+    public Task<int> InventoryCurrentBalancePaged()
+    {
+        return m_operations.InventoryCurrentBalancePagedAsync();
+    }
 
     private static async Task ValidateDatabaseAsync(string p_connectionString)
     {

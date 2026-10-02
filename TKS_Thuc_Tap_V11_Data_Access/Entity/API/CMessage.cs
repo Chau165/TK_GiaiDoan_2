@@ -9,7 +9,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
 {
 	public class CMessage
 	{
-		private int m_intMessage_Code;  // 
+		private int m_iMessage_Code;  // 
 		private string m_strMessage_Desc;  // 
 		private string m_strFragment_Code;
 		public CMessage()
@@ -21,7 +21,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
 		/// </summary>
 		public void ResetData()
 		{
-			m_intMessage_Code = CConst.INT_VALUE_NULL;
+			m_iMessage_Code = CConst.INT_VALUE_NULL;
 			m_strMessage_Desc = CConst.STR_VALUE_NULL;
 			m_strFragment_Code = CConst.STR_VALUE_NULL;
 		}
@@ -31,10 +31,10 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
 		/// </summary>
 		public int Message_Code
 		{
-			get { return m_intMessage_Code; }
+			get { return m_iMessage_Code; }
 			set
 			{
-				m_intMessage_Code = value;
+				m_iMessage_Code = value;
 			}
 		}
 

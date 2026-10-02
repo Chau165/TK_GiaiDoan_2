@@ -42,46 +42,54 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
         public static void Write_To_File(string p_strMode, string p_strObjectName, string p_strFunctionName,
             string p_strContent)
         {
-            string strFileExtend = "";
-            TextWriter tw = null;
-            CLog data = new CLog();
+            string v_strFileExtend = "";
+            TextWriter v_tw = null;
+            CLog v_objData = new CLog();
 
             // Get File Name
-            strFileExtend = Update_File_Name(File_Name);
+            v_strFileExtend = Update_File_Name(File_Name);
 
-            if (!File.Exists(strFileExtend))
+            if (!File.Exists(v_strFileExtend))
             {
-                string strDir = strFileExtend.LastIndexOf("\\") >= 0 ? strFileExtend.Substring(0, strFileExtend.LastIndexOf("\\")) : Path.GetDirectoryName(strFileExtend);
-                if (!string.IsNullOrEmpty(strDir)) Directory.CreateDirectory(strDir);
+                string? v_strDir;
+                if (v_strFileExtend.LastIndexOf("\\") >= 0)
+                {
+                    v_strDir = v_strFileExtend.Substring(0, v_strFileExtend.LastIndexOf("\\"));
+                }
+                else
+                {
+                    v_strDir = Path.GetDirectoryName(v_strFileExtend);
+                }
+                if (!string.IsNullOrEmpty(v_strDir)) Directory.CreateDirectory(v_strDir);
             } // End if
 
             try
             {
-                tw = new StreamWriter(strFileExtend, File.Exists(strFileExtend));
+                v_tw = new StreamWriter(v_strFileExtend, File.Exists(v_strFileExtend));
 
                 // Asign value to log object
-                data.Content = p_strContent;
-                data.Date = DateTime.Now.ToString("dd/MM/yyyy");
-                data.FunctionName = p_strFunctionName;
-                data.Mode = p_strMode;
-                data.ObjectName = p_strObjectName;
-                data.Time = DateTime.Now.ToString("hh:mm:ss");
-                data.User = User;
+                v_objData.Content = p_strContent;
+                v_objData.Date = DateTime.Now.ToString("dd/MM/yyyy");
+                v_objData.FunctionName = p_strFunctionName;
+                v_objData.Mode = p_strMode;
+                v_objData.ObjectName = p_strObjectName;
+                v_objData.Time = DateTime.Now.ToString("hh:mm:ss");
+                v_objData.User = User;
 
                 // write data to log
                 if (File_Type == EFileType.Text)
-                    data.WriteTextFile(tw);
+                    v_objData.WriteTextFile(v_tw);
 
                 if (File_Type == EFileType.XML)
-                    data.WriteXmlFile(tw);
+                    v_objData.WriteXmlFile(v_tw);
             }
             catch (Exception)
             {
             }
             finally
             {
-                if (tw != null)
-                    tw.Close();
+                if (v_tw != null)
+                    v_tw.Close();
             }
         }
 

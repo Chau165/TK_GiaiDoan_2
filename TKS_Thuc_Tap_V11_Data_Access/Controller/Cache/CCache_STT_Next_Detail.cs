@@ -11,15 +11,15 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 {
     public class CCache_STT_Next_Detail
     {
-        private static List<CSys_STT_Next_Detail> Arr_Data = new();
-        private static Dictionary<string, CSys_STT_Next_Detail> Dic_Data_Code = new();
-        private static Dictionary<long, CSys_STT_Next_Detail> Dic_Data_ID = new();
+        private static List<CSys_STT_Next_Detail> g_arrData = new();
+        private static Dictionary<string, CSys_STT_Next_Detail> g_dicData_Code = new();
+        private static Dictionary<long, CSys_STT_Next_Detail> g_dicData_ID = new();
 
         public static void Load_Cache_STT_Next_Detail()
         {
-            Arr_Data.Clear();
-            Dic_Data_ID.Clear();
-            Dic_Data_Code.Clear();
+            g_arrData.Clear();
+            g_dicData_ID.Clear();
+            g_dicData_Code.Clear();
 
             CSys_STT_Next_Detail_Controller v_objCtrData = new();
             List<CSys_STT_Next_Detail> v_arrTemp_Data = v_objCtrData.FQ_530_SND_sp_sel_List_For_Cache();
@@ -30,21 +30,21 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static void Add_Data(CSys_STT_Next_Detail p_objData)
         {
-            if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
                 return;
 
-            Dic_Data_ID.Add(p_objData.Auto_ID, p_objData);
-            Arr_Data.Add(p_objData);
+            g_dicData_ID.Add(p_objData.Auto_ID, p_objData);
+            g_arrData.Add(p_objData);
 
 			string v_strMa_Key = CUtility.Tao_Key(p_objData.STT_ID, p_objData.Quy_Tac_Phieu, p_objData.Type_ID);
 
-			if (Dic_Data_Code.ContainsKey(v_strMa_Key) == false)
-                Dic_Data_Code.Add(v_strMa_Key, p_objData);
+			if (g_dicData_Code.ContainsKey(v_strMa_Key) == false)
+                g_dicData_Code.Add(v_strMa_Key, p_objData);
         }
 
         public static void Update_Data(CSys_STT_Next_Detail p_objData)
         {
-            if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
                 return;
 
             Delete_Data(p_objData.Auto_ID);
@@ -53,16 +53,16 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static void Delete_Data(long p_iAuto_ID)
         {
-            if (Dic_Data_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
                 return;
 
-            CSys_STT_Next_Detail v_objData = Dic_Data_ID[p_iAuto_ID];
+            CSys_STT_Next_Detail v_objData = g_dicData_ID[p_iAuto_ID];
 
-            Arr_Data.Remove(v_objData);
-            Dic_Data_ID.Remove(p_iAuto_ID);
+            g_arrData.Remove(v_objData);
+            g_dicData_ID.Remove(p_iAuto_ID);
 
             string v_strMa_Key = CUtility.Tao_Key(v_objData.STT_ID, v_objData.Quy_Tac_Phieu, v_objData.Type_ID);
-            Dic_Data_Code.Remove(v_strMa_Key);
+            g_dicData_Code.Remove(v_strMa_Key);
 
             //string v_strMa_Key_Chu_Hang = CUtility.Tao_Key(v_objData.Chu_Hang_ID, v_objData.Type_ID, CUtility.Get_Date_Text(v_objData.Ngay_Giao_Dich));
 
@@ -74,8 +74,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static CSys_STT_Next_Detail Get_Data_By_ID(long p_iID)
         {
-            if (Dic_Data_ID.ContainsKey(p_iID) == true)
-                return Dic_Data_ID[p_iID];
+            if (g_dicData_ID.ContainsKey(p_iID) == true)
+                return g_dicData_ID[p_iID];
 
             return null;
         }
@@ -83,8 +83,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
         public static CSys_STT_Next_Detail Get_Data_By_Code(long p_iSTT_ID, string p_strQuy_Tac_Phieu, int p_iType_ID)
         {
             string v_strMa_Key = CUtility.Tao_Key(p_iSTT_ID, p_strQuy_Tac_Phieu, p_iType_ID);
-            if (Dic_Data_Code.ContainsKey(v_strMa_Key) == true)
-                return Dic_Data_Code[v_strMa_Key];
+            if (g_dicData_Code.ContainsKey(v_strMa_Key) == true)
+                return g_dicData_Code[v_strMa_Key];
 
             return null;
         }
@@ -109,7 +109,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
 		public static List<CSys_STT_Next_Detail> List_Data()
         {
-            return Arr_Data.ToList();
+            return g_arrData.ToList();
         }
     }
 }

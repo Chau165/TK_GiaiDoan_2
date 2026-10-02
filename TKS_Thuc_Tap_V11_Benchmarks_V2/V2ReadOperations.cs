@@ -14,16 +14,32 @@ public sealed class V2ReadOperations
 
     public Task<int> ExecuteAsync(string p_scenario)
     {
-        return p_scenario switch
+        Task<int> v_ResultTask;
+        switch (p_scenario)
         {
-            "MasterPaged" => MasterPagedAsync(),
-            "LookupPaged" => LookupPagedAsync(),
-            "DocumentPaged" => DocumentPagedAsync(),
-            "DetailReportPaged" => DetailReportPagedAsync(),
-            "InventoryHistoricalReportPaged" => InventoryHistoricalReportPagedAsync(),
-            "InventoryCurrentBalancePaged" => InventoryCurrentBalancePagedAsync(),
-            _ => throw new ArgumentException($"Unknown V2 scenario: {p_scenario}", nameof(p_scenario))
-        };
+            case "MasterPaged":
+                v_ResultTask = MasterPagedAsync();
+                break;
+            case "LookupPaged":
+                v_ResultTask = LookupPagedAsync();
+                break;
+            case "DocumentPaged":
+                v_ResultTask = DocumentPagedAsync();
+                break;
+            case "DetailReportPaged":
+                v_ResultTask = DetailReportPagedAsync();
+                break;
+            case "InventoryHistoricalReportPaged":
+                v_ResultTask = InventoryHistoricalReportPagedAsync();
+                break;
+            case "InventoryCurrentBalancePaged":
+                v_ResultTask = InventoryCurrentBalancePagedAsync();
+                break;
+            default:
+                throw new ArgumentException($"Unknown V2 scenario: {p_scenario}", nameof(p_scenario));
+        }
+
+        return v_ResultTask;
     }
 
     private async Task<int> MasterPagedAsync()
@@ -71,7 +87,7 @@ public sealed class V2ReadOperations
         return InventoryReportPagedAsync(true);
     }
 
-    private async Task<int> InventoryReportPagedAsync(bool p_readCurrentBalance)
+    private async Task<int> InventoryReportPagedAsync(bool p_bReadCurrentBalance)
     {
         return (await new CWarehouseReport_Controller()
             .Inventory_Report_Page_Async(
@@ -80,6 +96,6 @@ public sealed class V2ReadOperations
                 V2Constants.PageNumber,
                 m_settings.PageSize,
                 m_settings.LoginName,
-                p_bRead_Current_Balance: p_readCurrentBalance)).Items.Count;
+                p_bRead_Current_Balance: p_bReadCurrentBalance)).Items.Count;
     }
 }

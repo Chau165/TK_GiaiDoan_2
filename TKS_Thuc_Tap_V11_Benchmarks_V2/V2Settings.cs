@@ -24,7 +24,7 @@ public static class V2Constants
     public const int CooldownMaximumSeconds = 60;
     public const int TelemetryIntervalMilliseconds = 1000;
 
-    public static readonly IReadOnlyList<string> Scenarios = new[]
+    public static readonly IReadOnlyList<string> m_arrScenarios = new[]
     {
         "MasterPaged",
         "LookupPaged",
@@ -34,7 +34,7 @@ public static class V2Constants
         "InventoryCurrentBalancePaged"
     };
 
-    public static readonly IReadOnlyDictionary<string, long> DatasetExpectedRows =
+    public static readonly IReadOnlyDictionary<string, long> m_dicDatasetExpectedRows =
         new Dictionary<string, long>(StringComparer.Ordinal)
         {
             ["tbl_XNK_Nhap_Kho"] = 500_000,
@@ -51,11 +51,14 @@ public static class V2Constants
 
     public static string CanonicalizeScenario(string p_name)
     {
-        return p_name switch
+        switch (p_name)
         {
-            "InventoryReportPaged" => "InventoryHistoricalReportPaged",
-            _ => p_name
-        };
+            case "InventoryReportPaged":
+                return "InventoryHistoricalReportPaged";
+
+            default:
+                return p_name;
+        }
     }
 }
 
@@ -73,14 +76,31 @@ public sealed record V2Settings
     public string Scenario { get; init; } = "";
     public string OutputDirectory { get; init; } = "";
 
-    public bool DatabaseConfigured => !string.IsNullOrWhiteSpace(ConnectionString);
+    public bool DatabaseConfigured
+    {
+        get
+        {
+            return !string.IsNullOrWhiteSpace(ConnectionString);
+        }
+    }
 
     public static V2Settings FromEnvironment()
     {
+        var v_login = ReadString("TKS_V2_LOGIN");
+        string v_LoginName;
+        if (v_login is { Length: > 0 })
+        {
+            v_LoginName = v_login;
+        }
+        else
+        {
+            v_LoginName = "PERF_USER";
+        }
+
         return new V2Settings
         {
             ConnectionString = ReadString("TKS_V2_CONNECTION_STRING"),
-            LoginName = ReadString("TKS_V2_LOGIN") is { Length: > 0 } v_login ? v_login : "PERF_USER",
+            LoginName = v_LoginName,
             PageSize = ReadInt("TKS_V2_PAGE_SIZE", V2Constants.PageSize, 1, 10_000),
             ReportFromDate = ReadDate("TKS_V2_FROM_DATE", new DateTime(2025, 1, 1)),
             ReportToDate = ReadDate("TKS_V2_TO_DATE", new DateTime(2026, 12, 31)),
@@ -106,7 +126,7 @@ public sealed record V2Settings
     public V2Settings WithScenario(string p_scenario)
     {
         var v_canonical = V2Constants.CanonicalizeScenario(p_scenario);
-        if (!V2Constants.Scenarios.Contains(v_canonical, StringComparer.Ordinal))
+        if (!V2Constants.m_arrScenarios.Contains(v_canonical, StringComparer.Ordinal))
             throw new ArgumentException($"Unknown V2 scenario: {p_scenario}", nameof(p_scenario));
         return this with { Scenario = v_canonical };
     }
@@ -116,22 +136,28 @@ public sealed record V2Settings
         return Environment.GetEnvironmentVariable(p_name) ?? "";
     }
 
-    private static int ReadInt(string p_name, int p_default, int p_min, int p_max)
+    private static int ReadInt(string p_name, int p_iDefault, int p_iMin, int p_iMax)
     {
-        return int.TryParse(ReadString(p_name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v_value)
-            ? Math.Clamp(v_value, p_min, p_max)
-            : p_default;
+        if (int.TryParse(ReadString(p_name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v_value))
+        {
+            return Math.Clamp(v_value, p_iMin, p_iMax);
+        }
+
+        return p_iDefault;
     }
 
-    private static DateTime ReadDate(string p_name, DateTime p_default)
+    private static DateTime ReadDate(string p_name, DateTime p_dtmDefault)
     {
-        return DateTime.TryParseExact(
+        if (DateTime.TryParseExact(
             ReadString(p_name),
             "yyyy-MM-dd",
             CultureInfo.InvariantCulture,
             DateTimeStyles.None,
-            out var v_value)
-            ? v_value
-            : p_default;
+            out var v_value))
+        {
+            return v_value;
+        }
+
+        return p_dtmDefault;
     }
 }

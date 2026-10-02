@@ -11,7 +11,7 @@ namespace TKS_Thuc_Tap_V11_Benchmarks_V2;
 
 public static class V2BenchmarkDotNet
 {
-    public static int Run(V2Settings p_settings, string[] p_benchmarkArguments)
+    public static int Run(V2Settings p_settings, string[] p_arrBenchmarkArguments)
     {
         if (string.IsNullOrWhiteSpace(p_settings.Scenario))
             throw new InvalidOperationException("A single --scenario is required for BDN mode.");
@@ -19,7 +19,7 @@ public static class V2BenchmarkDotNet
         p_settings.ConfigureDataAccess();
         BenchmarkRunner.Run<V2DatabaseBenchmark>(
             new V2LowMemoryConfig(),
-            p_benchmarkArguments);
+            p_arrBenchmarkArguments);
         return 0;
     }
 }

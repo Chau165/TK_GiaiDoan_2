@@ -10,21 +10,21 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 {
 	public class CUtility_Queue_DB
 	{
-		private static Dictionary<long, CQueue> Dic_Queue = new Dictionary<long, CQueue>();
+		private static Dictionary<long, CQueue> g_dicQueue = new Dictionary<long, CQueue>();
 		public static List<CQueue> Arr_Queue = new List<CQueue>();
-		private static long Current_Queued = 1;
+		private static long g_Current_Queued = 1;
 
-		private static bool v_bIs_Current_Used = false;
+		private static bool g_bIs_Current_Used = false;
 
 		public static long Add_Queue(string p_strMa_Chuc_Nang, string p_strTen_Chuc_Nang, string p_strFunction_Name)
 		{
-			while (v_bIs_Current_Used == true)
+			while (g_bIs_Current_Used == true)
 			{ }
 
-			v_bIs_Current_Used = true;
+			g_bIs_Current_Used = true;
 
-            long v_iRes = Current_Queued;
-			Current_Queued++;
+            long v_iRes = g_Current_Queued;
+			g_Current_Queued++;
 			
 			try
 			{
@@ -37,18 +37,18 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 					Ten_Function = p_strFunction_Name
 				};
 
-				if (Dic_Queue.ContainsKey(v_iRes) == false)
+				if (g_dicQueue.ContainsKey(v_iRes) == false)
 				{
-					Dic_Queue.Add(v_iRes, v_objQueue);
+					g_dicQueue.Add(v_iRes, v_objQueue);
 					Arr_Queue.Add(v_objQueue);
 				}
 			}
-			catch (Exception ex)
+			catch (Exception v_Ex)
 			{
-				CLogger.Error("Queue_DB", "Add_Queue", "[" + p_strFunction_Name + "], Current Queued [" + v_iRes.ToString() + "]:" + ex.Message);
+				CLogger.Error("Queue_DB", "Add_Queue", "[" + p_strFunction_Name + "], Current Queued [" + v_iRes.ToString() + "]:" + v_Ex.Message);
 			}
 
-            v_bIs_Current_Used = false;
+            g_bIs_Current_Used = false;
 
             return v_iRes;
 
@@ -56,30 +56,30 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 
 		public static void Remove_Queue(long p_iQueue_ID)
 		{
-            while (v_bIs_Current_Used == true)
+            while (g_bIs_Current_Used == true)
             { }
 
-            v_bIs_Current_Used = true;
+            g_bIs_Current_Used = true;
 
             try
 			{
-				if (Dic_Queue.ContainsKey(p_iQueue_ID) == false)
+				if (g_dicQueue.ContainsKey(p_iQueue_ID) == false)
 				{
-                    v_bIs_Current_Used = false;
+                    g_bIs_Current_Used = false;
                     return;
 				}
 
-				CQueue v_objQueue = Dic_Queue[p_iQueue_ID];
+				CQueue v_objQueue = g_dicQueue[p_iQueue_ID];
 				Arr_Queue.Remove(v_objQueue);
-				Dic_Queue.Remove(p_iQueue_ID);
+				g_dicQueue.Remove(p_iQueue_ID);
 			}
 
-			catch (Exception ex)
+			catch (Exception v_Ex)
 			{
-				CLogger.Error("Queue_DB", "Remove_Queue", "[" + p_iQueue_ID.ToString() + "]:" + ex.Message);
+				CLogger.Error("Queue_DB", "Remove_Queue", "[" + p_iQueue_ID.ToString() + "]:" + v_Ex.Message);
 			}
 
-            v_bIs_Current_Used = false;
+            g_bIs_Current_Used = false;
 
         }
 	}

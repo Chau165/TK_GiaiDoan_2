@@ -8,7 +8,13 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class MasterDataDeleteIntegrationTests
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     [Fact]
     public async Task Master_data_delete_accepts_the_four_values_passed_by_the_controller()
@@ -36,8 +42,20 @@ public sealed class MasterDataDeleteIntegrationTests
         }
     }
 
-    private static SqlParameter BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt) { Value = p_iValue };
-    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize) => new(p_strName, SqlDbType.NVarChar, p_iSize) { Value = p_strValue };
+    private static SqlParameter BigInt(string p_strName, long p_iValue)
+    {
+        return new(p_strName, SqlDbType.BigInt)
+        {
+            Value = p_iValue
+        };
+    }
+    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize)
+    {
+        return new(p_strName, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_strValue
+        };
+    }
 
     private static async Task<long> InsertIdAsync(string p_strSql, params SqlParameter[] p_arrParameters)
     {

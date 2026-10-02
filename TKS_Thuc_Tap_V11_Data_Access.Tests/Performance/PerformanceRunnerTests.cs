@@ -7,25 +7,25 @@ public sealed class PerformanceRunnerTests
     [Fact]
     public void Runner_supports_an_explicit_database_storage_directory()
     {
-        var runner = File.ReadAllText(FindRepositoryPath(
+        var v_Runner = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access.Tests",
             "Performance",
             "Run-WarehousePerformance.ps1"));
 
-        Assert.Contains("[string]$DatabaseDirectory", runner, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("FILENAME", runner, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("CREATE DATABASE [$databaseName] ON PRIMARY", runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[string]$DatabaseDirectory", v_Runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("FILENAME", v_Runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CREATE DATABASE [$databaseName] ON PRIMARY", v_Runner, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FindRepositoryPath(params string[] parts)
+    private static string FindRepositoryPath(params string[] p_arrParts)
     {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        for (var v_Directory = new DirectoryInfo(AppContext.BaseDirectory); v_Directory is not null; v_Directory = v_Directory.Parent)
         {
-            var candidate = Path.Combine(new[] { directory.FullName }.Concat(parts).ToArray());
-            if (File.Exists(candidate))
-                return candidate;
+            var v_Candidate = Path.Combine(new[] { v_Directory.FullName }.Concat(p_arrParts).ToArray());
+            if (File.Exists(v_Candidate))
+                return v_Candidate;
         }
 
-        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(parts)}");
+        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(p_arrParts)}");
     }
 }

@@ -14,9 +14,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         private string m_strTitle;
         private string m_strType_Name;
         private string m_strWidth_Col;
-        private int m_intPos_Index;
+        private int m_iPos_Index;
         private PropertyInfo m_objProps_Info;
-        private int m_intSL_Col_Band;
+        private int m_iSL_Col_Band;
 
         public CCol_Grid_Property()
         {
@@ -29,8 +29,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
             m_strTitle = CConst.STR_VALUE_NULL;
             m_strType_Name =    CConst.STR_VALUE_NULL;
             m_strWidth_Col = CConst.STR_VALUE_NULL;
-            m_intPos_Index = CConst.INT_VALUE_NULL;
-            m_intSL_Col_Band = CConst.INT_VALUE_NULL;
+            m_iPos_Index = CConst.INT_VALUE_NULL;
+            m_iSL_Col_Band = CConst.INT_VALUE_NULL;
             m_objProps_Info = null;
         }
 
@@ -86,11 +86,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         {
             get
             {
-                return m_intPos_Index;
+                return m_iPos_Index;
             }
             set
             {
-                m_intPos_Index = value;
+                m_iPos_Index = value;
             }
         }
 
@@ -110,11 +110,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         {
             get
             {
-                return m_intSL_Col_Band;
+                return m_iSL_Col_Band;
             }
             set
             {
-                m_intSL_Col_Band = value;
+                m_iSL_Col_Band = value;
             }
         }
     }

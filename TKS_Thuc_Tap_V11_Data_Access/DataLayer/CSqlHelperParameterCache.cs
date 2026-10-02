@@ -21,7 +21,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
         private CSqlHelperParameterCache() { }
 
-        private static Hashtable paramCache = Hashtable.Synchronized(new Hashtable());
+        private static Hashtable g_dicParamCache = Hashtable.Synchronized(new Hashtable());
 
         //*********************************************************************
         //
@@ -33,27 +33,27 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
         //
         //*********************************************************************
 
-        private static SqlParameter[] DiscoverSpParameterSet(string connectionString, string spName, bool includeReturnValueParameter)
+        private static SqlParameter[] DiscoverSpParameterSet(string p_connectionString, string p_spName, bool p_bIncludeReturnValueParameter)
         {
-            SqlConnection cn = new SqlConnection(connectionString);
-            SqlCommand cmd = new SqlCommand(spName, cn);
-            SqlParameter[] discoveredParameters;
+            SqlConnection v_cn = new SqlConnection(p_connectionString);
+            SqlCommand v_cmd = new SqlCommand(p_spName, v_cn);
+            SqlParameter[] v_arrDiscoveredParameters;
 
             try
             {
-                cn.Open();
-                cmd.CommandType = CommandType.StoredProcedure;
+                v_cn.Open();
+                v_cmd.CommandType = CommandType.StoredProcedure;
 
-                SqlCommandBuilder.DeriveParameters(cmd);
+                SqlCommandBuilder.DeriveParameters(v_cmd);
 
-                if (!includeReturnValueParameter)
+                if (!p_bIncludeReturnValueParameter)
                 {
-                    cmd.Parameters.RemoveAt(0);
+                    v_cmd.Parameters.RemoveAt(0);
                 }
 
-                discoveredParameters = new SqlParameter[cmd.Parameters.Count]; ;
+                v_arrDiscoveredParameters = new SqlParameter[v_cmd.Parameters.Count]; ;
 
-                cmd.Parameters.CopyTo(discoveredParameters, 0);
+                v_cmd.Parameters.CopyTo(v_arrDiscoveredParameters, 0);
             }
 
             catch (Exception)
@@ -63,24 +63,24 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                cn.Close();
-                cmd.Dispose();
+                v_cn.Close();
+                v_cmd.Dispose();
             }
 
-            return discoveredParameters;
+            return v_arrDiscoveredParameters;
         }
 
-        private static SqlParameter[] CloneParameters(SqlParameter[] originalParameters)
+        private static SqlParameter[] CloneParameters(SqlParameter[] p_arrOriginalParameters)
         {
             //deep copy of cached SqlParameter array
-            SqlParameter[] clonedParameters = new SqlParameter[originalParameters.Length];
+            SqlParameter[] v_arrClonedParameters = new SqlParameter[p_arrOriginalParameters.Length];
 
-            for (int i = 0, j = originalParameters.Length; i < j; i++)
+            for (int v_iIndex = 0, v_iCount = p_arrOriginalParameters.Length; v_iIndex < v_iCount; v_iIndex++)
             {
-                clonedParameters[i] = (SqlParameter)((ICloneable)originalParameters[i]).Clone();
+                v_arrClonedParameters[v_iIndex] = (SqlParameter)((ICloneable)p_arrOriginalParameters[v_iIndex]).Clone();
             }
 
-            return clonedParameters;
+            return v_arrClonedParameters;
         }
 
         //*********************************************************************
@@ -95,9 +95,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
         public static void CacheParameterSet(string connectionString, string commandText, params SqlParameter[] commandParameters)
         {
-            string hashKey = connectionString + ":" + commandText;
+            string v_hashKey = connectionString + ":" + commandText;
 
-            paramCache[hashKey] = commandParameters;
+            g_dicParamCache[v_hashKey] = commandParameters;
         }
 
         //*********************************************************************
@@ -112,17 +112,17 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
         public static SqlParameter[] GetCachedParameterSet(string connectionString, string commandText)
         {
-            string hashKey = connectionString + ":" + commandText;
+            string v_hashKey = connectionString + ":" + commandText;
 
-            SqlParameter[] cachedParameters = (SqlParameter[])paramCache[hashKey];
+            SqlParameter[] v_arrCachedParameters = (SqlParameter[])g_dicParamCache[v_hashKey];
 
-            if (cachedParameters == null)
+            if (v_arrCachedParameters == null)
             {
                 return null;
             }
             else
             {
-                return CloneParameters(cachedParameters);
+                return CloneParameters(v_arrCachedParameters);
             }
         }
 
@@ -158,18 +158,22 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
         public static SqlParameter[] GetSpParameterSet(string connectionString, string spName, bool includeReturnValueParameter)
         {
-            string hashKey = connectionString + ":" + spName + (includeReturnValueParameter ? ":include ReturnValue Parameter" : "");
-
-            SqlParameter[] cachedParameters;
-
-            cachedParameters = (SqlParameter[])paramCache[hashKey];
-
-            if (cachedParameters == null)
+            string v_hashKey = connectionString + ":" + spName;
+            if (includeReturnValueParameter)
             {
-                cachedParameters = (SqlParameter[])(paramCache[hashKey] = DiscoverSpParameterSet(connectionString, spName, includeReturnValueParameter));
+                v_hashKey = v_hashKey + ":include ReturnValue Parameter";
             }
 
-            return CloneParameters(cachedParameters);
+            SqlParameter[] v_arrCachedParameters;
+
+            v_arrCachedParameters = (SqlParameter[])g_dicParamCache[v_hashKey];
+
+            if (v_arrCachedParameters == null)
+            {
+                v_arrCachedParameters = (SqlParameter[])(g_dicParamCache[v_hashKey] = DiscoverSpParameterSet(connectionString, spName, includeReturnValueParameter));
+            }
+
+            return CloneParameters(v_arrCachedParameters);
         }
     }
 }

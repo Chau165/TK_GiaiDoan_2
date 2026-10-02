@@ -29,7 +29,7 @@ public static class V2Telemetry
 
     public static async Task<int> RunAsync(
         V2Settings p_settings,
-        int p_targetProcessId,
+        int p_iTargetProcessId,
         string p_outputPath,
         string p_blockId)
     {
@@ -54,7 +54,7 @@ public static class V2Telemetry
         var v_sampleCount = 0;
         while (true)
         {
-            if (v_sampleCount > 0 && !IsProcessAlive(p_targetProcessId))
+            if (v_sampleCount > 0 && !IsProcessAlive(p_iTargetProcessId))
                 break;
 
             try
@@ -72,7 +72,7 @@ public static class V2Telemetry
                     await v_writer.FlushAsync();
                 }
             }
-            catch (Exception p_exception)
+            catch (Exception v_Exception)
             {
                 await v_writer.WriteLineAsync(
                     string.Join(
@@ -94,7 +94,7 @@ public static class V2Telemetry
                             "",
                             "",
                             "",
-                            p_exception.GetType().Name
+                            v_Exception.GetType().Name
                         }));
                 await v_writer.FlushAsync();
             }
@@ -106,11 +106,11 @@ public static class V2Telemetry
         return 0;
     }
 
-    private static bool IsProcessAlive(int p_processId)
+    private static bool IsProcessAlive(int p_iProcessId)
     {
         try
         {
-            using var v_process = Process.GetProcessById(p_processId);
+            using var v_process = Process.GetProcessById(p_iProcessId);
             return !v_process.HasExited;
         }
         catch
@@ -119,12 +119,12 @@ public static class V2Telemetry
         }
     }
 
-    private static string ToCsvValue(object? p_value)
+    private static string ToCsvValue(object? p_objValue)
     {
-        if (p_value is null || p_value == DBNull.Value)
+        if (p_objValue is null || p_objValue == DBNull.Value)
             return "";
 
-        var v_text = Convert.ToString(p_value, CultureInfo.InvariantCulture) ?? "";
+        var v_text = Convert.ToString(p_objValue, CultureInfo.InvariantCulture) ?? "";
         if (v_text.Contains(',') || v_text.Contains('"') || v_text.Contains('\r') || v_text.Contains('\n'))
             return "\"" + v_text.Replace("\"", "\"\"") + "\"";
         return v_text;

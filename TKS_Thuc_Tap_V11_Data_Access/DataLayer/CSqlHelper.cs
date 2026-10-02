@@ -14,9 +14,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 		#region public function
 		public static SqlConnection CreateConnection(string p_strConnStr)
         {
-            SqlConnection conn = new SqlConnection();
-            conn.ConnectionString = p_strConnStr;
-            return conn;
+            SqlConnection v_conn = new SqlConnection();
+            v_conn.ConnectionString = p_strConnStr;
+            return v_conn;
         }
 
 		public static int ExecuteNonquery(string p_strConnStr, string p_strSPname, params object[] p_arrValue)
@@ -40,14 +40,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
                 if ((p_arrValue != null) && (p_arrValue.Length > 0))
                 {
                     // Tạo danh sách SqlParameter
-                    SqlParameter[] arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
+                    SqlParameter[] v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
                         p_strConnStr, p_strSPname);
 
                     // Gán dữ liệu từ các mãng value vô mảng command parameter
-                    AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                    AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
 
                     // gọi hàm overload
-                    return ExecuteNonQuery(p_strConnStr, p_strSPname, arrSQLParameter);
+                    return ExecuteNonQuery(p_strConnStr, p_strSPname, v_arrSQLParameter);
                 }
 
                 else
@@ -75,14 +75,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
                 if ((p_arrValue != null) && (p_arrValue.Length > 0))
                 {
                     // Tạo danh sách SqlParameter
-                    SqlParameter[] arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
+                    SqlParameter[] v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
                         p_strConnString, p_strSPname);
 
                     // Gán dữ liệu từ các mãng value vô mảng command parameter
-                    AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                    AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
 
                     // gọi hàm overload
-                    return ExecuteNonQuery(p_objConn, p_objTrans, p_strSPname, arrSQLParameter);
+                    return ExecuteNonQuery(p_objConn, p_objTrans, p_strSPname, v_arrSQLParameter);
                 }
 
                 else
@@ -109,14 +109,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
                 if ((p_arrValue != null) && (p_arrValue.Length > 0))
                 {
                     // Tạo danh sách SqlParameter
-                    SqlParameter[] arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
+                    SqlParameter[] v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
                         p_strConnStr, p_strSPname);
 
                     // Gán dữ liệu từ các mãng value vô mảng command parameter
-                    AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                    AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
 
                     // gọi hàm overload
-                    return ExecuteScalar(p_strConnStr, p_strSPname, arrSQLParameter);
+                    return ExecuteScalar(p_strConnStr, p_strSPname, v_arrSQLParameter);
                 }
 
                 else
@@ -139,14 +139,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
                 if ((p_arrValue != null) && (p_arrValue.Length > 0))
                 {
                     // Tạo danh sách SqlParameter
-                    SqlParameter[] arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
+                    SqlParameter[] v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
                         p_strConnStr, p_strSPname);
 
                     // Gán dữ liệu từ các mãng value vô mảng command parameter
-                    AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                    AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
 
                     // gọi hàm overload
-                    return ExecuteScalar(p_conn, p_trans, p_strSPname, arrSQLParameter);
+                    return ExecuteScalar(p_conn, p_trans, p_strSPname, v_arrSQLParameter);
                 }
 
                 else
@@ -166,14 +166,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
             if ((p_arrValue != null) && (p_arrValue.Length > 0))
             {
                 // Tạo danh sách SqlParameter
-                SqlParameter[] arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
+                SqlParameter[] v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
                     p_strConnStr, p_strSPname);
 
                 // Gán dữ liệu từ các mãng value vô mảng command parameter
-                AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
 
                 // gọi hàm overload
-                FillDataTable(p_strConnStr, p_dtData, p_strSPname, arrSQLParameter);
+                FillDataTable(p_strConnStr, p_dtData, p_strSPname, v_arrSQLParameter);
             }
 
             else
@@ -188,14 +188,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
             if ((p_arrValue != null) && (p_arrValue.Length > 0))
             {
                 // Tạo danh sách SqlParameter
-                SqlParameter[] arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
+                SqlParameter[] v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(
                     p_strConnStr, p_strSPname);
 
                 // Gán dữ liệu từ các mãng value vô mảng command parameter
-                AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
 
                 // gọi hàm overload
-                FillDataTable(p_conn, p_trans, p_dtData, p_strSPname, arrSQLParameter);
+                FillDataTable(p_conn, p_trans, p_dtData, p_strSPname, v_arrSQLParameter);
             }
 
             else
@@ -206,34 +206,34 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
         public static void FillDataSet(string p_strConnStr, DataSet p_dsData, string p_strSPname, params object[] p_arrValue)
         {
-            SqlParameter[] arrSQLParameter = null;
+            SqlParameter[] v_arrSQLParameter = null;
             if ((p_arrValue != null) && (p_arrValue.Length > 0))
             {
-                arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(p_strConnStr, p_strSPname);
-                AssignParameterValues(arrSQLParameter, p_arrValue, p_strSPname);
+                v_arrSQLParameter = CSqlHelperParameterCache.GetSpParameterSet(p_strConnStr, p_strSPname);
+                AssignParameterValues(v_arrSQLParameter, p_arrValue, p_strSPname);
             }
 
-            FillDataSet(p_strConnStr, p_dsData, p_strSPname, arrSQLParameter);
+            FillDataSet(p_strConnStr, p_dsData, p_strSPname, v_arrSQLParameter);
         }
 
 		public static void FillDataTable_Cmd(string p_strConnStr, DataTable p_dtData, string p_strCmd)
 		{
-			SqlConnection conn = new SqlConnection(p_strConnStr);
-			SqlCommand cmd = new SqlCommand();
-			SqlDataAdapter da = new SqlDataAdapter(cmd);
+			SqlConnection v_conn = new SqlConnection(p_strConnStr);
+			SqlCommand v_cmd = new SqlCommand();
+			SqlDataAdapter v_da = new SqlDataAdapter(v_cmd);
 
 			try
 			{
 				//associate the connection with the command
-				cmd.Connection = conn;
+				v_cmd.Connection = v_conn;
 
 				//set the command text (stored procedure name or SQL statement)
-				cmd.CommandText = p_strCmd;
+				v_cmd.CommandText = p_strCmd;
 
 				//set the command type
-				cmd.CommandType = CommandType.Text;
-				cmd.CommandTimeout = 300;
-				da.Fill(p_dtData);
+				v_cmd.CommandType = CommandType.Text;
+				v_cmd.CommandTimeout = 300;
+				v_da.Fill(p_dtData);
 			}
 
 			catch (Exception)
@@ -243,33 +243,33 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
 			finally
 			{
-				if (conn.State == ConnectionState.Open)
-					conn.Close();
-				cmd.Dispose();
-				da.Dispose();
+				if (v_conn.State == ConnectionState.Open)
+					v_conn.Close();
+				v_cmd.Dispose();
+				v_da.Dispose();
 			}
 		}
 
 		public static void ExecuteNonquery_Cmd(string p_strConnStr, string p_strCmd)
 		{
-			SqlConnection conn = new SqlConnection(p_strConnStr);
-			SqlCommand cmd = new SqlCommand();
+			SqlConnection v_conn = new SqlConnection(p_strConnStr);
+			SqlCommand v_cmd = new SqlCommand();
 
 			try
 			{
-				conn.Open();
+				v_conn.Open();
 
 				//associate the connection with the command
-				cmd.Connection = conn;
+				v_cmd.Connection = v_conn;
 
 				//set the command text (stored procedure name or SQL statement)
-				cmd.CommandText = p_strCmd;
+				v_cmd.CommandText = p_strCmd;
 
 				//set the command type
-				cmd.CommandType = CommandType.Text;
-				cmd.CommandTimeout = 300;
+				v_cmd.CommandType = CommandType.Text;
+				v_cmd.CommandTimeout = 300;
 
-				cmd.ExecuteNonQuery();
+				v_cmd.ExecuteNonQuery();
 			}
 
 			catch (Exception)
@@ -279,9 +279,9 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
 			finally
 			{
-				if (conn.State == ConnectionState.Open)
-					conn.Close();
-				cmd.Dispose();
+				if (v_conn.State == ConnectionState.Open)
+					v_conn.Close();
+				v_cmd.Dispose();
 			}
 		}
 
@@ -300,44 +300,44 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
                 throw new Exception($"{p_strSPName}. Parameter count does not match Parameter Value count.");
             }
 
-            for (int i = 0, j = p_arrSQLParameter.Length; i < j; i++)
+            for (int v_iIndex = 0, v_iCount = p_arrSQLParameter.Length; v_iIndex < v_iCount; v_iIndex++)
             {
-                if (p_arrValue[i] == null)
-                    p_arrSQLParameter[i].Value = DBNull.Value;
+                if (p_arrValue[v_iIndex] == null)
+                    p_arrSQLParameter[v_iIndex].Value = DBNull.Value;
                 else
-                    p_arrSQLParameter[i].Value = p_arrValue[i];
+                    p_arrSQLParameter[v_iIndex].Value = p_arrValue[v_iIndex];
             }
         }
 
         private static void AttachParameters(SqlCommand p_cmd, SqlParameter[] p_arrSQLParameter)
         {
-            foreach (SqlParameter p in p_arrSQLParameter)
+            foreach (SqlParameter v_Parameter in p_arrSQLParameter)
             {
-                if ((p.Direction == ParameterDirection.InputOutput) && (p.Value == null))
+                if ((v_Parameter.Direction == ParameterDirection.InputOutput) && (v_Parameter.Value == null))
                 {
-                    p.Value = DBNull.Value;
+                    v_Parameter.Value = DBNull.Value;
                 }
 
-                p_cmd.Parameters.Add(p);
+                p_cmd.Parameters.Add(v_Parameter);
             }
         }
 
         private static int ExecuteNonQuery(string p_strConnStr, string p_strStoreName,
             params SqlParameter[] p_arrSQLParameter)
         {
-            DateTime? v_dtStart = DateTime.Now;
+            DateTime? v_dtmStart = DateTime.Now;
 
-            SqlConnection conn = new SqlConnection(p_strConnStr);
-            SqlCommand cmd = new SqlCommand();
-            int result = -5;
+            SqlConnection v_conn = new SqlConnection(p_strConnStr);
+            SqlCommand v_cmd = new SqlCommand();
+            int v_iResult = -5;
 
             try
             {
-                PrepareCommand(cmd, conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
+                PrepareCommand(v_cmd, v_conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
 
                 // Execute Sql Command
-                result = cmd.ExecuteNonQuery();
-                cmd.Parameters.Clear();
+                v_iResult = v_cmd.ExecuteNonQuery();
+                v_cmd.Parameters.Clear();
             }
 
             catch (Exception)
@@ -347,34 +347,34 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                if (conn.State == ConnectionState.Open)
-                    conn.Close();
-                cmd.Dispose();
+                if (v_conn.State == ConnectionState.Open)
+                    v_conn.Close();
+                v_cmd.Dispose();
             }
 
-            DateTime? v_dtEnd = DateTime.Now;
-            TimeSpan v_ts = v_dtEnd.Value - v_dtStart.Value;
-            if (v_ts.TotalMilliseconds >= 1000)
-                CLogger.Trace("CSqlHelper", "ExecuteNonQuery", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString("###,###0.######"));
+            DateTime? v_dtmEnd = DateTime.Now;
+            TimeSpan v_tsElapsed = v_dtmEnd.Value - v_dtmStart.Value;
+            if (v_tsElapsed.TotalMilliseconds >= 1000)
+                CLogger.Trace("CSqlHelper", "ExecuteNonQuery", "Store: " + p_strStoreName + " execute " + v_tsElapsed.TotalSeconds.ToString("###,###0.######"));
 
-            return result;
+            return v_iResult;
         }
 
         private static int ExecuteNonQuery(SqlConnection p_objConn, SqlTransaction p_objTrans,
             string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
         {
-            DateTime? v_dtStart = DateTime.Now;
+            DateTime? v_dtmStart = DateTime.Now;
 
-            SqlCommand cmd = new SqlCommand();
-            int result = -5;
+            SqlCommand v_cmd = new SqlCommand();
+            int v_iResult = -5;
 
             try
             {
-                PrepareCommand(cmd, p_objConn, p_objTrans, p_strStoreName, p_arrSQLParameter);
+                PrepareCommand(v_cmd, p_objConn, p_objTrans, p_strStoreName, p_arrSQLParameter);
 
                 // Execute Sql Command
-                result = cmd.ExecuteNonQuery();
-                cmd.Parameters.Clear();
+                v_iResult = v_cmd.ExecuteNonQuery();
+                v_cmd.Parameters.Clear();
             }
 
             catch (Exception)
@@ -384,31 +384,31 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                cmd.Dispose();
+                v_cmd.Dispose();
             }
 
-            DateTime? v_dtEnd = DateTime.Now;
-            TimeSpan v_ts = v_dtEnd.Value - v_dtStart.Value;
-            if (v_ts.TotalMilliseconds >= 1000)
-                CLogger.Trace("CSqlHelper", "ExecuteNonQuery", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString("###,###0.######"));
+            DateTime? v_dtmEnd = DateTime.Now;
+            TimeSpan v_tsElapsed = v_dtmEnd.Value - v_dtmStart.Value;
+            if (v_tsElapsed.TotalMilliseconds >= 1000)
+                CLogger.Trace("CSqlHelper", "ExecuteNonQuery", "Store: " + p_strStoreName + " execute " + v_tsElapsed.TotalSeconds.ToString("###,###0.######"));
 
-            return result;
+            return v_iResult;
         }
 
 		public static object ExecuteScalar(string p_strConnStr, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
         {
-            DateTime v_dtStart = DateTime.Now;
+            DateTime v_dtmStart = DateTime.Now;
 
-            SqlConnection conn = new SqlConnection(p_strConnStr);
-            SqlCommand cmd = new SqlCommand();
-            object result = null;
+            SqlConnection v_conn = new SqlConnection(p_strConnStr);
+            SqlCommand v_cmd = new SqlCommand();
+            object v_objResult = null;
 
             try
             {
-                PrepareCommand(cmd, conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
+                PrepareCommand(v_cmd, v_conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
                 // Execute Sql Command
-                result = cmd.ExecuteScalar();
-                cmd.Parameters.Clear();
+                v_objResult = v_cmd.ExecuteScalar();
+                v_cmd.Parameters.Clear();
             }
 
             catch (Exception)
@@ -418,33 +418,33 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                if (conn.State == ConnectionState.Open)
-                    conn.Close();
-                cmd.Dispose();
+                if (v_conn.State == ConnectionState.Open)
+                    v_conn.Close();
+                v_cmd.Dispose();
             }
 
-            DateTime v_dtEnd = DateTime.Now;
-            TimeSpan v_ts = v_dtEnd - v_dtStart;
-            if (v_ts.TotalMilliseconds >= 1000)
-                CLogger.Trace("CSqlHelper", "ExecuteScalar", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString("###,###0.######"));
+            DateTime v_dtmEnd = DateTime.Now;
+            TimeSpan v_tsElapsed = v_dtmEnd - v_dtmStart;
+            if (v_tsElapsed.TotalMilliseconds >= 1000)
+                CLogger.Trace("CSqlHelper", "ExecuteScalar", "Store: " + p_strStoreName + " execute " + v_tsElapsed.TotalSeconds.ToString("###,###0.######"));
 
-            return result;
+            return v_objResult;
         }
 
         private static object ExecuteScalar(SqlConnection p_conn, SqlTransaction p_trans, string p_strStoreName,
             params SqlParameter[] p_arrSQLParameter)
         {
-            DateTime v_dtStart = DateTime.Now;
+            DateTime v_dtmStart = DateTime.Now;
 
-            SqlCommand cmd = new SqlCommand();
-            object result = null;
+            SqlCommand v_cmd = new SqlCommand();
+            object v_objResult = null;
 
             try
             {
-                PrepareCommand(cmd, p_conn, p_trans, p_strStoreName, p_arrSQLParameter);
+                PrepareCommand(v_cmd, p_conn, p_trans, p_strStoreName, p_arrSQLParameter);
                 // Execute Sql Command
-                result = cmd.ExecuteScalar();
-                cmd.Parameters.Clear();
+                v_objResult = v_cmd.ExecuteScalar();
+                v_cmd.Parameters.Clear();
             }
 
             catch (Exception)
@@ -454,39 +454,39 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                cmd.Dispose();
+                v_cmd.Dispose();
             }
 
-            DateTime v_dtEnd = DateTime.Now;
-            TimeSpan v_ts = v_dtEnd - v_dtStart;
-            if (v_ts.TotalMilliseconds >= 1000)
-                CLogger.Trace("CSqlHelper", "ExecuteScalar", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString("###,###0.######"));
+            DateTime v_dtmEnd = DateTime.Now;
+            TimeSpan v_tsElapsed = v_dtmEnd - v_dtmStart;
+            if (v_tsElapsed.TotalMilliseconds >= 1000)
+                CLogger.Trace("CSqlHelper", "ExecuteScalar", "Store: " + p_strStoreName + " execute " + v_tsElapsed.TotalSeconds.ToString("###,###0.######"));
 
-            return result;
+            return v_objResult;
         }
 
         private static void FillDataSet(string p_strConnStr, DataSet p_dsData, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
         {
-            using SqlConnection conn = new SqlConnection(p_strConnStr);
-            using SqlCommand cmd = new SqlCommand();
-            using SqlDataAdapter da = new SqlDataAdapter(cmd);
+            using SqlConnection v_conn = new SqlConnection(p_strConnStr);
+            using SqlCommand v_cmd = new SqlCommand();
+            using SqlDataAdapter v_da = new SqlDataAdapter(v_cmd);
 
-            PrepareCommand(cmd, conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
-            da.Fill(p_dsData);
+            PrepareCommand(v_cmd, v_conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
+            v_da.Fill(p_dsData);
         }
 
         private static void FillDataTable(string p_strConnStr, DataTable p_dtData, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
         {
-            DateTime v_dtStart = DateTime.Now;
+            DateTime v_dtmStart = DateTime.Now;
 
-            SqlConnection conn = new SqlConnection(p_strConnStr);
-            SqlCommand cmd = new SqlCommand();
-            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            SqlConnection v_conn = new SqlConnection(p_strConnStr);
+            SqlCommand v_cmd = new SqlCommand();
+            SqlDataAdapter v_da = new SqlDataAdapter(v_cmd);
 
             try
             {
-                PrepareCommand(cmd, conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
-                da.Fill(p_dtData);
+                PrepareCommand(v_cmd, v_conn, (SqlTransaction)null, p_strStoreName, p_arrSQLParameter);
+                v_da.Fill(p_dtData);
             }
 
             catch (Exception)
@@ -496,30 +496,30 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                if (conn.State == ConnectionState.Open)
-                    conn.Close();
-                cmd.Dispose();
-                da.Dispose();
+                if (v_conn.State == ConnectionState.Open)
+                    v_conn.Close();
+                v_cmd.Dispose();
+                v_da.Dispose();
             }
 
-            DateTime v_dtEnd = DateTime.Now;
-            TimeSpan v_ts = v_dtEnd - v_dtStart;
-            if (v_ts.TotalMilliseconds >= 1000)
-                CLogger.Trace("CSqlHelper", "FillDataTable", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString("###,###0.######"));
+            DateTime v_dtmEnd = DateTime.Now;
+            TimeSpan v_tsElapsed = v_dtmEnd - v_dtmStart;
+            if (v_tsElapsed.TotalMilliseconds >= 1000)
+                CLogger.Trace("CSqlHelper", "FillDataTable", "Store: " + p_strStoreName + " execute " + v_tsElapsed.TotalSeconds.ToString("###,###0.######"));
         }
 
         private static void FillDataTable(SqlConnection p_conn, SqlTransaction p_trans,
             DataTable p_dtData, string p_strStoreName, params SqlParameter[] p_arrSQLParameter)
         {
-            DateTime v_dtStart = DateTime.Now;
+            DateTime v_dtmStart = DateTime.Now;
 
-            SqlCommand cmd = new SqlCommand();
-            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            SqlCommand v_cmd = new SqlCommand();
+            SqlDataAdapter v_da = new SqlDataAdapter(v_cmd);
 
             try
             {
-                PrepareCommand(cmd, p_conn, p_trans, p_strStoreName, p_arrSQLParameter);
-                da.Fill(p_dtData);
+                PrepareCommand(v_cmd, p_conn, p_trans, p_strStoreName, p_arrSQLParameter);
+                v_da.Fill(p_dtData);
             }
 
             catch (Exception)
@@ -529,14 +529,14 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
 
             finally
             {
-                cmd.Dispose();
-                da.Dispose();
+                v_cmd.Dispose();
+                v_da.Dispose();
             }
 
-            DateTime v_dtEnd = DateTime.Now;
-            TimeSpan v_ts = v_dtEnd - v_dtStart;
-            if (v_ts.TotalMilliseconds >= 1000)
-                CLogger.Trace("CSqlHelper", "FillDataTable", "Store: " + p_strStoreName + " execute " + v_ts.TotalSeconds.ToString(CConfig.Number_Format_String));
+            DateTime v_dtmEnd = DateTime.Now;
+            TimeSpan v_tsElapsed = v_dtmEnd - v_dtmStart;
+            if (v_tsElapsed.TotalMilliseconds >= 1000)
+                CLogger.Trace("CSqlHelper", "FillDataTable", "Store: " + p_strStoreName + " execute " + v_tsElapsed.TotalSeconds.ToString(CConfig.Number_Format_String));
         }
 
         private static void PrepareCommand(SqlCommand p_cmd, SqlConnection p_conn,

@@ -16,7 +16,7 @@ public class DynamicPermissionTests
         ClearCache(typeof(CCache_Nhom_Thanh_Vien_User));
         ClearCache(typeof(CCache_Phan_Quyen_Chuc_Nang));
 
-        const string user = "thuctap_kho";
+        const string v_User = "thuctap_kho";
         const long functionId = 900001;
         CCache_Chuc_Nang.Add_Data(new CSys_Chuc_Nang
         {
@@ -29,52 +29,41 @@ public class DynamicPermissionTests
             Is_Have_Delete_Permission = true
         });
 
-        AddMemberGroup(1, user, 101);
-        AddMemberGroup(2, user, 102);
+        AddMemberGroup(1, v_User, 101);
+        AddMemberGroup(2, v_User, 102);
         AddDeniedPermission(1, 101, functionId);
         AddDeniedPermission(2, 102, functionId);
 
-        var permission = CCommonFunction.Get_Chuc_Nang_By_User(user, "MASTER_DATA_TEST");
+        var v_objPermission = CCommonFunction.Get_Chuc_Nang_By_User(v_User, "MASTER_DATA_TEST");
 
-        Assert.False(permission.Is_Have_View_Permission);
-        Assert.False(permission.Is_Have_Add_Permission);
-        Assert.False(permission.Is_Have_Edit_Permission);
-        Assert.False(permission.Is_Have_Delete_Permission);
+        Assert.False(v_objPermission.Is_Have_View_Permission);
+        Assert.False(v_objPermission.Is_Have_Add_Permission);
+        Assert.False(v_objPermission.Is_Have_Edit_Permission);
+        Assert.False(v_objPermission.Is_Have_Delete_Permission);
 
-        var menuPermission = Assert.Single(CCommonFunction.List_Chuc_Nang_By_User(user));
-        Assert.False(menuPermission.Is_Have_View_Permission);
-        Assert.False(menuPermission.Is_Have_Add_Permission);
-        Assert.False(menuPermission.Is_Have_Edit_Permission);
-        Assert.False(menuPermission.Is_Have_Delete_Permission);
+        var v_objMenuPermission = Assert.Single(CCommonFunction.List_Chuc_Nang_By_User(v_User));
+        Assert.False(v_objMenuPermission.Is_Have_View_Permission);
+        Assert.False(v_objMenuPermission.Is_Have_Add_Permission);
+        Assert.False(v_objMenuPermission.Is_Have_Edit_Permission);
+        Assert.False(v_objMenuPermission.Is_Have_Delete_Permission);
     }
 
-    private static void AddMemberGroup(long id, string user, long groupId) =>
-        CCache_Nhom_Thanh_Vien_User.Add_Data(new CSys_Nhom_Thanh_Vien_User
-        {
-            Auto_ID = id,
-            Ma_Dang_Nhap = user,
-            Nhom_Thanh_Vien_ID = groupId
-        });
-
-    private static void AddDeniedPermission(long id, long groupId, long functionId) =>
-        CCache_Phan_Quyen_Chuc_Nang.Add_Data(new CSys_Phan_Quyen_Chuc_Nang
-        {
-            Auto_ID = id,
-            Nhom_Thanh_Vien_ID = groupId,
-            Chuc_Nang_ID = functionId,
-            Is_Have_View_Permission = false,
-            Is_Have_Add_Permission = false,
-            Is_Have_Edit_Permission = false,
-            Is_Have_Delete_Permission = false,
-            Is_Have_Export_Permission = false
-        });
-
-    private static void ClearCache(Type type)
+    private static void AddMemberGroup(long id, string p_User, long groupId)
     {
-        foreach (var field in type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
-            if (field.GetValue(null) is System.Collections.IList list)
-                list.Clear();
-            else if (field.GetValue(null) is System.Collections.IDictionary dictionary)
-                dictionary.Clear();
+        CCache_Nhom_Thanh_Vien_User.Add_Data(new CSys_Nhom_Thanh_Vien_User { Auto_ID = id, Ma_Dang_Nhap = p_User, Nhom_Thanh_Vien_ID = groupId });
+    }
+
+    private static void AddDeniedPermission(long id, long groupId, long functionId)
+    {
+        CCache_Phan_Quyen_Chuc_Nang.Add_Data(new CSys_Phan_Quyen_Chuc_Nang { Auto_ID = id, Nhom_Thanh_Vien_ID = groupId, Chuc_Nang_ID = functionId, Is_Have_View_Permission = false, Is_Have_Add_Permission = false, Is_Have_Edit_Permission = false, Is_Have_Delete_Permission = false, Is_Have_Export_Permission = false });
+    }
+
+    private static void ClearCache(Type p_Type)
+    {
+        foreach (var v_Field in p_Type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+            if (v_Field.GetValue(null) is System.Collections.IList v_arrList)
+                v_arrList.Clear();
+            else if (v_Field.GetValue(null) is System.Collections.IDictionary v_dicDictionary)
+                v_dicDictionary.Clear();
     }
 }

@@ -12,7 +12,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		private long m_lngAuto_ID;
 		private long m_lngChu_Hang_ID;
 		
-		private int m_intdeleted;
+		private int m_iDeleted;
 		private DateTime? m_dtmCreated;
 		private string m_strCreated_By;
 		private string m_strCreated_By_Function;
@@ -34,7 +34,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 			m_lngAuto_ID = CConst.INT_VALUE_NULL;
 			m_lngChu_Hang_ID = CConst.INT_VALUE_NULL;
 			
-			m_intdeleted = CConst.INT_VALUE_NULL;
+			m_iDeleted = CConst.INT_VALUE_NULL;
 			m_dtmCreated = CConst.DTM_VALUE_NULL;
 			m_strCreated_By = CConst.STR_VALUE_NULL;
 			m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -74,11 +74,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intdeleted;
+				return m_iDeleted;
 			}
 			set
 			{
-				m_intdeleted = value;
+				m_iDeleted = value;
 			}
 		}
 

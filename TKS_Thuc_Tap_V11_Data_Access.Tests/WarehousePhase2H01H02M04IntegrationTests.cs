@@ -8,14 +8,26 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 [Collection("Warehouse inventory database")]
 public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
 {
-    private static string BaseConnectionString =>
-        Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING")
-        ?? throw new InvalidOperationException(
-            "TKS_INTEGRATION_CONNECTION_STRING must point to a disposable test database.");
+    private static string BaseConnectionString
+    {
+        get
+        {
+            var v_ConnectionString = Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING");
+            if (v_ConnectionString == null)
+            {
+                throw new InvalidOperationException("TKS_INTEGRATION_CONNECTION_STRING must point to a disposable test database.");
+            }
+
+            return v_ConnectionString;
+        }
+    }
 
     private Fixture? m_objFixture;
 
-    public async Task InitializeAsync() => m_objFixture = await CreateFixtureAsync();
+    public async Task InitializeAsync()
+    {
+        m_objFixture = await CreateFixtureAsync();
+    }
 
     public async Task DisposeAsync()
     {
@@ -26,30 +38,30 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Issue_save_header_and_detail_without_ambient_transaction_close_their_own_transactions()
     {
-        var fixture = m_objFixture!;
-        await CreatePostedStockAsync(fixture, 20m, "H01-standalone-stock");
+        var v_Fixture = m_objFixture!;
+        await CreatePostedStockAsync(v_Fixture, 20m, "H01-standalone-stock");
 
-        await using var connection = OpenConnection($"H01-standalone-{fixture.Tag}");
-        await connection.OpenAsync();
+        await using var v_Connection = OpenConnection($"H01-standalone-{v_Fixture.Tag}");
+        await v_Connection.OpenAsync();
         var issueId = await SaveIssueHeaderAsync(
-            fixture,
-            fixture.WarehouseAId,
-            fixture.LoginBoth,
+            v_Fixture,
+            v_Fixture.WarehouseAId,
+            v_Fixture.LoginBoth,
             "H01-standalone",
-            connection: connection);
-        Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT @@TRANCOUNT;"));
+            p_Connection: v_Connection);
+        Assert.Equal(0, await IntScalarAsync(v_Connection, null, "SELECT @@TRANCOUNT;"));
 
         var detailId = await SaveIssueDetailAsync(
-            fixture,
+            v_Fixture,
             issueId,
             5m,
-            fixture.LoginBoth,
-            connection: connection);
+            v_Fixture.LoginBoth,
+            p_Connection: v_Connection);
 
         Assert.True(detailId > 0);
-        Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT @@TRANCOUNT;"));
+        Assert.Equal(0, await IntScalarAsync(v_Connection, null, "SELECT @@TRANCOUNT;"));
         Assert.Equal(1, await IntScalarAsync(
-            connection,
+            v_Connection,
             null,
             "SELECT COUNT(*) FROM dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @DetailId;",
             BigInt("@DetailId", detailId)));
@@ -58,51 +70,51 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Issue_save_inside_ambient_transaction_preserves_caller_and_rolls_back_with_it()
     {
-        var fixture = m_objFixture!;
-        await CreatePostedStockAsync(fixture, 20m, "H01-ambient-stock");
+        var v_Fixture = m_objFixture!;
+        await CreatePostedStockAsync(v_Fixture, 20m, "H01-ambient-stock");
 
-        await using var connection = OpenConnection($"H01-ambient-{fixture.Tag}");
-        await connection.OpenAsync();
-        await ExecuteAsync(connection, null, "CREATE TABLE #AmbientMarker(Value INT NOT NULL);");
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
-        await ExecuteAsync(connection, transaction, "INSERT #AmbientMarker(Value) VALUES (1);");
+        await using var v_Connection = OpenConnection($"H01-ambient-{v_Fixture.Tag}");
+        await v_Connection.OpenAsync();
+        await ExecuteAsync(v_Connection, null, "CREATE TABLE #AmbientMarker(Value INT NOT NULL);");
+        await using var v_Transaction = (SqlTransaction)await v_Connection.BeginTransactionAsync();
+        await ExecuteAsync(v_Connection, v_Transaction, "INSERT #AmbientMarker(Value) VALUES (1);");
 
         var issueId = await SaveIssueHeaderAsync(
-            fixture,
-            fixture.WarehouseAId,
-            fixture.LoginBoth,
+            v_Fixture,
+            v_Fixture.WarehouseAId,
+            v_Fixture.LoginBoth,
             "H01-ambient",
-            connection: connection,
-            transaction: transaction);
+            p_Connection: v_Connection,
+            p_Transaction: v_Transaction);
         var detailId = await SaveIssueDetailAsync(
-            fixture,
+            v_Fixture,
             issueId,
             5m,
-            fixture.LoginBoth,
-            connection: connection,
-            transaction: transaction);
-        await ExecuteAsync(connection, transaction, "INSERT #AmbientMarker(Value) VALUES (2);");
+            v_Fixture.LoginBoth,
+            p_Connection: v_Connection,
+            p_Transaction: v_Transaction);
+        await ExecuteAsync(v_Connection, v_Transaction, "INSERT #AmbientMarker(Value) VALUES (2);");
 
         Assert.True(detailId > 0);
-        Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT @@TRANCOUNT;"));
-        Assert.Equal(2, await IntScalarAsync(connection, transaction, "SELECT COUNT(*) FROM #AmbientMarker;"));
+        Assert.Equal(1, await IntScalarAsync(v_Connection, v_Transaction, "SELECT @@TRANCOUNT;"));
+        Assert.Equal(2, await IntScalarAsync(v_Connection, v_Transaction, "SELECT COUNT(*) FROM #AmbientMarker;"));
         Assert.Equal(1, await IntScalarAsync(
-            connection,
-            transaction,
+            v_Connection,
+            v_Transaction,
             "SELECT COUNT(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @IssueId;",
             BigInt("@IssueId", issueId)));
 
-        await transaction.RollbackAsync();
+        await v_Transaction.RollbackAsync();
 
-        Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT @@TRANCOUNT;"));
-        Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT COUNT(*) FROM #AmbientMarker;"));
+        Assert.Equal(0, await IntScalarAsync(v_Connection, null, "SELECT @@TRANCOUNT;"));
+        Assert.Equal(0, await IntScalarAsync(v_Connection, null, "SELECT COUNT(*) FROM #AmbientMarker;"));
         Assert.Equal(0, await IntScalarAsync(
-            connection,
+            v_Connection,
             null,
             "SELECT COUNT(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @IssueId;",
             BigInt("@IssueId", issueId)));
         Assert.Equal(0, await IntScalarAsync(
-            connection,
+            v_Connection,
             null,
             "SELECT COUNT(*) FROM dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @DetailId;",
             BigInt("@DetailId", detailId)));
@@ -111,102 +123,102 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Issue_save_error_inside_ambient_transaction_does_not_commit_or_destroy_caller_work()
     {
-        var fixture = m_objFixture!;
-        await CreatePostedStockAsync(fixture, 20m, "H01-error-stock");
-        var issueId = await SaveIssueHeaderAsync(fixture, fixture.WarehouseAId, fixture.LoginBoth, "H01-error");
+        var v_Fixture = m_objFixture!;
+        await CreatePostedStockAsync(v_Fixture, 20m, "H01-error-stock");
+        var issueId = await SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseAId, v_Fixture.LoginBoth, "H01-error");
 
-        await using var connection = OpenConnection($"H01-error-{fixture.Tag}");
-        await connection.OpenAsync();
-        await ExecuteAsync(connection, null, "CREATE TABLE #AmbientMarker(Value INT NOT NULL);");
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
-        await ExecuteAsync(connection, transaction, "INSERT #AmbientMarker(Value) VALUES (1);");
+        await using var v_Connection = OpenConnection($"H01-error-{v_Fixture.Tag}");
+        await v_Connection.OpenAsync();
+        await ExecuteAsync(v_Connection, null, "CREATE TABLE #AmbientMarker(Value INT NOT NULL);");
+        await using var v_Transaction = (SqlTransaction)await v_Connection.BeginTransactionAsync();
+        await ExecuteAsync(v_Connection, v_Transaction, "INSERT #AmbientMarker(Value) VALUES (1);");
 
         await AssertSqlNumberAsync(
             51136,
             () => SaveIssueDetailAsync(
-                fixture,
+                v_Fixture,
                 issueId,
                 0m,
-                fixture.LoginBoth,
-                connection: connection,
-                transaction: transaction));
+                v_Fixture.LoginBoth,
+                p_Connection: v_Connection,
+                p_Transaction: v_Transaction));
 
-        Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT @@TRANCOUNT;"));
-        Assert.Contains(await IntScalarAsync(connection, transaction, "SELECT XACT_STATE();"), new[] { 1, -1 });
-        Assert.Equal(1, await IntScalarAsync(connection, transaction, "SELECT COUNT(*) FROM #AmbientMarker;"));
+        Assert.Equal(1, await IntScalarAsync(v_Connection, v_Transaction, "SELECT @@TRANCOUNT;"));
+        Assert.Contains(await IntScalarAsync(v_Connection, v_Transaction, "SELECT XACT_STATE();"), new[] { 1, -1 });
+        Assert.Equal(1, await IntScalarAsync(v_Connection, v_Transaction, "SELECT COUNT(*) FROM #AmbientMarker;"));
 
-        await transaction.RollbackAsync();
-        Assert.Equal(0, await IntScalarAsync(connection, null, "SELECT COUNT(*) FROM #AmbientMarker;"));
+        await v_Transaction.RollbackAsync();
+        Assert.Equal(0, await IntScalarAsync(v_Connection, null, "SELECT COUNT(*) FROM #AmbientMarker;"));
     }
 
     [Fact]
     public async Task Receipt_update_requires_access_to_old_and_new_warehouse_and_allows_both()
     {
-        var fixture = m_objFixture!;
-        var receiptId = await SaveReceiptHeaderAsync(fixture, fixture.WarehouseAId, fixture.LoginAOnly, "H02-receipt");
+        var v_Fixture = m_objFixture!;
+        var receiptId = await SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseAId, v_Fixture.LoginAOnly, "H02-receipt");
 
         await AssertSqlNumberAsync(
             51054,
-            () => SaveReceiptHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginBOnly, "H02-receipt", receiptId));
-        Assert.Equal(fixture.WarehouseAId, await WarehouseOfReceiptAsync(fixture, receiptId));
+            () => SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginBOnly, "H02-receipt", receiptId));
+        Assert.Equal(v_Fixture.WarehouseAId, await WarehouseOfReceiptAsync(v_Fixture, receiptId));
 
         await AssertSqlNumberAsync(
             51054,
-            () => SaveReceiptHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginAOnly, "H02-receipt", receiptId));
-        Assert.Equal(fixture.WarehouseAId, await WarehouseOfReceiptAsync(fixture, receiptId));
+            () => SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginAOnly, "H02-receipt", receiptId));
+        Assert.Equal(v_Fixture.WarehouseAId, await WarehouseOfReceiptAsync(v_Fixture, receiptId));
 
-        await SaveReceiptHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginBoth, "H02-receipt", receiptId);
-        Assert.Equal(fixture.WarehouseBId, await WarehouseOfReceiptAsync(fixture, receiptId));
+        await SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginBoth, "H02-receipt", receiptId);
+        Assert.Equal(v_Fixture.WarehouseBId, await WarehouseOfReceiptAsync(v_Fixture, receiptId));
 
-        await SaveReceiptHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginBOnly, "H02-receipt-same-warehouse", receiptId);
+        await SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginBOnly, "H02-receipt-same-warehouse", receiptId);
         await AssertSqlNumberAsync(
             51054,
-            () => SaveReceiptHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginAOnly, "H02-receipt-same-warehouse", receiptId));
-        Assert.Equal(fixture.WarehouseBId, await WarehouseOfReceiptAsync(fixture, receiptId));
+            () => SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginAOnly, "H02-receipt-same-warehouse", receiptId));
+        Assert.Equal(v_Fixture.WarehouseBId, await WarehouseOfReceiptAsync(v_Fixture, receiptId));
     }
 
     [Fact]
     public async Task Issue_move_requires_old_and_new_warehouse_access_and_moves_reservation_only_when_authorized()
     {
-        var fixture = m_objFixture!;
-        await CreatePostedStockAsync(fixture, 20m, "H02-issue-stock");
-        await CreatePostedStockAsync(fixture, 20m, "H02-issue-stock-b", fixture.WarehouseBId);
-        var issueId = await SaveIssueHeaderAsync(fixture, fixture.WarehouseAId, fixture.LoginBoth, "H02-issue");
-        var detailId = await SaveIssueDetailAsync(fixture, issueId, 5m, fixture.LoginBoth);
+        var v_Fixture = m_objFixture!;
+        await CreatePostedStockAsync(v_Fixture, 20m, "H02-issue-stock");
+        await CreatePostedStockAsync(v_Fixture, 20m, "H02-issue-stock-b", v_Fixture.WarehouseBId);
+        var issueId = await SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseAId, v_Fixture.LoginBoth, "H02-issue");
+        var detailId = await SaveIssueDetailAsync(v_Fixture, issueId, 5m, v_Fixture.LoginBoth);
 
         await AssertSqlNumberAsync(
             51054,
-            () => SaveIssueHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginBOnly, "H02-issue", issueId));
-        await AssertIssueReservationAsync(fixture, issueId, detailId, fixture.WarehouseAId, 5m, 0m);
+            () => SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginBOnly, "H02-issue", issueId));
+        await AssertIssueReservationAsync(v_Fixture, issueId, detailId, v_Fixture.WarehouseAId, 5m, 0m);
 
         await AssertSqlNumberAsync(
             51054,
-            () => SaveIssueHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginAOnly, "H02-issue", issueId));
-        await AssertIssueReservationAsync(fixture, issueId, detailId, fixture.WarehouseAId, 5m, 0m);
+            () => SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginAOnly, "H02-issue", issueId));
+        await AssertIssueReservationAsync(v_Fixture, issueId, detailId, v_Fixture.WarehouseAId, 5m, 0m);
 
-        await SaveIssueHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginBoth, "H02-issue", issueId);
-        Assert.Equal(fixture.WarehouseBId, await WarehouseOfIssueAsync(fixture, issueId));
-        await AssertIssueReservationAsync(fixture, issueId, detailId, fixture.WarehouseBId, 0m, 5m);
+        await SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginBoth, "H02-issue", issueId);
+        Assert.Equal(v_Fixture.WarehouseBId, await WarehouseOfIssueAsync(v_Fixture, issueId));
+        await AssertIssueReservationAsync(v_Fixture, issueId, detailId, v_Fixture.WarehouseBId, 0m, 5m);
 
-        await SaveIssueHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginBOnly, "H02-issue-same-warehouse", issueId);
+        await SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginBOnly, "H02-issue-same-warehouse", issueId);
         await AssertSqlNumberAsync(
             51054,
-            () => SaveIssueHeaderAsync(fixture, fixture.WarehouseBId, fixture.LoginAOnly, "H02-issue-same-warehouse", issueId));
+            () => SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseBId, v_Fixture.LoginAOnly, "H02-issue-same-warehouse", issueId));
     }
 
     [Fact]
     public async Task Issue_draft_reservation_edit_delete_post_and_posted_mutations_preserve_stock()
     {
-        var fixture = m_objFixture!;
-        await CreatePostedStockAsync(fixture, 20m, "issue-lifecycle-stock");
-        var issueId = await SaveIssueHeaderAsync(fixture, fixture.WarehouseAId, fixture.LoginBoth, "issue-lifecycle");
-        var detailId = await SaveIssueDetailAsync(fixture, issueId, 5m, fixture.LoginBoth);
+        var v_Fixture = m_objFixture!;
+        await CreatePostedStockAsync(v_Fixture, 20m, "issue-lifecycle-stock");
+        var issueId = await SaveIssueHeaderAsync(v_Fixture, v_Fixture.WarehouseAId, v_Fixture.LoginBoth, "issue-lifecycle");
+        var detailId = await SaveIssueDetailAsync(v_Fixture, issueId, 5m, v_Fixture.LoginBoth);
 
-        await AssertIssueReservationAsync(fixture, issueId, detailId, fixture.WarehouseAId, 5m, 0m);
-        await SaveIssueDetailAsync(fixture, issueId, 7m, fixture.LoginBoth, detailId);
-        await AssertIssueReservationAsync(fixture, issueId, detailId, fixture.WarehouseAId, 7m, 0m);
+        await AssertIssueReservationAsync(v_Fixture, issueId, detailId, v_Fixture.WarehouseAId, 5m, 0m);
+        await SaveIssueDetailAsync(v_Fixture, issueId, 7m, v_Fixture.LoginBoth, detailId);
+        await AssertIssueReservationAsync(v_Fixture, issueId, detailId, v_Fixture.WarehouseAId, 7m, 0m);
 
-        await DeleteIssueDetailAsync(fixture, detailId, fixture.LoginBoth);
+        await DeleteIssueDetailAsync(v_Fixture, detailId, v_Fixture.LoginBoth);
         Assert.Equal(0, await IntScalarAsync(
             BaseConnectionString,
             null,
@@ -216,11 +228,11 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
             BaseConnectionString,
             null,
             "SELECT COALESCE((SELECT ReservedQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId), 0);",
-            BigInt("@WarehouseId", fixture.WarehouseAId),
-            BigInt("@ProductId", fixture.ProductId)));
+            BigInt("@WarehouseId", v_Fixture.WarehouseAId),
+            BigInt("@ProductId", v_Fixture.ProductId)));
 
-        detailId = await SaveIssueDetailAsync(fixture, issueId, 5m, fixture.LoginBoth);
-        await PostIssueAsync(fixture, issueId, fixture.LoginBoth);
+        detailId = await SaveIssueDetailAsync(v_Fixture, issueId, 5m, v_Fixture.LoginBoth);
+        await PostIssueAsync(v_Fixture, issueId, v_Fixture.LoginBoth);
 
         Assert.Equal(1, await IntScalarAsync(
             BaseConnectionString,
@@ -231,28 +243,28 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
             BaseConnectionString,
             null,
             "SELECT CurrentQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
-            BigInt("@WarehouseId", fixture.WarehouseAId),
-            BigInt("@ProductId", fixture.ProductId)));
+            BigInt("@WarehouseId", v_Fixture.WarehouseAId),
+            BigInt("@ProductId", v_Fixture.ProductId)));
         Assert.Equal(0, await IntScalarAsync(
             BaseConnectionString,
             null,
             "SELECT COUNT(*) FROM dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @DetailId;",
             BigInt("@DetailId", detailId)));
 
-        await AssertSqlNumberAsync(51162, () => PostIssueAsync(fixture, issueId, fixture.LoginBoth));
-        await AssertSqlNumberAsync(51163, () => SaveIssueDetailAsync(fixture, issueId, 6m, fixture.LoginBoth, detailId));
-        await AssertSqlNumberAsync(51163, () => DeleteIssueDetailAsync(fixture, detailId, fixture.LoginBoth));
-        await AssertSqlNumberAsync(51163, () => SaveIssueDetailAsync(fixture, issueId, 1m, fixture.LoginBoth));
+        await AssertSqlNumberAsync(51162, () => PostIssueAsync(v_Fixture, issueId, v_Fixture.LoginBoth));
+        await AssertSqlNumberAsync(51163, () => SaveIssueDetailAsync(v_Fixture, issueId, 6m, v_Fixture.LoginBoth, detailId));
+        await AssertSqlNumberAsync(51163, () => DeleteIssueDetailAsync(v_Fixture, detailId, v_Fixture.LoginBoth));
+        await AssertSqlNumberAsync(51163, () => SaveIssueDetailAsync(v_Fixture, issueId, 1m, v_Fixture.LoginBoth));
     }
 
     [Fact]
     public async Task Receipt_detail_update_persists_exactly_one_existing_row()
     {
-        var fixture = m_objFixture!;
-        var receiptId = await SaveReceiptHeaderAsync(fixture, fixture.WarehouseAId, fixture.LoginAOnly, "M04-normal");
-        var detailId = await SaveReceiptDetailAsync(fixture, receiptId, 10m, fixture.LoginAOnly);
+        var v_Fixture = m_objFixture!;
+        var receiptId = await SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseAId, v_Fixture.LoginAOnly, "M04-normal");
+        var detailId = await SaveReceiptDetailAsync(v_Fixture, receiptId, 10m, v_Fixture.LoginAOnly);
 
-        await SaveReceiptDetailAsync(fixture, receiptId, 12m, fixture.LoginAOnly, detailId);
+        await SaveReceiptDetailAsync(v_Fixture, receiptId, 12m, v_Fixture.LoginAOnly, detailId);
 
         Assert.Equal(1, await IntScalarAsync(
             BaseConnectionString,
@@ -265,38 +277,38 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Receipt_detail_concurrent_delete_then_update_is_rejected_as_not_found()
     {
-        var fixture = m_objFixture!;
-        var receiptId = await SaveReceiptHeaderAsync(fixture, fixture.WarehouseAId, fixture.LoginAOnly, "M04-race");
-        var detailId = await SaveReceiptDetailAsync(fixture, receiptId, 10m, fixture.LoginAOnly);
+        var v_Fixture = m_objFixture!;
+        var receiptId = await SaveReceiptHeaderAsync(v_Fixture, v_Fixture.WarehouseAId, v_Fixture.LoginAOnly, "M04-race");
+        var detailId = await SaveReceiptDetailAsync(v_Fixture, receiptId, 10m, v_Fixture.LoginAOnly);
 
-        await using var deleteConnection = OpenConnection($"M04-delete-{fixture.Tag}");
-        await deleteConnection.OpenAsync();
-        await using var deleteTransaction = (SqlTransaction)await deleteConnection.BeginTransactionAsync();
+        await using var v_DeleteConnection = OpenConnection($"M04-delete-{v_Fixture.Tag}");
+        await v_DeleteConnection.OpenAsync();
+        await using var v_DeleteTransaction = (SqlTransaction)await v_DeleteConnection.BeginTransactionAsync();
         await ExecuteAsync(
-            deleteConnection,
-            deleteTransaction,
+            v_DeleteConnection,
+            v_DeleteTransaction,
             "DELETE dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @DetailId;",
             BigInt("@DetailId", detailId));
 
-        await using var updateConnection = OpenConnection($"M04-update-{fixture.Tag}");
-        await updateConnection.OpenAsync();
-        var updateSessionId = await IntScalarAsync(updateConnection, null, "SELECT @@SPID;");
-        var updateOutcomeTask = CaptureAsync(() => SaveReceiptDetailAsync(
-            fixture,
+        await using var v_UpdateConnection = OpenConnection($"M04-update-{v_Fixture.Tag}");
+        await v_UpdateConnection.OpenAsync();
+        var v_iUpdateSessionId = await IntScalarAsync(v_UpdateConnection, null, "SELECT @@SPID;");
+        var v_UpdateOutcomeTask = CaptureAsync(() => SaveReceiptDetailAsync(
+            v_Fixture,
             receiptId,
             12m,
-            fixture.LoginAOnly,
+            v_Fixture.LoginAOnly,
             detailId,
-            updateConnection));
+            v_UpdateConnection));
 
-        await WaitForSqlLockAsync(updateConnection, updateSessionId, updateOutcomeTask);
-        await deleteTransaction.CommitAsync();
-        var updateOutcome = await updateOutcomeTask;
+        await WaitForSqlLockAsync(v_UpdateConnection, v_iUpdateSessionId, v_UpdateOutcomeTask);
+        await v_DeleteTransaction.CommitAsync();
+        var v_UpdateOutcome = await v_UpdateOutcomeTask;
 
-        Assert.False(updateOutcome.Succeeded, FormatFailure("Receipt detail update", updateOutcome.Error));
-        Assert.Equal(51109, (updateOutcome.Error as SqlException)?.Number);
+        Assert.False(v_UpdateOutcome.Succeeded, FormatFailure("Receipt detail update", v_UpdateOutcome.Error));
+        Assert.Equal(51109, (v_UpdateOutcome.Error as SqlException)?.Number);
         Assert.Equal(0, await IntScalarAsync(
-            updateConnection,
+            v_UpdateConnection,
             null,
             "SELECT COUNT(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data WHERE Auto_ID = @DetailId;",
             BigInt("@DetailId", detailId)));
@@ -304,79 +316,79 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
 
     private static async Task<Fixture> CreateFixtureAsync()
     {
-        var tag = $"H01H02M04-{Guid.NewGuid():N}"[..24];
-        var loginAOnly = $"{tag}-a";
-        var loginBOnly = $"{tag}-b";
-        var loginBoth = $"{tag}-both";
+        var v_Tag = $"H01H02M04-{Guid.NewGuid():N}"[..24];
+        var v_LoginAOnly = $"{v_Tag}-a";
+        var v_LoginBOnly = $"{v_Tag}-b";
+        var v_LoginBoth = $"{v_Tag}-both";
 
-        await using var connection = OpenConnection($"H01H02M04-setup-{tag}");
-        await connection.OpenAsync();
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
+        await using var v_Connection = OpenConnection($"H01H02M04-setup-{v_Tag}");
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = (SqlTransaction)await v_Connection.BeginTransactionAsync();
         try
         {
             var unitId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
-                Text("@Name", $"{tag}-unit", 200));
+                Text("@Name", $"{v_Tag}-unit", 200));
             var categoryId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_Loai_San_Pham(Ma_LSP, Ten_LSP, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, N'');",
-                Text("@Code", $"{tag}-category-code", 100),
-                Text("@Name", $"{tag}-category", 200));
+                Text("@Code", $"{v_Tag}-category-code", 100),
+                Text("@Name", $"{v_Tag}-category", 200));
             var productId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, @CategoryId, @UnitId, N'');",
-                Text("@Code", $"{tag}-product-1", 100),
-                Text("@Name", $"{tag}-product-1", 255),
+                Text("@Code", $"{v_Tag}-product-1", 100),
+                Text("@Name", $"{v_Tag}-product-1", 255),
                 BigInt("@CategoryId", categoryId),
                 BigInt("@UnitId", unitId));
             var secondProductId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, @CategoryId, @UnitId, N'');",
-                Text("@Code", $"{tag}-product-2", 100),
-                Text("@Name", $"{tag}-product-2", 255),
+                Text("@Code", $"{v_Tag}-product-2", 100),
+                Text("@Name", $"{v_Tag}-product-2", 255),
                 BigInt("@CategoryId", categoryId),
                 BigInt("@UnitId", unitId));
             var supplierId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_NCC(Ma_NCC, Ten_NCC, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Code, @Name, N'');",
-                Text("@Code", $"{tag}-supplier-code", 100),
-                Text("@Name", $"{tag}-supplier", 255));
+                Text("@Code", $"{v_Tag}-supplier-code", 100),
+                Text("@Name", $"{v_Tag}-supplier", 255));
             var warehouseAId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
-                Text("@Name", $"{tag}-warehouse-a", 255));
+                Text("@Name", $"{v_Tag}-warehouse-a", 255));
             var warehouseBId = await InsertIdAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_Kho(Ten_Kho, Ghi_Chu) OUTPUT INSERTED.Auto_ID VALUES (@Name, N'');",
-                Text("@Name", $"{tag}-warehouse-b", 255));
+                Text("@Name", $"{v_Tag}-warehouse-b", 255));
 
-            await InsertMemberAsync(connection, transaction, loginAOnly, $"{tag}-member-a");
-            await InsertMemberAsync(connection, transaction, loginBOnly, $"{tag}-member-b");
-            await InsertMemberAsync(connection, transaction, loginBoth, $"{tag}-member-both");
+            await InsertMemberAsync(v_Connection, v_Transaction, v_LoginAOnly, $"{v_Tag}-member-a");
+            await InsertMemberAsync(v_Connection, v_Transaction, v_LoginBOnly, $"{v_Tag}-member-b");
+            await InsertMemberAsync(v_Connection, v_Transaction, v_LoginBoth, $"{v_Tag}-member-both");
             await ExecuteAsync(
-                connection,
-                transaction,
+                v_Connection,
+                v_Transaction,
                 "INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@LoginA, @WarehouseA), (@LoginB, @WarehouseB), (@LoginBoth, @WarehouseA), (@LoginBoth, @WarehouseB);",
-                Text("@LoginA", loginAOnly, 100),
-                Text("@LoginB", loginBOnly, 100),
-                Text("@LoginBoth", loginBoth, 100),
+                Text("@LoginA", v_LoginAOnly, 100),
+                Text("@LoginB", v_LoginBOnly, 100),
+                Text("@LoginBoth", v_LoginBoth, 100),
                 BigInt("@WarehouseA", warehouseAId),
                 BigInt("@WarehouseB", warehouseBId));
 
-            await transaction.CommitAsync();
+            await v_Transaction.CommitAsync();
             return new Fixture(
-                tag,
-                loginAOnly,
-                loginBOnly,
-                loginBoth,
+                v_Tag,
+                v_LoginAOnly,
+                v_LoginBOnly,
+                v_LoginBoth,
                 unitId,
                 categoryId,
                 productId,
@@ -388,370 +400,454 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
             throw;
         }
     }
 
     private static async Task<long> SaveReceiptHeaderAsync(
-        Fixture fixture,
+        Fixture p_Fixture,
         long warehouseId,
-        string login,
-        string suffix,
+        string p_Login,
+        string p_Suffix,
         long autoId = 0,
-        SqlConnection? connection = null,
-        SqlTransaction? transaction = null)
+        SqlConnection? p_Connection = null,
+        SqlTransaction? p_Transaction = null)
     {
-        var ownsConnection = connection is null;
-        connection ??= OpenConnection($"H02-receipt-header-{fixture.Tag}");
-        if (ownsConnection)
-            await connection.OpenAsync();
+        var v_bOwnsConnection = p_Connection is null;
+        p_Connection ??= OpenConnection($"H02-receipt-header-{p_Fixture.Tag}");
+        if (v_bOwnsConnection)
+            await p_Connection.OpenAsync();
         try
         {
+            string v_strProcedure;
+            if (autoId == 0)
+            {
+                v_strProcedure = "dbo.F2011_sp_ins_Nhap_Kho_Header";
+            }
+            else
+            {
+                v_strProcedure = "dbo.F2011_sp_upd_Nhap_Kho_Header";
+            }
+
             return await ExecuteStoredWithOutputAsync(
-                connection,
-                transaction,
-                "dbo.sp_XNK_Nhap_Kho_Save_Header",
+                p_Connection,
+                p_Transaction,
+                v_strProcedure,
                 BigInt("@Auto_ID", autoId),
-                Text("@So_Phieu_Nhap_Kho", $"{fixture.Tag}-{suffix}-{Guid.NewGuid():N}", 100),
+                Text("@So_Phieu_Nhap_Kho", $"{p_Fixture.Tag}-{p_Suffix}-{Guid.NewGuid():N}", 100),
                 BigInt("@Kho_ID", warehouseId),
-                BigInt("@NCC_ID", fixture.SupplierId),
+                BigInt("@NCC_ID", p_Fixture.SupplierId),
                 Date("@Ngay_Nhap_Kho", new DateTime(2026, 2, 1)),
                 Text("@Ghi_Chu", "phase 2 test", 1000),
-                Text("@Ma_Dang_Nhap", login, 100));
+                Text("@Ma_Dang_Nhap", p_Login, 100));
         }
         finally
         {
-            if (ownsConnection)
-                await connection.DisposeAsync();
+            if (v_bOwnsConnection)
+                await p_Connection.DisposeAsync();
         }
     }
 
     private static async Task<long> SaveIssueHeaderAsync(
-        Fixture fixture,
+        Fixture p_Fixture,
         long warehouseId,
-        string login,
-        string suffix,
+        string p_Login,
+        string p_Suffix,
         long autoId = 0,
-        SqlConnection? connection = null,
-        SqlTransaction? transaction = null)
+        SqlConnection? p_Connection = null,
+        SqlTransaction? p_Transaction = null)
     {
-        var ownsConnection = connection is null;
-        connection ??= OpenConnection($"H01H02-issue-header-{fixture.Tag}");
-        if (ownsConnection)
-            await connection.OpenAsync();
+        var v_bOwnsConnection = p_Connection is null;
+        p_Connection ??= OpenConnection($"H01H02-issue-header-{p_Fixture.Tag}");
+        if (v_bOwnsConnection)
+            await p_Connection.OpenAsync();
         try
         {
+            string v_strProcedure;
+            if (autoId == 0)
+            {
+                v_strProcedure = "dbo.F2012_sp_ins_Xuat_Kho_Header";
+            }
+            else
+            {
+                v_strProcedure = "dbo.F2012_sp_upd_Xuat_Kho_Header";
+            }
+
             return await ExecuteStoredWithOutputAsync(
-                connection,
-                transaction,
-                "dbo.sp_XNK_Xuat_Kho_Save_Header",
+                p_Connection,
+                p_Transaction,
+                v_strProcedure,
                 BigInt("@Auto_ID", autoId),
-                Text("@So_Phieu_Xuat_Kho", $"{fixture.Tag}-{suffix}-{Guid.NewGuid():N}", 100),
+                Text("@So_Phieu_Xuat_Kho", $"{p_Fixture.Tag}-{p_Suffix}-{Guid.NewGuid():N}", 100),
                 BigInt("@Kho_ID", warehouseId),
                 Date("@Ngay_Xuat_Kho", new DateTime(2026, 2, 2)),
                 Text("@Ghi_Chu", "phase 2 test", 1000),
-                Text("@Ma_Dang_Nhap", login, 100));
+                Text("@Ma_Dang_Nhap", p_Login, 100));
         }
         finally
         {
-            if (ownsConnection)
-                await connection.DisposeAsync();
+            if (v_bOwnsConnection)
+                await p_Connection.DisposeAsync();
         }
     }
 
     private static async Task<long> SaveReceiptDetailAsync(
-        Fixture fixture,
+        Fixture p_Fixture,
         long receiptId,
-        decimal quantity,
-        string login,
+        decimal p_Quantity,
+        string p_Login,
         long detailId = 0,
-        SqlConnection? connection = null,
-        SqlTransaction? transaction = null)
+        SqlConnection? p_Connection = null,
+        SqlTransaction? p_Transaction = null)
     {
-        var ownsConnection = connection is null;
-        connection ??= OpenConnection($"M04-receipt-detail-{fixture.Tag}");
-        if (ownsConnection)
-            await connection.OpenAsync();
+        var v_bOwnsConnection = p_Connection is null;
+        p_Connection ??= OpenConnection($"M04-receipt-detail-{p_Fixture.Tag}");
+        if (v_bOwnsConnection)
+            await p_Connection.OpenAsync();
         try
         {
+            string v_strProcedure;
+            if (detailId == 0)
+            {
+                v_strProcedure = "dbo.F2011_sp_ins_Nhap_Kho_Detail";
+            }
+            else
+            {
+                v_strProcedure = "dbo.F2011_sp_upd_Nhap_Kho_Detail";
+            }
+
             return await ExecuteStoredWithOutputAsync(
-                connection,
-                transaction,
-                "dbo.sp_XNK_Nhap_Kho_Save_Detail",
+                p_Connection,
+                p_Transaction,
+                v_strProcedure,
                 BigInt("@Auto_ID", detailId),
                 BigInt("@Nhap_Kho_ID", receiptId),
-                BigInt("@San_Pham_ID", fixture.ProductId),
-                Decimal("@SL_Nhap", quantity),
+                BigInt("@San_Pham_ID", p_Fixture.ProductId),
+                Decimal("@SL_Nhap", p_Quantity),
                 Decimal("@Don_Gia_Nhap", 1m),
-                Text("@Ma_Dang_Nhap", login, 100));
+                Text("@Ma_Dang_Nhap", p_Login, 100));
         }
         finally
         {
-            if (ownsConnection)
-                await connection.DisposeAsync();
+            if (v_bOwnsConnection)
+                await p_Connection.DisposeAsync();
         }
     }
 
     private static async Task<long> SaveIssueDetailAsync(
-        Fixture fixture,
+        Fixture p_Fixture,
         long issueId,
-        decimal quantity,
-        string login,
+        decimal p_Quantity,
+        string p_Login,
         long detailId = 0,
-        SqlConnection? connection = null,
-        SqlTransaction? transaction = null)
+        SqlConnection? p_Connection = null,
+        SqlTransaction? p_Transaction = null)
     {
-        var ownsConnection = connection is null;
-        connection ??= OpenConnection($"H01H02-issue-detail-{fixture.Tag}");
-        if (ownsConnection)
-            await connection.OpenAsync();
+        var v_bOwnsConnection = p_Connection is null;
+        p_Connection ??= OpenConnection($"H01H02-issue-detail-{p_Fixture.Tag}");
+        if (v_bOwnsConnection)
+            await p_Connection.OpenAsync();
         try
         {
+            string v_strProcedure;
+            if (detailId == 0)
+            {
+                v_strProcedure = "dbo.F2012_sp_ins_Xuat_Kho_Detail";
+            }
+            else
+            {
+                v_strProcedure = "dbo.F2012_sp_upd_Xuat_Kho_Detail";
+            }
+
             return await ExecuteStoredWithOutputAsync(
-                connection,
-                transaction,
-                "dbo.sp_XNK_Xuat_Kho_Save_Detail",
+                p_Connection,
+                p_Transaction,
+                v_strProcedure,
                 BigInt("@Auto_ID", detailId),
                 BigInt("@Xuat_Kho_ID", issueId),
-                BigInt("@San_Pham_ID", fixture.ProductId),
-                Decimal("@SL_Xuat", quantity),
+                BigInt("@San_Pham_ID", p_Fixture.ProductId),
+                Decimal("@SL_Xuat", p_Quantity),
                 Decimal("@Don_Gia_Xuat", 1m),
-                Text("@Ma_Dang_Nhap", login, 100));
+                Text("@Ma_Dang_Nhap", p_Login, 100));
         }
         finally
         {
-            if (ownsConnection)
-                await connection.DisposeAsync();
+            if (v_bOwnsConnection)
+                await p_Connection.DisposeAsync();
         }
     }
 
-    private static async Task CreatePostedStockAsync(Fixture fixture, decimal quantity, string suffix, long? warehouseId = null)
+    private static async Task CreatePostedStockAsync(Fixture p_Fixture, decimal p_Quantity, string p_Suffix, long? warehouseId = null)
     {
-        var receiptId = await SaveReceiptHeaderAsync(fixture, warehouseId ?? fixture.WarehouseAId, fixture.LoginBoth, suffix);
-        await SaveReceiptDetailAsync(fixture, receiptId, quantity, fixture.LoginBoth);
+        var receiptId = await SaveReceiptHeaderAsync(p_Fixture, warehouseId ?? p_Fixture.WarehouseAId, p_Fixture.LoginBoth, p_Suffix);
+        await SaveReceiptDetailAsync(p_Fixture, receiptId, p_Quantity, p_Fixture.LoginBoth);
         await ExecuteStoredAsync(
             "dbo.sp_XNK_Document_Post",
             new SqlParameter("@Is_Receipt", SqlDbType.Bit) { Value = true },
             BigInt("@Document_ID", receiptId),
-            Text("@Ma_Dang_Nhap", fixture.LoginBoth, 100));
+            Text("@Ma_Dang_Nhap", p_Fixture.LoginBoth, 100));
     }
 
-    private static Task PostIssueAsync(Fixture fixture, long issueId, string login) => ExecuteStoredAsync(
-        "dbo.sp_XNK_Document_Post",
-        new SqlParameter("@Is_Receipt", SqlDbType.Bit) { Value = false },
-        BigInt("@Document_ID", issueId),
-        Text("@Ma_Dang_Nhap", login, 100));
+    private static Task PostIssueAsync(Fixture p_Fixture, long issueId, string p_Login)
+    {
+        return ExecuteStoredAsync("dbo.sp_XNK_Document_Post", new SqlParameter("@Is_Receipt", SqlDbType.Bit) { Value = false }, BigInt("@Document_ID", issueId), Text("@Ma_Dang_Nhap", p_Login, 100));
+    }
 
-    private static Task DeleteIssueDetailAsync(Fixture fixture, long detailId, string login) => ExecuteStoredAsync(
-        "dbo.sp_XNK_Xuat_Kho_Delete_Detail",
-        BigInt("@Auto_ID", detailId),
-        Text("@Ma_Dang_Nhap", login, 100));
+    private static Task DeleteIssueDetailAsync(Fixture p_Fixture, long detailId, string p_Login)
+    {
+        return ExecuteStoredAsync("dbo.F2012_sp_del_Xuat_Kho_Detail", BigInt("@Auto_ID", detailId), Text("@Ma_Dang_Nhap", p_Login, 100));
+    }
 
-    private static async Task<long> WarehouseOfReceiptAsync(Fixture fixture, long receiptId) => await Int64ScalarAsync(
-        BaseConnectionString,
-        null,
-        "SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @DocumentId;",
-        BigInt("@DocumentId", receiptId));
+    private static async Task<long> WarehouseOfReceiptAsync(Fixture p_Fixture, long receiptId)
+    {
+        return await Int64ScalarAsync(BaseConnectionString, null, "SELECT Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @DocumentId;", BigInt("@DocumentId", receiptId));
+    }
 
-    private static async Task<long> WarehouseOfIssueAsync(Fixture fixture, long issueId) => await Int64ScalarAsync(
-        BaseConnectionString,
-        null,
-        "SELECT Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @DocumentId;",
-        BigInt("@DocumentId", issueId));
+    private static async Task<long> WarehouseOfIssueAsync(Fixture p_Fixture, long issueId)
+    {
+        return await Int64ScalarAsync(BaseConnectionString, null, "SELECT Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @DocumentId;", BigInt("@DocumentId", issueId));
+    }
 
     private static async Task AssertIssueReservationAsync(
-        Fixture fixture,
+        Fixture p_Fixture,
         long issueId,
         long detailId,
         long expectedWarehouseId,
-        decimal expectedAReserved,
-        decimal expectedBReserved)
+        decimal p_ExpectedAReserved,
+        decimal p_ExpectedBReserved)
     {
-        Assert.Equal(expectedWarehouseId, await WarehouseOfIssueAsync(fixture, issueId));
+        Assert.Equal(expectedWarehouseId, await WarehouseOfIssueAsync(p_Fixture, issueId));
         Assert.Equal(expectedWarehouseId, await Int64ScalarAsync(
             BaseConnectionString,
             null,
             "SELECT Kho_ID FROM dbo.InventoryReservation_Current WHERE Xuat_Kho_Detail_ID = @DetailId;",
             BigInt("@DetailId", detailId)));
-        Assert.Equal(expectedAReserved, await DecimalScalarAsync(
+        Assert.Equal(p_ExpectedAReserved, await DecimalScalarAsync(
             BaseConnectionString,
             null,
             "SELECT COALESCE((SELECT ReservedQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId), 0);",
-            BigInt("@WarehouseId", fixture.WarehouseAId),
-            BigInt("@ProductId", fixture.ProductId)));
-        Assert.Equal(expectedBReserved, await DecimalScalarAsync(
+            BigInt("@WarehouseId", p_Fixture.WarehouseAId),
+            BigInt("@ProductId", p_Fixture.ProductId)));
+        Assert.Equal(p_ExpectedBReserved, await DecimalScalarAsync(
             BaseConnectionString,
             null,
             "SELECT COALESCE((SELECT ReservedQuantity FROM dbo.InventoryBalance_Current WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId), 0);",
-            BigInt("@WarehouseId", fixture.WarehouseBId),
-            BigInt("@ProductId", fixture.ProductId)));
+            BigInt("@WarehouseId", p_Fixture.WarehouseBId),
+            BigInt("@ProductId", p_Fixture.ProductId)));
     }
 
-    private static async Task WaitForSqlLockAsync(SqlConnection connection, int sessionId, Task<OperationOutcome> operation)
+    private static async Task WaitForSqlLockAsync(SqlConnection p_Connection, int p_iSessionId, Task<OperationOutcome> p_Operation)
     {
-        await using var monitor = OpenConnection("H01H02M04-monitor");
-        await monitor.OpenAsync();
+        await using var v_Monitor = OpenConnection("H01H02M04-monitor");
+        await v_Monitor.OpenAsync();
         var deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency * 10;
         while (Stopwatch.GetTimestamp() < deadline)
         {
-            if (operation.IsCompleted)
+            if (p_Operation.IsCompleted)
                 break;
-            await using var command = new SqlCommand(
+            await using var v_Command = new SqlCommand(
                 "SELECT TOP (1) wait_type, blocking_session_id FROM sys.dm_exec_requests WHERE session_id = @SessionId;",
-                monitor);
-            command.Parameters.Add(new SqlParameter("@SessionId", SqlDbType.Int) { Value = sessionId });
-            await using var reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+                v_Monitor);
+            v_Command.Parameters.Add(new SqlParameter("@SessionId", SqlDbType.Int) { Value = p_iSessionId });
+            await using var v_Reader = await v_Command.ExecuteReaderAsync();
+            if (await v_Reader.ReadAsync())
             {
-                var waitType = reader.IsDBNull(0) ? null : reader.GetString(0);
-                var blockingSessionId = reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetValue(1));
-                if (blockingSessionId > 0 && waitType?.StartsWith("LCK_", StringComparison.OrdinalIgnoreCase) == true)
+                string? v_WaitType;
+                if (v_Reader.IsDBNull(0))
+                {
+                    v_WaitType = null;
+                }
+                else
+                {
+                    v_WaitType = v_Reader.GetString(0);
+                }
+
+                int v_iBlockingSessionId;
+                if (v_Reader.IsDBNull(1))
+                {
+                    v_iBlockingSessionId = 0;
+                }
+                else
+                {
+                    v_iBlockingSessionId = Convert.ToInt32(v_Reader.GetValue(1));
+                }
+
+                if (v_iBlockingSessionId > 0 && v_WaitType?.StartsWith("LCK_", StringComparison.OrdinalIgnoreCase) == true)
                     return;
             }
             await Task.Delay(50);
         }
 
-        if (!operation.IsCompleted)
+        if (!p_Operation.IsCompleted)
             throw new Xunit.Sdk.XunitException("The concurrent operation did not reach a SQL lock wait.");
     }
 
-    private static async Task<OperationOutcome> CaptureAsync(Func<Task> operation)
+    private static async Task<OperationOutcome> CaptureAsync(Func<Task> p_Operation)
     {
         try
         {
-            await operation();
+            await p_Operation();
             return new OperationOutcome(true, null);
         }
-        catch (Exception exception)
+        catch (Exception v_Exception)
         {
-            return new OperationOutcome(false, exception);
+            return new OperationOutcome(false, v_Exception);
         }
     }
 
-    private static string FormatFailure(string operation, Exception? exception) =>
-        exception is null ? $"{operation} unexpectedly succeeded." : $"{operation} failed: {exception.Message}";
-
-    private static async Task AssertSqlNumberAsync(int expectedNumber, Func<Task> operation)
+    private static string FormatFailure(string p_Operation, Exception? p_Exception)
     {
-        var exception = await Assert.ThrowsAsync<SqlException>(operation);
-        Assert.Equal(expectedNumber, exception.Number);
+        if (p_Exception is null)
+        {
+            return $"{p_Operation} unexpectedly succeeded.";
+        }
+        else
+        {
+            return $"{p_Operation} failed: {p_Exception.Message}";
+        }
     }
 
-    private static async Task InsertMemberAsync(SqlConnection connection, SqlTransaction transaction, string login, string name) =>
-        await ExecuteAsync(
-            connection,
-            transaction,
-            "DECLARE @MemberId BIGINT = CONVERT(BIGINT, ABS(CHECKSUM(NEWID()))); INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, Trang_Thai_ID, deleted) VALUES (@MemberId, @Login, @Name, 1, 0);",
-            Text("@Login", login, 100),
-            Text("@Name", name, 200));
-
-    private static async Task CleanupFixtureAsync(Fixture fixture)
+    private static async Task AssertSqlNumberAsync(int p_iExpectedNumber, Func<Task> p_Operation)
     {
-        await using var connection = OpenConnection($"H01H02M04-cleanup-{fixture.Tag}");
-        await connection.OpenAsync();
-        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
+        var v_Exception = await Assert.ThrowsAsync<SqlException>(p_Operation);
+        Assert.Equal(p_iExpectedNumber, v_Exception.Number);
+    }
+
+    private static async Task InsertMemberAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login, string p_Name)
+    {
+        await ExecuteAsync(p_Connection, p_Transaction, "DECLARE @MemberId BIGINT = CONVERT(BIGINT, ABS(CHECKSUM(NEWID()))); INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, Trang_Thai_ID, deleted) VALUES (@MemberId, @Login, @Name, 1, 0);", Text("@Login", p_Login, 100), Text("@Name", p_Name, 200));
+    }
+
+    private static async Task CleanupFixtureAsync(Fixture p_Fixture)
+    {
+        await using var v_Connection = OpenConnection($"H01H02M04-cleanup-{p_Fixture.Tag}");
+        await v_Connection.OpenAsync();
+        await using var v_Transaction = (SqlTransaction)await v_Connection.BeginTransactionAsync();
         try
         {
-            await ExecuteAsync(connection, transaction, "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
-            await ExecuteAsync(connection, transaction, "DELETE d FROM dbo.InventorySnapshot_RebuildDeadLetter d JOIN dbo.InventorySnapshot_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.Kho_ID IN (@WarehouseA, @WarehouseB) AND q.San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", fixture.WarehouseAId), BigInt("@WarehouseB", fixture.WarehouseBId), BigInt("@ProductId", fixture.ProductId), BigInt("@SecondProductId", fixture.SecondProductId));
-            await ExecuteAsync(connection, transaction, "DELETE d FROM dbo.InventoryMovement_RebuildDeadLetter d JOIN dbo.InventoryMovement_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.Kho_ID IN (@WarehouseA, @WarehouseB) AND q.San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", fixture.WarehouseAId), BigInt("@WarehouseB", fixture.WarehouseBId), BigInt("@ProductId", fixture.ProductId), BigInt("@SecondProductId", fixture.SecondProductId));
-            await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", fixture.WarehouseAId), BigInt("@WarehouseB", fixture.WarehouseBId), BigInt("@ProductId", fixture.ProductId), BigInt("@SecondProductId", fixture.SecondProductId));
-            await ExecuteAsync(connection, transaction, "DELETE FROM dbo.InventoryBalance_Snapshot_Daily WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.Inventory_Movement_Daily WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.Inventory_Balance_Daily WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.Inventory_Balance_Daily_Scope WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.InventoryReservation_Current WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.InventoryBalance_Current WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", fixture.WarehouseAId), BigInt("@WarehouseB", fixture.WarehouseBId), BigInt("@ProductId", fixture.ProductId), BigInt("@SecondProductId", fixture.SecondProductId));
-            await ExecuteAsync(connection, transaction, "DELETE FROM dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @TagPrefix; DELETE FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @TagPrefix;", Text("@TagPrefix", $"{fixture.Tag}%", 100));
-            await ExecuteAsync(connection, transaction, "DELETE FROM dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap IN (@LoginA, @LoginB, @LoginBoth); DELETE FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap IN (@LoginA, @LoginB, @LoginBoth); DELETE FROM dbo.tbl_DM_Kho WHERE Auto_ID IN (@WarehouseA, @WarehouseB); DELETE FROM dbo.tbl_DM_NCC WHERE Auto_ID = @SupplierId; DELETE FROM dbo.tbl_DM_San_Pham WHERE Auto_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID = @CategoryId; DELETE FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID = @UnitId;", Text("@LoginA", fixture.LoginAOnly, 100), Text("@LoginB", fixture.LoginBOnly, 100), Text("@LoginBoth", fixture.LoginBoth, 100), BigInt("@WarehouseA", fixture.WarehouseAId), BigInt("@WarehouseB", fixture.WarehouseBId), BigInt("@SupplierId", fixture.SupplierId), BigInt("@ProductId", fixture.ProductId), BigInt("@SecondProductId", fixture.SecondProductId), BigInt("@CategoryId", fixture.CategoryId), BigInt("@UnitId", fixture.UnitId));
-            await transaction.CommitAsync();
+            await ExecuteAsync(v_Connection, v_Transaction, "EXEC sys.sp_set_session_context @key = N'InventoryMovement:ManagedPost', @value = 1;");
+            await ExecuteAsync(v_Connection, v_Transaction, "DELETE d FROM dbo.InventorySnapshot_RebuildDeadLetter d JOIN dbo.InventorySnapshot_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.Kho_ID IN (@WarehouseA, @WarehouseB) AND q.San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", p_Fixture.WarehouseAId), BigInt("@WarehouseB", p_Fixture.WarehouseBId), BigInt("@ProductId", p_Fixture.ProductId), BigInt("@SecondProductId", p_Fixture.SecondProductId));
+            await ExecuteAsync(v_Connection, v_Transaction, "DELETE d FROM dbo.InventoryMovement_RebuildDeadLetter d JOIN dbo.InventoryMovement_RebuildQueue q ON q.ID = d.Queue_ID WHERE q.Kho_ID IN (@WarehouseA, @WarehouseB) AND q.San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", p_Fixture.WarehouseAId), BigInt("@WarehouseB", p_Fixture.WarehouseBId), BigInt("@ProductId", p_Fixture.ProductId), BigInt("@SecondProductId", p_Fixture.SecondProductId));
+            await ExecuteAsync(v_Connection, v_Transaction, "DELETE FROM dbo.InventorySnapshot_RebuildQueue WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", p_Fixture.WarehouseAId), BigInt("@WarehouseB", p_Fixture.WarehouseBId), BigInt("@ProductId", p_Fixture.ProductId), BigInt("@SecondProductId", p_Fixture.SecondProductId));
+            await ExecuteAsync(v_Connection, v_Transaction, "DELETE FROM dbo.InventoryBalance_Snapshot_Daily WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.Inventory_Movement_Daily WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.Inventory_Balance_Daily WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.Inventory_Balance_Daily_Scope WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.InventoryReservation_Current WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.InventoryBalance_Current WHERE Kho_ID IN (@WarehouseA, @WarehouseB) AND San_Pham_ID IN (@ProductId, @SecondProductId);", BigInt("@WarehouseA", p_Fixture.WarehouseAId), BigInt("@WarehouseB", p_Fixture.WarehouseBId), BigInt("@ProductId", p_Fixture.ProductId), BigInt("@SecondProductId", p_Fixture.SecondProductId));
+            await ExecuteAsync(v_Connection, v_Transaction, "DELETE FROM dbo.tbl_XNK_Nhap_Kho WHERE So_Phieu_Nhap_Kho LIKE @TagPrefix; DELETE FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @TagPrefix;", Text("@TagPrefix", $"{p_Fixture.Tag}%", 100));
+            await ExecuteAsync(v_Connection, v_Transaction, "DELETE FROM dbo.tbl_DM_Kho_User WHERE Ma_Dang_Nhap IN (@LoginA, @LoginB, @LoginBoth); DELETE FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap IN (@LoginA, @LoginB, @LoginBoth); DELETE FROM dbo.tbl_DM_Kho WHERE Auto_ID IN (@WarehouseA, @WarehouseB); DELETE FROM dbo.tbl_DM_NCC WHERE Auto_ID = @SupplierId; DELETE FROM dbo.tbl_DM_San_Pham WHERE Auto_ID IN (@ProductId, @SecondProductId); DELETE FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID = @CategoryId; DELETE FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Auto_ID = @UnitId;", Text("@LoginA", p_Fixture.LoginAOnly, 100), Text("@LoginB", p_Fixture.LoginBOnly, 100), Text("@LoginBoth", p_Fixture.LoginBoth, 100), BigInt("@WarehouseA", p_Fixture.WarehouseAId), BigInt("@WarehouseB", p_Fixture.WarehouseBId), BigInt("@SupplierId", p_Fixture.SupplierId), BigInt("@ProductId", p_Fixture.ProductId), BigInt("@SecondProductId", p_Fixture.SecondProductId), BigInt("@CategoryId", p_Fixture.CategoryId), BigInt("@UnitId", p_Fixture.UnitId));
+            await v_Transaction.CommitAsync();
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await v_Transaction.RollbackAsync();
             throw;
         }
     }
 
-    private static SqlConnection OpenConnection(string applicationName)
+    private static SqlConnection OpenConnection(string p_ApplicationName)
     {
-        var builder = new SqlConnectionStringBuilder(BaseConnectionString) { ApplicationName = applicationName };
-        return new SqlConnection(builder.ConnectionString);
+        var v_Builder = new SqlConnectionStringBuilder(BaseConnectionString) { ApplicationName = p_ApplicationName };
+        return new SqlConnection(v_Builder.ConnectionString);
     }
 
-    private static async Task<long> InsertIdAsync(SqlConnection connection, SqlTransaction transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<long> InsertIdAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        return Convert.ToInt64(await command.ExecuteScalarAsync());
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        return Convert.ToInt64(await v_Command.ExecuteScalarAsync());
     }
 
-    private static async Task<long> ExecuteStoredWithOutputAsync(SqlConnection connection, SqlTransaction? transaction, string procedure, params SqlParameter[] parameters)
+    private static async Task<long> ExecuteStoredWithOutputAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Procedure, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(procedure, connection, transaction) { CommandType = CommandType.StoredProcedure };
-        var output = parameters.SingleOrDefault(parameter => parameter.ParameterName == "@Auto_ID") ?? BigInt("@Auto_ID", 0);
-        output.Direction = ParameterDirection.InputOutput;
-        command.Parameters.Add(output);
-        command.Parameters.AddRange(parameters.Where(parameter => parameter != output).ToArray());
-        await command.ExecuteNonQueryAsync();
-        return Convert.ToInt64(output.Value);
+        await using var v_Command = new SqlCommand(p_Procedure, p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
+        var v_Output = p_arrParameters.SingleOrDefault(parameter => parameter.ParameterName == "@Auto_ID") ?? BigInt("@Auto_ID", 0);
+        v_Output.Direction = ParameterDirection.InputOutput;
+        v_Command.Parameters.Add(v_Output);
+        v_Command.Parameters.AddRange(p_arrParameters.Where(parameter => parameter != v_Output).ToArray());
+        await v_Command.ExecuteNonQueryAsync();
+        return Convert.ToInt64(v_Output.Value);
     }
 
-    private static async Task ExecuteStoredAsync(string procedure, params SqlParameter[] parameters)
+    private static async Task ExecuteStoredAsync(string p_Procedure, params SqlParameter[] p_arrParameters)
     {
-        await using var connection = OpenConnection($"H01H02M04-{procedure}");
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(procedure, connection) { CommandType = CommandType.StoredProcedure };
-        command.Parameters.AddRange(parameters);
-        await command.ExecuteNonQueryAsync();
+        await using var v_Connection = OpenConnection($"H01H02M04-{p_Procedure}");
+        await v_Connection.OpenAsync();
+        await using var v_Command = new SqlCommand(p_Procedure, v_Connection) { CommandType = CommandType.StoredProcedure };
+        v_Command.Parameters.AddRange(p_arrParameters);
+        await v_Command.ExecuteNonQueryAsync();
     }
 
-    private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task ExecuteAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        await command.ExecuteNonQueryAsync();
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        await v_Command.ExecuteNonQueryAsync();
     }
 
-    private static async Task<object?> ScalarAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<object?> ScalarAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var command = new SqlCommand(sql, connection, transaction);
-        command.Parameters.AddRange(parameters);
-        return await command.ExecuteScalarAsync();
+        await using var v_Command = new SqlCommand(p_Sql, p_Connection, p_Transaction);
+        v_Command.Parameters.AddRange(p_arrParameters);
+        return await v_Command.ExecuteScalarAsync();
     }
 
-    private static async Task<int> IntScalarAsync(SqlConnection connection, SqlTransaction? transaction, string sql, params SqlParameter[] parameters) =>
-        Convert.ToInt32(await ScalarAsync(connection, transaction, sql, parameters));
-
-    private static async Task<int> IntScalarAsync(string connectionString, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<int> IntScalarAsync(SqlConnection p_Connection, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var connection = OpenConnection("H01H02M04-int");
-        await connection.OpenAsync();
-        return await IntScalarAsync(connection, transaction, sql, parameters);
+        return Convert.ToInt32(await ScalarAsync(p_Connection, p_Transaction, p_Sql, p_arrParameters));
     }
 
-    private static async Task<long> Int64ScalarAsync(string connectionString, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<int> IntScalarAsync(string p_ConnectionString, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var connection = OpenConnection("H01H02M04-int64");
-        await connection.OpenAsync();
-        return Convert.ToInt64(await ScalarAsync(connection, transaction, sql, parameters));
+        await using var v_Connection = OpenConnection("H01H02M04-int");
+        await v_Connection.OpenAsync();
+        return await IntScalarAsync(v_Connection, p_Transaction, p_Sql, p_arrParameters);
     }
 
-    private static async Task<decimal> DecimalScalarAsync(string connectionString, SqlTransaction? transaction, string sql, params SqlParameter[] parameters)
+    private static async Task<long> Int64ScalarAsync(string p_ConnectionString, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        await using var connection = OpenConnection("H01H02M04-decimal");
-        await connection.OpenAsync();
-        return Convert.ToDecimal(await ScalarAsync(connection, transaction, sql, parameters));
+        await using var v_Connection = OpenConnection("H01H02M04-int64");
+        await v_Connection.OpenAsync();
+        return Convert.ToInt64(await ScalarAsync(v_Connection, p_Transaction, p_Sql, p_arrParameters));
     }
 
-    private static SqlParameter BigInt(string name, long value) => new(name, SqlDbType.BigInt) { Value = value };
-
-    private static SqlParameter Decimal(string name, decimal value) => new(name, SqlDbType.Decimal)
+    private static async Task<decimal> DecimalScalarAsync(string p_ConnectionString, SqlTransaction? p_Transaction, string p_Sql, params SqlParameter[] p_arrParameters)
     {
-        Precision = 18,
-        Scale = 3,
-        Value = value
-    };
+        await using var v_Connection = OpenConnection("H01H02M04-decimal");
+        await v_Connection.OpenAsync();
+        return Convert.ToDecimal(await ScalarAsync(v_Connection, p_Transaction, p_Sql, p_arrParameters));
+    }
 
-    private static SqlParameter Date(string name, DateTime value) => new(name, SqlDbType.Date) { Value = value.Date };
+    private static SqlParameter BigInt(string p_Name, long value)
+    {
+        return new(p_Name, SqlDbType.BigInt)
+        {
+            Value = value
+        };
+    }
 
-    private static SqlParameter Text(string name, string value, int size) => new(name, SqlDbType.NVarChar, size) { Value = value };
+    private static SqlParameter Decimal(string p_Name, decimal p_Value)
+    {
+        return new(p_Name, SqlDbType.Decimal)
+        {
+            Precision = 18,
+            Scale = 3,
+            Value = p_Value
+        };
+    }
+
+    private static SqlParameter Date(string p_Name, DateTime p_dtmValue)
+    {
+        return new(p_Name, SqlDbType.Date)
+        {
+            Value = p_dtmValue.Date
+        };
+    }
+
+    private static SqlParameter Text(string p_Name, string p_Value, int p_iSize)
+    {
+        return new(p_Name, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_Value
+        };
+    }
 
     private sealed record Fixture(
         string Tag,

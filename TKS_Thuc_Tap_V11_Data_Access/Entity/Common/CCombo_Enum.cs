@@ -9,7 +9,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
 {
     public class CCombo_Enum
     {
-        private int m_intValue;
+        private int m_iValue;
         private string m_strText;
         private string m_strText_Value;
 
@@ -20,7 +20,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
 
         public void ResetData()
         {
-            m_intValue = CConst.INT_VALUE_NULL;
+            m_iValue = CConst.INT_VALUE_NULL;
             m_strText = CConst.STR_VALUE_NULL;
             m_strText_Value = CConst.STR_VALUE_NULL;
         }
@@ -29,11 +29,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         {
             get
             {
-                return m_intValue;
+                return m_iValue;
             }
             set
             {
-                m_intValue = value;
+                m_iValue = value;
             }
         }
 

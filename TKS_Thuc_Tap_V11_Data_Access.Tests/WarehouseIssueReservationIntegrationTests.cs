@@ -9,7 +9,13 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseIssueReservationIntegrationTests : IAsyncLifetime
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     private readonly string m_strTag = $"TDD-RES-{Guid.NewGuid():N}"[..20];
     private long m_iProductId;
@@ -134,33 +140,54 @@ public sealed class WarehouseIssueReservationIntegrationTests : IAsyncLifetime
         return (v_objIssue.Auto_ID, v_objDetail.Auto_ID);
     }
 
-    private CWarehouseDocument Receipt(string p_strSuffix) => new()
+    private CWarehouseDocument Receipt(string p_strSuffix)
     {
-        Is_Receipt = true,
-        So_Phieu = $"{m_strTag}-{p_strSuffix}",
-        Kho_ID = m_iWarehouseId,
-        NCC_ID = m_iSupplierId,
-        Ngay_Chung_Tu = new DateTime(2026, 8, 25)
-    };
+        return new()
+        {
+            Is_Receipt = true,
+            So_Phieu = $"{m_strTag}-{p_strSuffix}",
+            Kho_ID = m_iWarehouseId,
+            NCC_ID = m_iSupplierId,
+            Ngay_Chung_Tu = new DateTime(2026, 8, 25)
+        };
+    }
 
-    private CWarehouseDocument Issue(string p_strSuffix) => new()
+    private CWarehouseDocument Issue(string p_strSuffix)
     {
-        Is_Receipt = false,
-        So_Phieu = $"{m_strTag}-{p_strSuffix}",
-        Kho_ID = m_iWarehouseId,
-        Ngay_Chung_Tu = new DateTime(2026, 8, 25)
-    };
+        return new()
+        {
+            Is_Receipt = false,
+            So_Phieu = $"{m_strTag}-{p_strSuffix}",
+            Kho_ID = m_iWarehouseId,
+            Ngay_Chung_Tu = new DateTime(2026, 8, 25)
+        };
+    }
 
-    private CWarehouseDocumentDetail Detail(long p_iDocumentId, decimal p_decQuantity) => new()
+    private CWarehouseDocumentDetail Detail(long p_iDocumentId, decimal p_decQuantity)
     {
-        Document_ID = p_iDocumentId,
-        San_Pham_ID = m_iProductId,
-        So_Luong = p_decQuantity,
-        Don_Gia = 100m
-    };
+        return new()
+        {
+            Document_ID = p_iDocumentId,
+            San_Pham_ID = m_iProductId,
+            So_Luong = p_decQuantity,
+            Don_Gia = 100m
+        };
+    }
 
-    private static SqlParameter BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt) { Value = p_iValue };
-    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize) => new(p_strName, SqlDbType.NVarChar, p_iSize) { Value = p_strValue };
+    private static SqlParameter BigInt(string p_strName, long p_iValue)
+    {
+        return new(p_strName, SqlDbType.BigInt)
+        {
+            Value = p_iValue
+        };
+    }
+    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize)
+    {
+        return new(p_strName, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_strValue
+        };
+    }
 
     private static async Task<long> InsertIdAsync(string p_strSql, params SqlParameter[] p_arrParameters)
     {

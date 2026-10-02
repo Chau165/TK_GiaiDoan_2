@@ -15,7 +15,19 @@
                         {
                             <div class="col-12"><div class="form-text text-warning">User này đã được gắn tất cả kho.</div></div>
                         }
-                        <div class="col-md-2 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objPermission.Permission_ID == 0 ? "Thêm" : "Lưu")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                @if (m_objPermission.Permission_ID == 0)
+                                {
+                                    <text>Thêm</text>
+                                }
+                                else
+                                {
+                                    <text>Lưu</text>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        </div>
                     </div>
                 </EditForm>
             }
@@ -35,7 +47,19 @@
                             <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objMaster.Related_ID_2" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
                         }
                         <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objMaster.Ghi_Chu" /></div>
-                        <div class="col-md-2 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objMaster.Auto_ID == 0 ? "Thêm" : "Lưu")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                @if (m_objMaster.Auto_ID == 0)
+                                {
+                                    <text>Thêm</text>
+                                }
+                                else
+                                {
+                                    <text>Lưu</text>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        </div>
                     </div>
                 </EditForm>
             }
@@ -53,7 +77,19 @@
                     }
                     <div class="col-md-2"><label class="form-label">Ngày</label><TelerikDatePicker @bind-Value="m_objDocument.Ngay_Chung_Tu" Format="@CConfig.Date_Format_String" /></div>
                     <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objDocument.Ghi_Chu" /></div>
-                    <div class="col-md-3 d-flex gap-2"><button type="submit" class="btn btn-success">@(m_objDocument.Auto_ID == 0 ? "Lưu phiếu" : "Cập nhật")</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            @if (m_objDocument.Auto_ID == 0)
+                            {
+                                <text>Lưu phiếu</text>
+                            }
+                            else
+                            {
+                                <text>Cập nhật</text>
+                            }
+                        </button>
+                        <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                    </div>
                 </div>
             </EditForm>
         }
@@ -124,9 +160,28 @@
             m_arrWarehouse, m_arrWarehouseUser, m_objPermission.Login_Name, m_objPermission.Permission_ID);
     }
 
-    private Task Save_Master_Async() => OnSave_Master.InvokeAsync(m_objMaster);
-    private Task Save_Permission_Async() => OnSave_Permission.InvokeAsync(m_objPermission);
-    private Task Save_Document_Async() => OnSave_Document.InvokeAsync(m_objDocument);
-    private Task Save_Detail_Async() => OnSave_Detail.InvokeAsync(m_objDetail);
-    private Task Cancel_Async() => OnCancel.InvokeAsync();
+    private Task Save_Master_Async()
+    {
+        return OnSave_Master.InvokeAsync(m_objMaster);
+    }
+
+    private Task Save_Permission_Async()
+    {
+        return OnSave_Permission.InvokeAsync(m_objPermission);
+    }
+
+    private Task Save_Document_Async()
+    {
+        return OnSave_Document.InvokeAsync(m_objDocument);
+    }
+
+    private Task Save_Detail_Async()
+    {
+        return OnSave_Detail.InvokeAsync(m_objDetail);
+    }
+
+    private Task Cancel_Async()
+    {
+        return OnCancel.InvokeAsync();
+    }
 }

@@ -110,7 +110,10 @@
     [Parameter]
     public long BindingValue
     {
-        get => _value;
+        get
+        {
+            return _value;
+        }
         set
         {
             if (_value == value) return;
@@ -122,7 +125,10 @@
     [Parameter]
     public string BindingStringValue
     {
-        get => CUtility.Convert_To_String(_strValue);
+        get
+        {
+            return CUtility.Convert_To_String(_strValue);
+        }
         set
         {
             if (_strValue == value) return;
@@ -134,7 +140,10 @@
     [Parameter]
     public int BindingIntValue
     {
-        get => _intvalue;
+        get
+        {
+            return _intvalue;
+        }
         set
         {
             if (_intvalue == value) return;

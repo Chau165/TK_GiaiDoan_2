@@ -14,12 +14,12 @@ public class CWarehousePermission_Controller : CWarehouse_Controller_Base
 
     public Task<List<CWarehouseLookup>> List_User_Lookup_Async()
     {
-        return Task.FromResult(List_From_Procedure<CWarehouseLookup>("sp_DM_Kho_User_User_List"));
+        return Task.FromResult(List_From_Procedure<CWarehouseLookup>("F2015_sp_sel_List_Sys_Thanh_Vien_Cho_Phan_Quyen_Kho"));
     }
 
     public Task<List<CWarehousePermission>> List_Kho_User_Async()
     {
-        return Task.FromResult(List_Permission_From_Procedure("sp_DM_Kho_User_List"));
+        return Task.FromResult(List_Permission_From_Procedure("F2015_sp_sel_List_Kho_User"));
     }
 
     public Task<CWarehousePagedResult<CWarehousePermission>> List_Kho_User_Page_Async(
@@ -32,7 +32,18 @@ public class CWarehousePermission_Controller : CWarehouse_Controller_Base
     public Task Save_Kho_User_Async(CWarehousePermission p_objData,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
     {
-        p_objData.Permission_ID = Scalar_ID("sp_DM_Kho_User_Save",
+        var v_bIsCreate = p_objData.Permission_ID == 0;
+        string v_strProcedure;
+        if (v_bIsCreate)
+        {
+            v_strProcedure = "F2015_sp_ins_Kho_User";
+        }
+        else
+        {
+            v_strProcedure = "F2015_sp_upd_Kho_User";
+        }
+
+        p_objData.Permission_ID = Scalar_ID(v_strProcedure,
             p_objData.Permission_ID,
             p_objData.Login_Name,
             p_objData.Warehouse_ID,
@@ -47,7 +58,7 @@ public class CWarehousePermission_Controller : CWarehouse_Controller_Base
     public Task Delete_Kho_User_Async(long p_iPermission_ID,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
     {
-        Execute_Procedure("sp_DM_Kho_User_Delete", p_iPermission_ID,
+        Execute_Procedure("F2015_sp_del_Kho_User", p_iPermission_ID,
             p_strLast_Updated_By, p_strLast_Updated_By_Function);
         return Task.CompletedTask;
     }

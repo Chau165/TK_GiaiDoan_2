@@ -11,8 +11,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 	{
 		private long m_lngAuto_ID;
 		private string m_strMa_Chuc_Nang;
-		private int m_intSL_Cot_Frozen;
-		private int m_intdeleted;
+		private int m_iSL_Cot_Frozen;
+		private int m_iDeleted;
 		private DateTime? m_dtmCreated;
 		private string m_strCreated_By;
 		private string m_strCreated_By_Function;
@@ -29,8 +29,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			m_lngAuto_ID = CConst.INT_VALUE_NULL;
 			m_strMa_Chuc_Nang = CConst.STR_VALUE_NULL;
-			m_intSL_Cot_Frozen = CConst.INT_VALUE_NULL;
-			m_intdeleted = CConst.INT_VALUE_NULL;
+			m_iSL_Cot_Frozen = CConst.INT_VALUE_NULL;
+			m_iDeleted = CConst.INT_VALUE_NULL;
 			m_dtmCreated = CConst.DTM_VALUE_NULL;
 			m_strCreated_By = CConst.STR_VALUE_NULL;
 			m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -67,11 +67,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intSL_Cot_Frozen;
+				return m_iSL_Cot_Frozen;
 			}
 			set
 			{
-				m_intSL_Cot_Frozen = value;
+				m_iSL_Cot_Frozen = value;
 			}
 		}
 
@@ -79,11 +79,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intdeleted;
+				return m_iDeleted;
 			}
 			set
 			{
-				m_intdeleted = value;
+				m_iDeleted = value;
 			}
 		}
 

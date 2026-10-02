@@ -10,11 +10,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 	public class CSys_Help_Guide
 	{
 		private long m_lngAuto_ID;
-		private int m_lngKhach_Hang_ID;
+		private int m_iKhach_Hang_ID;
 		private string m_strMa_Chuc_Nang;
 		private string m_strNgon_Ngu;
 		private string m_strNoi_Dung;
-		private int m_intdeleted;
+		private int m_iDeleted;
 		private DateTime? m_dtmCreated;
 		private string m_strCreated_By;
 		private string m_strCreated_By_Function;
@@ -30,11 +30,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		public void ResetData()
 		{
 			m_lngAuto_ID = CConst.INT_VALUE_NULL;
-			m_lngKhach_Hang_ID = CConst.INT_VALUE_NULL;
+			m_iKhach_Hang_ID = CConst.INT_VALUE_NULL;
 			m_strMa_Chuc_Nang = CConst.STR_VALUE_NULL;
 			m_strNgon_Ngu = CConst.STR_VALUE_NULL;
 			m_strNoi_Dung = CConst.STR_VALUE_NULL;
-			m_intdeleted = CConst.INT_VALUE_NULL;
+			m_iDeleted = CConst.INT_VALUE_NULL;
 			m_dtmCreated = CConst.DTM_VALUE_NULL;
 			m_strCreated_By = CConst.STR_VALUE_NULL;
 			m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -59,11 +59,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_lngKhach_Hang_ID;
+				return m_iKhach_Hang_ID;
 			}
 			set
 			{
-				m_lngKhach_Hang_ID = value;
+				m_iKhach_Hang_ID = value;
 			}
 		}
 
@@ -107,11 +107,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intdeleted;
+				return m_iDeleted;
 			}
 			set
 			{
-				m_intdeleted = value;
+				m_iDeleted = value;
 			}
 		}
 

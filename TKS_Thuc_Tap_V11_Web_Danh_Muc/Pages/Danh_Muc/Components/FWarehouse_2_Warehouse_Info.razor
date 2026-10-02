@@ -5,7 +5,17 @@
     <div id="warehouse-print" class="card border mt-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
-                <h5>@(m_bIs_Receipt ? "PHIẾU NHẬP KHO" : "PHIẾU XUẤT KHO") - @m_objDocument.So_Phieu</h5>
+                <h5>
+                    @if (m_bIs_Receipt)
+                    {
+                        <text>PHIẾU NHẬP KHO</text>
+                    }
+                    else
+                    {
+                        <text>PHIẾU XUẤT KHO</text>
+                    }
+                    - @m_objDocument.So_Phieu
+                </h5>
                 <div class="d-flex gap-2 no-print">
                     @if (m_bCan_Add && !m_objDocument.Is_Posted)
                     {
@@ -75,7 +85,12 @@
                 }
             </div>
             <div class="warehouse-print-title">
-                <h1>@(m_bIs_Receipt ? "PHIẾU NHẬP KHO" : "PHIẾU XUẤT KHO")</h1>
+                @if (m_bIs_Receipt) {
+    <h1>PHIẾU NHẬP KHO</h1>
+}
+else {
+    <h1>PHIẾU XUẤT KHO</h1>
+}
                 <div>Ngày @m_objDocument.Ngay_Chung_Tu.ToString("dd") tháng @m_objDocument.Ngay_Chung_Tu.ToString("MM") năm @m_objDocument.Ngay_Chung_Tu.ToString("yyyy")</div>
                 <div><strong>Số: @m_objDocument.So_Phieu</strong></div>
             </div>
@@ -86,7 +101,19 @@
         </header>
 
         <section class="warehouse-print-summary">
-            <div><strong>Kho @(m_bIs_Receipt ? "nhập" : "xuất"):</strong> @m_objDocument.Ten_Kho</div>
+            <div>
+                <strong>Kho
+                    @if (m_bIs_Receipt)
+                    {
+                        <text>nhập</text>
+                    }
+                    else
+                    {
+                        <text>xuất</text>
+                    }
+                    :
+                </strong> @m_objDocument.Ten_Kho
+            </div>
             <div><strong>Ghi chú:</strong> @m_objDocument.Ghi_Chu</div>
         </section>
 
@@ -137,9 +164,45 @@
 
         <footer class="warehouse-print-signatures">
             <div><strong>Người lập phiếu</strong><span>(Ký, họ tên)</span></div>
-            <div><strong>@(m_bIs_Receipt ? "Người giao hàng" : "Người nhận hàng")</strong><span>(Ký, họ tên)</span></div>
-            <div><strong>@(m_bIs_Receipt ? "Thủ kho" : "Điều phối")</strong><span>(Ký, họ tên)</span></div>
-            <div><strong>@(m_bIs_Receipt ? "Kế toán" : "Giám đốc")</strong><span>(Ký, họ tên)</span></div>
+            <div>
+                <strong>
+                    @if (m_bIs_Receipt)
+                    {
+                        <text>Người giao hàng</text>
+                    }
+                    else
+                    {
+                        <text>Người nhận hàng</text>
+                    }
+                </strong>
+                <span>(Ký, họ tên)</span>
+            </div>
+            <div>
+                <strong>
+                    @if (m_bIs_Receipt)
+                    {
+                        <text>Thủ kho</text>
+                    }
+                    else
+                    {
+                        <text>Điều phối</text>
+                    }
+                </strong>
+                <span>(Ký, họ tên)</span>
+            </div>
+            <div>
+                <strong>
+                    @if (m_bIs_Receipt)
+                    {
+                        <text>Kế toán</text>
+                    }
+                    else
+                    {
+                        <text>Giám đốc</text>
+                    }
+                </strong>
+                <span>(Ký, họ tên)</span>
+            </div>
         </footer>
     </section>
 }

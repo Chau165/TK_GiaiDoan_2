@@ -16,7 +16,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
         private object m_objData = null;
         private long m_lngChu_Hang_ID;
 		private string m_strFunction_PDA;
-		private bool? m_blKhong_Can_Check_Lai;//dùng làm xác nhận lần 2 khi bỏ qua thông báo
+		private bool? m_bKhong_Can_Check_Lai;//dùng làm xác nhận lần 2 khi bỏ qua thông báo
 	
 		public CRequest_API()
         {
@@ -27,7 +27,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
 			m_strFunction_PDA = CConst.STR_VALUE_NULL;
 			m_objData = new object();
             m_strToKen = CConst.STR_VALUE_NULL;
-			m_blKhong_Can_Check_Lai = CConst.BL_VALUE_NULL;
+			m_bKhong_Can_Check_Lai = CConst.BL_VALUE_NULL;
           
 
         }
@@ -109,10 +109,10 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.API
 
 		public bool? Khong_Can_Check_Lai
 		{
-			get { return m_blKhong_Can_Check_Lai; }
+			get { return m_bKhong_Can_Check_Lai; }
 			set
 			{
-				m_blKhong_Can_Check_Lai = value;
+				m_bKhong_Can_Check_Lai = value;
 			}
 		}
 	

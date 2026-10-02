@@ -30,9 +30,9 @@ namespace TKS_Thuc_Tap_V11_Web.Background_Service
                     await v_objCtrThread.Call_Function(v_arrThread);
                 }
 
-                catch (Exception ex)
+                catch (Exception v_Ex)
                 {
-                    CLogger.Error("Thread_Job_Timer_Service", "Call_Function", "Thread " + v_iSTT_Thread + ": " + ex.Message);
+                    CLogger.Error("Thread_Job_Timer_Service", "Call_Function", "Thread " + v_iSTT_Thread + ": " + v_Ex.Message);
                 }
 
                 finally

@@ -18,13 +18,13 @@ public class WarehouseModuleStructureTests
     [Fact]
     public void Document_detail_keeps_total_value_calculation()
     {
-        var detail = new CWarehouseDocumentDetail
+        var v_objDetail = new CWarehouseDocumentDetail
         {
             So_Luong = 2.5m,
             Don_Gia = 40_000m
         };
 
-        Assert.Equal(100_000m, detail.Tri_Gia);
+        Assert.Equal(100_000m, v_objDetail.Tri_Gia);
     }
 
     [Fact]
@@ -32,10 +32,10 @@ public class WarehouseModuleStructureTests
     {
         CConfig.TKS_Thuc_Tap_V11_Conn_String = WarehouseTestDatabase.ConnectionString;
 
-        var result = await new CWarehouseMaster_Controller().List_Master_Async("DonViTinh");
+        var v_arrResult = await new CWarehouseMaster_Controller().List_Master_Async("DonViTinh");
 
-        Assert.Contains(result, item => item.Name == "Cái");
-        Assert.All(result, item => Assert.Equal(0L, item.Related_ID));
-        Assert.All(result, item => Assert.Equal(0L, item.Related_ID_2));
+        Assert.Contains(v_arrResult, item => item.Name == "Cái");
+        Assert.All(v_arrResult, item => Assert.Equal(0L, item.Related_ID));
+        Assert.All(v_arrResult, item => Assert.Equal(0L, item.Related_ID_2));
     }
 }

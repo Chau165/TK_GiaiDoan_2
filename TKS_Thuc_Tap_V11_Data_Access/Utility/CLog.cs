@@ -99,12 +99,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
         /// <param name="tw">StreamWriter</param>
         public void WriteTextFile(TextWriter tw)
         {
-            string strLog = "";
+            string v_strLog = "";
 
-            strLog = User + "|" + Mode + "|" + ObjectName + "|" + FunctionName + "|" + Date
+            v_strLog = User + "|" + Mode + "|" + ObjectName + "|" + FunctionName + "|" + Date
                 + "|" + Time + "|" + Content;
 
-            tw.WriteLine(strLog);
+            tw.WriteLine(v_strLog);
         }
 
         /// <summary>
@@ -113,8 +113,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
         /// <param name="tw">StreamWriter</param>
         public void WriteXmlFile(TextWriter tw)
         {
-            XmlSerializer xml = new XmlSerializer(this.GetType());
-            xml.Serialize(tw, this);
+            XmlSerializer v_xml = new XmlSerializer(this.GetType());
+            v_xml.Serialize(tw, this);
         }
     }
 }

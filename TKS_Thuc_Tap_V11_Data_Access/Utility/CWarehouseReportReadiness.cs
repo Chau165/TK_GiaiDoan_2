@@ -19,6 +19,8 @@ public static class CWarehouseReportReadiness
         return false;
     }
 
-    public static bool IsRetryableSqlErrorNumber(int p_iErrorNumber) =>
-        p_iErrorNumber is ScopeBusyErrorNumber or GenerationChangedErrorNumber;
+    public static bool IsRetryableSqlErrorNumber(int p_iErrorNumber)
+    {
+        return p_iErrorNumber is ScopeBusyErrorNumber or GenerationChangedErrorNumber;
+    }
 }

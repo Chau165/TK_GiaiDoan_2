@@ -30,6 +30,16 @@ public sealed record PerformanceOptions
             .Cast<System.Collections.DictionaryEntry>()
             .ToDictionary(v_item => (string)v_item.Key, v_item => v_item.Value?.ToString());
 
+        string v_LoginName;
+        if (string.IsNullOrWhiteSpace(ReadString(p_environment, "TKS_PERF_LOGIN")))
+        {
+            v_LoginName = "PERF_USER";
+        }
+        else
+        {
+            v_LoginName = ReadString(p_environment, "TKS_PERF_LOGIN");
+        }
+
         return new PerformanceOptions
         {
             RecordCount = ReadInt(p_environment, "TKS_PERF_ROWS", 100_000, 1, 10_000_000),
@@ -40,18 +50,19 @@ public sealed record PerformanceOptions
             RunDatabase = ReadBool(p_environment, "TKS_PERF_RUN"),
             AllowFullLoad = ReadBool(p_environment, "TKS_PERF_FULL_LOAD"),
             ConnectionString = ReadString(p_environment, "TKS_PERF_CONNECTION_STRING"),
-            LoginName = string.IsNullOrWhiteSpace(ReadString(p_environment, "TKS_PERF_LOGIN"))
-                ? "PERF_USER"
-                : ReadString(p_environment, "TKS_PERF_LOGIN"),
+            LoginName = v_LoginName,
             OutputPath = ReadString(p_environment, "TKS_PERF_OUTPUT")
         };
     }
 
-    private static int ReadInt(IReadOnlyDictionary<string, string?> p_environment, string p_name, int p_default, int p_min, int p_max)
+    private static int ReadInt(IReadOnlyDictionary<string, string?> p_environment, string p_name, int p_iDefault, int p_iMin, int p_iMax)
     {
-        return int.TryParse(ReadString(p_environment, p_name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v_value)
-            ? Math.Clamp(v_value, p_min, p_max)
-            : p_default;
+        if (int.TryParse(ReadString(p_environment, p_name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v_value))
+        {
+            return Math.Clamp(v_value, p_iMin, p_iMax);
+        }
+
+        return p_iDefault;
     }
 
     private static bool ReadBool(IReadOnlyDictionary<string, string?> p_environment, string p_name)
@@ -62,7 +73,12 @@ public sealed record PerformanceOptions
 
     private static string ReadString(IReadOnlyDictionary<string, string?> p_environment, string p_name)
     {
-        return p_environment.TryGetValue(p_name, out var v_value) ? v_value ?? "" : "";
+        if (p_environment.TryGetValue(p_name, out var v_value))
+        {
+            return v_value ?? "";
+        }
+
+        return "";
     }
 }
 
@@ -117,7 +133,7 @@ public sealed class PerformanceReport
 
 public static class PerformanceBenchmark
 {
-    private static readonly string[] s_scenarioNames =
+    private static readonly string[] m_arrScenarioNames =
     {
         "MasterFullLoad",
         "MasterPaged",
@@ -141,16 +157,16 @@ public static class PerformanceBenchmark
 
     public static IReadOnlyList<string> GetScenarioNames(PerformanceOptions _)
     {
-        return s_scenarioNames;
+        return m_arrScenarioNames;
     }
 
-    public static double Percentile(IReadOnlyList<double> p_values, double p_percentile)
+    public static double Percentile(IReadOnlyList<double> p_arrValues, double p_dblPercentile)
     {
-        if (p_values.Count == 0)
+        if (p_arrValues.Count == 0)
             return 0;
 
-        var v_sorted = p_values.OrderBy(v_value => v_value).ToArray();
-        var v_rank = Math.Clamp((int)Math.Ceiling(p_percentile * v_sorted.Length), 1, v_sorted.Length);
+        var v_sorted = p_arrValues.OrderBy(v_value => v_value).ToArray();
+        var v_rank = Math.Clamp((int)Math.Ceiling(p_dblPercentile * v_sorted.Length), 1, v_sorted.Length);
         return v_sorted[v_rank - 1];
     }
 
@@ -287,15 +303,26 @@ public static class PerformanceBenchmark
             return Task.FromResult(0).ContinueWith(async _ =>
             {
                 var v_index = Interlocked.Increment(ref v_sequence) % 4;
-                return v_index switch
+                int v_iRows;
+                switch (v_index)
                 {
-                    0 => (await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")).Items.Count,
-                    1 => (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count,
-                    2 => (await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count,
-                    _ => (await new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count
-                };
+                    case 0:
+                        v_iRows = (await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")).Items.Count;
+                        break;
+                    case 1:
+                        v_iRows = (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count;
+                        break;
+                    case 2:
+                        v_iRows = (await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count;
+                        break;
+                    default:
+                        v_iRows = (await new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count;
+                        break;
+                }
+
+                return v_iRows;
             }).Unwrap();
-        }, p_concurrent: true);
+        }, p_bConcurrent: true);
 
         await AddCrudMetricsAsync(v_metrics, p_options, v_notes);
 
@@ -329,7 +356,7 @@ public static class PerformanceBenchmark
         });
     }
 
-    private static DataTable CreateSyntheticTable(int p_recordCount)
+    private static DataTable CreateSyntheticTable(int p_iRecordCount)
     {
         var v_table = new DataTable();
         v_table.Columns.Add("Auto_ID", typeof(long));
@@ -340,7 +367,7 @@ public static class PerformanceBenchmark
         v_table.Columns.Add("Login_Name", typeof(string));
         v_table.Columns.Add("Ghi_Chu", typeof(string));
 
-        for (var v_index = 1; v_index <= p_recordCount; v_index++)
+        for (var v_index = 1; v_index <= p_iRecordCount; v_index++)
         {
             v_table.Rows.Add(
                 (long)v_index,
@@ -357,27 +384,27 @@ public static class PerformanceBenchmark
 
     private static PerformanceMetric CreateSingleMetric(
         string p_scenario,
-        int p_operations,
+        int p_iOperations,
         long p_rows,
         long p_startTimestamp,
         long p_workingSetBefore,
-        TimeSpan p_cpuBefore,
+        TimeSpan p_tsCpuBefore,
         long p_allocatedBefore,
         long p_heapBefore)
     {
         var v_process = Process.GetCurrentProcess();
         var v_wallTimeMs = Stopwatch.GetElapsedTime(p_startTimestamp).TotalMilliseconds;
-        var v_cpuTimeMs = (v_process.TotalProcessorTime - p_cpuBefore).TotalMilliseconds;
+        var v_cpuTimeMs = (v_process.TotalProcessorTime - p_tsCpuBefore).TotalMilliseconds;
         var v_allocatedBytes = GC.GetTotalAllocatedBytes(true) - p_allocatedBefore;
         var v_workingSetAfter = v_process.WorkingSet64;
 
         return new PerformanceMetric
         {
             Scenario = p_scenario,
-            Operations = p_operations,
+            Operations = p_iOperations,
             RowsObserved = p_rows,
             WallTimeMs = v_wallTimeMs,
-            OperationsPerSecond = p_operations / Math.Max(v_wallTimeMs / 1000d, 0.000001d),
+            OperationsPerSecond = p_iOperations / Math.Max(v_wallTimeMs / 1000d, 0.000001d),
             P50Ms = v_wallTimeMs,
             P95Ms = v_wallTimeMs,
             P99Ms = v_wallTimeMs,
@@ -399,11 +426,11 @@ public static class PerformanceBenchmark
         string p_scenario,
         PerformanceOptions p_options,
         Func<Task<int>> p_operation,
-        bool p_concurrent = false)
+        bool p_bConcurrent = false)
     {
         try
         {
-            p_metrics.Add(await MeasureAsync(p_scenario, p_options, p_operation, p_concurrent));
+            p_metrics.Add(await MeasureAsync(p_scenario, p_options, p_operation, p_bConcurrent));
         }
         catch (Exception v_exception)
         {
@@ -419,7 +446,7 @@ public static class PerformanceBenchmark
         string p_scenario,
         PerformanceOptions p_options,
         Func<Task<int>> p_operation,
-        bool p_concurrent)
+        bool p_bConcurrent)
     {
         for (var v_index = 0; v_index < p_options.WarmupIterations; v_index++)
             await p_operation();
@@ -436,9 +463,9 @@ public static class PerformanceBenchmark
         long v_rowsObserved = 0;
         var v_startTimestamp = Stopwatch.GetTimestamp();
 
-        async Task RunWorkerAsync(int p_operationCount)
+        async Task RunWorkerAsync(int p_iOperationCount)
         {
-            for (var v_index = 0; v_index < p_operationCount; v_index++)
+            for (var v_index = 0; v_index < p_iOperationCount; v_index++)
             {
                 var v_start = Stopwatch.GetTimestamp();
                 var v_rows = await p_operation();
@@ -447,7 +474,7 @@ public static class PerformanceBenchmark
             }
         }
 
-        if (p_concurrent)
+        if (p_bConcurrent)
         {
             var v_workers = Enumerable.Range(0, p_options.Workers)
                 .Select(_ => Task.Run(() => RunWorkerAsync(p_options.Iterations)))
@@ -465,18 +492,26 @@ public static class PerformanceBenchmark
         var v_durationsArray = v_durations.ToArray();
         var v_operations = v_durationsArray.Length;
         var v_workingSetAfter = v_process.WorkingSet64;
+        double v_dblMaxMs;
+        if (v_durationsArray.Length == 0)
+        {
+            v_dblMaxMs = 0;
+        }
+        else
+        {
+            v_dblMaxMs = v_durationsArray.Max();
+        }
 
         return new PerformanceMetric
         {
             Scenario = p_scenario,
-            Operations = v_operations,
             RowsObserved = v_rowsObserved,
             WallTimeMs = v_wallTimeMs,
             OperationsPerSecond = v_operations / Math.Max(v_wallTimeMs / 1000d, 0.000001d),
             P50Ms = Percentile(v_durationsArray, 0.50),
             P95Ms = Percentile(v_durationsArray, 0.95),
             P99Ms = Percentile(v_durationsArray, 0.99),
-            MaxMs = v_durationsArray.Length == 0 ? 0 : v_durationsArray.Max(),
+            MaxMs = v_dblMaxMs,
             AllocatedBytes = Math.Max(0, GC.GetTotalAllocatedBytes(true) - v_allocatedBefore),
             ManagedHeapDeltaBytes = GC.GetTotalMemory(false) - v_heapBefore,
             WorkingSetBeforeBytes = v_workingSetBefore,
@@ -546,7 +581,14 @@ public static class PerformanceBenchmark
             Ngay_Chung_Tu = new DateTime(2025, 1, 1)
         };
         await p_controller.Save_Document_Async(v_document, "benchmark", "performance", p_loginName);
-        return v_document.Auto_ID > 0 ? 1 : 0;
+        if (v_document.Auto_ID > 0)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
     }
 
     private static async Task<int> SaveDetailAsync(CWarehouseDocument_Controller p_controller, string p_loginName)
@@ -559,16 +601,23 @@ public static class PerformanceBenchmark
             Don_Gia = 1
         };
         await p_controller.Save_Document_Detail_Async(true, v_detail, "benchmark", "performance", p_loginName);
-        return v_detail.Auto_ID > 0 ? 1 : 0;
+        if (v_detail.Auto_ID > 0)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
     }
 
-    private static async Task CleanupUnitAsync(params string[] p_names)
+    private static async Task CleanupUnitAsync(params string[] p_arrNames)
     {
         await using var v_connection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
         await v_connection.OpenAsync();
         await using var v_command = v_connection.CreateCommand();
         v_command.CommandText = "DELETE FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh IN (SELECT value FROM STRING_SPLIT(@Names, N'|'));";
-        v_command.Parameters.AddWithValue("@Names", string.Join('|', p_names));
+        v_command.Parameters.AddWithValue("@Names", string.Join('|', p_arrNames));
         await v_command.ExecuteNonQueryAsync();
     }
 
@@ -606,6 +655,13 @@ public static class PerformanceBenchmark
     private static string SanitizeError(Exception p_exception)
     {
         var v_message = p_exception.GetBaseException().Message;
-        return v_message.Length <= 500 ? v_message : v_message[..500];
+        if (v_message.Length <= 500)
+        {
+            return v_message;
+        }
+        else
+        {
+            return v_message[..500];
+        }
     }
 }

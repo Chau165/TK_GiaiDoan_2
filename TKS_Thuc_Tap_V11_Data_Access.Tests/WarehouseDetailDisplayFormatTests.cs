@@ -78,54 +78,55 @@ public sealed class WarehouseDetailDisplayFormatTests
     [Fact]
     public void Warehouse_detail_stored_procedure_returns_the_product_unit_name()
     {
-        var procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+        var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
-        Assert.Contains("sp_XNK_Document_Detail_List", procedures);
-        Assert.Contains("dv.Ten_Don_Vi_Tinh", procedures);
-        Assert.Contains("JOIN dbo.tbl_DM_Don_Vi_Tinh dv", procedures);
+        Assert.Contains("F2011_sp_sel_List_Nhap_Kho_Detail", v_Procedures);
+        Assert.Contains("F2012_sp_sel_List_Xuat_Kho_Detail", v_Procedures);
+        Assert.Contains("dv.Ten_Don_Vi_Tinh", v_Procedures);
+        Assert.Contains("JOIN dbo.tbl_DM_Don_Vi_Tinh dv", v_Procedures);
     }
 
     [Fact]
     public void Warehouse_detail_view_shows_unit_next_to_quantity_and_formats_money_with_vnd_style()
     {
-        var infoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
+        var v_InfoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
-        Assert.Contains("CUtility.Format_So_Luong", infoSource);
-        Assert.Contains("v_objDetail.Ten_Don_Vi_Tinh", infoSource);
-        Assert.Contains("CUtility.Format_So_Tien", infoSource);
+        Assert.Contains("CUtility.Format_So_Luong", v_InfoSource);
+        Assert.Contains("v_objDetail.Ten_Don_Vi_Tinh", v_InfoSource);
+        Assert.Contains("CUtility.Format_So_Tien", v_InfoSource);
     }
 
     [Fact]
     public void Warehouse_report_grids_format_quantity_and_money_with_shared_helpers()
     {
-        var listSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_ListSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("CUtility.Format_So_Luong", listSource);
-        Assert.Contains("CUtility.Format_So_Tien", listSource);
+        Assert.Contains("CUtility.Format_So_Luong", v_ListSource);
+        Assert.Contains("CUtility.Format_So_Tien", v_ListSource);
     }
 
     [Fact]
     public void Warehouse_detail_editor_formats_the_total_value_with_vnd_style()
     {
-        var editSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
+        var v_EditSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
-        Assert.Contains("CUtility.Format_So_Tien", editSource);
+        Assert.Contains("CUtility.Format_So_Tien", v_EditSource);
     }
 
-    private static string FindWarehouseComponent(string fileName)
+    private static string FindWarehouseComponent(string p_FileName)
     {
-        return FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", fileName);
+        return FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", p_FileName);
     }
 
-    private static string FindRepositoryPath(params string[] parts)
+    private static string FindRepositoryPath(params string[] p_arrParts)
     {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        for (var v_Directory = new DirectoryInfo(AppContext.BaseDirectory); v_Directory is not null; v_Directory = v_Directory.Parent)
         {
-            var candidate = Path.Combine(new[] { directory.FullName }.Concat(parts).ToArray());
-            if (File.Exists(candidate))
-                return candidate;
+            var v_Candidate = Path.Combine(new[] { v_Directory.FullName }.Concat(p_arrParts).ToArray());
+            if (File.Exists(v_Candidate))
+                return v_Candidate;
         }
 
-        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(parts)}");
+        throw new FileNotFoundException($"Repository file was not found: {Path.Combine(p_arrParts)}");
     }
 }

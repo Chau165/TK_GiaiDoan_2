@@ -14,15 +14,15 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
     {
         public static List<CSys_Language> Arr_Data = new List<CSys_Language>();
 
-        private static Dictionary<string, CSys_Language> Dic_Data_Code = new Dictionary<string, CSys_Language>();
-        private static Dictionary<long, CSys_Language> Dic_Data_ID = new Dictionary<long, CSys_Language>();
-        private static Dictionary<int, List<CSys_Language>> Dic_Data_By_Type_ID = new ();
+        private static Dictionary<string, CSys_Language> g_dicData_Code = new Dictionary<string, CSys_Language>();
+        private static Dictionary<long, CSys_Language> g_dicData_ID = new Dictionary<long, CSys_Language>();
+        private static Dictionary<int, List<CSys_Language>> g_dicData_By_Type_ID = new ();
         public static void Load_Cache_Language()
         {
 			Arr_Data.Clear();
-			Dic_Data_Code.Clear();
-			Dic_Data_ID.Clear();
-            Dic_Data_By_Type_ID.Clear();
+			g_dicData_Code.Clear();
+			g_dicData_ID.Clear();
+            g_dicData_By_Type_ID.Clear();
 
             CSys_Language_Controller v_objCtrData = new CSys_Language_Controller();
             List<CSys_Language> v_arrTemp = v_objCtrData.FQ_521_L_sp_sel_List_For_Cache();
@@ -33,24 +33,24 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static void Add_Data(CSys_Language p_objData)
         {
-            if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == true || p_objData.Auto_ID == 0)
                 return;
 
-            Dic_Data_ID.Add(p_objData.Auto_ID, p_objData);
+            g_dicData_ID.Add(p_objData.Auto_ID, p_objData);
             Arr_Data.Add(p_objData);
 
-            if (Dic_Data_Code.ContainsKey(p_objData.Field_Name.ToLower()) == false)
-                Dic_Data_Code.Add(p_objData.Field_Name.ToLower(), p_objData);
+            if (g_dicData_Code.ContainsKey(p_objData.Field_Name.ToLower()) == false)
+                g_dicData_Code.Add(p_objData.Field_Name.ToLower(), p_objData);
 
-            if (Dic_Data_By_Type_ID.ContainsKey(p_objData.Type_ID) == false)
-                Dic_Data_By_Type_ID.Add(p_objData.Type_ID, new List<CSys_Language>());
+            if (g_dicData_By_Type_ID.ContainsKey(p_objData.Type_ID) == false)
+                g_dicData_By_Type_ID.Add(p_objData.Type_ID, new List<CSys_Language>());
 
-            Dic_Data_By_Type_ID[p_objData.Type_ID].Add(p_objData);
+            g_dicData_By_Type_ID[p_objData.Type_ID].Add(p_objData);
         }
 
         public static void Update_Data(CSys_Language p_objData)
         {
-            if (Dic_Data_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
                 return;
 
 			Delete_Data(p_objData.Auto_ID);
@@ -59,30 +59,30 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static void Delete_Data(long p_iAuto_ID)
         {
-            if (Dic_Data_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
+            if (g_dicData_ID.ContainsKey(p_iAuto_ID) == false || p_iAuto_ID == 0)
                 return;
 
-            CSys_Language v_objData = Dic_Data_ID[p_iAuto_ID];
+            CSys_Language v_objData = g_dicData_ID[p_iAuto_ID];
 
             Arr_Data.Remove(v_objData);
-            Dic_Data_ID.Remove(p_iAuto_ID);
+            g_dicData_ID.Remove(p_iAuto_ID);
 
-            Dic_Data_Code.Remove(v_objData.Field_Name.ToLower());
-            Dic_Data_By_Type_ID[v_objData.Type_ID].Remove(v_objData);
+            g_dicData_Code.Remove(v_objData.Field_Name.ToLower());
+            g_dicData_By_Type_ID[v_objData.Type_ID].Remove(v_objData);
         }
 
         public static CSys_Language Get_Data_By_ID(long p_iID)
         {
-            if (Dic_Data_ID.ContainsKey(p_iID) == true)
-                return Dic_Data_ID[p_iID];
+            if (g_dicData_ID.ContainsKey(p_iID) == true)
+                return g_dicData_ID[p_iID];
 
             return null;
         }
 
         public static CSys_Language Get_Data_By_Code(string p_strCode)
         {
-            if (Dic_Data_Code.ContainsKey(p_strCode.ToLower()) == true)
-                return Dic_Data_Code[p_strCode.ToLower()];
+            if (g_dicData_Code.ContainsKey(p_strCode.ToLower()) == true)
+                return g_dicData_Code[p_strCode.ToLower()];
 
             return null;
         }
@@ -115,8 +115,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 
         public static List<CSys_Language> List_Data_By_Type_ID(int p_iType_ID)
         {
-            if (Dic_Data_By_Type_ID.ContainsKey(p_iType_ID) == true)
-                return Dic_Data_By_Type_ID[p_iType_ID].ToList();
+            if (g_dicData_By_Type_ID.ContainsKey(p_iType_ID) == true)
+                return g_dicData_By_Type_ID[p_iType_ID].ToList();
 
             return new List<CSys_Language>();
         }

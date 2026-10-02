@@ -9,7 +9,13 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
 {
-    private static string ConnectionString => WarehouseTestDatabase.ConnectionString;
+    private static string ConnectionString
+    {
+        get
+        {
+            return WarehouseTestDatabase.ConnectionString;
+        }
+    }
 
     private readonly string m_strTag = $"TDD-AUTH-{Guid.NewGuid():N}"[..21];
     private string m_strLogin = "";
@@ -75,8 +81,20 @@ public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
             NVarChar("@DocumentNumber", v_objUnauthorizedReceipt.So_Phieu, 100)));
     }
 
-    private static SqlParameter BigInt(string p_strName, long p_iValue) => new(p_strName, SqlDbType.BigInt) { Value = p_iValue };
-    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize) => new(p_strName, SqlDbType.NVarChar, p_iSize) { Value = p_strValue };
+    private static SqlParameter BigInt(string p_strName, long p_iValue)
+    {
+        return new(p_strName, SqlDbType.BigInt)
+        {
+            Value = p_iValue
+        };
+    }
+    private static SqlParameter NVarChar(string p_strName, string p_strValue, int p_iSize)
+    {
+        return new(p_strName, SqlDbType.NVarChar, p_iSize)
+        {
+            Value = p_strValue
+        };
+    }
 
     private static async Task<long> InsertIdAsync(string p_strSql, params SqlParameter[] p_arrParameters)
     {

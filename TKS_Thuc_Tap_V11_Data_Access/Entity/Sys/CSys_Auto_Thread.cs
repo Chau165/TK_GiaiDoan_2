@@ -10,12 +10,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 	public class CSys_Auto_Thread
 	{
 		private long m_lngAuto_ID;
-		private int m_intThread_Type_ID;
-		private int m_intDelay_Second;
-		private int m_intSTT_Thread_ID;
+		private int m_iThread_Type_ID;
+		private int m_iDelay_Second;
+		private int m_iSTT_Thread_ID;
 		private string m_strGhi_Chu;
 		private string m_strMa_Su_Dung;
-		private int m_intdeleted;
+		private int m_iDeleted;
 		private DateTime? m_dtmCreated;
 		private string m_strCreated_By;
 		private string m_strCreated_By_Function;
@@ -31,12 +31,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		public void ResetData()
 		{
 			m_lngAuto_ID = CConst.INT_VALUE_NULL;
-			m_intThread_Type_ID = CConst.INT_VALUE_NULL;
-			m_intDelay_Second = CConst.INT_VALUE_NULL;
-			m_intSTT_Thread_ID = CConst.INT_VALUE_NULL;
+			m_iThread_Type_ID = CConst.INT_VALUE_NULL;
+			m_iDelay_Second = CConst.INT_VALUE_NULL;
+			m_iSTT_Thread_ID = CConst.INT_VALUE_NULL;
 			m_strGhi_Chu = CConst.STR_VALUE_NULL;
 			m_strMa_Su_Dung = CConst.STR_VALUE_NULL;
-			m_intdeleted = CConst.INT_VALUE_NULL;
+			m_iDeleted = CConst.INT_VALUE_NULL;
 			m_dtmCreated = CConst.DTM_VALUE_NULL;
 			m_strCreated_By = CConst.STR_VALUE_NULL;
 			m_strCreated_By_Function = CConst.STR_VALUE_NULL;
@@ -61,11 +61,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intThread_Type_ID;
+				return m_iThread_Type_ID;
 			}
 			set
 			{
-				m_intThread_Type_ID = value;
+				m_iThread_Type_ID = value;
 			}
 		}
 
@@ -73,11 +73,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intDelay_Second;
+				return m_iDelay_Second;
 			}
 			set
 			{
-				m_intDelay_Second = value;
+				m_iDelay_Second = value;
 			}
 		}
 
@@ -85,11 +85,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intSTT_Thread_ID;
+				return m_iSTT_Thread_ID;
 			}
 			set
 			{
-				m_intSTT_Thread_ID = value;
+				m_iSTT_Thread_ID = value;
 			}
 		}
 
@@ -122,11 +122,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Sys
 		{
 			get
 			{
-				return m_intdeleted;
+				return m_iDeleted;
 			}
 			set
 			{
-				m_intdeleted = value;
+				m_iDeleted = value;
 			}
 		}
 

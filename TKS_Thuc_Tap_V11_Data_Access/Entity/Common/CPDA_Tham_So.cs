@@ -26,7 +26,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         private long m_intNhap_Kho_Raw_ID;
         private long m_intLoad_Order_ID;
 		private string m_strThong_Bao;
-        private int m_intSan_Pham_Type_ID;
+        private int m_iSan_Pham_Type_ID;
         private long m_intKiem_Kho_ID;
 		private long m_intSan_Pham_ID;
 		private double m_dblSo_Kien_KH;
@@ -42,8 +42,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         private string m_strLPN_Dich;
         private long m_intLine_ID;
         private long m_iLoading_Manifest_ID;
-        private bool m_blIs_Kiem_Ton_Sau_Pick; //dùng để check xem phiếu xuất có kiểm tồn sau pick không
-        private bool m_blIs_Kiem_Ton_Khong_Scan; //option kiểm tồn sau pick bằng cách đếm ngoại quan & xác nhận sl tồn
+        private bool m_bIs_Kiem_Ton_Sau_Pick; //dùng để check xem phiếu xuất có kiểm tồn sau pick không
+        private bool m_bIs_Kiem_Ton_Khong_Scan; //option kiểm tồn sau pick bằng cách đếm ngoại quan & xác nhận sl tồn
         private string m_strMa_San_Pham;
         private string m_strTen_San_Pham;
         private string m_strMa_NXD;
@@ -90,7 +90,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
             m_strMa_So_Vi_Tri = CConst.STR_VALUE_NULL;
             m_strMa_So_Vi_Tri_Dich = CConst.STR_VALUE_NULL;
             m_strMa_So_Vi_Tri_Nguon = CConst.STR_VALUE_NULL;
-            m_intSan_Pham_Type_ID = CConst.INT_VALUE_NULL;
+            m_iSan_Pham_Type_ID = CConst.INT_VALUE_NULL;
 			m_intSan_Pham_ID = CConst.INT_VALUE_NULL;
 			m_intKiem_Kho_ID = CConst.INT_VALUE_NULL;
             m_dblSo_Kien_KH = CConst.FLT_VALUE_NULL;
@@ -106,8 +106,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
             m_strLPN_Dich = CConst.STR_VALUE_NULL;
             m_intLine_ID = CConst.INT_VALUE_NULL;
             m_iLoading_Manifest_ID = CConst.INT_VALUE_NULL;
-            m_blIs_Kiem_Ton_Sau_Pick = CConst.BL_VALUE_NULL;
-            m_blIs_Kiem_Ton_Khong_Scan = CConst.BL_VALUE_NULL;
+            m_bIs_Kiem_Ton_Sau_Pick = CConst.BL_VALUE_NULL;
+            m_bIs_Kiem_Ton_Khong_Scan = CConst.BL_VALUE_NULL;
             m_strMa_San_Pham = CConst.STR_VALUE_NULL;
             m_strTen_San_Pham = CConst.STR_VALUE_NULL;
             m_strMa_NXD = CConst.STR_VALUE_NULL;
@@ -334,11 +334,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         {
             get
             {
-                return m_intSan_Pham_Type_ID;
+                return m_iSan_Pham_Type_ID;
             }
             set
             {
-                m_intSan_Pham_Type_ID = value;
+                m_iSan_Pham_Type_ID = value;
             }
         }
         public long Kiem_Kho_ID
@@ -524,11 +524,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         {
             get
             {
-                return m_blIs_Kiem_Ton_Sau_Pick;
+                return m_bIs_Kiem_Ton_Sau_Pick;
             }
             set
             {
-                m_blIs_Kiem_Ton_Sau_Pick = value;
+                m_bIs_Kiem_Ton_Sau_Pick = value;
             }
         }
 
@@ -536,11 +536,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Common
         {
             get
             {
-                return m_blIs_Kiem_Ton_Khong_Scan;
+                return m_bIs_Kiem_Ton_Khong_Scan;
             }
             set
             {
-                m_blIs_Kiem_Ton_Khong_Scan = value;
+                m_bIs_Kiem_Ton_Khong_Scan = value;
             }
         }
 

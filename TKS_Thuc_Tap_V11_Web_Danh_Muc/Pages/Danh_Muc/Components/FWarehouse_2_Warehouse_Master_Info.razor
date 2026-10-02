@@ -76,7 +76,16 @@
 
     protected override void Load_Data()
     {
-        var v_iReference_ID = m_strMaster_Type == "KhoUser" ? m_objPermission.Permission_ID : m_objData.Auto_ID;
+        long v_iReference_ID;
+        if (m_strMaster_Type == "KhoUser")
+        {
+            v_iReference_ID = m_objPermission.Permission_ID;
+        }
+        else
+        {
+            v_iReference_ID = m_objData.Auto_ID;
+        }
+
         m_arrAction_History = new CLog_Record_Action_History_Controller().FCommon_Sys_sp_sel_List_Log_Record_Action_History(v_iReference_ID);
     }
 }

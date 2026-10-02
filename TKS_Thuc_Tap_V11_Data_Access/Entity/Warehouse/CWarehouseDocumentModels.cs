@@ -38,7 +38,13 @@ public class CWarehouseDocumentDetail
     public decimal So_Luong { get; set; }
     [Range(0.01, double.MaxValue)]
     public decimal Don_Gia { get; set; }
-    public decimal Tri_Gia => So_Luong * Don_Gia;
+    public decimal Tri_Gia
+    {
+        get
+        {
+            return So_Luong * Don_Gia;
+        }
+    }
     public DateTime? Created { get; set; }
     public string Created_By { get; set; } = "";
     public string Created_By_Function { get; set; } = "";
