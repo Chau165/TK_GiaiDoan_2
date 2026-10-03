@@ -3,6 +3,7 @@ param([Parameter(Mandatory=$true)][string]$EvidenceRoot)
 $ErrorActionPreference='Stop'
 $harnessPath=Join-Path $PSScriptRoot 'WarehouseBenchmarkV22.Harness.psm1'
 Import-Module $harnessPath
+Import-Module (Join-Path $PSScriptRoot 'WarehouseBenchmarkV22.Finalizer.psm1')
 if(Test-Path -LiteralPath $EvidenceRoot){throw 'V22_TEST_EVIDENCE_ROOT_EXISTS'}
 New-Item -ItemType Directory -Path $EvidenceRoot | Out-Null
 $script:Results=[Collections.Generic.List[object]]::new()
@@ -17,12 +18,14 @@ function Invoke-Case([string]$TestId,[object]$InputValue,[string]$Expected,[scri
     try{$bytes=[Text.UTF8Encoding]::new($false).GetBytes($json+[Environment]::NewLine);$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
     $script:Results.Add([pscustomobject]$row)
 }
-function Get-RejectionCode([scriptblock]$Action){try{[void](& $Action);return 'ACCEPTED'}catch{$message=$_.Exception.Message;if($message -match '^(V22_[A-Z0-9_]+)\|'){return $Matches[1]};return 'UNCLASSIFIED_REJECTION'}}
+function Get-RejectionCode([scriptblock]$Action){try{[void](& $Action);return 'ACCEPTED'}catch{$message=$_.Exception.Message;if($message -match '^((?:V22_[A-Z0-9_]+)|CANONICAL_RUN_IDENTITY_INVALID)\|'){return $Matches[1]};return 'UNCLASSIFIED_REJECTION'}}
 function New-BdnFixture([string]$Dir,[string]$Mean){
     if(-not(Test-Path -LiteralPath $Dir)){New-Item -ItemType Directory -Path $Dir|Out-Null}
     $summary=Join-Path $Dir 'summary.csv';$measure=Join-Path $Dir 'measurements.csv'
-    Set-Content -LiteralPath $summary -Value ("Method,Mean,Error,StdDev,Unit`nSynthetic,{0},1 ns,2 ns,ns" -f $Mean) -Encoding utf8
-    Set-Content -LiteralPath $measure -Value "IterationStage,Operations,Nanoseconds`nActual,1,120`nActual,1,140" -Encoding utf8
+    $summaryLines=@('Mean,Error,StdDev,Unit,ConfiguredIterations,ReportedN,RawActualRows,RawResultRows,RemovedUpperOutliers,UpperFenceNs,MeanRoundingToleranceNs',("{0},1 ns,2 ns,ns,2,2,2,2,0,1000,0.5" -f $Mean))
+    $measurementLines=@('IterationStage,Iteration,Operations,Nanoseconds,IncludedForMean','Result,1,1,120,True','Result,2,1,140,True')
+    Set-Content -LiteralPath $summary -Value $summaryLines -Encoding utf8
+    Set-Content -LiteralPath $measure -Value $measurementLines -Encoding utf8
     return @{SummaryPath=$summary;MeasurementsPath=$measure}
 }
 function New-NbFixture([object]$Override){
@@ -107,6 +110,121 @@ Invoke-Case 'FI_OPTIONAL_CORRECTNESS_REASON_PRESENT' @{Status='FAIL';ReasonPrope
 $projection=New-V22CorrectnessEvidenceProjection -SemanticScenariosCompleted 6 -TotalCountPassed 6 -SemanticStatus 'PASS_6_OF_6' -InventoryStatus 'PASS_HISTORICAL_AND_CURRENT' -SecurityStatus 'NOT_APPLICABLE_BY_CONTRACT' -DatabaseStateStatus 'PASS'
 Invoke-Case 'FI_CORRECTNESS_PROJECTION_SIX_OF_SIX' @{SemanticScenariosCompleted=6;TotalCountPassed=6} 'PASS|SEMANTIC=6/6|TOTAL=6/6' {'{0}|SEMANTIC={1}|TOTAL={2}' -f $projection.Status,$projection.SemanticScenarios,$projection.TotalCount}
 Invoke-Case 'FI_CORRECTNESS_PROJECTION_MISMATCH_REJECTED' @{SemanticScenariosCompleted=6;TotalCountPassed=5} 'V22_CORRECTNESS_PROJECTION_MISMATCH' {Get-RejectionCode {New-V22CorrectnessEvidenceProjection -SemanticScenariosCompleted 6 -TotalCountPassed 5 -SemanticStatus 'PASS_6_OF_6' -InventoryStatus 'PASS_HISTORICAL_AND_CURRENT' -SecurityStatus 'NOT_APPLICABLE_BY_CONTRACT' -DatabaseStateStatus 'PASS'}}
+function New-FinalizerFixture([string]$Role='CHILD',[string]$Run='fi-run',[string]$Candidate='fi-candidate',[bool]$Completed=$true,[bool]$ProcessGone=$true,[string]$CleanupStatus='ALREADY_EXITED',[string]$ProbeStatus='ABSENT',[bool]$IncludeKilledField=$true,[object]$KilledValue=$false,[object]$ApplicableValue=$false,[switch]$HostLimit,[int]$ExitCode=0,[string]$Level=''){
+    $ownedProcessId=873800;$now=[DateTime]::UtcNow.ToString('o');$record=[ordered]@{RecordType='OWNED_PROCESS';MetadataSchemaVersion=1;Role=$Role;ChildProcessId=$ownedProcessId;StartedUtc=$now;ProcessStartUtc=$now;RunId=$Run;BlockId='fi-block';Scenario='LookupPaged';Level=$Level;FilePath='synthetic.exe';ExitCode=$ExitCode;Completed=$Completed;ProcessGone=$ProcessGone;CleanupStatus=$CleanupStatus}
+    if($HostLimit){$record.HostStopEvidence=[ordered]@{Reason='HOST_STOP_HARD_FLOOR';KillIssued=[bool]$KilledValue;ActionRequested=$true;ActionCompleted=$true};$record.KilledForHostLimitApplicable=$true}elseif($null-ne$ApplicableValue){$record.KilledForHostLimitApplicable=$ApplicableValue}
+    if($IncludeKilledField){$record.KilledForHostLimit=$KilledValue}
+    $inventory=New-V22FinalOwnedProcessInventory @([pscustomobject]$record) $Run $Candidate;$identity=$inventory.ProcessRecords[0].ProcessIdentity
+    $probe=[ordered]@{CanonicalRunId=$Run;CandidateId=$Candidate;PID=$ownedProcessId;ProcessIdentity=$identity;ProbeUtc=[DateTime]::UtcNow.ToString('o');Status=$ProbeStatus;ProcessExists=($ProbeStatus-ne'ABSENT');OwnedProcessExists=($ProbeStatus-eq'OWNED_PROCESS_PRESENT')}
+    $pidEvidence=[ordered]@{CanonicalRunId=$Run;CandidateId=$Candidate;Probes=@($probe)};$helpers=@();if($Role -in @('TELEMETRY','TOOL','DB_TOOL')){$helpers=@($probe)}
+    $helperEvidence=[ordered]@{CanonicalRunId=$Run;CandidateId=$Candidate;Probes=$helpers};$sql=[ordered]@{CanonicalRunId=$Run;CandidateId=$Candidate;Status='PASS';ProcessExitCode=0;Evidence=[ordered]@{Status='RESIDUE_CLEAN';TargetDatabase='TKS_Thuc_Tap_V11_Perf_10000000';DatabaseId=5};ProbeProcess=[ordered]@{PID=873899;ProbeUtc=[DateTime]::UtcNow.ToString('o');ProcessGone=$true;CleanupStatus='PASS';Status='ABSENT'}}
+    return [pscustomobject]@{Record=[pscustomobject]$record;Inventory=$inventory;PidEvidence=$pidEvidence;HelperEvidence=$helperEvidence;SqlResidue=$sql}
+}
+$fiHostTrue=New-FinalizerFixture -HostLimit -KilledValue $true -ApplicableValue $true
+Invoke-Case 'FI_FINALIZER_KILLED_TRUE' @{KilledForHostLimit=$true;Applicable=$true} 'KILL_ISSUED' {$fiHostTrue.Inventory.ProcessRecords[0].HostLimitDisposition}
+$fiHostFalse=New-FinalizerFixture -HostLimit -KilledValue $false -ApplicableValue $true
+Invoke-Case 'FI_FINALIZER_KILLED_FALSE' @{KilledForHostLimit=$false;Applicable=$true} 'HOST_STOP_WITHOUT_KILL' {$fiHostFalse.Inventory.ProcessRecords[0].HostLimitDisposition}
+$fiOptional=New-FinalizerFixture -IncludeKilledField:$false -ApplicableValue:$null
+Invoke-Case 'FI_FINALIZER_OPTIONAL_FIELD_ABSENT' @{KilledForHostLimitPropertyPresent=$false;HostLimitApplicable=$false} 'NOT_APPLICABLE' {$fiOptional.Inventory.ProcessRecords[0].HostLimitDisposition}
+Invoke-Case 'FI_FINALIZER_REQUIRED_FIELD_ABSENT' @{KilledForHostLimitPropertyPresent=$false;HostLimitApplicable=$true} 'V22_FINALIZER_KILLED_FIELD_REQUIRED' {Get-RejectionCode {New-FinalizerFixture -HostLimit -IncludeKilledField:$false -KilledValue $true -ApplicableValue $true}}
+Invoke-Case 'FI_FINALIZER_KILLED_NULL' @{KilledForHostLimit=$null} 'V22_FINALIZER_KILLED_FIELD_NULL' {Get-RejectionCode {New-FinalizerFixture -KilledValue $null}}
+Invoke-Case 'FI_FINALIZER_KILLED_MALFORMED' @{KilledForHostLimit='yes'} 'V22_FINALIZER_KILLED_FIELD_MALFORMED' {Get-RejectionCode {New-FinalizerFixture -KilledValue 'yes'}}
+$fiNormal=New-FinalizerFixture
+Invoke-Case 'FI_FINALIZER_NORMAL_COMPLETED_PROCESS' @{Completed=$true;ProcessGone=$true;ExitCode=0} 'PASS' {(Test-V22FinalCleanupEvidence $fiNormal.Inventory $fiNormal.PidEvidence $fiNormal.HelperEvidence $fiNormal.SqlResidue 'fi-run' 'fi-candidate').AggregateCleanupStatus}
+$fiNonzero=New-FinalizerFixture -ExitCode 17
+Invoke-Case 'FI_FINALIZER_NONZERO_EXIT_CLEANUP' @{Completed=$true;ProcessGone=$true;ExitCode=17} 'PASS' {(Test-V22FinalCleanupEvidence $fiNonzero.Inventory $fiNonzero.PidEvidence $fiNonzero.HelperEvidence $fiNonzero.SqlResidue 'fi-run' 'fi-candidate').AggregateCleanupStatus}
+Invoke-Case 'FI_FINALIZER_HOST_LIMIT_RECORD' @{KilledForHostLimit=$true;HostStopEvidence=$true} 'KILL_ISSUED' {$fiHostTrue.Inventory.ProcessRecords[0].HostLimitDisposition}
+Invoke-Case 'FI_FINALIZER_CLEANUP_PASS' @{ProbeStatus='ABSENT';Residue='RESIDUE_CLEAN'} 'PASS' {(Test-V22FinalCleanupEvidence $fiNormal.Inventory $fiNormal.PidEvidence $fiNormal.HelperEvidence $fiNormal.SqlResidue 'fi-run' 'fi-candidate').AggregateCleanupStatus}
+$fiCleanupFail=New-FinalizerFixture -CleanupStatus 'CLEANUP_FAILED'
+Invoke-Case 'FI_FINALIZER_CLEANUP_FAIL' @{CleanupStatus='CLEANUP_FAILED'} 'FAIL' {(Test-V22FinalCleanupEvidence $fiCleanupFail.Inventory $fiCleanupFail.PidEvidence $fiCleanupFail.HelperEvidence $fiCleanupFail.SqlResidue 'fi-run' 'fi-candidate').AggregateCleanupStatus}
+$fiOrphan=New-FinalizerFixture -ProbeStatus 'OWNED_PROCESS_PRESENT'
+Invoke-Case 'FI_FINALIZER_ORPHAN_PID' @{ProbeStatus='OWNED_PROCESS_PRESENT'} 'FAIL' {(Test-V22FinalCleanupEvidence $fiOrphan.Inventory $fiOrphan.PidEvidence $fiOrphan.HelperEvidence $fiOrphan.SqlResidue 'fi-run' 'fi-candidate').AggregateCleanupStatus}
+$fiTelemetry=New-FinalizerFixture -Role TELEMETRY
+Invoke-Case 'FI_FINALIZER_TELEMETRY_HELPER' @{ProcessRole='TELEMETRY';HelperProbeCount=1} 'PASS' {(Test-V22FinalCleanupEvidence $fiTelemetry.Inventory $fiTelemetry.PidEvidence $fiTelemetry.HelperEvidence $fiTelemetry.SqlResidue 'fi-run' 'fi-candidate').AggregateCleanupStatus}
+$fiMixed=New-FinalizerFixture -Role CHILD -Level L4
+Invoke-Case 'FI_FINALIZER_MIXED_CHILD' @{ProcessRole='CHILD';Level='L4'} 'L4' {$fiMixed.Inventory.ProcessRecords[0].Level}
+$fiDuplicate=$fiNormal.Record
+Invoke-Case 'FI_FINALIZER_DUPLICATE_PID_IDENTITY' @{PID=$fiDuplicate.ChildProcessId;Duplicate=$true} 'V22_FINALIZER_DUPLICATE_PID' {Get-RejectionCode {New-V22FinalOwnedProcessInventory @($fiDuplicate,$fiDuplicate) 'fi-run' 'fi-candidate'}}
+$fiStale=[pscustomobject]@{RecordType='OWNED_PROCESS';MetadataSchemaVersion=9;Role='CHILD';ChildProcessId=873801;StartedUtc=[DateTime]::UtcNow.ToString('o');ProcessStartUtc=[DateTime]::UtcNow.ToString('o');Completed=$true;ProcessGone=$true}
+Invoke-Case 'FI_FINALIZER_STALE_SCHEMA' @{MetadataSchemaVersion=9} 'V22_FINALIZER_SCHEMA_STALE' {Get-RejectionCode {New-V22FinalOwnedProcessInventory @($fiStale) 'fi-run' 'fi-candidate'}}
+$fiUnknownType=[pscustomobject]@{RecordType='UNKNOWN';MetadataSchemaVersion=1;Role='CHILD';ChildProcessId=873802;StartedUtc=[DateTime]::UtcNow.ToString('o');ProcessStartUtc=[DateTime]::UtcNow.ToString('o');Completed=$true;ProcessGone=$true;RunId='fi-run'}
+Invoke-Case 'FI_FINALIZER_UNKNOWN_RECORD_TYPE' @{RecordType='UNKNOWN'} 'V22_FINALIZER_RECORD_TYPE_INVALID' {Get-RejectionCode {New-V22FinalOwnedProcessInventory @($fiUnknownType) 'fi-run' 'fi-candidate'}}
+Invoke-Case 'FI_FINALIZER_MISSING_AGGREGATE_INPUT' @{Inventory=$null} 'V22_CLEANUP_INPUT_MISSING' {Get-RejectionCode {Test-V22FinalCleanupEvidence $null $fiNormal.PidEvidence $fiNormal.HelperEvidence $fiNormal.SqlResidue 'fi-run' 'fi-candidate'}}
+Invoke-Case 'FI_FINALIZER_MISSING_FINAL_PID_PROBE' @{PerPidEvidence=$null} 'V22_CLEANUP_PROBE_MISSING' {Get-RejectionCode {Test-V22FinalCleanupEvidence $fiNormal.Inventory $null $fiNormal.HelperEvidence $fiNormal.SqlResidue 'fi-run' 'fi-candidate'}}
+Invoke-Case 'FI_FINALIZER_RUN_ID_MISMATCH' @{CanonicalRunId='fi-run';ProtocolRunId='stale-run'} 'CANONICAL_RUN_IDENTITY_INVALID' {Get-RejectionCode {Assert-V22CanonicalRunIdentity 'fi-run' 'stale-run' 'fi-candidate' 'fi-source' 'fi-session' @([pscustomobject]@{RunId='fi-run';CandidateId='fi-candidate';BlockId='block'})}}
+$fiBadCandidate=$fiNormal.HelperEvidence;$fiBadCandidate.CandidateId='other-candidate'
+Invoke-Case 'FI_FINALIZER_CANDIDATE_MISMATCH' @{Expected='fi-candidate';Actual='other-candidate'} 'V22_FINALIZER_CANDIDATE_MISMATCH' {Get-RejectionCode {Test-V22FinalCleanupEvidence $fiNormal.Inventory $fiNormal.PidEvidence $fiBadCandidate $fiNormal.SqlResidue 'fi-run' 'fi-candidate'}}
+$cleanupPersistRoot=Join-Path $EvidenceRoot 'cleanup-readback-fixture';New-Item -ItemType Directory -Path $cleanupPersistRoot|Out-Null
+$persistFixture=New-FinalizerFixture
+$persistInventory=Join-Path $cleanupPersistRoot 'inventory.json';$persistPid=Join-Path $cleanupPersistRoot 'pid.json';$persistHelper=Join-Path $cleanupPersistRoot 'helper.json';$persistSql=Join-Path $cleanupPersistRoot 'sql.json';$persistAggregate=Join-Path $cleanupPersistRoot 'aggregate.json'
+$persistPidValue=[ordered]@{SchemaVersion='warehouse-benchmark-v22-final-per-pid-probes/1';CanonicalRunId='fi-run';CandidateId='fi-candidate';CapturedUtc=[DateTime]::UtcNow.ToString('o');ProbeCount=1;Probes=$persistFixture.PidEvidence.Probes}
+$persistHelperValue=[ordered]@{SchemaVersion='warehouse-benchmark-v22-final-helper-probes/1';CanonicalRunId='fi-run';CandidateId='fi-candidate';CapturedUtc=[DateTime]::UtcNow.ToString('o');ProbeCount=0;Probes=@()}
+$persistSqlValue=$persistFixture.SqlResidue;$persistSqlValue.CapturedUtc=[DateTime]::UtcNow.ToString('o')
+New-V22FinalizerJson $persistInventory $persistFixture.Inventory;New-V22FinalizerJson $persistPid $persistPidValue;New-V22FinalizerJson $persistHelper $persistHelperValue;New-V22FinalizerJson $persistSql $persistSqlValue
+$persistedAggregate=Test-V22FinalCleanupEvidence (Get-Content $persistInventory -Raw|ConvertFrom-Json) (Get-Content $persistPid -Raw|ConvertFrom-Json) (Get-Content $persistHelper -Raw|ConvertFrom-Json) (Get-Content $persistSql -Raw|ConvertFrom-Json) 'fi-run' 'fi-candidate'
+$persistInputs=@($persistInventory,$persistPid,$persistHelper,$persistSql);$persistedAggregate.InputEvidence=@($persistInputs|ForEach-Object{[pscustomobject]@{Path=$_;SHA256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()}})
+New-V22FinalizerJson $persistAggregate $persistedAggregate
+Invoke-Case 'FI_FINAL_CLEANUP_PERSIST_AND_READBACK' @{Inputs=4;AggregatePersisted=$true} 'PASS_1' {$r=Test-V22FinalCleanupReadback $persistInventory $persistPid $persistHelper $persistSql $persistAggregate 'fi-run' 'fi-candidate';'{0}_{1}'-f$r.Status,$r.ProcessCount}
+$missingPersistRoot=Join-Path $EvidenceRoot 'cleanup-readback-missing-fixture';New-Item -ItemType Directory -Path $missingPersistRoot|Out-Null
+Invoke-Case 'FI_FINAL_CLEANUP_MISSING_PERSISTED_PROBE' @{PidProbePersisted=$false} 'FAIL' {(Test-V22FinalCleanupReadback $persistInventory (Join-Path $missingPersistRoot 'missing-pid.json') $persistHelper $persistSql $persistAggregate 'fi-run' 'fi-candidate').Status}
+Invoke-Case 'FI_CLEANUP_COUNT_PROJECTION_86_MATCH' @{Inventory=86;PidProbes=86;AggregateExpected=86;CoreProjection=86;InMemory=87} 'PASS|SCHEMA_PROJECTION_DEFECT' {$r=New-V22CleanupCountProjection 86 86 86 86 87;'{0}|{1}'-f$r.Status,$r.Classification}
+Invoke-Case 'FI_CLEANUP_COUNT_PROJECTION_87_MISMATCH' @{Inventory=86;PidProbes=86;AggregateExpected=86;CoreProjection=87} 'FAIL|CLEANUP_COUNT_INVARIANT_FAILED' {$r=New-V22CleanupCountProjection 86 86 86 87;'{0}|{1}'-f$r.Status,$r.Classification}
+Invoke-Case 'FI_CLEANUP_COUNT_PROJECTION_MISSING_COUNT' @{Inventory=$null;PidProbes=0;AggregateExpected=0;CoreProjection=0} 'FAIL' {(New-V22CleanupCountProjection $null 0 0 0).Status}
+$fiRun='fi-run';$fiCand='fi-candidate';$fiConfigs=New-V22RepresentativeRunConfigurations $fiRun $fiCand @('MasterPaged','LookupPaged','DocumentPaged','DetailReportPaged','InventoryHistoricalReportPaged','InventoryCurrentBalancePaged')
+Invoke-Case 'FI_CONFIG_IDENTITY_C1_C2_C4_L1_L2_L4_L8' @{ConfigurationCount=$fiConfigs.Count;Profiles=@('C1','C2','C4','L1','L2','L4','L8')} 'PASS_48_SAME_RUN' {if((Assert-V22CanonicalRunIdentity $fiRun $fiRun $fiCand 'fi-source' 'fi-session' $fiConfigs).Status-eq'PASS'-and@($fiConfigs|Where-Object{$_.Profile -in @('C1','C2','C4')}).Count-eq 18-and@($fiConfigs|Where-Object{$_.Profile-eq'MIXED_REGRESSION'}).Count-eq 24){'PASS_48_SAME_RUN'}else{'FAIL'}}
+Invoke-Case 'FI_CONFIG_STALE_RUN_REJECTED' @{StaleRunId='old-run'} 'CANONICAL_RUN_IDENTITY_INVALID' {Get-RejectionCode {Assert-V22CanonicalRunIdentity $fiRun $fiRun $fiCand 'fi-source' 'fi-session' @([pscustomobject]@{RunId='old-run';CandidateId=$fiCand;BlockId='stale'})}}
+$fiRunnerSource=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'run-warehouse-benchmark-v2.2-performance.ps1'))
+$fiIdentityIndex=$fiRunnerSource.IndexOf('V22-Canonical-Run-Identity.json',[StringComparison]::Ordinal)
+$fiClaimIndex=$fiRunnerSource.IndexOf('$script:CanonicalWorkloadStarted=$true',$fiIdentityIndex,[StringComparison]::Ordinal)
+$fiPreClaimSection=if($fiIdentityIndex-ge 0-and$fiClaimIndex-gt$fiIdentityIndex){$fiRunnerSource.Substring($fiIdentityIndex,$fiClaimIndex-$fiIdentityIndex)}else{''}
+$fiPreClaimCalls=[regex]::Matches($fiPreClaimSection,'(?i)\bInvoke-MeasurementBlock\b').Count
+Invoke-Case 'FI_NO_UNCLAIMED_TIMED_MEASUREMENT' @{IdentityMarkerFound=($fiIdentityIndex-ge 0);OneShotStartMarkerFound=($fiClaimIndex-gt$fiIdentityIndex);MeasurementCallsBeforeClaim=$fiPreClaimCalls} 'NO_PRECLAIM_TIMED_BLOCK' {if($fiIdentityIndex-ge 0-and$fiClaimIndex-gt$fiIdentityIndex-and$fiPreClaimCalls-eq 0){'NO_PRECLAIM_TIMED_BLOCK'}else{'UNCLAIMED_TIMED_BLOCK_FOUND'}}
+$fiMixedTotals=@();foreach($n in @(1,2,4,8)){$r=New-V22MixedSemantics ('L'+$n);$fiMixedTotals+=$r.TotalLogicalCopies}
+Invoke-Case 'FI_MIXED_SEMANTICS_1_2_4_8' @{Levels=@('L1','L2','L4','L8')} '6,12,24,48' {($fiMixedTotals -join ',')}
+$fiReport=New-V22FinalReport ([ordered]@{Verdict='BATCH3_PARTIAL';CanonicalRunId='fi-run';ProtocolRunId='fi-run';IdentityStatus='PASS';CandidateId='fi-candidate';SourceSnapshotId='fi-source';ManifestSHA256=('a'*64);Gates=@{};CorrectnessPreflight='6/6';TotalCountPreflight='6/6';IsolatedC1C2='12/12';C4='6/6';BDN='6/6';PostIsolatedCorrectness='6/6';MixedL1='PASS';MixedL2='PASS';MixedL4='PASS';MixedL8='PASS';PostMixedCorrectness='6/6';MixedOverlap='PASS';MixedTelemetry='PASS';ProcessCount='0';PidProbeCount='0';CleanupStatus='NOT_RUN';CanonicalWorkloadAttempts=0;RecoveryDiagnosticStatus='NOT_RUN_NOT_IN_PROTOCOL';EvidencePaths=@('synthetic/evidence.json')})
+Invoke-Case 'FI_REPORT_TEMPLATE_LINT_PASS' @{RunId='fi-run';CandidateId='fi-candidate'} 'PASS' {(Test-V22FinalReportLint $fiReport).Status}
+Invoke-Case 'FI_REPORT_TEMPLATE_LINT_REJECTS_PLACEHOLDER' @{Text='Run $RunId and $(projection)'} 'FAIL' {(Test-V22FinalReportLint 'Run $RunId and $(projection)').Status}
+$projectionSource=Join-Path $EvidenceRoot 'projection-source.txt';[IO.File]::WriteAllText($projectionSource,'synthetic projection',[Text.UTF8Encoding]::new($false))
+$projectionRoot=Join-Path $EvidenceRoot 'projection-pack';New-Item -ItemType Directory -Path $projectionRoot|Out-Null
+Invoke-Case 'FI_REVIEW_PROJECTION_COPY_HASH' @{Source=$projectionSource;Name='copy.txt'} 'COPIED' {(New-V22ReviewProjectionArtifact $projectionRoot 'copy.txt' $projectionSource 'fi-run' 'fi-candidate').Status}
+$missingProjection=New-V22ReviewProjectionArtifact $projectionRoot 'missing.json' (Join-Path $EvidenceRoot 'absent-source.json') 'fi-run' 'fi-candidate'
+Invoke-Case 'FI_REVIEW_PROJECTION_MISSING_FAIL_CLOSED' @{Source='absent-source.json'} 'MISSING' {$j=Get-Content -LiteralPath (Join-Path $projectionRoot 'missing.json') -Raw|ConvertFrom-Json;if($j.Status-eq'MISSING'){'MISSING'}else{'FAIL'}}
+Invoke-Case 'FI_REVIEW_PROJECTION_NO_OVERWRITE' @{Name='copy.txt'} 'V22_FINALIZER_OUTPUT_EXISTS' {Get-RejectionCode {New-V22ReviewProjectionArtifact $projectionRoot 'copy.txt' $projectionSource 'fi-run' 'fi-candidate'}}
+$validPack=Join-Path $EvidenceRoot 'valid-review-pack';New-Item -ItemType Directory -Path $validPack|Out-Null
+New-V22FinalizerJson (Join-Path $validPack 'identity.json') ([ordered]@{RunId='fi-run';CanonicalRunId='fi-run';CandidateId='fi-candidate';Status='PASS'})
+[IO.File]::WriteAllText((Join-Path $validPack 'report.md'),'Verdict: BATCH3_PARTIAL',[Text.UTF8Encoding]::new($false))
+Invoke-Case 'FI_REVIEW_PACK_INTEGRITY_PASS' @{Required=@('identity.json','report.md')} 'PASS_2' {$r=Test-V22FinalCanonicalReviewPack $validPack @('identity.json','report.md') 'fi-run' 'fi-candidate';'{0}_{1}'-f$r.Status,$r.FileCount}
+$stalePack=Join-Path $EvidenceRoot 'stale-review-pack';New-Item -ItemType Directory -Path $stalePack|Out-Null
+New-V22FinalizerJson (Join-Path $stalePack 'identity.json') ([ordered]@{RunId='old-run';CandidateId='fi-candidate';Status='PASS'})
+[IO.File]::WriteAllText((Join-Path $stalePack 'report.md'),'Verdict: BATCH3_PARTIAL',[Text.UTF8Encoding]::new($false))
+Invoke-Case 'FI_REVIEW_PACK_STALE_RUN_REJECTED' @{RunId='old-run';Expected='fi-run'} 'FAIL' {(Test-V22FinalCanonicalReviewPack $stalePack @('identity.json','report.md') 'fi-run' 'fi-candidate').Status}
+$invalidPack=Join-Path $EvidenceRoot 'invalid-review-pack';New-Item -ItemType Directory -Path $invalidPack|Out-Null
+[IO.File]::WriteAllText((Join-Path $invalidPack 'identity.json'),'{ invalid',[Text.UTF8Encoding]::new($false))
+Invoke-Case 'FI_REVIEW_PACK_INVALID_JSON_REJECTED' @{File='identity.json'} 'FAIL' {(Test-V22FinalCanonicalReviewPack $invalidPack @('identity.json') 'fi-run' 'fi-candidate').Status}
+$rawFixtureRoot=Join-Path $EvidenceRoot 'raw-index-fixture';New-Item -ItemType Directory -Path $rawFixtureRoot|Out-Null
+$rawData=Join-Path $rawFixtureRoot 'block.txt';[IO.File]::WriteAllText($rawData,'persisted',[Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText((Join-Path $rawFixtureRoot 'progress.json'),'mutable',[Text.UTF8Encoding]::new($false))
+$rawEntry=[pscustomobject]@{RelativePath='block.txt';Size=[long](Get-Item $rawData).Length;SHA256=(Get-FileHash -LiteralPath $rawData -Algorithm SHA256).Hash.ToLowerInvariant()}
+$rawIndex=Join-Path $rawFixtureRoot 'raw-artifact-hashes.json';New-V22FinalizerJson $rawIndex ([ordered]@{RunId='fi-run';Count=1;Entries=@($rawEntry);ExcludedMutableFiles=@('progress.json')})
+Invoke-Case 'FI_RAW_ARTIFACT_INDEX_COMPLETE' @{Indexed=1;Excluded=@('progress.json')} 'PASS_1' {$r=Test-V22RawArtifactHashIndex $rawIndex $rawFixtureRoot 'fi-run';'{0}_{1}'-f$r.Status,$r.VerifiedCount}
+[IO.File]::WriteAllText((Join-Path $rawFixtureRoot 'unindexed.txt'),'unindexed',[Text.UTF8Encoding]::new($false))
+Invoke-Case 'FI_RAW_ARTIFACT_UNINDEXED_REJECTED' @{File='unindexed.txt'} 'FAIL' {(Test-V22RawArtifactHashIndex $rawIndex $rawFixtureRoot 'fi-run').Status}
+$projectionSkipped=Get-V22MetricProjection ([ordered]@{Status='SKIPPED';BlockKind='C4';Requests=0;Failed=0}) 'C4'
+Invoke-Case 'FI_FINALIZER_SKIPPED_OPTIONAL_METRICS' @{Status='SKIPPED';MeanMs='ABSENT'} 'NOT_MEASURED|NOT_APPLICABLE|NOT_APPLICABLE' {'{0}|{1}|{2}' -f $projectionSkipped.MetricState,(Get-V22MetricDisplayValue $projectionSkipped 'MeanMs'),(Get-V22MetricDisplayValue $projectionSkipped 'P95Ms')}
+$projectionHost=Get-V22MetricProjection ([ordered]@{Status='HOST_LIMIT';BlockKind='C4';FailureType='HOST_LIMIT'}) 'C4'
+Invoke-Case 'FI_FINALIZER_HOST_LIMIT_OPTIONAL_METRICS' @{Status='HOST_LIMIT';P95Ms='ABSENT'} 'NOT_MEASURED|NOT_APPLICABLE' {'{0}|{1}' -f $projectionHost.MetricState,(Get-V22MetricDisplayValue $projectionHost 'P95Ms')}
+$projectionBdn=Get-V22MetricProjection ([ordered]@{Status='PASS';MeanMs=10.0;ErrorMs=1.0;StdDevMs=2.0}) 'BDN'
+Invoke-Case 'FI_FINALIZER_BDN_PERCENTILES_NOT_APPLICABLE' @{Status='PASS';Kind='BDN'} 'VALID|NOT_APPLICABLE' {'{0}|{1}' -f $projectionBdn.MetricState,(Get-V22MetricDisplayValue $projectionBdn 'P95Ms')}
+Invoke-Case 'FI_FINALIZER_PASS_REQUIRED_METRIC_MISSING' @{Status='PASS';Kind='BDN';MeanMs=10.0} 'V22_FINALIZER_METRIC_REQUIRED_MISSING' {Get-RejectionCode {Get-V22MetricProjection @{Status='PASS';MeanMs=10.0} 'BDN'}}
+Invoke-Case 'FI_FINALIZER_PASS_NONFINITE_METRIC_REJECTED' @{Status='PASS';Kind='C4';P95Ms='NaN'} 'V22_FINALIZER_METRIC_INVALID' {Get-RejectionCode {Get-V22MetricProjection @{Status='PASS';Requests=10;Failed=0;RPS=1;MeanMs=1;P50Ms=1;P95Ms='NaN';P99Ms=1;MaxMs=1} 'C4'}}
+$validBdn=New-BdnFixture (Join-Path $EvidenceRoot 'FI_BDN_RESULT_SOURCE_VALID') '130'
+Invoke-Case 'FI_BDN_RESULT_SOURCE_VALID' @{MeanNs=130;N=2;Stage='Result'} 'BDN_COMPLETE|N=2|Rows=2' {$b=Assert-V22BdnEvidence $validBdn.SummaryPath $validBdn.MeasurementsPath;'{0}|N={1}|Rows={2}' -f $b.Status,$b.MeasuredIterations,$b.ResultMeasurementRows}
+$fiMaterialized=New-V22FinalReport ([ordered]@{Verdict='BATCH3_PARTIAL';CanonicalRunId='fi-run';ProtocolRunId='fi-run';IdentityStatus='PASS';CandidateId='fi-candidate';SourceSnapshotId='fi-source';ManifestSHA256=('a'*64);BenchmarkDllSHA256=('b'*64);DataAccessDllSHA256=('c'*64);SourceInventoryCount=181;SourceInventorySHA256=('d'*64);RuntimeInventoryCount=151;RuntimeInventorySHA256=('e'*64);Gates=@{Preflight='PASS';ReportLint='PASS'};CorrectnessPreflight='6/6';TotalCountPreflight='6/6';IsolatedC1C2='12/12';C4='6/6';BDN='6/6';PostIsolatedCorrectness='6/6';MixedL1='PASS';MixedL2='PASS';MixedL4='PASS';MixedL8='PASS';PostMixedCorrectness='6/6';MixedOverlap='PASS';MixedTelemetry='PASS';ProcessCount=3;PidProbeCount=3;HelperProbeCount=1;CleanupStatus='PASS';PrePostStatus='PASS';PreservationStatus='PASS';RawArtifactCount=55;RawArtifactIndexSHA256=('f'*64);CanonicalWorkloadAttempts=1;RecoveryDiagnosticStatus='NOT_RUN_NOT_IN_PROTOCOL';HistoricalTimeoutCause='NOT_VERIFIED';FullDatasetValueEquality='NOT_VERIFIED';PerformanceSLA='NO_SLA_DEFINED';CausalAttribution='NOT_ESTABLISHED';HistoricalHostLimitActionTimestamp='NOT_RECORDED';CoreEvidenceReady='NO';ReadyForBatch4='NO';StopReason='synthetic';FailureStage='synthetic';EvidencePaths=@('synthetic/evidence.json')})
+Invoke-Case 'FI_REPORT_MATERIALIZES_ID_HASH_AND_COUNTS' @{RunId='fi-run';CandidateId='fi-candidate';SourceCount=181} 'MATERIALIZED' {if($fiMaterialized.Contains('fi-run')-and$fiMaterialized.Contains('fi-candidate')-and$fiMaterialized.Contains(('b'*64))-and$fiMaterialized.Contains('Source inventory count: 181')-and$fiMaterialized.Contains('Correctness preflight: 6/6')){'MATERIALIZED'}else{'FAIL'}}
+$lifecycleRoot=Join-Path $EvidenceRoot 'lifecycle'
+& (Join-Path $PSScriptRoot 'Invoke-V22LifecycleTests.ps1') -EvidenceRoot $lifecycleRoot | Out-Null
+$lifecycle=Get-Content -LiteralPath (Join-Path $lifecycleRoot 'V22-Lifecycle-Results.json') -Raw|ConvertFrom-Json
+foreach($test in $lifecycle.Tests){$script:Results.Add($test)}
 $summaryPath=Join-Path $EvidenceRoot 'V22-Failure-Injection-Results.json'
 $failed=@($script:Results|Where-Object Status -ceq 'FAIL').Count
 $result=[ordered]@{SchemaVersion='warehouse-benchmark-v22-failure-injection/1';ProtocolVersion='2.2';DatabaseAccess='NOT_USED';PerformanceLoad='NOT_RUN';TestCount=$script:Results.Count;Passed=($script:Results.Count-$failed);Failed=$failed;Status=$(if($failed -eq 0){'PASS'}else{'FAIL'});Tests=$script:Results.ToArray();RecordedUtc=[DateTime]::UtcNow.ToString('o')}

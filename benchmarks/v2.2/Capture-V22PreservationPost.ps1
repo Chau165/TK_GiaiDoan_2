@@ -1,11 +1,11 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$BatchRoot)
+param([Parameter(Mandatory=$true)][string]$BatchRoot,[Parameter(Mandatory=$true)][string]$ReviewRoot,[Parameter(Mandatory=$true)][string]$PreSummaryPath)
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath($BatchRoot)
-$review=Join-Path $root 'Batch3-Review-Pack'
+$review=[IO.Path]::GetFullPath($ReviewRoot)
 $logs=Join-Path $root 'logs'
 $prePath=Join-Path $logs 'preservation-pre-files.json'
-$preSummaryPath=Join-Path $logs 'Previous-Evidence-Preservation-Prebatch3-Summary.json'
+$preSummaryPath=[IO.Path]::GetFullPath($PreSummaryPath)
 $b1='P:\Warehouse-Benchmark-V2\WAREHOUSE_BENCHMARK_V2_2_BATCH1_WHB22-20260930-65EA9FB0\Batch1-Review-Pack\V21-Preservation-Proof.json'
 $prior='P:\Warehouse-Benchmark-V2\WAREHOUSE_BENCHMARK_V2_2_BATCH2_RESTORED_CONTINUATION_20261001_01\Batch2-Restored-Continuation-Review-Pack\Previous-Evidence-Integrity.json'
 $priorFinal=Join-Path 'P:\Warehouse-Benchmark-V2\WAREHOUSE_BENCHMARK_V2_2_BATCH2_FINAL_CLOSURE_20261001_01' 'Batch2-Final-Review-Pack\Previous-Evidence-Integrity-Final.json'

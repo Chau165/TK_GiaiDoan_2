@@ -54,27 +54,42 @@ function Assert-V22BdnEvidence([string]$SummaryPath, [string]$MeasurementsPath) 
         if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { Throw-V22Failure 'V22_BDN_INVALID' 'required BDN artifact is missing' }
         if ((Get-Item -LiteralPath $path).Length -le 0) { Throw-V22Failure 'V22_BDN_INVALID' 'required BDN artifact is empty' }
     }
-    try {
-        $summaryRows = @(Import-Csv -LiteralPath $SummaryPath -Delimiter ',')
-        $measurementRows = @(Import-Csv -LiteralPath $MeasurementsPath -Delimiter ',')
-    } catch { Throw-V22Failure 'V22_BDN_INVALID' 'BDN CSV could not be parsed' }
+    try { $summaryRows = @(Import-Csv -LiteralPath $SummaryPath -Delimiter ','); $measurementRows = @(Import-Csv -LiteralPath $MeasurementsPath -Delimiter ',') }
+    catch { Throw-V22Failure 'V22_BDN_INVALID' 'BDN CSV could not be parsed' }
     if ($summaryRows.Count -ne 1) { Throw-V22Failure 'V22_BDN_INVALID' 'BDN summary must contain exactly one result row' }
     $summary = $summaryRows[0]
     try {
         $meanNs = ConvertTo-V22QuantityNs (Get-V22Field $summary 'Mean') (Get-V22Field $summary 'Unit') 'Mean'
         $errorNs = ConvertTo-V22QuantityNs (Get-V22Field $summary 'Error') (Get-V22Field $summary 'Unit') 'Error'
         $stdDevNs = ConvertTo-V22QuantityNs (Get-V22Field $summary 'StdDev') (Get-V22Field $summary 'Unit') 'StdDev'
-    } catch { Throw-V22Failure 'V22_BDN_INVALID' 'BDN summary contains a missing, malformed, or non-finite metric' }
-    $actualRows = @($measurementRows | Where-Object { ([string](Get-V22Field $_ 'IterationStage')).Trim() -ceq 'Actual' })
-    if ($actualRows.Count -lt 1) { Throw-V22Failure 'V22_BDN_INVALID' 'actual measurement rows are missing' }
-    foreach ($row in $actualRows) {
+        $configured = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'ConfiguredIterations') 'ConfiguredIterations'
+        $reportedN = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'ReportedN') 'ReportedN'
+        $rawActual = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'RawActualRows') 'RawActualRows'
+        $rawResult = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'RawResultRows') 'RawResultRows'
+        $removed = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'RemovedUpperOutliers') 'RemovedUpperOutliers'
+        $upperFence = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'UpperFenceNs') 'UpperFenceNs'
+        $roundingTolerance = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'MeanRoundingToleranceNs') 'MeanRoundingToleranceNs'
+    } catch { Throw-V22Failure 'V22_BDN_INVALID' 'BDN summary contains missing, malformed, or non-finite required evidence' }
+    if ($configured -lt 1 -or [Math]::Floor($configured) -ne $configured -or $reportedN -lt 1 -or [Math]::Floor($reportedN) -ne $reportedN -or $reportedN -gt $configured) { Throw-V22Failure 'V22_BDN_INVALID' 'configured iterations or reported N are invalid' }
+    if ($rawActual -ne $configured -or $rawResult -ne $configured -or $removed -ne ($configured - $reportedN)) { Throw-V22Failure 'V22_BDN_INVALID' 'raw measurement counts do not reconcile with protocol and N' }
+    $resultRows = @($measurementRows | Where-Object { ([string](Get-V22Field $_ 'IterationStage')).Trim() -ceq 'Result' })
+    if ($resultRows.Count -ne $rawResult) { Throw-V22Failure 'V22_BDN_INVALID' 'WorkloadResult rows are missing or malformed' }
+    $seen = [Collections.Generic.HashSet[int]]::new(); $included = [Collections.Generic.List[object]]::new()
+    foreach ($row in $resultRows) {
+        $iteration = 0
+        if (-not [int]::TryParse([string](Get-V22Field $row 'Iteration'), [ref]$iteration) -or $iteration -lt 1 -or -not $seen.Add($iteration)) { Throw-V22Failure 'V22_BDN_INVALID' 'WorkloadResult iteration identity is malformed or duplicated' }
         $operations = ConvertTo-V22FiniteNumber (Get-V22Field $row 'Operations') 'Operations'
         $nanoseconds = ConvertTo-V22FiniteNumber (Get-V22Field $row 'Nanoseconds') 'Nanoseconds'
-        if ($operations -le 0 -or $nanoseconds -lt 0) { Throw-V22Failure 'V22_BDN_INVALID' 'measurement row is outside the metric contract' }
+        $includeText = [string](Get-V22Field $row 'IncludedForMean'); $include = $false
+        if ($operations -le 0 -or $nanoseconds -lt 0 -or -not [bool]::TryParse($includeText, [ref]$include)) { Throw-V22Failure 'V22_BDN_INVALID' 'WorkloadResult measurement is outside the metric contract' }
+        if ($include -ne ($nanoseconds -le $upperFence)) { Throw-V22Failure 'V22_BDN_INVALID' 'upper-fence inclusion flag does not match measurement value' }
+        if ($include) { $included.Add([pscustomobject]@{Nanoseconds=$nanoseconds}) }
     }
-    return [pscustomobject]@{ Status='BDN_COMPLETE'; MeanNs=$meanNs; ErrorNs=$errorNs; StdDevNs=$stdDevNs; ActualMeasurementRows=$actualRows.Count; SummaryPath=$SummaryPath; MeasurementsPath=$MeasurementsPath }
+    if ($included.Count -ne $reportedN) { Throw-V22Failure 'V22_BDN_INVALID' 'included WorkloadResult rows do not equal statistical N' }
+    $includedMean = ($included | Measure-Object -Property Nanoseconds -Average).Average
+    if ([Math]::Abs($includedMean - $meanNs) -gt ($roundingTolerance + 0.001)) { Throw-V22Failure 'V22_BDN_INVALID' 'normalized Mean does not reconcile with included WorkloadResult values' }
+    return [pscustomobject]@{ Status='BDN_COMPLETE'; MeanNs=$meanNs; ErrorNs=$errorNs; StdDevNs=$stdDevNs; ResultMeasurementRows=$resultRows.Count; ActualMeasurementRows=$rawActual; MeasuredIterations=$reportedN; RemovedUpperOutliers=$removed; SummaryPath=$SummaryPath; MeasurementsPath=$MeasurementsPath }
 }
-
 function Assert-V22NBomberMetrics([object]$Metrics, [Nullable[double]]$ExpectedConfiguredWindowMs) {
     $required = [ordered]@{ Requests='count'; Failed='count'; RPS='requests/s'; MeanMs='ms'; P50Ms='ms'; P95Ms='ms'; P99Ms='ms'; MaxMs='ms'; WindowMs='ms'; ConfiguredWindowMs='ms'; ObservedWindowMs='ms' }
     $units = Get-V22Field $Metrics 'Units'
@@ -114,22 +129,109 @@ function Get-V22TelemetryAssessment([object[]]$Rows, [string]$TargetDatabase, [s
     $valid = [System.Collections.Generic.List[object]]::new()
     $errors = [System.Collections.Generic.List[object]]::new()
     $rejected = [System.Collections.Generic.List[object]]::new()
+    $metadataErrors = [System.Collections.Generic.List[object]]::new()
     foreach ($row in @($Rows)) {
         $status = [string](Get-V22Field $row 'Status')
-        if ($status -ceq 'TELEMETRY_ERROR') { $errors.Add($row); continue }
         $identityMatches = ([string](Get-V22Field $row 'TargetDatabase') -ceq $TargetDatabase) -and ([string](Get-V22Field $row 'RunId') -ceq $RunId) -and ([string](Get-V22Field $row 'BlockId') -ceq $BlockId)
+        if ($status -ceq 'TELEMETRY_ERROR') {
+            $errors.Add($row)
+            if (-not $identityMatches) { $rejected.Add([pscustomobject]@{Reason='ERROR_ROW_IDENTITY_MISMATCH';RunId=(Get-V22Field $row 'RunId');BlockId=(Get-V22Field $row 'BlockId');TargetDatabase=(Get-V22Field $row 'TargetDatabase')}) }
+            $diagnostic = Test-V22TelemetryDiagnosticRow $row 'TELEMETRY_ERROR'
+            foreach ($issue in $diagnostic.Errors) { $metadataErrors.Add([pscustomobject]@{SampleIndex=(Get-V22Field $row 'SampleIndex');Issue=$issue}) }
+            if ($diagnostic.Status -ceq 'INVALID') { $rejected.Add($row) }
+            continue
+        }
         if (-not $identityMatches -or $status -cne 'VALID') { $rejected.Add($row); continue }
         try {
             $stamp = [DateTime]::Parse([string](Get-V22Field $row 'SampleUtc'), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
             $ram = ConvertTo-V22FiniteNumber (Get-V22Field $row 'FreeRamMb') 'FreeRamMb'
             $cpu = ConvertTo-V22FiniteNumber (Get-V22Field $row 'CpuPercent') 'CpuPercent'
             if ($ram -lt 0 -or $cpu -lt 0 -or $cpu -gt 100) { throw 'telemetry values outside contract' }
+            $diagnostic = Test-V22TelemetryDiagnosticRow $row 'VALID'
+            foreach ($issue in $diagnostic.Errors) { $metadataErrors.Add([pscustomobject]@{SampleIndex=(Get-V22Field $row 'SampleIndex');Issue=$issue}) }
+            if ($diagnostic.Status -ceq 'INVALID') { throw 'diagnostic telemetry metadata is invalid' }
             $valid.Add($row)
         } catch { $rejected.Add($row) }
     }
     $assessmentStatus = 'TELEMETRY_VALID'
-    if ($valid.Count -lt 1 -or $errors.Count -gt 0 -or $rejected.Count -gt 0) { $assessmentStatus = 'TELEMETRY_INVALID' }
-    return [pscustomobject]@{ Status=$assessmentStatus; ValidTargetRows=$valid.Count; ErrorRows=$errors.Count; RejectedRows=$rejected.Count; ConclusionAllowed=($assessmentStatus -ceq 'TELEMETRY_VALID'); TargetDatabase=$TargetDatabase; RunId=$RunId; BlockId=$BlockId }
+    if ($valid.Count -lt 1 -or $errors.Count -gt 0 -or $rejected.Count -gt 0 -or $metadataErrors.Count -gt 0) { $assessmentStatus = 'TELEMETRY_INVALID' }
+    return [pscustomobject]@{ Status=$assessmentStatus; ValidTargetRows=$valid.Count; ErrorRows=$errors.Count; RejectedRows=$rejected.Count; DiagnosticMetadataErrors=$metadataErrors.ToArray(); ConclusionAllowed=($assessmentStatus -ceq 'TELEMETRY_VALID'); TargetDatabase=$TargetDatabase; RunId=$RunId; BlockId=$BlockId }
+}
+
+function Get-V22TelemetryCsvHeader {
+    return @('RunId','BlockId','TargetDatabase','SampleUtc','Status','FreeRamMb','CpuPercent','DatabaseId','ActiveRequests','BlockingRequests','ActiveRequestGrantKB','RequestedGrantKB','GrantedGrantKB','PendingMemoryGrants','ResourceSemaphoreWaiters','ActiveRequestLogicalReadsDiagnostic','TempdbServerUsedKBDiagnostic','MemoryGrantsPendingCounterDiagnostic','DeadlockCounterDiagnostic','ErrorCode','TelemetrySchemaVersion','SampleIndex','SampleStartedUtc','SampleCompletedUtc','ElapsedMs','QueryId','QueryPhase','CommandTimeoutSeconds','ConnectionState','ExceptionType','SqlErrorNumber','SqlErrorState','SqlErrorClass','SafeErrorMessage','IsTimeout','CancellationRequested','PreviousSampleStillRunning','TelemetryProcessId','TargetProcessIds')
+}
+
+function Test-V22TelemetryDiagnosticRow([object]$Row, [string]$Status) {
+    $schema = [string](Get-V22Field $Row 'TelemetrySchemaVersion')
+    if ([string]::IsNullOrWhiteSpace($schema)) { return [pscustomobject]@{Status='NOT_PRESENT';Errors=@()} }
+    $errors = [Collections.Generic.List[string]]::new()
+    if ($schema -cne 'warehouse-benchmark-v22-telemetry-csv/2') { $errors.Add('TELEMETRY_SCHEMA_VERSION_INVALID') }
+    $sampleIndex = 0
+    if (-not [int]::TryParse([string](Get-V22Field $Row 'SampleIndex'),[ref]$sampleIndex) -or $sampleIndex -le 0) { $errors.Add('SAMPLE_INDEX_INVALID') }
+    $sampleStarted = [DateTimeOffset]::MinValue; $sampleCompleted = [DateTimeOffset]::MinValue
+    if (-not [DateTimeOffset]::TryParse([string](Get-V22Field $Row 'SampleStartedUtc'),[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind,[ref]$sampleStarted)) { $errors.Add('SAMPLE_STARTED_UTC_INVALID') }
+    if (-not [DateTimeOffset]::TryParse([string](Get-V22Field $Row 'SampleCompletedUtc'),[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind,[ref]$sampleCompleted)) { $errors.Add('SAMPLE_COMPLETED_UTC_INVALID') }
+    if ($sampleCompleted -lt $sampleStarted) { $errors.Add('SAMPLE_TIME_ORDER_INVALID') }
+    try { $elapsed=ConvertTo-V22FiniteNumber (Get-V22Field $Row 'ElapsedMs') 'ElapsedMs'; if($elapsed -lt 0){$errors.Add('ELAPSED_MS_INVALID')} } catch { $errors.Add('ELAPSED_MS_INVALID') }
+    if ([string]::IsNullOrWhiteSpace([string](Get-V22Field $Row 'QueryId'))) { $errors.Add('QUERY_ID_MISSING') }
+    if ([string]::IsNullOrWhiteSpace([string](Get-V22Field $Row 'QueryPhase'))) { $errors.Add('QUERY_PHASE_MISSING') }
+    $timeout=0
+    if (-not [int]::TryParse([string](Get-V22Field $Row 'CommandTimeoutSeconds'),[ref]$timeout) -or $timeout -ne 5) { $errors.Add('COMMAND_TIMEOUT_INVALID') }
+    $telemetryPid=0
+    if (-not [int]::TryParse([string](Get-V22Field $Row 'TelemetryProcessId'),[ref]$telemetryPid) -or $telemetryPid -le 0) { $errors.Add('TELEMETRY_PROCESS_ID_INVALID') }
+    foreach($name in @('IsTimeout','CancellationRequested','PreviousSampleStillRunning')){$parsed=$false;if(-not[bool]::TryParse([string](Get-V22Field $Row $name),[ref]$parsed)){$errors.Add(($name.ToUpperInvariant()+'_INVALID'))}}
+    if ($Status -ceq 'VALID') {
+        $databaseId=0
+        if (-not [int]::TryParse([string](Get-V22Field $Row 'DatabaseId'),[ref]$databaseId) -or $databaseId -ne 5) { $errors.Add('DATABASE_ID_INVALID') }
+        if ([string](Get-V22Field $Row 'QueryPhase') -cne 'COMPLETE') { $errors.Add('VALID_QUERY_PHASE_INVALID') }
+        if ([string](Get-V22Field $Row 'ConnectionState') -cne 'Open') { $errors.Add('VALID_CONNECTION_STATE_INVALID') }
+        if ([string](Get-V22Field $Row 'ErrorCode') -or [string](Get-V22Field $Row 'ExceptionType') -or [string](Get-V22Field $Row 'SafeErrorMessage')) { $errors.Add('VALID_ROW_HAS_ERROR_DETAILS') }
+        if ([string](Get-V22Field $Row 'PreviousSampleStillRunning') -cne 'false') { $errors.Add('SAMPLE_OVERLAP_REPORTED') }
+        if ([string](Get-V22Field $Row 'CancellationRequested') -cne 'false') { $errors.Add('VALID_ROW_CANCELLED') }
+    } else {
+        foreach($name in @('ErrorCode','ExceptionType','SafeErrorMessage')){if([string]::IsNullOrWhiteSpace([string](Get-V22Field $Row $name))){$errors.Add(($name.ToUpperInvariant()+'_MISSING'))}}
+        if ([string](Get-V22Field $Row 'ErrorCode') -ceq 'SQL_-2' -and [string](Get-V22Field $Row 'SqlErrorNumber') -cne '-2') { $errors.Add('SQL_TIMEOUT_NUMBER_MISMATCH') }
+    }
+    return [pscustomobject]@{Status=if($errors.Count){'INVALID'}else{'PASS'};Errors=$errors.ToArray()}
+}
+
+function Read-V22TelemetryCsvFile([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return [pscustomobject]@{Status='INVALID';SchemaStatus='MISSING';Rows=@();Header=@();InvalidRowCount=0;Error='FILE_MISSING'} }
+    $header=@();$invalidRows=[Collections.Generic.List[int]]::new();$parseError=$null;$schemaStatus='INVALID_HEADER'
+    try {
+        Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop | Out-Null
+        $parser=[Microsoft.VisualBasic.FileIO.TextFieldParser]::new($Path,[Text.Encoding]::UTF8,$true)
+        try {
+            $parser.TextFieldType=[Microsoft.VisualBasic.FileIO.FieldType]::Delimited
+            $parser.SetDelimiters(',');$parser.HasFieldsEnclosedInQuotes=$true;$parser.TrimWhiteSpace=$false
+            $header=@($parser.ReadFields())
+            $expected=Get-V22TelemetryCsvHeader
+            $legacy=@('RunId','BlockId','TargetDatabase','SampleUtc','Status','FreeRamMb','CpuPercent','DatabaseId','ActiveRequests','BlockingRequests','ActiveRequestGrantKB','RequestedGrantKB','GrantedGrantKB','PendingMemoryGrants','ResourceSemaphoreWaiters','ActiveRequestLogicalReadsDiagnostic','TempdbServerUsedKBDiagnostic','MemoryGrantsPendingCounterDiagnostic','DeadlockCounterDiagnostic','ErrorCode')
+            if (($header -join [char]0) -ceq ($expected -join [char]0)) { $schemaStatus='V2' }
+            elseif (($header -join [char]0) -ceq ($legacy -join [char]0)) { $schemaStatus='LEGACY_V1' }
+            elseif (@($header | Select-Object -Unique).Count -ne $header.Count) { $schemaStatus='DUPLICATE_HEADER' }
+            $lineNumber=1
+            while(-not $parser.EndOfData){$fields=$parser.ReadFields();$lineNumber++;if($null-eq$fields){continue};if($fields.Count-eq1-and[string]::IsNullOrWhiteSpace($fields[0])){continue};if($fields.Count-ne$header.Count){$invalidRows.Add($lineNumber)}}
+        } finally { $parser.Dispose() }
+    } catch { $parseError=$_.Exception.GetType().Name+': '+$_.Exception.Message }
+    $rows=@();try{$rows=@(Import-Csv -LiteralPath $Path -Delimiter ',')}catch{if(-not$parseError){$parseError='Import-Csv: '+$_.Exception.GetType().Name}}
+    $status=if($schemaStatus-eq'V2'-and$invalidRows.Count-eq0-and-not$parseError){'PASS'}else{'INVALID'}
+    return [pscustomobject]@{Status=$status;SchemaStatus=$schemaStatus;Rows=$rows;Header=$header;InvalidRowCount=$invalidRows.Count;InvalidRowNumbers=$invalidRows.ToArray();Error=$parseError}
+}
+
+function Get-V22TelemetryWindowAssessment([object[]]$Rows,[DateTimeOffset]$WindowStart,[DateTimeOffset]$WindowEnd,[int]$ExpectedDatabaseId=5){
+    $validRows=0;$within=0;$outside=0;$wrongDatabase=0;$invalidTimestamp=0
+    foreach($row in @($Rows)){
+        if([string](Get-V22Field $row 'Status')-cne'VALID'){continue}
+        $stamp=[DateTimeOffset]::MinValue;$databaseId=0
+        if(-not[DateTimeOffset]::TryParse([string](Get-V22Field $row 'SampleUtc'),[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind,[ref]$stamp)){$invalidTimestamp++;continue}
+        if(-not[int]::TryParse([string](Get-V22Field $row 'DatabaseId'),[ref]$databaseId)-or$databaseId-ne$ExpectedDatabaseId){$wrongDatabase++;continue}
+        $validRows++
+        if($stamp-ge$WindowStart-and$stamp-le$WindowEnd){$within++}else{$outside++}
+    }
+    $status=if($validRows-gt0-and$within-gt0-and$outside-eq0-and$wrongDatabase-eq0-and$invalidTimestamp-eq0){'PASS'}else{'FAIL'}
+    return [pscustomobject]@{Status=$status;ValidRows=$validRows;WithinWindowRows=$within;OutsideWindowRows=$outside;WrongDatabaseRows=$wrongDatabase;InvalidTimestampRows=$invalidTimestamp;WindowStartUtc=$WindowStart.ToString('o');WindowEndUtc=$WindowEnd.ToString('o');ExpectedDatabaseId=$ExpectedDatabaseId}
 }
 
 function Assert-V22TelemetryEvidence([object]$Assessment) {
@@ -346,6 +448,6 @@ function Invoke-V22WithCleanup([scriptblock]$Work, [scriptblock]$Cleanup, [strin
     return $value
 }
 
-Export-ModuleMember -Function @('Assert-V22BdnEvidence','Assert-V22NBomberMetrics','Assert-V22ReadOnlyIntegrity','Get-V22TelemetryAssessment','Assert-V22TelemetryEvidence','Get-V22FinalClassification','Invoke-V22BlockAfterCooldown','New-V22RunRoot','Register-V22TrackedProcess','Start-V22TrackedProcess','Get-V22TrackedProcesses','Clear-V22TrackedProcesses','Write-V22FatalEvidence','Invoke-V22WithCleanup','ConvertTo-V22SafeMessage','Get-V22Field','Test-V22HostStopEvidence','Get-V22WorkerTerminalState','New-V22WorkerTerminalProjection','Get-V22ProcessCleanupAssessment','New-V22CorrectnessEvidenceProjection')
+Export-ModuleMember -Function @('Assert-V22BdnEvidence','Assert-V22NBomberMetrics','Assert-V22ReadOnlyIntegrity','Get-V22TelemetryAssessment','Get-V22TelemetryCsvHeader','Test-V22TelemetryDiagnosticRow','Read-V22TelemetryCsvFile','Get-V22TelemetryWindowAssessment','Assert-V22TelemetryEvidence','Get-V22FinalClassification','Invoke-V22BlockAfterCooldown','New-V22RunRoot','Register-V22TrackedProcess','Start-V22TrackedProcess','Get-V22TrackedProcesses','Clear-V22TrackedProcesses','Write-V22FatalEvidence','Invoke-V22WithCleanup','ConvertTo-V22SafeMessage','Get-V22Field','Test-V22HostStopEvidence','Get-V22WorkerTerminalState','New-V22WorkerTerminalProjection','Get-V22ProcessCleanupAssessment','New-V22CorrectnessEvidenceProjection')
 
 

@@ -19,6 +19,9 @@ if (args.Length == 1 && args[0] == "--protocol-info")
     return 0;
 }
 
+if (args.Length == 1 && args[0] == "performance-telemetry-self-test")
+    return V22PerformanceTelemetry.RunCsvSelfTest();
+
 if (args.Length > 0 && args[0] == "failure-injection")
     return V22CorrectnessFailureInjection.Run(args.Skip(1).FirstOrDefault());
 
@@ -73,5 +76,5 @@ if (args.Length > 0 && args[0] == "performance-residue")
     return await V22PerformanceTelemetry.RunResidueAsync(args.Skip(1).ToArray());
 }
 
-Console.Error.WriteLine("Supported modes: --protocol-info, failure-injection <output-root>, correctness --output <new-root> --phase3 <json> --closure <json> --parity <json> --security <json>, performance-load, performance-bdn, performance-telemetry, performance-telemetry-probe, performance-residue.");
+Console.Error.WriteLine("Supported modes: --protocol-info, failure-injection <output-root>, correctness --output <new-root> --phase3 <json> --closure <json> --parity <json> --security <json>, performance-load, performance-bdn, performance-telemetry, performance-telemetry-probe, performance-telemetry-self-test, performance-residue.");
 return 64;
