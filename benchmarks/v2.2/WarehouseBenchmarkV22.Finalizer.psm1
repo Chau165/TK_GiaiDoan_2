@@ -307,6 +307,47 @@ function Test-V22FinalCanonicalReviewPack([string]$Root,[string[]]$RequiredFiles
     $entries=@($actualFiles | Sort-Object FullName | ForEach-Object{[pscustomobject]@{RelativePath=$_.FullName.Substring($rootFull.Length+1).Replace('\','/');Size=[long]$_.Length;SHA256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}})
     return [ordered]@{Status=if($issues.Count -eq 0){'PASS'}else{'FAIL'};IssueCount=$issues.Count;Issues=$issues.ToArray();FileCount=$actualFiles.Count;RequiredFileCount=$required.Count;Entries=$entries}
 }
+function New-V22FinalReviewZipVerificationProjection([object]$HashManifest,[string]$ZipSHA256){
+    if($null-eq$HashManifest){Throw-V22FinalizerFailure 'V22_FINALIZER_ZIP_MANIFEST_MISSING' 'review-pack hash manifest is missing'}
+    if($ZipSHA256-cnotmatch'\A[0-9a-fA-F]{64}\z'){Throw-V22FinalizerFailure 'V22_FINALIZER_ZIP_HASH_INVALID' 'review-pack ZIP SHA-256 is malformed'}
+    $projection=[ordered]@{}
+    if($HashManifest-is[Collections.IDictionary]){foreach($key in $HashManifest.Keys){$projection[[string]$key]=$HashManifest[$key]}}
+    else{foreach($property in $HashManifest.PSObject.Properties){$projection[$property.Name]=$property.Value}}
+    $projection['ZipSHA256']=$ZipSHA256.ToLowerInvariant()
+    $projection['ZipStatus']='PASS'
+    return $projection
+}
+function Test-V22PreservedFileTree([string]$Root,[object[]]$ExpectedEntries){
+    $issues=[Collections.Generic.List[object]]::new()
+    if([string]::IsNullOrWhiteSpace($Root) -or -not(Test-Path -LiteralPath $Root -PathType Container)){
+        return [ordered]@{Status='FAIL';Root=$Root;ExpectedFileCount=@($ExpectedEntries).Count;ActualFileCount=0;VerifiedFileCount=0;IssueCount=1;Issues=@([pscustomobject]@{Path=$Root;Kind='ROOT_MISSING'})}
+    }
+    $rootFull=[IO.Path]::GetFullPath($Root).TrimEnd('\')
+    $prefix=$rootFull+'\'
+    $expectedMap=@{}
+    foreach($entry in @($ExpectedEntries)){
+        $relative=[string]$entry.RelativePath
+        $relativeWindows=$relative.Replace('/','\')
+        $resolved=[IO.Path]::GetFullPath((Join-Path $rootFull $relativeWindows))
+        if([string]::IsNullOrWhiteSpace($relative) -or -not$resolved.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){
+            $issues.Add([pscustomobject]@{Path=$relative;Kind='INVALID_EXPECTED_RELATIVE_PATH'});continue
+        }
+        if($expectedMap.ContainsKey($relative)){$issues.Add([pscustomobject]@{Path=$relative;Kind='DUPLICATE_EXPECTED_PATH'});continue}
+        $expectedMap[$relative]=$entry
+    }
+    $actualFiles=@(Get-ChildItem -LiteralPath $rootFull -File -Recurse -Force|Sort-Object FullName)
+    $verified=0
+    foreach($file in $actualFiles){
+        $relative=$file.FullName.Substring($prefix.Length).Replace('\','/')
+        if(-not$expectedMap.ContainsKey($relative)){$issues.Add([pscustomobject]@{Path=$relative;Kind='UNEXPECTED'});continue}
+        $expected=$expectedMap[$relative]
+        $actualHash=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        if([long]$file.Length -ne [long]$expected.Size -or $actualHash -cne [string]$expected.SHA256){$issues.Add([pscustomobject]@{Path=$relative;Kind='HASH_OR_SIZE';ExpectedSize=[long]$expected.Size;ActualSize=[long]$file.Length;ExpectedSHA256=[string]$expected.SHA256;ActualSHA256=$actualHash})}else{$verified++}
+        $expectedMap.Remove($relative)
+    }
+    foreach($missing in $expectedMap.Keys){$issues.Add([pscustomobject]@{Path=$missing;Kind='MISSING'})}
+    return [ordered]@{Status=if($issues.Count -eq 0){'PASS'}else{'FAIL'};Root=$rootFull;ExpectedFileCount=@($ExpectedEntries).Count;ActualFileCount=$actualFiles.Count;VerifiedFileCount=$verified;IssueCount=$issues.Count;Issues=$issues.ToArray()}
+}
 function Test-V22RawArtifactHashIndex([string]$IndexPath,[string]$ArtifactRoot,[string]$CanonicalRunId){
     $issues=[Collections.Generic.List[object]]::new()
     if(-not(Test-Path -LiteralPath $IndexPath -PathType Leaf)){return [ordered]@{Status='FAIL';IssueCount=1;Issues=@([pscustomobject]@{Code='INDEX_MISSING';Path=$IndexPath});VerifiedCount=0}}
@@ -371,7 +412,7 @@ function Test-V22FinalReportLint([string]$Text){
     foreach($pattern in $patterns){foreach($m in [regex]::Matches([string]$Text,$pattern)){$issues.Add([pscustomobject]@{Pattern=$pattern;Match=$m.Value;Index=$m.Index})}}
     return [ordered]@{Status=if($issues.Count -eq 0){'PASS'}else{'FAIL'};IssueCount=$issues.Count;Issues=$issues.ToArray();TextSHA256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes([string]$Text))).ToLowerInvariant()}
 }
-Export-ModuleMember -Function Throw-V22FinalizerFailure,Get-V22FinalizerField,Get-V22OptionalNumericMetric,Get-V22MetricProjection,Get-V22MetricDisplayValue,New-V22FinalOwnedProcessInventory,Assert-V22CanonicalRunIdentity,New-V22RepresentativeRunConfigurations,New-V22MixedSemantics,Test-V22FinalCleanupEvidence,Test-V22FinalCleanupReadback,New-V22CleanupCountProjection,New-V22FinalizerJson,New-V22FinalReport,Test-V22FinalReportLint,New-V22ReviewProjectionArtifact,Test-V22FinalCanonicalReviewPack,Test-V22RawArtifactHashIndex
+Export-ModuleMember -Function Throw-V22FinalizerFailure,Get-V22FinalizerField,Get-V22OptionalNumericMetric,Get-V22MetricProjection,Get-V22MetricDisplayValue,New-V22FinalOwnedProcessInventory,Assert-V22CanonicalRunIdentity,New-V22RepresentativeRunConfigurations,New-V22MixedSemantics,Test-V22FinalCleanupEvidence,Test-V22FinalCleanupReadback,New-V22CleanupCountProjection,New-V22FinalizerJson,New-V22FinalReport,Test-V22FinalReportLint,New-V22ReviewProjectionArtifact,Test-V22FinalCanonicalReviewPack,New-V22FinalReviewZipVerificationProjection,Test-V22PreservedFileTree,Test-V22RawArtifactHashIndex
 
 function Assert-V22LifecycleState([object]$State){
     $stages=@('SESSION_CREATED','INITIALIZE','PRESERVATION_PRE_GATE','STATIC_AND_OFFLINE_GATES','SOURCE_SNAPSHOT','BUILD_A','BUILD_B','CANDIDATE_BUILD_AND_ATTESTATION','CANDIDATE_FROZEN','CANDIDATE_GUARD','COMPARATOR_AND_TOOLCHAIN','EXACT_CANDIDATE_CORRECTNESS_PREFLIGHT','DB_PREFLIGHT','HOST_ADMISSION','CANONICAL_PREWORKLOAD_GATES','CANONICAL_CORRECTNESS_PREFLIGHT','ISOLATED_PERFORMANCE','ISOLATED_POST_CORRECTNESS','MIXED_PERFORMANCE','POST_MIXED','FINAL_CANDIDATE_GUARD_AND_PRESERVATION','FINAL_CLEANUP','FINALIZATION','FINAL_REPORT_AND_REVIEW_PACK')

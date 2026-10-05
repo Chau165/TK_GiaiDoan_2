@@ -1,0 +1,1 @@
+RunId,Scenario,Case,Phase,Iteration,PageNumber,PageSize,SearchText,FromDate,ToDate,StartedUtc,DurationMs,CallSucceeded,Valid,ReturnedRows,TotalCount,SqlErrorNumber,ErrorCategory,ExceptionType,ErrorMessage,TimedOut

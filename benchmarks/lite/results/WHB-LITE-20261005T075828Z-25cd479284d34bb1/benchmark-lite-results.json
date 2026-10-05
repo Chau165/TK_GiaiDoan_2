@@ -1,0 +1,73 @@
+{
+  "RunId": "WHB-LITE-20261005T075828Z-25cd479284d34bb1",
+  "StartedUtc": "2026-10-05T07:58:28.369953+00:00",
+  "FinishedUtc": "2026-10-05T07:58:29.1137811+00:00",
+  "Status": "HARNESS_FAILED",
+  "RepositoryPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11",
+  "OutputDirectory": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\results\\WHB-LITE-20261005T075828Z-25cd479284d34bb1",
+  "ConfigurationPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\appsettings.Benchmark.json",
+  "ConfigurationSha256": "0B77FEFA9F87211FB30F48A57AE51834C36CC0BF0C5005CBE38E0C4A890AB1C1",
+  "ConfiguredServer": "DESKTOP-NHQ7QPL\\MSSQLSERVER19",
+  "ConfiguredDatabase": "TKS_Thuc_Tap_V11_Perf_10000000",
+  "Server": null,
+  "Database": null,
+  "DatabaseId": null,
+  "DatabaseState": null,
+  "DatasetScale": null,
+  "BuildConfiguration": "Release",
+  "ProcessPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\BenchmarkLite.exe",
+  "Machine": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 1582,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "MachineAfterRun": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 1566,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "Protocol": {
+    "WarmupCount": 3,
+    "MeasuredCount": 10,
+    "Concurrency": 1,
+    "TimingBoundary": "Stopwatch around one awaited Data Access controller call",
+    "PercentileMethod": "Nearest rank: sorted sample at ceil(p * n), one-based",
+    "CommandTimeoutOverride": "NONE; Data Access source default is used"
+  },
+  "SourceIdentity": {
+    "SourceFilesSha256": {
+      "benchmarks/lite/Program.cs": "A322FD73FE0EB5EA7011F01A674F5BBDE1FFE44DE5E59E65041E67C7E69EF90B",
+      "benchmarks/lite/BenchmarkLite.csproj": "853939685DE65B130185B1064FF42A5B21E4D2A5564C418CE0360D5E00454B03",
+      "benchmarks/lite/appsettings.Benchmark.json": "0B77FEFA9F87211FB30F48A57AE51834C36CC0BF0C5005CBE38E0C4A890AB1C1",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseMaster_Controller.cs": "15EE03C0313ADF9D054A41DF940AA7F5CFD820BBE94F207FF02200B9234C166D",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocument_Controller.cs": "29AB5A9A6F8451929D9E12818155ACC8C069992266EA070F3890311771E82C98",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseReport_Controller.cs": "29DA929B6043B715CFB48D4BCB99D2271CCE6F6DED575C36D402612AF810C82E",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouse_Controller_Base.cs": "20B7CA0D30738991330B229D2332C267DE01B56C6AF99C6A5AEE7027FB72E956",
+      "TKS_Thuc_Tap_V11_Data_Access/Entity/Warehouse/CWarehousePagedResult.cs": "9DE8C4DC65D3BF76C0F235D3B8B2EDB6BFF79A683D59C0D517AB0165C2656EEF"
+    },
+    "BenchmarkAssemblyPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\BenchmarkLite.dll",
+    "BenchmarkAssemblySha256": "1A1BD8FBE8B66466AB68ABEDD54D9D3A8B722519456D8D68AA2C9C2C590FB75E",
+    "DataAccessAssemblyPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\TKS_Thuc_Tap_V11_Data_Access.dll",
+    "DataAccessAssemblySha256": "EA89541F875E2B920BFDCD79FA950A61BC0D4ADBF5045BDED1D08E0033E2F8C1",
+    "DataAccessAssemblyName": "TKS_Thuc_Tap_V11_Data_Access"
+  },
+  "Scenarios": [],
+  "OverallVerdict": null,
+  "SourceCurrentCanRunOn10MDb": null,
+  "PreflightFailure": "Unable to cast object of type \u0027System.Int16\u0027 to type \u0027System.Int32\u0027.",
+  "BusinessDBWrites": 0,
+  "WriteMethodsInvoked": false,
+  "HostAdmissionUsed": false,
+  "HeavyTelemetryUsed": false,
+  "ConnectionStringPersisted": false,
+  "ResultsRepresentThisMachineEnvironment": true,
+  "ResultsAreNotProductionHardwareGuarantee": true
+}

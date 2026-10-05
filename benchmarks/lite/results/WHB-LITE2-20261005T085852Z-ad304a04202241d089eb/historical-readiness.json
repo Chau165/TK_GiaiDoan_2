@@ -1,0 +1,16 @@
+{
+  "Status": "NOT_EVALUATED",
+  "Reason": null,
+  "SourceQueueWorkerParity": false,
+  "SourceRebuildParity": false,
+  "PreState": null,
+  "PreStateFingerprint": null,
+  "ImmediatePreState": null,
+  "ImmediatePreStateFingerprint": null,
+  "PostState": null,
+  "PostStateFingerprint": null,
+  "WorkerCalls": 0,
+  "WorkerStartedUtc": null,
+  "WorkerFinishedUtc": null,
+  "PostStateReadError": null
+}

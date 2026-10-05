@@ -1,0 +1,96 @@
+{
+  "Status": "READY_AFTER_BOUNDED_PREPARATION",
+  "Reason": null,
+  "SourceQueueWorkerParity": true,
+  "SourceRebuildParity": true,
+  "PreState": {
+    "CapturedUtc": "2026-10-05T09:01:57.1640993+00:00",
+    "MovementAggregateInitialized": true,
+    "BalanceAggregateInitialized": true,
+    "StatusCounts": {
+      "COMPLETED": 1,
+      "WAITING": 1
+    },
+    "NonTerminalRows": [
+      {
+        "Id": 11,
+        "WarehouseId": 4,
+        "ProductId": 40,
+        "FromDate": "2026-10-05T00:00:00",
+        "ToDate": "2026-10-05T00:00:00",
+        "Status": "WAITING",
+        "RetryCount": 0,
+        "RequestedVersion": 1,
+        "ClaimedVersion": null,
+        "LastAttemptUtc": null,
+        "NextRetryUtc": null,
+        "RelevantToReport": true
+      }
+    ],
+    "DeadLetterCount": 0,
+    "UnknownStatusCount": 0,
+    "EarliestAuthorizedBalanceDate": "2025-01-01T00:00:00"
+  },
+  "PreStateFingerprint": "3D0343EAF87CF45327EE5E19390C7D409D27EF6A8493184C6887B6B75A9E4681",
+  "ImmediatePreState": {
+    "CapturedUtc": "2026-10-05T09:01:57.2470269+00:00",
+    "MovementAggregateInitialized": true,
+    "BalanceAggregateInitialized": true,
+    "StatusCounts": {
+      "COMPLETED": 1,
+      "WAITING": 1
+    },
+    "NonTerminalRows": [
+      {
+        "Id": 11,
+        "WarehouseId": 4,
+        "ProductId": 40,
+        "FromDate": "2026-10-05T00:00:00",
+        "ToDate": "2026-10-05T00:00:00",
+        "Status": "WAITING",
+        "RetryCount": 0,
+        "RequestedVersion": 1,
+        "ClaimedVersion": null,
+        "LastAttemptUtc": null,
+        "NextRetryUtc": null,
+        "RelevantToReport": true
+      }
+    ],
+    "DeadLetterCount": 0,
+    "UnknownStatusCount": 0,
+    "EarliestAuthorizedBalanceDate": "2025-01-01T00:00:00"
+  },
+  "ImmediatePreStateFingerprint": "3D0343EAF87CF45327EE5E19390C7D409D27EF6A8493184C6887B6B75A9E4681",
+  "PostState": {
+    "CapturedUtc": "2026-10-05T09:01:57.7274937+00:00",
+    "MovementAggregateInitialized": true,
+    "BalanceAggregateInitialized": true,
+    "StatusCounts": {
+      "COMPLETED": 2
+    },
+    "NonTerminalRows": [
+      {
+        "Id": 11,
+        "WarehouseId": 4,
+        "ProductId": 40,
+        "FromDate": "2026-10-05T00:00:00",
+        "ToDate": "2026-10-05T00:00:00",
+        "Status": "COMPLETED",
+        "RetryCount": 0,
+        "RequestedVersion": 1,
+        "ClaimedVersion": 1,
+        "LastAttemptUtc": "2026-10-05T09:01:57.5115527",
+        "NextRetryUtc": null,
+        "RelevantToReport": true
+      }
+    ],
+    "DeadLetterCount": 0,
+    "UnknownStatusCount": 0,
+    "EarliestAuthorizedBalanceDate": "2025-01-01T00:00:00"
+  },
+  "PostStateFingerprint": "4210C1BCFD908A2C4B0B8202AD297221BA47EAB8BFF3240DE3BCECCDD53A0278",
+  "WorkerCalls": 1,
+  "WorkerStartedUtc": "2026-10-05T09:01:57.2569895+00:00",
+  "WorkerFinishedUtc": "2026-10-05T09:01:57.7273136+00:00",
+  "PostStateReadError": null
+}

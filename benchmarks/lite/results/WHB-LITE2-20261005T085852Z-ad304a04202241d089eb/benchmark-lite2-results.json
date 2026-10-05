@@ -1,0 +1,202 @@
+{
+  "RunId": "WHB-LITE2-20261005T085852Z-ad304a04202241d089eb",
+  "StartedUtc": "2026-10-05T08:58:52.0123476+00:00",
+  "FinishedUtc": "2026-10-05T08:58:52.937213+00:00",
+  "Status": "TARGET_PREFLIGHT_FAILED",
+  "RepositoryPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11",
+  "OutputDirectory": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\results\\WHB-LITE2-20261005T085852Z-ad304a04202241d089eb",
+  "Mode": "sequential",
+  "Options": {
+    "Mode": "sequential",
+    "MeasuredCount": 30,
+    "MatrixMeasuredCount": 10,
+    "LoadSeconds": 30,
+    "LoadWarmupSeconds": 3,
+    "Users": [
+      1,
+      2,
+      4
+    ]
+  },
+  "BuildConfiguration": "Release",
+  "ProcessPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\BenchmarkLite.exe",
+  "ConfigurationPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\appsettings.Benchmark.json",
+  "ConfigurationSha256": "0B77FEFA9F87211FB30F48A57AE51834C36CC0BF0C5005CBE38E0C4A890AB1C1",
+  "ConfiguredServer": "DESKTOP-NHQ7QPL\\MSSQLSERVER19",
+  "ConfiguredDatabase": "TKS_Thuc_Tap_V11_Perf_10000000",
+  "Server": "DESKTOP-NHQ7QPL\\MSSQLSERVER19",
+  "Database": "TKS_Thuc_Tap_V11_Perf_10000000",
+  "DatabaseId": 5,
+  "DatabaseState": "ONLINE",
+  "DatasetScale": {
+    "CountSource": "sys.partitions.rows metadata; index_id 0 or 1 summed per table",
+    "PrimaryTables": {
+      "dbo.tbl_XNK_Nhap_Kho_Raw_Data": 5000002,
+      "dbo.tbl_XNK_Xuat_Kho_Raw_Data": 5000000
+    },
+    "HeaderTables": {
+      "dbo.tbl_XNK_Nhap_Kho": 500002,
+      "dbo.tbl_XNK_Xuat_Kho": 500000
+    },
+    "PrimaryDatasetRowCount": 10000002
+  },
+  "MachineBefore": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 998,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "MachineAfter": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 950,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "SourceIdentity": {
+    "SourceFilesSha256": {
+      "benchmarks/lite/Program.cs": "0F2A119B49C4A0E714C97DC1CC951DB28BB2EFC221F9502CB918B15CD3D8B7C8",
+      "benchmarks/lite/BenchmarkLiteV2.cs": "0D2228635AC136F71B6714915FEB61EFDB8740C59AAD356C93FB6B28FCF56A86",
+      "benchmarks/lite/BenchmarkLite.csproj": "C5F6A9F9D6B06C7EFD5429BCFE53B983D5E83C5F57701D9C74159A8BEA71F0CE",
+      "benchmarks/lite/appsettings.Benchmark.json": "0B77FEFA9F87211FB30F48A57AE51834C36CC0BF0C5005CBE38E0C4A890AB1C1",
+      "Database/WarehouseModule.Procedures.sql": "7136288764A900376C32CC825C7EF01F12364BFC96B9F10891AA009CF63F7EC1",
+      "Database/WarehouseModule.Schema.sql": "7576666BE99F921885844F51767691244BD8B839413DB5D2397036CFE3A9904C",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseMaster_Controller.cs": "15EE03C0313ADF9D054A41DF940AA7F5CFD820BBE94F207FF02200B9234C166D",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocument_Controller.cs": "29AB5A9A6F8451929D9E12818155ACC8C069992266EA070F3890311771E82C98",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseReport_Controller.cs": "29DA929B6043B715CFB48D4BCB99D2271CCE6F6DED575C36D402612AF810C82E",
+      "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouse_Controller_Base.cs": "20B7CA0D30738991330B229D2332C267DE01B56C6AF99C6A5AEE7027FB72E956",
+      "TKS_Thuc_Tap_V11_Data_Access/Entity/Warehouse/CWarehousePagedResult.cs": "9DE8C4DC65D3BF76C0F235D3B8B2EDB6BFF79A683D59C0D517AB0165C2656EEF"
+    },
+    "BenchmarkAssemblyPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\BenchmarkLite.dll",
+    "BenchmarkAssemblySha256": "0FBC624038E15588AFCC152643560783E0E64361AD039C64F2FE4D1AA9626936",
+    "DataAccessAssemblyPath": "P:\\Giao \u0111o\u1EA1n 2 TK\\Giao \u0111o\u1EA1n 2 TK\\TKS_Thuc_Tap_11\\benchmarks\\lite\\bin\\Release\\net8.0\\TKS_Thuc_Tap_V11_Data_Access.dll",
+    "DataAccessAssemblySha256": "EA89541F875E2B920BFDCD79FA950A61BC0D4ADBF5045BDED1D08E0033E2F8C1",
+    "DataAccessAssemblyName": "TKS_Thuc_Tap_V11_Data_Access"
+  },
+  "ProcedureParity": [
+    {
+      "Name": "sp_DM_Master_Page",
+      "Role": "WORKLOAD",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "965BB397D01A9183D61989BC25311E3DA51A5CCD24E0D889E4959D991A8ADC55",
+      "LiveDefinitionSha256": "F1F33A8B47F28DEF36B03702B1E4EC3DEE0096D697FF6CC839E565B8B8959EC5",
+      "SourceNormalizedLength": 2806,
+      "LiveNormalizedLength": 2935,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; IF @Page_Number\u003C1 SET @Page_Number=1; IF @Page_Size\u003C1 SET @Page_Size=10; DECLARE @Filter NVARCHAR(260)=N\u0027\u003Cliteral\u003E\u0027 ",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_DM_Master_Page @Entity NVARCHAR(30), @Page_Number INT, @Page_Size INT, @Search_Text NVARCHAR(100)=N\u0027\u003Cliteral\u003E\u0027 AS B",
+      "Note": null
+    },
+    {
+      "Name": "sp_DM_Lookup_Page",
+      "Role": "WORKLOAD",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "CD02DA9E9498AE9F51D1091F5BAAB144D37B605F7C4CB99409DE5A4A38160209",
+      "LiveDefinitionSha256": "2D86EBC3DEC33BC52BC943D8DC42F00798BD4EAEDD8393DCB772E10251DA69FD",
+      "SourceNormalizedLength": 2215,
+      "LiveNormalizedLength": 2344,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; IF @Page_Number\u003C1 SET @Page_Number=1; IF @Page_Size\u003C1 SET @Page_Size=10; DECLARE @Filter NVARCHAR(260)=N\u0027\u003Cliteral\u003E\u0027 ",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_DM_Lookup_Page @Entity NVARCHAR(30), @Page_Number INT, @Page_Size INT, @Search_Text NVARCHAR(100)=N\u0027\u003Cliteral\u003E\u0027 AS B",
+      "Note": null
+    },
+    {
+      "Name": "sp_XNK_Document_Page",
+      "Role": "WORKLOAD",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "61A3AC146D4CD634D2FDEAA9FD7C33A73EFA4BEB19E70EA94C4816CC688305AC",
+      "LiveDefinitionSha256": "FE5B441D128CC93EF4A9073C009FA98AAD9D21120F960286695EDF040B4A9E98",
+      "SourceNormalizedLength": 2501,
+      "LiveNormalizedLength": 2682,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID; IF @Page_Number \u003C 1 SET",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_XNK_Document_Page @Is_Receipt BIT, @Page_Number INT, @Page_Size INT, @Search_Text NVARCHAR(100) = N\u0027\u003Cliteral\u003E\u0027, @Ma",
+      "Note": null
+    },
+    {
+      "Name": "sp_BC_Chi_Tiet_Nhap_Page",
+      "Role": "WORKLOAD",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "354909FB19428C619AA43CD22E8FD31C088482E50EF53CCCB5C8D49CE1AC443F",
+      "LiveDefinitionSha256": "521EC37BB9AFEED9804EA949F943B37535208F0F5C3BECFC99257146D6D211B4",
+      "SourceNormalizedLength": 1794,
+      "LiveNormalizedLength": 1959,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay \u003E @Den_Ngay THROW 51200, N\u0027Kho\u1EA3ng ng\u00E0y b\u00E1o c\u00E1o kh\u00F4ng h\u1EE3",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_BC_Chi_Tiet_Nhap_Page @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARC",
+      "Note": null
+    },
+    {
+      "Name": "sp_BC_Xuat_Nhap_Ton_Page",
+      "Role": "WORKLOAD",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "4DD986A65618E423EAA9FA96AFA57091185DD20FDC231E4F6A52495F0688FFEE",
+      "LiveDefinitionSha256": "EC0CD800DC0B9C8D5B0476659A744E87A529291E17274D9468F016A3F8AC1437",
+      "SourceNormalizedLength": 6419,
+      "LiveNormalizedLength": 6584,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; SET XACT_ABORT ON; IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay \u003E @Den_Ngay THROW 51200, N\u0027Kho\u1EA3ng ng",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARC",
+      "Note": null
+    },
+    {
+      "Name": "sp_BC_Ton_Kho_Hien_Tai_Page",
+      "Role": "WORKLOAD",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "C2A9265EE4380A7AEFD1A3BECB20F29F2FFC7B8B2C6E6D55A40C823484D31BDB",
+      "LiveDefinitionSha256": "F3C13B147DD8F643E5BAEB22C2085E7E1CF3BA0B82EC0B4DF83A4CEC2B7BA3A1",
+      "SourceNormalizedLength": 3199,
+      "LiveNormalizedLength": 3336,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; SET @Ma_Dang_Nhap = LTRIM(RTRIM(ISNULL(@Ma_Dang_Nhap, N\u0027\u003Cliteral\u003E\u0027))); IF @Ma_Dang_Nhap = N\u0027\u003Cliteral\u003E\u0027 OR NOT EXISTS (SELECT 1",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_BC_Ton_Kho_Hien_Tai_Page @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = N",
+      "Note": null
+    },
+    {
+      "Name": "sp_Inventory_Movement_Process_RebuildQueue",
+      "Role": "HISTORICAL_PREPARATION_SUPPORT",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "619FC765339FFA46A2FFC3EF4EE7A93B4DB60360B5907D5E7B7521A920D6A731",
+      "LiveDefinitionSha256": "24FC892C8642D5732A7407B9DD4F0862CB6C2C8E4C616B31AF2B39610DD2E96E",
+      "SourceNormalizedLength": 9294,
+      "LiveNormalizedLength": 9481,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; SET XACT_ABORT ON; IF @Batch_Size \u003C 1 SET @Batch_Size = 1; IF @Max_Retry_Count \u003C 1 SET @Max_Retry_Count = 1;",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_Inventory_Movement_Process_RebuildQueue @Batch_Size INT = 100, @Max_Retry_Count INT = 3, @Base_Retry_Delay",
+      "Note": null
+    },
+    {
+      "Name": "sp_Inventory_Movement_Rebuild",
+      "Role": "HISTORICAL_PREPARATION_SUPPORT",
+      "Status": "NOT_VERIFIED",
+      "SourceDefinitionSha256": "36B9955ED2E8EBDE53C10F9E245A58270E765BB7B719D5038E6E764D1C733DA3",
+      "LiveDefinitionSha256": "4B4B94DA13A79424DBB1EDD80EF15F8AC9986C3EC7C916DB8C86B93890901E27",
+      "SourceNormalizedLength": 3110,
+      "LiveNormalizedLength": 3232,
+      "FirstDifferenceIndex": 0,
+      "SourceDifferenceContext": "BEGIN SET NOCOUNT ON; SET XACT_ABORT ON; IF @From_Date IS NULL OR @To_Date IS NULL OR @From_Date \u003E @To_Date THROW 51223, N\u0027Kho\u1EA3ng ",
+      "LiveDifferenceContext": "CREATE PROCEDURE dbo.sp_Inventory_Movement_Rebuild @Kho_ID BIGINT, @San_Pham_ID BIGINT, @From_Date DATE, @To_Date DATE AS BEGIN SE",
+      "Note": null
+    }
+  ],
+  "HistoricalReadiness": null,
+  "SequentialStatus": "NOT_RUN",
+  "SequentialCases": [],
+  "MatrixStatus": "NOT_RUN",
+  "MatrixCases": [],
+  "LoadStatus": "NOT_RUN",
+  "LoadStages": [],
+  "MeasurementBusinessDbWrites": 0,
+  "FullBatch4CanonicalPath": "STOPPED_BY_OWNER_SCOPE_CHANGE",
+  "OverallVerdict": "TARGET_PREFLIGHT_FAILED",
+  "ArtifactIntegrity": "FAIL_REPORT_CONTENT",
+  "HarnessFailureType": "TargetPreflightException",
+  "PreflightFailure": "One or more live workload stored procedures do not match the repository source; workload execution is blocked.",
+  "ResultsRepresentThisMachineEnvironment": true,
+  "ResultsAreNotProductionHardwareGuarantee": true
+}

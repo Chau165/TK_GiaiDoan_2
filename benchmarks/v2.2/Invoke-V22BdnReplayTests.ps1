@@ -2,10 +2,15 @@
 param(
     [Parameter(Mandatory=$true)][string]$RepoRoot,
     [Parameter(Mandatory=$true)][string]$HistoricalBlockRoot,
-    [Parameter(Mandatory=$true)][string]$EvidenceRoot
+    [Parameter(Mandatory=$true)][string]$EvidenceRoot,
+    [int]$ExpectedResultRows=5,
+    [int]$ExpectedReportedN=5,
+    [int]$ExpectedRemovedUpperOutliers=0,
+    [int[]]$ExpectedRemovedUpperOutlierIterations=@()
 )
 $ErrorActionPreference='Stop'
 if(Test-Path -LiteralPath $EvidenceRoot){throw 'V22_BDN_REPLAY_EVIDENCE_ROOT_EXISTS'}
+if($ExpectedResultRows-lt 1-or$ExpectedResultRows-gt 5-or$ExpectedReportedN-ne$ExpectedResultRows-or$ExpectedRemovedUpperOutliers-ne(5-$ExpectedReportedN)-or$ExpectedRemovedUpperOutlierIterations.Count-ne$ExpectedRemovedUpperOutliers){throw 'V22_BDN_REPLAY_EXPECTED_SHAPE_INVALID'}
 $runnerPath=Join-Path $RepoRoot 'benchmarks\v2.2\run-warehouse-benchmark-v2.2-performance.ps1'
 $harnessPath=Join-Path $RepoRoot 'benchmarks\v2.2\WarehouseBenchmarkV22.Harness.psm1'
 $parserErrors=$null;$tokens=$null;$ast=[System.Management.Automation.Language.Parser]::ParseFile($runnerPath,[ref]$tokens,[ref]$parserErrors)
@@ -47,7 +52,7 @@ function Invoke-ReplayCase([string]$TestId,[string]$Expected,[scriptblock]$Mutat
     $actual='';$details=$null;$failureMessage=$null
     try{
         $evidence=Get-BdnArtifact $fixture.Output $fixture.Stdout
-        $actual='{0}|N={1}|Actual={2}|Result={3}' -f $evidence.Status,$evidence.MeasuredIterations,$evidence.ActualMeasurementRows,$evidence.ResultMeasurementRows
+        $actual='{0}|N={1}|Actual={2}|Result={3}|Removed={4}|RemovedIterations={5}' -f $evidence.Status,$evidence.MeasuredIterations,$evidence.ActualMeasurementRows,$evidence.ResultMeasurementRows,$evidence.RemovedUpperOutliers,(@($evidence.RemovedUpperOutlierIterations)-join ',')
         $details=$evidence
     }catch{
         $message=$_.Exception.Message;$failureMessage=($message -replace '\s+',' ')
@@ -56,26 +61,36 @@ function Invoke-ReplayCase([string]$TestId,[string]$Expected,[scriptblock]$Mutat
     $status=if($actual-ceq$Expected){'PASS'}else{'FAIL'}
     $results.Add([pscustomobject]@{TestId=$TestId;Input=@{HistoricalRawBdnFixture=$HistoricalBlockRoot;Mutation=if($null-ne$Mutate){$TestId}else{'NONE'}};Expected=$Expected;Actual=$actual;Status=$status;EvidencePath=(Join-Path $fixture.Root 'case-evidence.json');Details=$details;FailureMessage=$failureMessage})
 }
-Invoke-ReplayCase 'BDN_HISTORICAL_DETAILREPORTPAGED_REPLAY' 'BDN_COMPLETE|N=5|Actual=5|Result=5' $null
-Invoke-ReplayCase 'BDN_WORKLOADRESULT_MISSING' 'V22_BDN_INVALID' {
+Invoke-ReplayCase 'BDN_SOURCE_RAW_ARTIFACT_REPLAY' ('BDN_COMPLETE|N={0}|Actual=5|Result={1}|Removed={2}|RemovedIterations={3}' -f $ExpectedReportedN,$ExpectedResultRows,$ExpectedRemovedUpperOutliers,(@($ExpectedRemovedUpperOutlierIterations|Sort-Object)-join ',')) $null
+Invoke-ReplayCase 'BDN_UNEXPLAINED_WORKLOADRESULT_OMISSION' 'V22_BDN_INVALID' {
     param($f)
     $text=[IO.File]::ReadAllText($f.Log)
-    $changed=[regex]::Replace($text,'(?m)^.*WorkloadResult\s+5:.*(?:\r?\n|$)','')
-    if($changed-ceq$text){throw 'fixture mutation did not match WorkloadResult row'}
+    $matches=[regex]::Matches($text,'(?m)^.*WorkloadResult\s+\d+:.*(?:\r?\n|$)')
+    if($matches.Count-ne$ExpectedResultRows){throw 'fixture WorkloadResult row count differs from expected raw evidence'}
+    $last=$matches[$matches.Count-1];$changed=$text.Remove($last.Index,$last.Length)
+    if($changed-ceq$text){throw 'fixture mutation did not remove a WorkloadResult row'}
     [IO.File]::WriteAllText($f.Log,$changed,[Text.UTF8Encoding]::new($false))
 }
 Invoke-ReplayCase 'BDN_REPORTED_N_MISMATCH' 'V22_BDN_INVALID' {
     param($f)
     $text=[IO.File]::ReadAllText($f.Log)
-    $changed=[regex]::Replace($text,'(?i)\bN\s*=\s*5\b','N = 4')
-    if($changed-ceq$text){throw 'fixture mutation did not match raw N'}
+    $matches=[regex]::Matches($text,'(?i)(\bN\s*=\s*)(?<n>\d+)')
+    if($matches.Count-eq 0){throw 'fixture mutation did not match raw N'}
+    $targetN=if($ExpectedReportedN-gt 1){$ExpectedReportedN-1}else{$ExpectedReportedN+1};$changed=$text
+    foreach($match in $matches){$changed=$changed.Replace($match.Value,$match.Groups[1].Value+$targetN)}
+    if($changed-ceq$text){throw 'fixture mutation did not alter raw N'}
     [IO.File]::WriteAllText($f.Log,$changed,[Text.UTF8Encoding]::new($false))
 }
-Invoke-ReplayCase 'BDN_ACTUAL_RESULT_ITERATION_MISMATCH' 'V22_BDN_INVALID' {
+Invoke-ReplayCase 'BDN_WORKLOADRESULT_OPERATIONS_MISMATCH' 'V22_BDN_INVALID' {
     param($f)
     $text=[IO.File]::ReadAllText($f.Log)
-    $changed=$text.Replace('WorkloadResult   5: 1 op','WorkloadResult   5: 2 op')
-    if($changed-ceq$text){throw 'fixture mutation did not match final result iteration'}
+    $matches=[regex]::Matches($text,'(?m)^.*WorkloadResult\s+\d+:.*$')
+    if($matches.Count-ne$ExpectedResultRows){throw 'fixture WorkloadResult row count differs from expected raw evidence'}
+    $last=$matches[$matches.Count-1];$operation=[regex]::Match($last.Value,'(?<prefix>WorkloadResult\s+\d+:\s*)1(?<suffix>\s+op,)')
+    if(-not$operation.Success){throw 'fixture mutation did not match single-operation result row'}
+    $replacement=$operation.Groups['prefix'].Value+'2'+$operation.Groups['suffix'].Value;$changedLine=$last.Value.Remove($operation.Index,$operation.Length).Insert($operation.Index,$replacement)
+    $changed=$text.Remove($last.Index,$last.Length).Insert($last.Index,$changedLine)
+    if($changed-ceq$text){throw 'fixture mutation did not alter WorkloadResult operations'}
     [IO.File]::WriteAllText($f.Log,$changed,[Text.UTF8Encoding]::new($false))
 }
 Invoke-ReplayCase 'BDN_SUMMARY_MEAN_INVALID' 'V22_BDN_INVALID' {
@@ -92,13 +107,20 @@ Invoke-ReplayCase 'BDN_SUMMARY_MEAN_INVALID' 'V22_BDN_INVALID' {
 Invoke-ReplayCase 'BDN_UPPER_FENCE_MISMATCH' 'V22_BDN_INVALID' {
     param($f)
     $text=[IO.File]::ReadAllText($f.Log)
-    $changed=[regex]::Replace($text,'(?i)(UpperFence\s*=\s*)[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*ms','$1 0 ms')
+    $changed=[regex]::Replace($text,'(?i)(UpperFence\s*=\s*)[-+]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)\s*(?:ns|us|µs|μs|ms|s)','$1 0 ms')
     if($changed-ceq$text){throw 'fixture mutation did not match upper fence'}
+    [IO.File]::WriteAllText($f.Log,$changed,[Text.UTF8Encoding]::new($false))
+}
+Invoke-ReplayCase 'BDN_COMPLETION_MARKER_MISSING' 'V22_BDN_INVALID' {
+    param($f)
+    $text=[IO.File]::ReadAllText($f.Log)
+    $changed=[regex]::Replace($text,'(?m)^.*Run time:.*executed benchmarks:\s*1.*(?:\r?\n|$)','')
+    if($changed-ceq$text){throw 'fixture mutation did not match completion marker'}
     [IO.File]::WriteAllText($f.Log,$changed,[Text.UTF8Encoding]::new($false))
 }
 foreach($row in $results){$casePath=Join-Path $EvidenceRoot $row.TestId 'case-evidence.json';$json=$row|ConvertTo-Json -Depth 8;[IO.File]::WriteAllText($casePath,$json+[Environment]::NewLine,[Text.UTF8Encoding]::new($false))}
 $runnerHash=(Get-FileHash -LiteralPath $runnerPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$summary=[ordered]@{SchemaVersion='warehouse-benchmark-v22-bdn-replay-tests/1';TestSuite='OFFLINE_RAW_BDN_REPLAY';DatabaseAccess='NOT_USED';PerformanceWorkload='NOT_RUN';HistoricalBlockRoot=$HistoricalBlockRoot;SourceArtifactHashes=$sourceEvidence;RunnerSHA256=$runnerHash;Passed=@($results|Where-Object Status -ceq 'PASS').Count;Failed=@($results|Where-Object Status -ceq 'FAIL').Count;TestCount=$results.Count;Status=if(@($results|Where-Object Status -cne 'PASS').Count-eq 0){'PASS'}else{'FAIL'};Results=$results.ToArray()}
+$summary=[ordered]@{SchemaVersion='warehouse-benchmark-v22-bdn-replay-tests/1';TestSuite='OFFLINE_RAW_BDN_REPLAY';DatabaseAccess='NOT_USED';PerformanceWorkload='NOT_RUN';HistoricalBlockRoot=$HistoricalBlockRoot;ExpectedResultRows=$ExpectedResultRows;ExpectedReportedN=$ExpectedReportedN;ExpectedRemovedUpperOutliers=$ExpectedRemovedUpperOutliers;ExpectedRemovedUpperOutlierIterations=@($ExpectedRemovedUpperOutlierIterations|Sort-Object);SourceArtifactHashes=$sourceEvidence;RunnerSHA256=$runnerHash;Passed=@($results|Where-Object Status -ceq 'PASS').Count;Failed=@($results|Where-Object Status -ceq 'FAIL').Count;TestCount=$results.Count;Status=if(@($results|Where-Object Status -cne 'PASS').Count-eq 0){'PASS'}else{'FAIL'};Results=$results.ToArray()}
 $summaryPath=Join-Path $EvidenceRoot 'V22-BDN-Replay-Test-Results.json'
 [IO.File]::WriteAllText($summaryPath,($summary|ConvertTo-Json -Depth 12)+[Environment]::NewLine,[Text.UTF8Encoding]::new($false))
 $summary

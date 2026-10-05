@@ -1,0 +1,40 @@
+{
+  "RunId": "WHB-LITE-20261005T080006Z-4fe51c3e2a404126",
+  "Machine": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 1569,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "MachineAfterRun": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 1160,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "Server": "DESKTOP-NHQ7QPL\\MSSQLSERVER19",
+  "Database": "TKS_Thuc_Tap_V11_Perf_10000000",
+  "DatabaseId": 5,
+  "DatabaseState": "ONLINE",
+  "DatasetScale": {
+    "CountSource": "sys.partitions.rows metadata; index_id 0 or 1 summed per table",
+    "PrimaryTables": {
+      "dbo.tbl_XNK_Nhap_Kho_Raw_Data": 5000002,
+      "dbo.tbl_XNK_Xuat_Kho_Raw_Data": 5000000
+    },
+    "HeaderTables": {
+      "dbo.tbl_XNK_Nhap_Kho": 500002,
+      "dbo.tbl_XNK_Xuat_Kho": 500000
+    },
+    "PrimaryDatasetRowCount": 10000002
+  },
+  "PreflightFailure": null,
+  "ResultsRepresentThisMachineEnvironment": true,
+  "ResultsAreNotProductionHardwareGuarantee": true
+}

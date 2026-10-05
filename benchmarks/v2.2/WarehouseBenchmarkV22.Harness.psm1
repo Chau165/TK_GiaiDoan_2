@@ -71,7 +71,7 @@ function Assert-V22BdnEvidence([string]$SummaryPath, [string]$MeasurementsPath) 
         $roundingTolerance = ConvertTo-V22FiniteNumber (Get-V22Field $summary 'MeanRoundingToleranceNs') 'MeanRoundingToleranceNs'
     } catch { Throw-V22Failure 'V22_BDN_INVALID' 'BDN summary contains missing, malformed, or non-finite required evidence' }
     if ($configured -lt 1 -or [Math]::Floor($configured) -ne $configured -or $reportedN -lt 1 -or [Math]::Floor($reportedN) -ne $reportedN -or $reportedN -gt $configured) { Throw-V22Failure 'V22_BDN_INVALID' 'configured iterations or reported N are invalid' }
-    if ($rawActual -ne $configured -or $rawResult -ne $configured -or $removed -ne ($configured - $reportedN)) { Throw-V22Failure 'V22_BDN_INVALID' 'raw measurement counts do not reconcile with protocol and N' }
+    if ($rawActual -ne $configured -or $rawResult -ne $reportedN -or $removed -ne ($configured - $reportedN)) { Throw-V22Failure 'V22_BDN_INVALID' 'raw measurement counts do not reconcile with configured iterations, retained results, and N' }
     $resultRows = @($measurementRows | Where-Object { ([string](Get-V22Field $_ 'IterationStage')).Trim() -ceq 'Result' })
     if ($resultRows.Count -ne $rawResult) { Throw-V22Failure 'V22_BDN_INVALID' 'WorkloadResult rows are missing or malformed' }
     $seen = [Collections.Generic.HashSet[int]]::new(); $included = [Collections.Generic.List[object]]::new()

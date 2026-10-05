@@ -1,0 +1,29 @@
+{
+  "RunId": "WHB-LITE-20261005T075828Z-25cd479284d34bb1",
+  "Machine": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 1582,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "MachineAfterRun": {
+    "MachineName": "DESKTOP-NHQ7QPL",
+    "OS": "Microsoft Windows 10.0.26200",
+    "LogicalCpuCount": 8,
+    "TotalRamMb": 8109,
+    "AvailableRamMb": 1566,
+    "CpuUsagePercent": null,
+    "DotNetRuntime": ".NET 8.0.20"
+  },
+  "Server": null,
+  "Database": null,
+  "DatabaseId": null,
+  "DatabaseState": null,
+  "DatasetScale": null,
+  "PreflightFailure": "Unable to cast object of type \u0027System.Int16\u0027 to type \u0027System.Int32\u0027.",
+  "ResultsRepresentThisMachineEnvironment": true,
+  "ResultsAreNotProductionHardwareGuarantee": true
+}

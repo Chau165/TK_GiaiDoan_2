@@ -1,0 +1,1 @@
+RunId,Scenario,Case,Users,ConfiguredCopies,StartedUtc,MeasuredSeconds,WarmupSeconds,WarmupOkRequests,WarmupFailedRequests,OkRequests,FailedRequests,Rps,LatencyMeanMs,LatencyP95Ms,LatencyP99Ms,LatencyMaxMs,ErrorCategories,Verdict

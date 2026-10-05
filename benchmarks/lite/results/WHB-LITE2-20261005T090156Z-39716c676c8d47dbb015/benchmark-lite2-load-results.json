@@ -1,0 +1,1970 @@
+[
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "DocumentPaged",
+    "CaseName": "LoadDocumentPage1",
+    "ApplicationMethod": "CWarehouseDocument_Controller.List_Documents_Page_Async",
+    "StoredProcedure": "dbo.sp_XNK_Document_Page",
+    "Users": 1,
+    "ConfiguredCopies": 1,
+    "StartedUtc": "2026-10-05T09:06:20.579169+00:00",
+    "FinishedUtc": "2026-10-05T09:06:59.4757044+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 618,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 618,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 52,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 618,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 20.6,
+    "NativeRequestsPerSecond": 20.6,
+    "NativeLatencyMeanMs": 47.75,
+    "NativeLatencyP50Ms": 46.18,
+    "NativeLatencyP95Ms": 57.54,
+    "NativeLatencyP99Ms": 62.59,
+    "NativeLatencyMaxMs": 210.01,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_documentpaged_u1",
+          "Ok": {
+            "Request": {
+              "Count": 618,
+              "RPS": 20.6,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 34.46,
+              "MeanMs": 47.75,
+              "MaxMs": 210.01,
+              "Percent50": 46.18,
+              "Percent75": 51.3,
+              "Percent95": 57.54,
+              "Percent99": 62.59,
+              "StdDev": 8.6,
+              "LatencyCount": {
+                "LessOrEq800": 618,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 1
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 618,
+          "AllOkCount": 618,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 755,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 880,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "DocumentPaged",
+      "CaseName": "LoadDocumentPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:06:20.4898713+00:00",
+      "DurationMs": 73.603,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 500002,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "DocumentPaged",
+    "CaseName": "LoadDocumentPage1",
+    "ApplicationMethod": "CWarehouseDocument_Controller.List_Documents_Page_Async",
+    "StoredProcedure": "dbo.sp_XNK_Document_Page",
+    "Users": 2,
+    "ConfiguredCopies": 2,
+    "StartedUtc": "2026-10-05T09:06:59.4898271+00:00",
+    "FinishedUtc": "2026-10-05T09:07:37.7997243+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 678,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 678,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 71,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 678,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 22.6,
+    "NativeRequestsPerSecond": 22.6,
+    "NativeLatencyMeanMs": 87.73,
+    "NativeLatencyP50Ms": 86.14,
+    "NativeLatencyP95Ms": 116.03,
+    "NativeLatencyP99Ms": 137.09,
+    "NativeLatencyMaxMs": 157.66,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_documentpaged_u2",
+          "Ok": {
+            "Request": {
+              "Count": 678,
+              "RPS": 22.6,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 35.51,
+              "MeanMs": 87.73,
+              "MaxMs": 157.66,
+              "Percent50": 86.14,
+              "Percent75": 96.9,
+              "Percent95": 116.03,
+              "Percent99": 137.09,
+              "StdDev": 16.54,
+              "LatencyCount": {
+                "LessOrEq800": 678,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 2
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 678,
+          "AllOkCount": 678,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 876,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 861,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "DocumentPaged",
+      "CaseName": "LoadDocumentPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:06:20.4898713+00:00",
+      "DurationMs": 73.603,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 500002,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "DocumentPaged",
+    "CaseName": "LoadDocumentPage1",
+    "ApplicationMethod": "CWarehouseDocument_Controller.List_Documents_Page_Async",
+    "StoredProcedure": "dbo.sp_XNK_Document_Page",
+    "Users": 4,
+    "ConfiguredCopies": 4,
+    "StartedUtc": "2026-10-05T09:07:37.8031154+00:00",
+    "FinishedUtc": "2026-10-05T09:08:15.9241677+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 678,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 678,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 60,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 678,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 22.6,
+    "NativeRequestsPerSecond": 22.6,
+    "NativeLatencyMeanMs": 174.96,
+    "NativeLatencyP50Ms": 173.06,
+    "NativeLatencyP95Ms": 240.77,
+    "NativeLatencyP99Ms": 290.82,
+    "NativeLatencyMaxMs": 361.25,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_documentpaged_u4",
+          "Ok": {
+            "Request": {
+              "Count": 678,
+              "RPS": 22.6,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 41.77,
+              "MeanMs": 174.96,
+              "MaxMs": 361.25,
+              "Percent50": 173.06,
+              "Percent75": 199.04,
+              "Percent95": 240.77,
+              "Percent99": 290.82,
+              "StdDev": 41.29,
+              "LatencyCount": {
+                "LessOrEq800": 678,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 4
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 678,
+          "AllOkCount": 678,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 860,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 890,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "DocumentPaged",
+      "CaseName": "LoadDocumentPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:06:20.4898713+00:00",
+      "DurationMs": 73.603,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 500002,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "DetailReportPaged",
+    "CaseName": "LoadDetailPage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Detail_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Chi_Tiet_Nhap_Page",
+    "Users": 1,
+    "ConfiguredCopies": 1,
+    "StartedUtc": "2026-10-05T09:08:16.2482486+00:00",
+    "FinishedUtc": "2026-10-05T09:08:54.5303615+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 154,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 154,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 12,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 154,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 5.13,
+    "NativeRequestsPerSecond": 5.13,
+    "NativeLatencyMeanMs": 191.66,
+    "NativeLatencyP50Ms": 181.5,
+    "NativeLatencyP95Ms": 249.6,
+    "NativeLatencyP99Ms": 279.3,
+    "NativeLatencyMaxMs": 622.28,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_detailreportpaged_u1",
+          "Ok": {
+            "Request": {
+              "Count": 154,
+              "RPS": 5.13,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 143.26,
+              "MeanMs": 191.66,
+              "MaxMs": 622.28,
+              "Percent50": 181.5,
+              "Percent75": 199.42,
+              "Percent95": 249.6,
+              "Percent99": 279.3,
+              "StdDev": 44.84,
+              "LatencyCount": {
+                "LessOrEq800": 154,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 1
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 154,
+          "AllOkCount": 154,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 891,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 859,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "DetailReportPaged",
+      "CaseName": "LoadDetailPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:08:15.9303829+00:00",
+      "DurationMs": 317.329,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 5000002,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "DetailReportPaged",
+    "CaseName": "LoadDetailPage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Detail_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Chi_Tiet_Nhap_Page",
+    "Users": 2,
+    "ConfiguredCopies": 2,
+    "StartedUtc": "2026-10-05T09:08:54.5360499+00:00",
+    "FinishedUtc": "2026-10-05T09:09:32.7647572+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 162,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 162,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 21,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 162,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 5.4,
+    "NativeRequestsPerSecond": 5.4,
+    "NativeLatencyMeanMs": 368.53,
+    "NativeLatencyP50Ms": 372.22,
+    "NativeLatencyP95Ms": 414.72,
+    "NativeLatencyP99Ms": 495.62,
+    "NativeLatencyMaxMs": 785.6,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_detailreportpaged_u2",
+          "Ok": {
+            "Request": {
+              "Count": 162,
+              "RPS": 5.4,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 126.07,
+              "MeanMs": 368.53,
+              "MaxMs": 785.6,
+              "Percent50": 372.22,
+              "Percent75": 382.98,
+              "Percent95": 414.72,
+              "Percent99": 495.62,
+              "StdDev": 66.87,
+              "LatencyCount": {
+                "LessOrEq800": 162,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 2
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 162,
+          "AllOkCount": 162,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 858,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 850,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "DetailReportPaged",
+      "CaseName": "LoadDetailPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:08:15.9303829+00:00",
+      "DurationMs": 317.329,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 5000002,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "DetailReportPaged",
+    "CaseName": "LoadDetailPage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Detail_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Chi_Tiet_Nhap_Page",
+    "Users": 4,
+    "ConfiguredCopies": 4,
+    "StartedUtc": "2026-10-05T09:09:32.7712498+00:00",
+    "FinishedUtc": "2026-10-05T09:10:10.9704503+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 163,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 163,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 23,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 163,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 5.43,
+    "NativeRequestsPerSecond": 5.43,
+    "NativeLatencyMeanMs": 736.94,
+    "NativeLatencyP50Ms": 750.59,
+    "NativeLatencyP95Ms": 845.31,
+    "NativeLatencyP99Ms": 958.98,
+    "NativeLatencyMaxMs": 1015.52,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_detailreportpaged_u4",
+          "Ok": {
+            "Request": {
+              "Count": 163,
+              "RPS": 5.43,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 137.19,
+              "MeanMs": 736.94,
+              "MaxMs": 1015.52,
+              "Percent50": 750.59,
+              "Percent75": 764.42,
+              "Percent95": 845.31,
+              "Percent99": 958.98,
+              "StdDev": 108.46,
+              "LatencyCount": {
+                "LessOrEq800": 152,
+                "More800Less1200": 11,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 4
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 163,
+          "AllOkCount": 163,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 849,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 891,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "DetailReportPaged",
+      "CaseName": "LoadDetailPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:08:15.9303829+00:00",
+      "DurationMs": 317.329,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 5000002,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "InventoryHistoricalReportPaged",
+    "CaseName": "LoadHistoricalPage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Xuat_Nhap_Ton_Page",
+    "Users": 1,
+    "ConfiguredCopies": 1,
+    "StartedUtc": "2026-10-05T09:10:12.1680549+00:00",
+    "FinishedUtc": "2026-10-05T09:10:50.3923791+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 34,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 34,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 3,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 34,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 1.13,
+    "NativeRequestsPerSecond": 1.13,
+    "NativeLatencyMeanMs": 885.72,
+    "NativeLatencyP50Ms": 868.86,
+    "NativeLatencyP95Ms": 963.58,
+    "NativeLatencyP99Ms": 1189.89,
+    "NativeLatencyMaxMs": 1189.81,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_inventoryhistoricalreportpaged_u1",
+          "Ok": {
+            "Request": {
+              "Count": 34,
+              "RPS": 1.13,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 804.35,
+              "MeanMs": 885.72,
+              "MaxMs": 1189.81,
+              "Percent50": 868.86,
+              "Percent75": 915.46,
+              "Percent95": 963.58,
+              "Percent99": 1189.89,
+              "StdDev": 71.37,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 34,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 1
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 34,
+          "AllOkCount": 34,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 900,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 906,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "InventoryHistoricalReportPaged",
+      "CaseName": "LoadHistoricalPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:10:10.975388+00:00",
+      "DurationMs": 1192.391,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 10000,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "InventoryHistoricalReportPaged",
+    "CaseName": "LoadHistoricalPage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Xuat_Nhap_Ton_Page",
+    "Users": 2,
+    "ConfiguredCopies": 2,
+    "StartedUtc": "2026-10-05T09:10:50.3970404+00:00",
+    "FinishedUtc": "2026-10-05T09:11:28.6509825+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 53,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 53,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 6,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 53,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 1.77,
+    "NativeRequestsPerSecond": 1.77,
+    "NativeLatencyMeanMs": 1135.5,
+    "NativeLatencyP50Ms": 1111.04,
+    "NativeLatencyP95Ms": 1387.52,
+    "NativeLatencyP99Ms": 1618.94,
+    "NativeLatencyMaxMs": 1620.46,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_inventoryhistoricalreportpaged_u2",
+          "Ok": {
+            "Request": {
+              "Count": 53,
+              "RPS": 1.77,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 978.69,
+              "MeanMs": 1135.5,
+              "MaxMs": 1620.46,
+              "Percent50": 1111.04,
+              "Percent75": 1164.29,
+              "Percent95": 1387.52,
+              "Percent99": 1618.94,
+              "StdDev": 129.05,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 44,
+                "MoreOrEq1200": 9
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 2
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 53,
+          "AllOkCount": 53,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 905,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 907,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "InventoryHistoricalReportPaged",
+      "CaseName": "LoadHistoricalPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:10:10.975388+00:00",
+      "DurationMs": 1192.391,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 10000,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "InventoryHistoricalReportPaged",
+    "CaseName": "LoadHistoricalPage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Xuat_Nhap_Ton_Page",
+    "Users": 4,
+    "ConfiguredCopies": 4,
+    "StartedUtc": "2026-10-05T09:11:28.6580228+00:00",
+    "FinishedUtc": "2026-10-05T09:12:06.8832081+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 82,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 82,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 9,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 82,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 2.73,
+    "NativeRequestsPerSecond": 2.73,
+    "NativeLatencyMeanMs": 1476.37,
+    "NativeLatencyP50Ms": 1494.02,
+    "NativeLatencyP95Ms": 1790.98,
+    "NativeLatencyP99Ms": 1925.12,
+    "NativeLatencyMaxMs": 1957.11,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_inventoryhistoricalreportpaged_u4",
+          "Ok": {
+            "Request": {
+              "Count": 82,
+              "RPS": 2.73,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 1177.7,
+              "MeanMs": 1476.37,
+              "MaxMs": 1957.11,
+              "Percent50": 1494.02,
+              "Percent75": 1583.1,
+              "Percent95": 1790.98,
+              "Percent99": 1925.12,
+              "StdDev": 172.7,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 1,
+                "MoreOrEq1200": 81
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 4
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 82,
+          "AllOkCount": 82,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 905,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1060,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "InventoryHistoricalReportPaged",
+      "CaseName": "LoadHistoricalPage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:10:10.975388+00:00",
+      "DurationMs": 1192.391,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 10000,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "InventoryCurrentBalancePaged",
+    "CaseName": "LoadCurrentBalancePage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Ton_Kho_Hien_Tai_Page",
+    "Users": 1,
+    "ConfiguredCopies": 1,
+    "StartedUtc": "2026-10-05T09:12:06.9696301+00:00",
+    "FinishedUtc": "2026-10-05T09:12:45.2863294+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 1198,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 1198,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 92,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 1198,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 39.93,
+    "NativeRequestsPerSecond": 39.93,
+    "NativeLatencyMeanMs": 24.64,
+    "NativeLatencyP50Ms": 22.21,
+    "NativeLatencyP95Ms": 38.66,
+    "NativeLatencyP99Ms": 52.26,
+    "NativeLatencyMaxMs": 118.7,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_inventorycurrentbalancepaged_u1",
+          "Ok": {
+            "Request": {
+              "Count": 1198,
+              "RPS": 39.93,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 17.91,
+              "MeanMs": 24.64,
+              "MaxMs": 118.7,
+              "Percent50": 22.21,
+              "Percent75": 25.31,
+              "Percent95": 38.66,
+              "Percent99": 52.26,
+              "StdDev": 7.45,
+              "LatencyCount": {
+                "LessOrEq800": 1198,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 1
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 1198,
+          "AllOkCount": 1198,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1056,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1183,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "InventoryCurrentBalancePaged",
+      "CaseName": "LoadCurrentBalancePage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:12:06.8897509+00:00",
+      "DurationMs": 79.623,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 10000,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "InventoryCurrentBalancePaged",
+    "CaseName": "LoadCurrentBalancePage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Ton_Kho_Hien_Tai_Page",
+    "Users": 2,
+    "ConfiguredCopies": 2,
+    "StartedUtc": "2026-10-05T09:12:45.3008603+00:00",
+    "FinishedUtc": "2026-10-05T09:13:23.5852966+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 1551,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 1551,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 184,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 1551,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 51.7,
+    "NativeRequestsPerSecond": 51.7,
+    "NativeLatencyMeanMs": 38.27,
+    "NativeLatencyP50Ms": 36.99,
+    "NativeLatencyP95Ms": 55.26,
+    "NativeLatencyP99Ms": 68.03,
+    "NativeLatencyMaxMs": 105.25,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_inventorycurrentbalancepaged_u2",
+          "Ok": {
+            "Request": {
+              "Count": 1551,
+              "RPS": 51.7,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 19.26,
+              "MeanMs": 38.27,
+              "MaxMs": 105.25,
+              "Percent50": 36.99,
+              "Percent75": 44.42,
+              "Percent95": 55.26,
+              "Percent99": 68.03,
+              "StdDev": 10.18,
+              "LatencyCount": {
+                "LessOrEq800": 1551,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 2
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 1551,
+          "AllOkCount": 1551,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1178,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1073,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "InventoryCurrentBalancePaged",
+      "CaseName": "LoadCurrentBalancePage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:12:06.8897509+00:00",
+      "DurationMs": 79.623,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 10000,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  },
+  {
+    "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+    "Scenario": "InventoryCurrentBalancePaged",
+    "CaseName": "LoadCurrentBalancePage1",
+    "ApplicationMethod": "CWarehouseReport_Controller.Inventory_Report_Page_Async",
+    "StoredProcedure": "dbo.sp_BC_Ton_Kho_Hien_Tai_Page",
+    "Users": 4,
+    "ConfiguredCopies": 4,
+    "StartedUtc": "2026-10-05T09:13:23.5907875+00:00",
+    "FinishedUtc": "2026-10-05T09:14:01.812404+00:00",
+    "MeasuredSeconds": 30,
+    "WarmupSeconds": 3,
+    "OkRequests": 3083,
+    "FailedRequests": 0,
+    "CallbackMeasuredOkRequests": 3083,
+    "CallbackMeasuredFailedRequests": 0,
+    "WarmupOkRequests": 286,
+    "WarmupFailedRequests": 0,
+    "NativeOkRequests": 3083,
+    "NativeFailedRequests": 0,
+    "RequestsPerSecond": 102.77,
+    "NativeRequestsPerSecond": 102.77,
+    "NativeLatencyMeanMs": 38.49,
+    "NativeLatencyP50Ms": 38.59,
+    "NativeLatencyP95Ms": 51.1,
+    "NativeLatencyP99Ms": 55.9,
+    "NativeLatencyMaxMs": 64.96,
+    "NativeCounterReconciliation": "PASS",
+    "ErrorCategories": {},
+    "NativeStats": {
+      "NodeType": "NBomber.Contracts.Stats.NodeStats",
+      "ScenarioStats": [
+        {
+          "ScenarioName": "lite2_inventorycurrentbalancepaged_u4",
+          "Ok": {
+            "Request": {
+              "Count": 3083,
+              "RPS": 102.77,
+              "Percent": 100
+            },
+            "Latency": {
+              "MinMs": 19.94,
+              "MeanMs": 38.49,
+              "MaxMs": 64.96,
+              "Percent50": 38.59,
+              "Percent75": 44.86,
+              "Percent95": 51.1,
+              "Percent99": 55.9,
+              "StdDev": 8.07,
+              "LatencyCount": {
+                "LessOrEq800": 3083,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "Fail": {
+            "Request": {
+              "Count": 0,
+              "RPS": 0,
+              "Percent": 0
+            },
+            "Latency": {
+              "MinMs": 0,
+              "MeanMs": 0,
+              "MaxMs": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "LatencyCount": {
+                "LessOrEq800": 0,
+                "More800Less1200": 0,
+                "MoreOrEq1200": 0
+              }
+            },
+            "DataTransfer": {
+              "MinBytes": 0,
+              "MeanBytes": 0,
+              "MaxBytes": 0,
+              "Percent50": 0,
+              "Percent75": 0,
+              "Percent95": 0,
+              "Percent99": 0,
+              "StdDev": 0,
+              "AllBytes": 0,
+              "BytesPerSecond": 0
+            },
+            "StatusCodes": []
+          },
+          "StepStats": [],
+          "LoadSimulationStats": {
+            "SimulationName": "keep_constant",
+            "Value": 4
+          },
+          "CurrentOperation": "Complete",
+          "AllRequestCount": 3083,
+          "AllOkCount": 3083,
+          "AllFailCount": 0,
+          "AllBytes": 0,
+          "Duration": "00:00:30",
+          "SortIndex": 0
+        }
+      ]
+    },
+    "NativeStatsError": null,
+    "MachineBefore": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1070,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "MachineAfter": {
+      "MachineName": "DESKTOP-NHQ7QPL",
+      "OS": "Microsoft Windows 10.0.26200",
+      "LogicalCpuCount": 8,
+      "TotalRamMb": 8109,
+      "AvailableRamMb": 1059,
+      "CpuUsagePercent": null,
+      "DotNetRuntime": ".NET 8.0.20"
+    },
+    "PreflightProbe": {
+      "RunId": "WHB-LITE2-20261005T090156Z-39716c676c8d47dbb015",
+      "Scenario": "InventoryCurrentBalancePaged",
+      "CaseName": "LoadCurrentBalancePage1",
+      "Phase": "LOAD_PREFLIGHT",
+      "Iteration": 0,
+      "PageNumber": 1,
+      "PageSize": 10,
+      "SearchText": "",
+      "FromDate": "2025-01-01T00:00:00",
+      "ToDate": "2026-12-31T00:00:00",
+      "StartedUtc": "2026-10-05T09:12:06.8897509+00:00",
+      "DurationMs": 79.623,
+      "CallSucceeded": true,
+      "Valid": true,
+      "ReturnedRows": 10,
+      "TotalCount": 10000,
+      "SqlErrorNumber": null,
+      "ErrorCategory": null,
+      "ExceptionType": null,
+      "ErrorMessage": null,
+      "TimedOut": false
+    },
+    "Verdict": "PASS",
+    "SkipReason": null
+  }
+]
