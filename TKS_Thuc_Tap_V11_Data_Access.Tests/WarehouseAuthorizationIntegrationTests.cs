@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -55,14 +56,14 @@ public sealed class WarehouseAuthorizationIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task User_sees_only_assigned_warehouse_and_cannot_save_document_in_other_warehouse()
     {
-        var v_objPermissionController = new CWarehousePermission_Controller();
-        var v_arrAllowedWarehouses = await v_objPermissionController.List_Authorized_Warehouses_Async(m_strLogin);
+        var v_objPermissionController = new CDM_Kho_User_Controller();
+        var v_arrAllowedWarehouses = v_objPermissionController.sp_DM_Kho_User_List_Allowed(m_strLogin);
 
         var v_objAllowedWarehouse = Assert.Single(v_arrAllowedWarehouses);
         Assert.Equal(m_iWarehouseAId, v_objAllowedWarehouse.Auto_ID);
         Assert.DoesNotContain(v_arrAllowedWarehouses, p_objItem => p_objItem.Auto_ID == m_iWarehouseBId);
 
-        var v_objDocumentController = new CWarehouseDocument_Controller();
+        var v_objDocumentController = new WarehouseDocumentTestHarness();
         var v_objUnauthorizedReceipt = new CWarehouseDocument
         {
             Is_Receipt = true,

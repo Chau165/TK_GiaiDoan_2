@@ -1,6 +1,10 @@
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK
 @inherits FBase
 
 <div class="card">
@@ -308,8 +312,10 @@
     [Parameter] public bool m_bWarehouse_Permission_Only { get; set; }
 
     private readonly CWarehouseMasterSupport_Controller m_objMasterSupportController = new();
-    private readonly CWarehousePermission_Controller m_objPermissionController = new();
-    private readonly CWarehouseDocument_Controller m_objDocumentController = new();
+    private readonly CDM_Kho_User_Controller m_objPermissionController = new();
+    private readonly CXNK_Nhap_Kho_Controller m_objNhapKhoController = new();
+    private readonly CXNK_Xuat_Kho_Controller m_objXuatKhoController = new();
+    private readonly CWarehouseDocumentSupport_Controller m_objDocumentSupportController = new();
     private readonly CWarehouseReport_Controller m_objReportController = new();
     private string m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private bool m_bRouteParametersApplied;
@@ -536,9 +542,11 @@
         m_arrAllWarehouse = new CDM_Kho_Controller().F2009_sp_sel_List_Kho_Lookup()
             .Select(v_objWarehouse => new CWarehouseLookup { Auto_ID = v_objWarehouse.Auto_ID, Name = v_objWarehouse.Ten_Kho })
             .ToList();
-        m_arrWarehouse = await m_objPermissionController.List_Authorized_Warehouses_Async(r_strActive_User_Name);
-        m_arrUser = await m_objPermissionController.List_User_Lookup_Async();
-        m_arrWarehouseUser = await m_objPermissionController.List_Kho_User_Async();
+        m_arrWarehouse = m_objPermissionController.sp_DM_Kho_User_List_Allowed(r_strActive_User_Name);
+        m_arrUser = m_objPermissionController.F2015_sp_sel_List_Sys_Thanh_Vien_Cho_Phan_Quyen_Kho();
+        m_arrWarehouseUser = m_objPermissionController.F2015_sp_sel_List_Kho_User()
+            .Select(To_Permission_UI_Projection)
+            .ToList();
     }
 
     private async Task Load_Master_Async()
@@ -555,61 +563,101 @@
 
     private Task Add_Kho_Async(CDM_Kho p_objData) => Save_Master_Operation_Async(
         true,
-        () => p_objData.Auto_ID = new CDM_Kho_Controller().F2009_sp_ins_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            p_objData.Auto_ID = new CDM_Kho_Controller().F2009_sp_ins_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_Kho.Add_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "Kho");
 
     private Task Update_Kho_Async(CDM_Kho p_objData) => Save_Master_Operation_Async(
         false,
-        () => new CDM_Kho_Controller().F2009_sp_upd_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            new CDM_Kho_Controller().F2009_sp_upd_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_Kho.Update_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "Kho");
 
     private Task Add_Don_Vi_Tinh_Async(CDM_Don_Vi_Tinh p_objData) => Save_Master_Operation_Async(
         true,
-        () => p_objData.Auto_ID = new CDM_Don_Vi_Tinh_Controller().F2016_sp_ins_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            p_objData.Auto_ID = new CDM_Don_Vi_Tinh_Controller().F2016_sp_ins_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_Don_Vi_Tinh.Add_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "DonViTinh");
 
     private Task Update_Don_Vi_Tinh_Async(CDM_Don_Vi_Tinh p_objData) => Save_Master_Operation_Async(
         false,
-        () => new CDM_Don_Vi_Tinh_Controller().F2016_sp_upd_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            new CDM_Don_Vi_Tinh_Controller().F2016_sp_upd_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_Don_Vi_Tinh.Update_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "DonViTinh");
 
     private Task Add_Loai_San_Pham_Async(CDM_Loai_San_Pham p_objData) => Save_Master_Operation_Async(
         true,
-        () => p_objData.Auto_ID = new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            p_objData.Auto_ID = new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_Loai_San_Pham.Add_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "LoaiSanPham");
 
     private Task Update_Loai_San_Pham_Async(CDM_Loai_San_Pham p_objData) => Save_Master_Operation_Async(
         false,
-        () => new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_Loai_San_Pham.Update_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "LoaiSanPham");
 
     private Task Add_San_Pham_Async(CDM_San_Pham p_objData) => Save_Master_Operation_Async(
         true,
-        () => p_objData.Auto_ID = new CDM_San_Pham_Controller().F2018_sp_ins_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            p_objData.Auto_ID = new CDM_San_Pham_Controller().F2018_sp_ins_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_San_Pham.Add_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "SanPham");
 
     private Task Update_San_Pham_Async(CDM_San_Pham p_objData) => Save_Master_Operation_Async(
         false,
-        () => new CDM_San_Pham_Controller().F2018_sp_upd_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            new CDM_San_Pham_Controller().F2018_sp_upd_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_San_Pham.Update_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "SanPham");
 
     private Task Add_NCC_Async(CDM_NCC p_objData) => Save_Master_Operation_Async(
         true,
-        () => p_objData.Auto_ID = new CDM_NCC_Controller().F2019_sp_ins_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            p_objData.Auto_ID = new CDM_NCC_Controller().F2019_sp_ins_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_NCC.Add_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "NCC");
 
     private Task Update_NCC_Async(CDM_NCC p_objData) => Save_Master_Operation_Async(
         false,
-        () => new CDM_NCC_Controller().F2019_sp_upd_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () =>
+        {
+            new CDM_NCC_Controller().F2019_sp_upd_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CCache_NCC.Update_Data(p_objData);
+        },
         () => p_objData.Auto_ID,
         "NCC");
 
@@ -646,7 +694,21 @@
                 return;
             }
 
-            await m_objPermissionController.Save_Kho_User_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            CDM_Kho_User v_objKhoUser = To_Kho_User_Entity(p_objData);
+            if (v_iPermission_ID == 0)
+            {
+                p_objData.Permission_ID = m_objPermissionController.F2015_sp_ins_Kho_User(
+                    v_objKhoUser,
+                    r_strActive_User_Name,
+                    r_strActive_Function_Code);
+            }
+            else
+            {
+                p_objData.Permission_ID = m_objPermissionController.F2015_sp_upd_Kho_User(
+                    v_objKhoUser,
+                    r_strActive_User_Name,
+                    r_strActive_Function_Code);
+            }
 
             string v_strAction;
             if (v_iPermission_ID == 0)
@@ -914,18 +976,23 @@
             {
                 case "Kho":
                     new CDM_Kho_Controller().F2009_sp_del_Kho(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    CCache_Kho.Delete_Data(p_iAuto_ID);
                     break;
                 case "DonViTinh":
                     new CDM_Don_Vi_Tinh_Controller().F2016_sp_del_Don_Vi_Tinh(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    CCache_Don_Vi_Tinh.Delete_Data(p_iAuto_ID);
                     break;
                 case "LoaiSanPham":
                     new CDM_Loai_San_Pham_Controller().F2017_sp_del_Loai_San_Pham(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    CCache_Loai_San_Pham.Delete_Data(p_iAuto_ID);
                     break;
                 case "SanPham":
                     new CDM_San_Pham_Controller().F2018_sp_del_San_Pham(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    CCache_San_Pham.Delete_Data(p_iAuto_ID);
                     break;
                 case "NCC":
                     new CDM_NCC_Controller().F2019_sp_del_NCC(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    CCache_NCC.Delete_Data(p_iAuto_ID);
                     break;
                 default:
                     throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type));
@@ -945,7 +1012,10 @@
     {
         try
         {
-            await m_objPermissionController.Delete_Kho_User_Async(p_iPermission_ID, r_strActive_User_Name, r_strActive_Function_Code);
+            m_objPermissionController.F2015_sp_del_Kho_User(
+                p_iPermission_ID,
+                r_strActive_User_Name,
+                r_strActive_Function_Code);
             Try_Record_Action_History(p_iPermission_ID, "Xóa", "Warehouse " + m_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
@@ -1007,7 +1077,28 @@
             }
 
             p_objData.Is_Receipt = Is_Receipt;
-            await m_objDocumentController.Save_Document_Async(p_objData, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name);
+            p_objData.Last_Updated_By = r_strActive_User_Name;
+            p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
+            if (v_iAuto_ID == 0)
+            {
+                p_objData.Created_By = r_strActive_User_Name;
+                p_objData.Created_By_Function = r_strActive_Function_Code;
+            }
+
+            if (Is_Receipt)
+            {
+                var v_objReceipt = To_Nhap_Kho(p_objData);
+                p_objData.Auto_ID = v_iAuto_ID == 0
+                    ? m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_objReceipt)
+                    : m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Header(v_objReceipt);
+            }
+            else
+            {
+                var v_objIssue = To_Xuat_Kho(p_objData);
+                p_objData.Auto_ID = v_iAuto_ID == 0
+                    ? m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_objIssue)
+                    : m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Header(v_objIssue);
+            }
 
             string v_strAction;
             if (v_iAuto_ID == 0)
@@ -1034,7 +1125,10 @@
     {
         try
         {
-            await m_objDocumentController.Delete_Document_Async(Is_Receipt, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name);
+            if (Is_Receipt)
+                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
+            else
+                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
             Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse document");
             Cancel_Document();
             m_objSelectedDocument = null;
@@ -1057,7 +1151,8 @@
                 return;
             }
 
-            await m_objDocumentController.Post_Document_Async(Is_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name);
+            m_objDocumentSupportController.sp_XNK_Document_Post(
+                Is_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_User_Name, r_strActive_Function_Code);
             p_objData.Is_Posted = true;
             Try_Record_Action_History(p_objData.Auto_ID, "Post", "Warehouse document " + p_objData.So_Phieu);
             m_grdDocument.Rebind();
@@ -1076,7 +1171,11 @@
         {
             m_objSelectedDocument = p_objData;
             m_objDocument = Clone_Document(p_objData);
-            m_arrDetail = await m_objDocumentController.List_Document_Details_Async(Is_Receipt, p_objData.Auto_ID, r_strActive_User_Name);
+            m_arrDetail = Is_Receipt
+                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_objData.Auto_ID, r_strActive_User_Name)
+                    .Select(To_Warehouse_Detail).ToList()
+                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_objData.Auto_ID, r_strActive_User_Name)
+                    .Select(To_Warehouse_Detail).ToList();
             m_objDetail = new() { Document_ID = p_objData.Auto_ID };
             m_bDocumentEditing = false;
             m_bDetailEditing = false;
@@ -1133,7 +1232,28 @@
 
             p_objData.Document_ID = m_objSelectedDocument.Auto_ID;
             var v_iAuto_ID = p_objData.Auto_ID;
-            await m_objDocumentController.Save_Document_Detail_Async(Is_Receipt, p_objData, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name);
+            p_objData.Last_Updated_By = r_strActive_User_Name;
+            p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
+            if (v_iAuto_ID == 0)
+            {
+                p_objData.Created_By = r_strActive_User_Name;
+                p_objData.Created_By_Function = r_strActive_Function_Code;
+            }
+
+            if (Is_Receipt)
+            {
+                var v_objReceiptDetail = To_Nhap_Kho_Detail(p_objData);
+                p_objData.Auto_ID = v_iAuto_ID == 0
+                    ? m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_objReceiptDetail)
+                    : m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Detail(v_objReceiptDetail);
+            }
+            else
+            {
+                var v_objIssueDetail = To_Xuat_Kho_Detail(p_objData);
+                p_objData.Auto_ID = v_iAuto_ID == 0
+                    ? m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_objIssueDetail)
+                    : m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Detail(v_objIssueDetail);
+            }
 
             string v_strAction;
             if (v_iAuto_ID == 0)
@@ -1164,7 +1284,10 @@
                 return;
             }
 
-            await m_objDocumentController.Delete_Document_Detail_Async(Is_Receipt, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code, r_strActive_User_Name);
+            if (Is_Receipt)
+                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
+            else
+                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
             Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse detail");
             await Select_Document_Async(m_objSelectedDocument);
             Set_Success("Đã xóa chi tiết.");
@@ -1240,14 +1363,16 @@
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
             {
-                var v_arrSource = await m_objPermissionController.List_Kho_User_Async();
+                var v_arrSource = m_objPermissionController.F2015_sp_sel_List_Kho_User()
+                    .Select(To_Permission_UI_Projection)
+                    .ToList();
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
             }
             else
             {
-                var v_objResult = await m_objPermissionController.List_Kho_User_Page_Async(args.Request.Page, args.Request.PageSize);
-                args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+                var v_objResult = m_objPermissionController.sp_DM_Kho_User_Page(args.Request.Page, args.Request.PageSize);
+                args.Data = v_objResult.Items.Select(To_Permission_UI_Projection).ToList(); args.Total = v_objResult.Total_Count;
             }
         }
         catch (Exception ex)
@@ -1264,7 +1389,11 @@
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
             {
-                var v_arrSource = await m_objDocumentController.List_Documents_Async(Is_Receipt, r_strActive_User_Name, m_iDocument_Warehouse_ID);
+                var v_arrSource = Is_Receipt
+                    ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
+                        .Select(To_Warehouse_Document).ToList()
+                    : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
+                        .Select(To_Warehouse_Document).ToList();
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
                 if (args.Request.PageSize > 0)
@@ -1272,7 +1401,8 @@
             }
             else
             {
-                var v_objResult = await m_objDocumentController.List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name, m_iDocument_Warehouse_ID);
+                var v_objResult = m_objDocumentSupportController.sp_XNK_Document_Page(
+                    Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name, m_iDocument_Warehouse_ID);
                 m_arrDocument = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
         }
@@ -1284,13 +1414,15 @@
         }
     }
 
-    private async Task Read_Report_Detail_Async(GridReadEventArgs args)
+    private Task Read_Report_Detail_Async(GridReadEventArgs args)
     {
         try
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
             {
-                var v_arrSource = await m_objReportController.Detail_Report_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                List<CWarehouseDetailReport> v_arrSource = m_strReport_Type == "Receipt"
+                    ? m_objReportController.sp_BC_Chi_Tiet_Nhap(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID)
+                    : m_objReportController.sp_BC_Chi_Tiet_Xuat(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
                 if (args.Request.PageSize > 0)
@@ -1298,7 +1430,9 @@
             }
             else
             {
-                var v_objResult = await m_objReportController.Detail_Report_Page_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                var v_objResult = m_strReport_Type == "Receipt"
+                    ? m_objReportController.sp_BC_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)
+                    : m_objReportController.sp_BC_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 m_arrDetailReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
         }
@@ -1308,9 +1442,11 @@
             args.Data = new List<CWarehouseDetailReport>();
             args.Total = 0;
         }
+
+        return Task.CompletedTask;
     }
 
-    private async Task Read_Inventory_Async(GridReadEventArgs args)
+    private Task Read_Inventory_Async(GridReadEventArgs args)
     {
         try
         {
@@ -1319,12 +1455,14 @@
                 List<CWarehouseInventoryReport> v_arrSource;
                 if (Is_Current_Inventory_Report)
                 {
-                    var v_objFullResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, 1, 0, r_strActive_User_Name, m_iReport_Warehouse_ID, true);
+                    var v_objFullResult = m_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                        1, 0, r_strActive_User_Name, m_iReport_Warehouse_ID);
                     v_arrSource = v_objFullResult.Items;
                 }
                 else
                 {
-                    v_arrSource = await m_objReportController.Inventory_Report_Async(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                    v_arrSource = Get_Historical_Inventory_Report(
+                        m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 }
 
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
@@ -1338,7 +1476,11 @@
                 if (v_iPage_Size == 0 && !r_bIs_Excel_OnRead_Export)
                     v_iPage_Size = 10;
 
-                var v_objResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report);
+                var v_objResult = Is_Current_Inventory_Report
+                    ? m_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                        args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID)
+                    : m_objReportController.sp_BC_Xuat_Nhap_Ton_Page(
+                        m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
         }
@@ -1351,6 +1493,26 @@
 
             args.Data = new List<CWarehouseInventoryReport>(); args.Total = 0;
         }
+
+        return Task.CompletedTask;
+    }
+
+    private List<CWarehouseInventoryReport> Get_Historical_Inventory_Report(
+        DateTime p_dtmFrom,
+        DateTime p_dtmTo,
+        string p_strCurrent_Login,
+        long? p_iWarehouse_ID)
+    {
+        List<CWarehouseInventoryReport> v_arrReport = m_objReportController.sp_BC_Xuat_Nhap_Ton(
+            p_dtmFrom, p_dtmTo, p_strCurrent_Login, p_iWarehouse_ID);
+        Dictionary<long, string> v_dicAuthorizedWarehouseNames = m_objPermissionController
+            .sp_DM_Kho_User_List_Allowed(p_strCurrent_Login)
+            .ToDictionary(v_objWarehouse => v_objWarehouse.Auto_ID, v_objWarehouse => v_objWarehouse.Name);
+
+        foreach (CWarehouseInventoryReport v_objReport in v_arrReport)
+            v_objReport.Ten_Kho = v_dicAuthorizedWarehouseNames.GetValueOrDefault(v_objReport.Kho_ID, "");
+
+        return v_arrReport;
     }
 
     private Task Print_Async()
@@ -1446,6 +1608,165 @@
         };
     }
 
+    private static CXNK_Nhap_Kho To_Nhap_Kho(CWarehouseDocument p_objData)
+    {
+        return new CXNK_Nhap_Kho
+        {
+            Auto_ID = p_objData.Auto_ID,
+            So_Phieu_Nhap_Kho = p_objData.So_Phieu,
+            Kho_ID = p_objData.Kho_ID,
+            NCC_ID = p_objData.NCC_ID,
+            Ngay_Nhap_Kho = p_objData.Ngay_Chung_Tu,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CXNK_Xuat_Kho To_Xuat_Kho(CWarehouseDocument p_objData)
+    {
+        return new CXNK_Xuat_Kho
+        {
+            Auto_ID = p_objData.Auto_ID,
+            So_Phieu_Xuat_Kho = p_objData.So_Phieu,
+            Kho_ID = p_objData.Kho_ID,
+            Ngay_Xuat_Kho = p_objData.Ngay_Chung_Tu,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CXNK_Nhap_Kho_Detail To_Nhap_Kho_Detail(CWarehouseDocumentDetail p_objData)
+    {
+        return new CXNK_Nhap_Kho_Detail
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Nhap_Kho_ID = p_objData.Document_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            SL_Nhap = p_objData.So_Luong,
+            Don_Gia_Nhap = p_objData.Don_Gia,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CXNK_Xuat_Kho_Detail To_Xuat_Kho_Detail(CWarehouseDocumentDetail p_objData)
+    {
+        return new CXNK_Xuat_Kho_Detail
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Xuat_Kho_ID = p_objData.Document_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            SL_Xuat = p_objData.So_Luong,
+            Don_Gia_Xuat = p_objData.Don_Gia,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CWarehouseDocument To_Warehouse_Document(CXNK_Nhap_Kho p_objData)
+    {
+        return new CWarehouseDocument
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Is_Receipt = true,
+            So_Phieu = p_objData.So_Phieu_Nhap_Kho,
+            Kho_ID = p_objData.Kho_ID,
+            Ten_Kho = p_objData.Ten_Kho,
+            NCC_ID = p_objData.NCC_ID,
+            Ten_NCC = p_objData.Ten_NCC,
+            Ngay_Chung_Tu = p_objData.Ngay_Nhap_Kho,
+            Is_Posted = p_objData.Is_Posted,
+            Posted_At = p_objData.Posted_At,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CWarehouseDocument To_Warehouse_Document(CXNK_Xuat_Kho p_objData)
+    {
+        return new CWarehouseDocument
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Is_Receipt = false,
+            So_Phieu = p_objData.So_Phieu_Xuat_Kho,
+            Kho_ID = p_objData.Kho_ID,
+            Ten_Kho = p_objData.Ten_Kho,
+            NCC_ID = p_objData.NCC_ID,
+            Ten_NCC = p_objData.Ten_NCC,
+            Ngay_Chung_Tu = p_objData.Ngay_Xuat_Kho,
+            Is_Posted = p_objData.Is_Posted,
+            Posted_At = p_objData.Posted_At,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Nhap_Kho_Detail p_objData)
+    {
+        return new CWarehouseDocumentDetail
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Document_ID = p_objData.Nhap_Kho_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            Ma_San_Pham = p_objData.Ma_San_Pham,
+            Ten_San_Pham = p_objData.Ten_San_Pham,
+            Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
+            So_Luong = p_objData.SL_Nhap,
+            Don_Gia = p_objData.Don_Gia_Nhap,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
+    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Xuat_Kho_Detail p_objData)
+    {
+        return new CWarehouseDocumentDetail
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Document_ID = p_objData.Xuat_Kho_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            Ma_San_Pham = p_objData.Ma_San_Pham,
+            Ten_San_Pham = p_objData.Ten_San_Pham,
+            Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
+            So_Luong = p_objData.SL_Xuat,
+            Don_Gia = p_objData.Don_Gia_Xuat,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
+
     private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData)
     {
         return new()
@@ -1457,6 +1778,28 @@
             Don_Gia = p_objData.Don_Gia,
             Ma_San_Pham = p_objData.Ma_San_Pham,
             Ten_San_Pham = p_objData.Ten_San_Pham
+        };
+    }
+
+    private static CWarehousePermission To_Permission_UI_Projection(CDM_Kho_User p_objData)
+    {
+        return new CWarehousePermission
+        {
+            Permission_ID = p_objData.Auto_ID,
+            Login_Name = p_objData.Ma_Dang_Nhap,
+            User_Name = p_objData.Ho_Ten,
+            Warehouse_ID = p_objData.Kho_ID,
+            Warehouse_Name = p_objData.Ten_Kho
+        };
+    }
+
+    private static CDM_Kho_User To_Kho_User_Entity(CWarehousePermission p_objData)
+    {
+        return new CDM_Kho_User
+        {
+            Auto_ID = p_objData.Permission_ID,
+            Ma_Dang_Nhap = p_objData.Login_Name,
+            Kho_ID = p_objData.Warehouse_ID
         };
     }
 }

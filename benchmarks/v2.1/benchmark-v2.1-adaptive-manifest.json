@@ -39,7 +39,7 @@
     },
     {
       "name": "DocumentPaged",
-      "operation": "CWarehouseDocument_Controller.List_Documents_Page_Async",
+      "operation": "CWarehouseDocumentSupport_Controller.sp_XNK_Document_Page",
       "parameters": "isReceipt=true, page=1, pageSize=10, search='', login=PERF_USER"
     },
     {

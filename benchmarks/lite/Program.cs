@@ -369,26 +369,26 @@ internal static partial class Program
             }
             case "DocumentPaged":
             {
-                var page = await new CWarehouseDocument_Controller()
-                    .List_Documents_Page_Async(true, PageNumber, PageSize, "", ApplicationLogin, null).ConfigureAwait(false);
+                var page = new CWarehouseDocumentSupport_Controller()
+                    .sp_XNK_Document_Page(true, PageNumber, PageSize, "", ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             case "DetailReportPaged":
             {
-                var page = await new CWarehouseReport_Controller()
-                    .Detail_Report_Page_Async(true, ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null).ConfigureAwait(false);
+                var page = new CWarehouseReport_Controller()
+                    .sp_BC_Chi_Tiet_Nhap_Page(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             case "InventoryHistoricalReportPaged":
             {
-                var page = await new CWarehouseReport_Controller()
-                    .Inventory_Report_Page_Async(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null, false).ConfigureAwait(false);
+                var page = new CWarehouseReport_Controller()
+                    .sp_BC_Xuat_Nhap_Ton_Page(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             case "InventoryCurrentBalancePaged":
             {
-                var page = await new CWarehouseReport_Controller()
-                    .Inventory_Report_Page_Async(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null, true).ConfigureAwait(false);
+                var page = new CWarehouseReport_Controller()
+                    .sp_BC_Ton_Kho_Hien_Tai_Page(PageNumber, PageSize, ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             default:
@@ -402,14 +402,14 @@ internal static partial class Program
             new { MasterType = "SanPham", PageNumber, PageSize, SearchText = "" }),
         new("LookupPaged", "CWarehouseMasterSupport_Controller.List_Lookup_Page_Async", "dbo.sp_DM_Lookup_Page",
             new { MasterType = "SanPham", PageNumber, PageSize, SearchText = "" }),
-        new("DocumentPaged", "CWarehouseDocument_Controller.List_Documents_Page_Async", "dbo.sp_XNK_Document_Page",
+        new("DocumentPaged", "CWarehouseDocumentSupport_Controller.sp_XNK_Document_Page", "dbo.sp_XNK_Document_Page",
             new { IsReceipt = true, PageNumber, PageSize, SearchText = "", Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("DetailReportPaged", "CWarehouseReport_Controller.Detail_Report_Page_Async", "dbo.sp_BC_Chi_Tiet_Nhap_Page",
-            new { IsReceipt = true, From = ReportFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), To = ReportTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("InventoryHistoricalReportPaged", "CWarehouseReport_Controller.Inventory_Report_Page_Async", "dbo.sp_BC_Xuat_Nhap_Ton_Page",
-            new { From = ReportFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), To = ReportTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null, ReadCurrentBalance = false }),
-        new("InventoryCurrentBalancePaged", "CWarehouseReport_Controller.Inventory_Report_Page_Async", "dbo.sp_BC_Ton_Kho_Hien_Tai_Page",
-            new { PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null, ReadCurrentBalance = true })
+        new("DetailReportPaged", "CWarehouseReport_Controller.sp_BC_Chi_Tiet_Nhap_Page", "dbo.sp_BC_Chi_Tiet_Nhap_Page",
+            new { From = ReportFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), To = ReportTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
+        new("InventoryHistoricalReportPaged", "CWarehouseReport_Controller.sp_BC_Xuat_Nhap_Ton_Page", "dbo.sp_BC_Xuat_Nhap_Ton_Page",
+            new { From = ReportFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), To = ReportTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
+        new("InventoryCurrentBalancePaged", "CWarehouseReport_Controller.sp_BC_Ton_Kho_Hien_Tai_Page", "dbo.sp_BC_Ton_Kho_Hien_Tai_Page",
+            new { PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null })
     ];
 
     private static async Task<PreflightDocument> ReadTargetAndDatasetAsync(string connectionString)
@@ -523,7 +523,7 @@ internal static partial class Program
             "Database/WarehouseModule.Procedures.sql",
             "Database/WarehouseModule.Schema.sql",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseMasterSupport_Controller.cs",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocument_Controller.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocumentSupport_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseReport_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouse_Controller_Base.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Entity/Warehouse/CWarehousePagedResult.cs"

@@ -42,7 +42,7 @@ public sealed class WarehousePhase6M02M03IntegrationTests : IAsyncLifetime
     public async Task Actor_fields_persist_for_receipt_issue_detail_and_post_without_overwriting_create_actor()
     {
         var v_Fixture = m_objFixture!;
-        var v_Controller = new CWarehouseDocument_Controller();
+        var v_Controller = new WarehouseDocumentTestHarness();
         var v_CreatedBy = v_Fixture.LoginA;
         var v_UpdatedBy = v_Fixture.LoginB;
         const string v_FunctionCode = "Warehouse.Phase6";

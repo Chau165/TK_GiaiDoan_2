@@ -4,7 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
@@ -15,7 +17,7 @@ internal static class Program
     private static readonly Guid PerfJob = Guid.Parse("7c8516ba-bb97-4ef2-9673-027a117a6f9f");
     private static readonly Guid GiaiDoan2Job = Guid.Parse("50d88015-5132-4805-9503-9463c37e085c");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private static readonly CWarehouseDocument_Controller Docs = new();
+    private static readonly WarehouseDocumentQualificationHarness Docs = new();
     private static readonly CWarehouseReport_Controller Reports = new();
     private static readonly Dictionary<string, object?> State = new(StringComparer.Ordinal);
     private static string _root = "", _runId = "", _cs = "", _journal = "";
@@ -562,7 +564,7 @@ SELECT CONVERT(date,SYSDATETIME()) BusinessDate,
             var count=Convert.ToInt32(await Scalar(c,"SELECT COUNT(*) FROM msdb.dbo.sysjobsteps WHERE database_name=N'TKS_Thuc_Tap_V11_Perf_10000000' AND command LIKE N'%sp_Inventory_Movement_Process_RebuildQueue%';"));
             worker["TargetMovementJobsCount"]=count;return count;
         },_=>1);
-        var maps=await MeasureCaptureStageAsync(timing,"WarehousePermissionApplicationRead",()=>new CWarehousePermission_Controller().List_Authorized_Warehouses_Async(Login),x=>x.Count);
+        var maps=await MeasureCaptureStageAsync(timing,"WarehousePermissionApplicationRead",()=>Task.FromResult(new CDM_Kho_User_Controller().sp_DM_Kho_User_List_Allowed(Login)),x=>x.Count);
         var allowed = maps.Select(x => x.Auto_ID).ToHashSet();
         var docs=await MeasureCaptureStageAsync(timing,"DocumentPageApplicationRead",()=>Docs.List_Documents_Page_Async(true,1,10,"",Login,null),x=>x.Items.Count);
         var app=await MeasureCaptureStageAsync(timing,"ApplicationPathSemanticGuard",()=>Task.FromResult(new Dictionary<string,object?>
@@ -572,7 +574,7 @@ SELECT CONVERT(date,SYSDATETIME()) BusinessDate,
             ["Warehouse4Allowed"] = allowed.Contains(Warehouse), ["DocumentTotalCount"] = docs.Total_Count,
             ["DocumentRows"] = docs.Items.Count, ["UnauthorizedRows"] = docs.Items.Count(x=>!allowed.Contains(x.Kho_ID))
         }),x=>x.Count);
-        var assembly = typeof(CWarehouseDocument_Controller).Assembly.Location;
+        var assembly = typeof(CXNK_Nhap_Kho_Controller).Assembly.Location;
         var hash=await MeasureCaptureStageAsync(timing,"DataAccessAssemblySha256",async()=>Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(assembly))).ToLowerInvariant(),x=>x.Length);
         return new Evidence(id,scope,worker,existing,app,hash);
     }
@@ -1621,7 +1623,7 @@ SELECT CONVERT(date,SYSDATETIME()) BusinessDate,
     {
         await using var c=new SqlConnection(_cs);await c.OpenAsync();
         var rank=Convert.ToInt64(await Scalar(c,"SELECT COUNT_BIG(*) FROM dbo.InventoryBalance_Current WHERE Kho_ID=@w AND San_Pham_ID<@p;",q=>{Param(q,"@w",System.Data.SqlDbType.BigInt,Warehouse);Param(q,"@p",System.Data.SqlDbType.BigInt,Product);}));
-        const int size=50;var page=await Reports.Inventory_Report_Page_Async(date,date,checked((int)(rank/size)+1),size,Login,Warehouse,true);
+        const int size=50;var page=Reports.sp_BC_Ton_Kho_Hien_Tai_Page(checked((int)(rank/size)+1),size,Login,Warehouse);
         var row=page.Items.SingleOrDefault(x=>x.Kho_ID==Warehouse&&x.San_Pham_ID==Product);
         Need(row is not null&&page.Total_Count>0&&row.SL_Ton_Thuc_Te==current&&row.SL_Cuoi_Ky==current&&row.SL_Dang_Giu==reserved&&row.SL_Kha_Dung==current-reserved,"Current report app path/oracle mismatch.");
         return new{Status="PASS",Mode="CURRENT",PageSize=size,TotalCount=page.Total_Count,Row=new{row!.Kho_ID,row.San_Pham_ID,row.SL_Ton_Thuc_Te,row.SL_Dang_Giu,row.SL_Kha_Dung}};
@@ -1638,7 +1640,7 @@ WHERE s.Kho_ID=@w AND s.First_Balance_Date<=@d
 AND EXISTS(SELECT 1 FROM dbo.Inventory_Balance_Daily b WHERE b.Kho_ID=s.Kho_ID AND b.San_Pham_ID=s.San_Pham_ID AND b.Balance_Date<=@d AND b.IsValid=1)
 AND (k.Ten_Kho<@warehouseName OR (k.Ten_Kho=@warehouseName AND p.Ma_San_Pham<@productCode));",
             q=>{Param(q,"@login",System.Data.SqlDbType.NVarChar,Login,100);Param(q,"@w",System.Data.SqlDbType.BigInt,Warehouse);Param(q,"@d",System.Data.SqlDbType.Date,date.Date);Param(q,"@warehouseName",System.Data.SqlDbType.NVarChar,target["Ten_Kho"],200);Param(q,"@productCode",System.Data.SqlDbType.NVarChar,target["Ma_San_Pham"],100);}));
-        const int size=50;var page=await Reports.Inventory_Report_Page_Async(date,date,checked((int)(rank/size)+1),size,Login,Warehouse,false);
+        const int size=50;var page=Reports.sp_BC_Xuat_Nhap_Ton_Page(date,date,checked((int)(rank/size)+1),size,Login,Warehouse);
         var row=page.Items.SingleOrDefault(x=>x.Kho_ID==Warehouse&&x.San_Pham_ID==Product);
         Need(row is not null&&page.Total_Count>0&&row.SL_Nhap==received&&row.SL_Xuat==issued&&row.SL_Cuoi_Ky==closing&&row.SL_Dau_Ky+row.SL_Nhap-row.SL_Xuat==row.SL_Cuoi_Ky,"Historical report app path/oracle mismatch.");
         return new{Status="PASS",Mode="HISTORICAL",Date=date.Date,PageSize=size,TotalCount=page.Total_Count,Row=new{row!.Kho_ID,row.San_Pham_ID,row.SL_Dau_Ky,row.SL_Nhap,row.SL_Xuat,row.SL_Cuoi_Ky}};
@@ -1720,7 +1722,7 @@ AND (k.Ten_Kho<@warehouseName OR (k.Ten_Kho=@warehouseName AND p.Ma_San_Pham<@pr
         {
             State[direction+"DuplicatePostStatus"]="PASS_REJECTED_ALREADY_POSTED";
             Event("DUPLICATE_POST_REJECTED",new{DocumentId=id,DocumentNumber=documentNumber,Direction=direction,SqlErrorNumber=ex.Number,ExpectedSqlErrorNumber=51162});
-            return new{Status="PASS_REJECTED_ALREADY_POSTED",DocumentId=id,DocumentNumber=documentNumber,Direction=direction,SqlErrorNumber=ex.Number,DataAccessRoute="CWarehouseDocument_Controller.Post_Document_Async"};
+            return new{Status="PASS_REJECTED_ALREADY_POSTED",DocumentId=id,DocumentNumber=documentNumber,Direction=direction,SqlErrorNumber=ex.Number,DataAccessRoute="CWarehouseDocumentSupport_Controller.sp_XNK_Document_Post"};
         }
         throw new InvalidDataException(direction+" duplicate post unexpectedly returned success.");
     }

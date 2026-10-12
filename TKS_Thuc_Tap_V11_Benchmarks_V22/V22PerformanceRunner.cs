@@ -188,8 +188,8 @@ internal static class V22PerformanceRunner
             "LookupPaged" => ReadLookupAsync(page, size),
             "DocumentPaged" => ReadDocumentsAsync(page, size, login),
             "DetailReportPaged" => ReadDetailsAsync(page, size, login, from, to),
-            "InventoryHistoricalReportPaged" => ReadInventoryAsync(page, size, login, from, to, false),
-            "InventoryCurrentBalancePaged" => ReadInventoryAsync(page, size, login, from, to, true),
+            "InventoryHistoricalReportPaged" => ReadHistoricalInventoryAsync(page, size, login, from, to),
+            "InventoryCurrentBalancePaged" => ReadCurrentInventoryAsync(page, size, login),
             _ => throw new ArgumentOutOfRangeException(nameof(scenarioName))
         };
     }
@@ -200,15 +200,17 @@ internal static class V22PerformanceRunner
     private static async Task<int> ReadLookupAsync(int page, int size) =>
         (await new CWarehouseMasterSupport_Controller().List_Lookup_Page_Async("SanPham", page, size, "").ConfigureAwait(false)).Items.Count;
 
-    private static async Task<int> ReadDocumentsAsync(int page, int size, string login) =>
-        (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, page, size, "", login, null).ConfigureAwait(false)).Items.Count;
+    private static Task<int> ReadDocumentsAsync(int page, int size, string login) =>
+        Task.FromResult(new CWarehouseDocumentSupport_Controller().sp_XNK_Document_Page(true, page, size, "", login, null).Items.Count);
 
-    private static async Task<int> ReadDetailsAsync(int page, int size, string login, DateTime from, DateTime to) =>
-        (await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, from, to, page, size, login, null).ConfigureAwait(false)).Items.Count;
+    private static Task<int> ReadDetailsAsync(int page, int size, string login, DateTime from, DateTime to) =>
+        Task.FromResult(new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(from, to, page, size, login, null).Items.Count);
 
-    private static async Task<int> ReadInventoryAsync(int page, int size, string login, DateTime from, DateTime to, bool current) =>
-        (await new CWarehouseReport_Controller().Inventory_Report_Page_Async(from, to, page, size, login, null,
-            p_bRead_Current_Balance: current).ConfigureAwait(false)).Items.Count;
+    private static Task<int> ReadHistoricalInventoryAsync(int page, int size, string login, DateTime from, DateTime to) =>
+        Task.FromResult(new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(from, to, page, size, login, null).Items.Count);
+
+    private static Task<int> ReadCurrentInventoryAsync(int page, int size, string login) =>
+        Task.FromResult(new CWarehouseReport_Controller().sp_BC_Ton_Kho_Hien_Tai_Page(page, size, login, null).Items.Count);
 
     private static Dictionary<string, string> ParseOptions(string[] args)
     {

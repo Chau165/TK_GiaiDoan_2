@@ -20,10 +20,33 @@ public class CDM_San_Pham_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_San_Pham v_objRes = CUtility.Map_Row_To_Entity<CDM_San_Pham>(v_row);
-                v_objRes.Ma_San_Pham = Convert.ToString(v_row["Code"]) ?? "";
-                v_objRes.Ten_San_Pham = Convert.ToString(v_row["Name"]) ?? "";
-                v_objRes.Loai_San_Pham_ID = Convert.ToInt64(v_row["Related_ID"]);
-                v_objRes.Don_Vi_Tinh_ID = Convert.ToInt64(v_row["Related_ID_2"]);
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public List<CDM_San_Pham> F2018_sp_sel_List_San_Pham_For_Cache()
+    {
+        List<CDM_San_Pham> v_arrRes = new List<CDM_San_Pham>();
+        DataTable v_dt = new DataTable();
+
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2018_sp_sel_List_San_Pham_For_Cache");
+
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CDM_San_Pham v_objRes = CUtility.Map_Row_To_Entity<CDM_San_Pham>(v_row);
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -51,8 +74,6 @@ public class CDM_San_Pham_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_San_Pham v_objRes = CUtility.Map_Row_To_Entity<CDM_San_Pham>(v_row);
-                v_objRes.Ma_San_Pham = Convert.ToString(v_row["Code"] ) ?? "";
-                v_objRes.Ten_San_Pham = Convert.ToString(v_row["Name"] ) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }

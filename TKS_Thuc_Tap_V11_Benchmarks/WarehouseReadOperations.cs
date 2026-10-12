@@ -23,26 +23,32 @@ public sealed class WarehouseReadOperations
             .List_Lookup_Page_Async("SanPham", 1, m_settings.PageSize, "")).Items.Count;
     }
 
-    public async Task<int> DocumentPagedAsync()
+    public Task<int> DocumentPagedAsync()
     {
-        return (await new CWarehouseDocument_Controller()
-            .List_Documents_Page_Async(true, 1, m_settings.PageSize, "", m_settings.LoginName)).Items.Count;
+        var v_objPage = new CWarehouseDocumentSupport_Controller()
+            .sp_XNK_Document_Page(true, 1, m_settings.PageSize, "", m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 
-    public async Task<int> DetailReportPagedAsync()
+    public Task<int> DetailReportPagedAsync()
     {
-        return (await new CWarehouseReport_Controller()
-            .Detail_Report_Page_Async(true, m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName)).Items.Count;
+        var v_objPage = new CWarehouseReport_Controller()
+            .sp_BC_Chi_Tiet_Nhap_Page(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 
     public Task<int> InventoryHistoricalReportPagedAsync()
     {
-        return InventoryReportPagedAsync(p_bRead_Current_Balance: false);
+        var v_objPage = new CWarehouseReport_Controller()
+            .sp_BC_Xuat_Nhap_Ton_Page(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 
     public Task<int> InventoryCurrentBalancePagedAsync()
     {
-        return InventoryReportPagedAsync(p_bRead_Current_Balance: true);
+        var v_objPage = new CWarehouseReport_Controller()
+            .sp_BC_Ton_Kho_Hien_Tai_Page(1, m_settings.PageSize, m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 
     // Backward-compatible alias. The former name represented the historical
@@ -52,15 +58,4 @@ public sealed class WarehouseReadOperations
         return InventoryHistoricalReportPagedAsync();
     }
 
-    private async Task<int> InventoryReportPagedAsync(bool p_bRead_Current_Balance)
-    {
-        return (await new CWarehouseReport_Controller()
-            .Inventory_Report_Page_Async(
-                m_settings.ReportFromDate,
-                m_settings.ReportToDate,
-                1,
-                m_settings.PageSize,
-                m_settings.LoginName,
-                p_bRead_Current_Balance: p_bRead_Current_Balance)).Items.Count;
-    }
 }

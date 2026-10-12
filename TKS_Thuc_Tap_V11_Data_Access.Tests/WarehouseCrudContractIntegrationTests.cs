@@ -83,7 +83,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Controller_executes_receipt_and_issue_crud_with_returned_ids_and_header_cascade()
     {
-        var v_objController = new CWarehouseDocument_Controller();
+        var v_objController = new WarehouseDocumentTestHarness();
         var v_objReceipt = Receipt("R1", m_iWarehouseAId, new DateTime(2026, 1, 1));
 
         await v_objController.Save_Document_Async(v_objReceipt, "tdd-user", "tdd-function", m_strLogin);
@@ -160,7 +160,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Controller_rejects_invalid_detail_and_rolls_back_negative_issue_detail()
     {
-        var v_objController = new CWarehouseDocument_Controller();
+        var v_objController = new WarehouseDocumentTestHarness();
         var v_objReceipt = Receipt("R2", m_iWarehouseAId, new DateTime(2026, 2, 1));
         await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
 
@@ -185,7 +185,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Delete_draft_does_not_commit_a_caller_owned_transaction()
     {
-        var v_objController = new CWarehouseDocument_Controller();
+        var v_objController = new WarehouseDocumentTestHarness();
         var v_objReceipt = Receipt("R3", m_iWarehouseAId, new DateTime(2026, 3, 1));
         await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
         await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 5m, 100m), "", "", m_strLogin);
@@ -220,7 +220,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Post_makes_a_draft_document_a_movement_and_rolls_back_an_insufficient_issue()
     {
-        var v_objController = new CWarehouseDocument_Controller();
+        var v_objController = new WarehouseDocumentTestHarness();
         var v_objReceipt = Receipt("POST-R", m_iWarehouseAId, new DateTime(2026, 4, 1));
         await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
         await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, m_iProductId, 10m, 100m), "", "", m_strLogin);

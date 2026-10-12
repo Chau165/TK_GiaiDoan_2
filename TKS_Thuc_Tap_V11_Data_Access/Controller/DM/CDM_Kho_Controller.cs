@@ -20,7 +20,33 @@ public class CDM_Kho_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_Kho v_objRes = CUtility.Map_Row_To_Entity<CDM_Kho>(v_row);
-                v_objRes.Ten_Kho = Convert.ToString(v_row["Name"]) ?? "";
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public List<CDM_Kho> F2009_sp_sel_List_Kho_For_Cache()
+    {
+        List<CDM_Kho> v_arrRes = new List<CDM_Kho>();
+        DataTable v_dt = new DataTable();
+
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2009_sp_sel_List_Kho_For_Cache");
+
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CDM_Kho v_objRes = CUtility.Map_Row_To_Entity<CDM_Kho>(v_row);
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -48,7 +74,6 @@ public class CDM_Kho_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_Kho v_objRes = CUtility.Map_Row_To_Entity<CDM_Kho>(v_row);
-                v_objRes.Ten_Kho = Convert.ToString(v_row["Name"]) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }

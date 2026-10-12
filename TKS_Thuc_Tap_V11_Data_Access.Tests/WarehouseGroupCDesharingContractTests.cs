@@ -115,8 +115,10 @@ public sealed class WarehouseGroupCDesharingContractTests
     public void Document_list_stores_are_split_by_receipt_or_issue()
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var v_strReceiptController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
+        var v_strIssueController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
         var v_strReceiptList = ExtractProcedure(v_strSql, "F3001_sp_sel_List_Nhap_Kho");
         var v_strIssueList = ExtractProcedure(v_strSql, "F3002_sp_sel_List_Xuat_Kho");
         Assert.DoesNotContain("@Is_Receipt", v_strReceiptList, StringComparison.OrdinalIgnoreCase);
@@ -125,17 +127,20 @@ public sealed class WarehouseGroupCDesharingContractTests
         Assert.DoesNotContain("tbl_XNK_Xuat_Kho", v_strReceiptList, StringComparison.Ordinal);
         Assert.Contains("tbl_XNK_Xuat_Kho", v_strIssueList, StringComparison.Ordinal);
         Assert.DoesNotContain("tbl_XNK_Nhap_Kho", v_strIssueList, StringComparison.Ordinal);
-        Assert.Contains("\"F3001_sp_sel_List_Nhap_Kho\"", v_strController, StringComparison.Ordinal);
-        Assert.Contains("\"F3002_sp_sel_List_Xuat_Kho\"", v_strController, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"sp_XNK_Document_List\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F3001_sp_sel_List_Nhap_Kho\"", v_strReceiptController, StringComparison.Ordinal);
+        Assert.Contains("\"F3002_sp_sel_List_Xuat_Kho\"", v_strIssueController, StringComparison.Ordinal);
+        Assert.DoesNotContain("F3002_", v_strReceiptController, StringComparison.Ordinal);
+        Assert.DoesNotContain("F3001_", v_strIssueController, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Document_detail_stores_are_split_by_receipt_or_issue()
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var v_strReceiptController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
+        var v_strIssueController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
         var v_strReceiptDetail = ExtractProcedure(v_strSql, "F3001_sp_sel_List_Nhap_Kho_Detail");
         var v_strIssueDetail = ExtractProcedure(v_strSql, "F3002_sp_sel_List_Xuat_Kho_Detail");
 
@@ -145,9 +150,10 @@ public sealed class WarehouseGroupCDesharingContractTests
         Assert.DoesNotContain("tbl_XNK_Xuat_Kho_Raw_Data", v_strReceiptDetail, StringComparison.Ordinal);
         Assert.Contains("tbl_XNK_Xuat_Kho_Raw_Data", v_strIssueDetail, StringComparison.Ordinal);
         Assert.DoesNotContain("tbl_XNK_Nhap_Kho_Raw_Data", v_strIssueDetail, StringComparison.Ordinal);
-        Assert.Contains("\"F3001_sp_sel_List_Nhap_Kho_Detail\"", v_strController, StringComparison.Ordinal);
-        Assert.Contains("\"F3002_sp_sel_List_Xuat_Kho_Detail\"", v_strController, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"sp_XNK_Document_Detail_List\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F3001_sp_sel_List_Nhap_Kho_Detail\"", v_strReceiptController, StringComparison.Ordinal);
+        Assert.Contains("\"F3002_sp_sel_List_Xuat_Kho_Detail\"", v_strIssueController, StringComparison.Ordinal);
+        Assert.DoesNotContain("F3002_", v_strReceiptController, StringComparison.Ordinal);
+        Assert.DoesNotContain("F3001_", v_strIssueController, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -159,7 +165,7 @@ public sealed class WarehouseGroupCDesharingContractTests
         var v_strOldProcedure = ExtractProcedure(v_strSql, "sp_BC_Chi_Tiet_Xuat");
 
         Assert.DoesNotContain("@Is_Receipt", v_strOldProcedure, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("v_strProcedure = \"sp_BC_Chi_Tiet_Xuat\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"sp_BC_Chi_Tiet_Xuat\"", v_strController, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,7 +177,7 @@ public sealed class WarehouseGroupCDesharingContractTests
         var v_strProcedure = ExtractProcedure(v_strSql, "sp_BC_Xuat_Nhap_Ton");
 
         Assert.Contains("CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton", v_strProcedure, StringComparison.Ordinal);
-        Assert.Contains("List_From_Procedure<CWarehouseInventoryReport>(\"sp_BC_Xuat_Nhap_Ton\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"sp_BC_Xuat_Nhap_Ton\"", v_strController, StringComparison.Ordinal);
     }
 
     [Fact]

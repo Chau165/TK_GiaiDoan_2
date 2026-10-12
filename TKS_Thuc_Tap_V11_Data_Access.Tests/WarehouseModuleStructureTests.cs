@@ -1,5 +1,6 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
@@ -12,7 +13,9 @@ public class WarehouseModuleStructureTests
     public void Warehouse_module_exposes_separate_controllers_by_responsibility()
     {
         Assert.NotNull(typeof(CWarehouseMasterSupport_Controller));
-        Assert.NotNull(typeof(CWarehouseDocument_Controller));
+        Assert.NotNull(typeof(CXNK_Nhap_Kho_Controller));
+        Assert.NotNull(typeof(CXNK_Xuat_Kho_Controller));
+        Assert.NotNull(typeof(CWarehouseDocumentSupport_Controller));
         Assert.NotNull(typeof(CWarehouseReport_Controller));
     }
 

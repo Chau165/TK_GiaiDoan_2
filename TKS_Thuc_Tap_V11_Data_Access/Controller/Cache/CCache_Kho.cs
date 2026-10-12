@@ -19,7 +19,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
             g_dicData_Ten_Kho.Clear();
 
             CDM_Kho_Controller v_objCtrl = new CDM_Kho_Controller();
-            List<CDM_Kho> v_arrTemp_Data = v_objCtrl.F2009_sp_sel_List_Kho();
+            List<CDM_Kho> v_arrTemp_Data = v_objCtrl.F2009_sp_sel_List_Kho_For_Cache();
 
             foreach (CDM_Kho v_objData in v_arrTemp_Data)
                 Add_Data(v_objData);

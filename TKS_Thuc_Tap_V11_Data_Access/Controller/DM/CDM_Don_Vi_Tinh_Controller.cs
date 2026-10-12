@@ -20,7 +20,33 @@ public class CDM_Don_Vi_Tinh_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_Don_Vi_Tinh v_objRes = CUtility.Map_Row_To_Entity<CDM_Don_Vi_Tinh>(v_row);
-                v_objRes.Ten_Don_Vi_Tinh = Convert.ToString(v_row["Name"]) ?? "";
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public List<CDM_Don_Vi_Tinh> F2016_sp_sel_List_Don_Vi_Tinh_For_Cache()
+    {
+        List<CDM_Don_Vi_Tinh> v_arrRes = new List<CDM_Don_Vi_Tinh>();
+        DataTable v_dt = new DataTable();
+
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2016_sp_sel_List_Don_Vi_Tinh_For_Cache");
+
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CDM_Don_Vi_Tinh v_objRes = CUtility.Map_Row_To_Entity<CDM_Don_Vi_Tinh>(v_row);
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -48,7 +74,6 @@ public class CDM_Don_Vi_Tinh_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_Don_Vi_Tinh v_objRes = CUtility.Map_Row_To_Entity<CDM_Don_Vi_Tinh>(v_row);
-                v_objRes.Ten_Don_Vi_Tinh = Convert.ToString(v_row["Name"]) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }

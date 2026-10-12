@@ -121,9 +121,9 @@ public sealed class WarehouseIssueReservationIntegrationTests : IAsyncLifetime
         Assert.Equal(0L, await ScalarLongAsync("SELECT COUNT_BIG(*) FROM dbo.InventoryReservation_Current r JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Auto_ID = r.Xuat_Kho_Detail_ID WHERE d.Xuat_Kho_ID = @DocumentId;", BigInt("@DocumentId", v_objIssue.Document_ID)));
     }
 
-    private async Task<CWarehouseDocument_Controller> CreateStockAsync(decimal p_decQuantity)
+    private async Task<WarehouseDocumentTestHarness> CreateStockAsync(decimal p_decQuantity)
     {
-        var v_objController = new CWarehouseDocument_Controller();
+        var v_objController = new WarehouseDocumentTestHarness();
         var v_objReceipt = Receipt("R");
         await v_objController.Save_Document_Async(v_objReceipt, "", "", m_strLogin);
         await v_objController.Save_Document_Detail_Async(true, Detail(v_objReceipt.Auto_ID, p_decQuantity), "", "", m_strLogin);
@@ -131,7 +131,7 @@ public sealed class WarehouseIssueReservationIntegrationTests : IAsyncLifetime
         return v_objController;
     }
 
-    private async Task<(long Document_ID, long Auto_ID)> CreateIssueAsync(string p_strSuffix, decimal p_decQuantity, CWarehouseDocument_Controller p_objController)
+    private async Task<(long Document_ID, long Auto_ID)> CreateIssueAsync(string p_strSuffix, decimal p_decQuantity, WarehouseDocumentTestHarness p_objController)
     {
         var v_objIssue = Issue(p_strSuffix);
         await p_objController.Save_Document_Async(v_objIssue, "", "", m_strLogin);

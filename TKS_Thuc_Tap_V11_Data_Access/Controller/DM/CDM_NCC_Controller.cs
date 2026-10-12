@@ -20,8 +20,33 @@ public class CDM_NCC_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_NCC v_objRes = CUtility.Map_Row_To_Entity<CDM_NCC>(v_row);
-                v_objRes.Ma_NCC = Convert.ToString(v_row["Code"]) ?? "";
-                v_objRes.Ten_NCC = Convert.ToString(v_row["Name"]) ?? "";
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public List<CDM_NCC> F2019_sp_sel_List_NCC_For_Cache()
+    {
+        List<CDM_NCC> v_arrRes = new List<CDM_NCC>();
+        DataTable v_dt = new DataTable();
+
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2019_sp_sel_List_NCC_For_Cache");
+
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CDM_NCC v_objRes = CUtility.Map_Row_To_Entity<CDM_NCC>(v_row);
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -49,8 +74,6 @@ public class CDM_NCC_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_NCC v_objRes = CUtility.Map_Row_To_Entity<CDM_NCC>(v_row);
-                v_objRes.Ma_NCC = Convert.ToString(v_row["Code"] ) ?? "";
-                v_objRes.Ten_NCC = Convert.ToString(v_row["Name"] ) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }

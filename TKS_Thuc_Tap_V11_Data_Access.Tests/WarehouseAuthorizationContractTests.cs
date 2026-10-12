@@ -5,9 +5,12 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 public sealed class WarehouseAuthorizationContractTests
 {
     [Fact]
-    public void Warehouse_document_controller_carries_the_current_login_into_every_operation()
+    public void Split_document_and_support_controllers_carry_the_current_login()
     {
-        var v_Source = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var v_Source = string.Concat(
+            File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs")),
+            File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs")),
+            File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocumentSupport_Controller.cs")));
 
         Assert.Contains("p_strCurrent_Login", v_Source);
         Assert.Contains("@Ma_Dang_Nhap", v_Source);

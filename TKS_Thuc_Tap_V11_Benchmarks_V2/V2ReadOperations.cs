@@ -54,48 +54,49 @@ public sealed class V2ReadOperations
             .List_Lookup_Page_Async("SanPham", V2Constants.PageNumber, m_settings.PageSize, "")).Items.Count;
     }
 
-    private async Task<int> DocumentPagedAsync()
+    private Task<int> DocumentPagedAsync()
     {
-        return (await new CWarehouseDocument_Controller()
-            .List_Documents_Page_Async(
+        var v_objPage = new CWarehouseDocumentSupport_Controller()
+            .sp_XNK_Document_Page(
                 true,
                 V2Constants.PageNumber,
                 m_settings.PageSize,
                 "",
-                m_settings.LoginName)).Items.Count;
+                m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 
-    private async Task<int> DetailReportPagedAsync()
+    private Task<int> DetailReportPagedAsync()
     {
-        return (await new CWarehouseReport_Controller()
-            .Detail_Report_Page_Async(
-                true,
+        var v_objPage = new CWarehouseReport_Controller()
+            .sp_BC_Chi_Tiet_Nhap_Page(
                 m_settings.ReportFromDate,
                 m_settings.ReportToDate,
                 V2Constants.PageNumber,
                 m_settings.PageSize,
-                m_settings.LoginName)).Items.Count;
+                m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 
     private Task<int> InventoryHistoricalReportPagedAsync()
     {
-        return InventoryReportPagedAsync(false);
-    }
-
-    private Task<int> InventoryCurrentBalancePagedAsync()
-    {
-        return InventoryReportPagedAsync(true);
-    }
-
-    private async Task<int> InventoryReportPagedAsync(bool p_bReadCurrentBalance)
-    {
-        return (await new CWarehouseReport_Controller()
-            .Inventory_Report_Page_Async(
+        var v_objPage = new CWarehouseReport_Controller()
+            .sp_BC_Xuat_Nhap_Ton_Page(
                 m_settings.ReportFromDate,
                 m_settings.ReportToDate,
                 V2Constants.PageNumber,
                 m_settings.PageSize,
-                m_settings.LoginName,
-                p_bRead_Current_Balance: p_bReadCurrentBalance)).Items.Count;
+                m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
+    }
+
+    private Task<int> InventoryCurrentBalancePagedAsync()
+    {
+        var v_objPage = new CWarehouseReport_Controller()
+            .sp_BC_Ton_Kho_Hien_Tai_Page(
+                V2Constants.PageNumber,
+                m_settings.PageSize,
+                m_settings.LoginName);
+        return Task.FromResult(v_objPage.Items.Count);
     }
 }

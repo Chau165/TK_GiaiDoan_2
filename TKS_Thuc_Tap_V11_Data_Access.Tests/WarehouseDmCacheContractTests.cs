@@ -19,11 +19,11 @@ public sealed class WarehouseDmCacheContractTests
     {
         get
         {
-            yield return new object[] { "CCache_Kho", typeof(CDM_Kho), "CDM_Kho_Controller", "Load_Cache_Kho", "F2009_sp_sel_List_Kho", "tbl_DM_Kho", "Ten_Kho", new[] { "Ten_Kho" }, new[] { "UX_tbl_DM_Kho_Ten" } };
-            yield return new object[] { "CCache_Don_Vi_Tinh", typeof(CDM_Don_Vi_Tinh), "CDM_Don_Vi_Tinh_Controller", "Load_Cache_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh", "tbl_DM_Don_Vi_Tinh", "Ten_Don_Vi_Tinh", new[] { "Ten_Don_Vi_Tinh" }, new[] { "UX_tbl_DM_Don_Vi_Tinh_Ten" } };
-            yield return new object[] { "CCache_Loai_San_Pham", typeof(CDM_Loai_San_Pham), "CDM_Loai_San_Pham_Controller", "Load_Cache_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham", "tbl_DM_Loai_San_Pham", "Ma_LSP", new[] { "Ma_LSP", "Ten_LSP" }, new[] { "UX_tbl_DM_Loai_San_Pham_Ma", "UX_tbl_DM_Loai_San_Pham_Ten" } };
-            yield return new object[] { "CCache_San_Pham", typeof(CDM_San_Pham), "CDM_San_Pham_Controller", "Load_Cache_San_Pham", "F2018_sp_sel_List_San_Pham", "tbl_DM_San_Pham", "Ma_San_Pham", new[] { "Ma_San_Pham" }, new[] { "UX_tbl_DM_San_Pham_Ma" } };
-            yield return new object[] { "CCache_NCC", typeof(CDM_NCC), "CDM_NCC_Controller", "Load_Cache_NCC", "F2019_sp_sel_List_NCC", "tbl_DM_NCC", "Ma_NCC", new[] { "Ma_NCC", "Ten_NCC" }, new[] { "UX_tbl_DM_NCC_Ma", "UX_tbl_DM_NCC_Ten" } };
+            yield return new object[] { "CCache_Kho", typeof(CDM_Kho), "CDM_Kho_Controller", "Load_Cache_Kho", "F2009_sp_sel_List_Kho_For_Cache", "tbl_DM_Kho", "Ten_Kho", new[] { "Ten_Kho" }, new[] { "UX_tbl_DM_Kho_Ten" } };
+            yield return new object[] { "CCache_Don_Vi_Tinh", typeof(CDM_Don_Vi_Tinh), "CDM_Don_Vi_Tinh_Controller", "Load_Cache_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_For_Cache", "tbl_DM_Don_Vi_Tinh", "Ten_Don_Vi_Tinh", new[] { "Ten_Don_Vi_Tinh" }, new[] { "UX_tbl_DM_Don_Vi_Tinh_Ten" } };
+            yield return new object[] { "CCache_Loai_San_Pham", typeof(CDM_Loai_San_Pham), "CDM_Loai_San_Pham_Controller", "Load_Cache_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_For_Cache", "tbl_DM_Loai_San_Pham", "Ma_LSP", new[] { "Ma_LSP", "Ten_LSP" }, new[] { "UX_tbl_DM_Loai_San_Pham_Ma", "UX_tbl_DM_Loai_San_Pham_Ten" } };
+            yield return new object[] { "CCache_San_Pham", typeof(CDM_San_Pham), "CDM_San_Pham_Controller", "Load_Cache_San_Pham", "F2018_sp_sel_List_San_Pham_For_Cache", "tbl_DM_San_Pham", "Ma_San_Pham", new[] { "Ma_San_Pham" }, new[] { "UX_tbl_DM_San_Pham_Ma" } };
+            yield return new object[] { "CCache_NCC", typeof(CDM_NCC), "CDM_NCC_Controller", "Load_Cache_NCC", "F2019_sp_sel_List_NCC_For_Cache", "tbl_DM_NCC", "Ma_NCC", new[] { "Ma_NCC", "Ten_NCC" }, new[] { "UX_tbl_DM_NCC_Ma", "UX_tbl_DM_NCC_Ten" } };
         }
     }
 

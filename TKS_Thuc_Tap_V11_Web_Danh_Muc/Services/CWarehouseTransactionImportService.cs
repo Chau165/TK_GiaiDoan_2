@@ -1,6 +1,9 @@
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
 
@@ -19,9 +22,16 @@ public interface ITransactionImportStore
         string p_strCurrent_Login,
         CancellationToken p_objCancellationToken);
 
-    Task Save_Document_Atomically_Async(
-        CWarehouseDocument p_objDocument,
-        IReadOnlyList<CWarehouseDocumentDetail> p_arrDetails,
+    Task Save_Nhap_Kho_Atomically_Async(
+        CXNK_Nhap_Kho p_objDocument,
+        IReadOnlyList<CXNK_Nhap_Kho_Detail> p_arrDetails,
+        string p_strCurrent_User,
+        string p_strCurrent_Function,
+        CancellationToken p_objCancellationToken);
+
+    Task Save_Xuat_Kho_Atomically_Async(
+        CXNK_Xuat_Kho p_objDocument,
+        IReadOnlyList<CXNK_Xuat_Kho_Detail> p_arrDetails,
         string p_strCurrent_User,
         string p_strCurrent_Function,
         CancellationToken p_objCancellationToken);
@@ -90,26 +100,65 @@ public sealed class CWarehouseTransactionImportService
                 continue;
             }
 
-            var v_objHeader = new CWarehouseDocument
-            {
-                Is_Receipt = v_bIsReceipt,
-                So_Phieu = v_objDocument.DocumentNumber,
-                Kho_ID = v_objDocument.Warehouse_ID,
-                NCC_ID = v_bIsReceipt ? v_objDocument.Supplier_ID : 0,
-                Ngay_Chung_Tu = v_objDocument.DocumentDate!.Value,
-                Ghi_Chu = v_objDocument.Note
-            };
-            var v_arrDetails = v_objDocument.Lines.Select(v_objLine => new CWarehouseDocumentDetail
-            {
-                San_Pham_ID = v_objLine.Product_ID,
-                So_Luong = v_objLine.Quantity!.Value,
-                Don_Gia = v_objLine.UnitPrice!.Value
-            }).ToArray();
-
             try
             {
-                await m_objStore.Save_Document_Atomically_Async(
-                    v_objHeader, v_arrDetails, p_strCurrent_User, p_strCurrent_Function, p_objCancellationToken);
+                if (v_bIsReceipt)
+                {
+                    var v_objHeader = new CXNK_Nhap_Kho
+                    {
+                        So_Phieu_Nhap_Kho = v_objDocument.DocumentNumber,
+                        Kho_ID = v_objDocument.Warehouse_ID,
+                        NCC_ID = v_objDocument.Supplier_ID,
+                        Ngay_Nhap_Kho = v_objDocument.DocumentDate!.Value,
+                        Ghi_Chu = v_objDocument.Note,
+                        Ma_Dang_Nhap = p_strCurrent_User,
+                        Created_By = p_strCurrent_User,
+                        Created_By_Function = p_strCurrent_Function,
+                        Last_Updated_By = p_strCurrent_User,
+                        Last_Updated_By_Function = p_strCurrent_Function
+                    };
+                    var v_arrDetails = v_objDocument.Lines.Select(v_objLine => new CXNK_Nhap_Kho_Detail
+                    {
+                        San_Pham_ID = v_objLine.Product_ID,
+                        SL_Nhap = v_objLine.Quantity!.Value,
+                        Don_Gia_Nhap = v_objLine.UnitPrice!.Value,
+                        Ma_Dang_Nhap = p_strCurrent_User,
+                        Created_By = p_strCurrent_User,
+                        Created_By_Function = p_strCurrent_Function,
+                        Last_Updated_By = p_strCurrent_User,
+                        Last_Updated_By_Function = p_strCurrent_Function
+                    }).ToArray();
+                    await m_objStore.Save_Nhap_Kho_Atomically_Async(
+                        v_objHeader, v_arrDetails, p_strCurrent_User, p_strCurrent_Function, p_objCancellationToken);
+                }
+                else
+                {
+                    var v_objHeader = new CXNK_Xuat_Kho
+                    {
+                        So_Phieu_Xuat_Kho = v_objDocument.DocumentNumber,
+                        Kho_ID = v_objDocument.Warehouse_ID,
+                        Ngay_Xuat_Kho = v_objDocument.DocumentDate!.Value,
+                        Ghi_Chu = v_objDocument.Note,
+                        Ma_Dang_Nhap = p_strCurrent_User,
+                        Created_By = p_strCurrent_User,
+                        Created_By_Function = p_strCurrent_Function,
+                        Last_Updated_By = p_strCurrent_User,
+                        Last_Updated_By_Function = p_strCurrent_Function
+                    };
+                    var v_arrDetails = v_objDocument.Lines.Select(v_objLine => new CXNK_Xuat_Kho_Detail
+                    {
+                        San_Pham_ID = v_objLine.Product_ID,
+                        SL_Xuat = v_objLine.Quantity!.Value,
+                        Don_Gia_Xuat = v_objLine.UnitPrice!.Value,
+                        Ma_Dang_Nhap = p_strCurrent_User,
+                        Created_By = p_strCurrent_User,
+                        Created_By_Function = p_strCurrent_Function,
+                        Last_Updated_By = p_strCurrent_User,
+                        Last_Updated_By_Function = p_strCurrent_Function
+                    }).ToArray();
+                    await m_objStore.Save_Xuat_Kho_Atomically_Async(
+                        v_objHeader, v_arrDetails, p_strCurrent_User, p_strCurrent_Function, p_objCancellationToken);
+                }
                 v_iImported++;
             }
             catch (Exception p_objException)
@@ -188,8 +237,9 @@ public sealed class CTransactionImportValidationException : Exception
 public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
 {
     private readonly CWarehouseProductSupport_Service m_objProductSupportService = new();
-    private readonly CWarehouseDocument_Controller m_objDocumentController = new();
-    private readonly CWarehousePermission_Controller m_objPermissionController = new();
+    private readonly CXNK_Nhap_Kho_Controller m_objNhapKhoController = new();
+    private readonly CXNK_Xuat_Kho_Controller m_objXuatKhoController = new();
+    private readonly CDM_Kho_User_Controller m_objKhoUserController = new();
     private readonly CWarehouseReport_Controller m_objReportController = new();
 
     public async Task<CTransactionImportReferences> Load_References_Async(
@@ -199,7 +249,7 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
         CancellationToken p_objCancellationToken)
     {
         var v_bIsReceipt = p_strProfileCode == "Inbound";
-        var v_arrAllowedWarehouses = await m_objPermissionController.List_Authorized_Warehouses_Async(p_strCurrent_Login);
+        var v_arrAllowedWarehouses = m_objKhoUserController.sp_DM_Kho_User_List_Allowed(p_strCurrent_Login);
         var v_arrWarehouses = v_arrAllowedWarehouses.Select(v_objWarehouse => new CWarehouseMaster
         {
             Auto_ID = v_objWarehouse.Auto_ID,
@@ -239,7 +289,7 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
             v_bIsReceipt, p_arrDocumentNumbers, p_strCurrent_Login, p_objCancellationToken);
         var v_arrInventoryBalances = v_bIsReceipt
             ? null
-            : await Load_Current_Inventory_Balances_Async(p_strCurrent_Login, p_objCancellationToken);
+            : Load_Current_Inventory_Balances(p_strCurrent_Login, p_objCancellationToken);
 
         return new CTransactionImportReferences
         {
@@ -252,15 +302,100 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
         };
     }
 
-    public async Task Save_Document_Atomically_Async(
-        CWarehouseDocument p_objDocument,
-        IReadOnlyList<CWarehouseDocumentDetail> p_arrDetails,
+    public async Task Save_Nhap_Kho_Atomically_Async(
+        CXNK_Nhap_Kho p_objDocument,
+        IReadOnlyList<CXNK_Nhap_Kho_Detail> p_arrDetails,
         string p_strCurrent_User,
         string p_strCurrent_Function,
         CancellationToken p_objCancellationToken)
     {
-        await m_objDocumentController.Save_Imported_Document_Atomically_Async(
-            p_objDocument, p_arrDetails, p_strCurrent_User, p_strCurrent_Function, p_objCancellationToken);
+        ArgumentNullException.ThrowIfNull(p_objDocument);
+        ArgumentNullException.ThrowIfNull(p_arrDetails);
+        if (p_objDocument.Auto_ID != 0)
+            throw new ArgumentException("Import chỉ được tạo chứng từ mới.", nameof(p_objDocument));
+        if (p_arrDetails.Count == 0)
+            throw new ArgumentException("Chứng từ phải có ít nhất một dòng chi tiết.", nameof(p_arrDetails));
+
+        p_objDocument.Ma_Dang_Nhap = p_strCurrent_User;
+        p_objDocument.Created_By = p_strCurrent_User;
+        p_objDocument.Created_By_Function = p_strCurrent_Function;
+        p_objDocument.Last_Updated_By = p_strCurrent_User;
+        p_objDocument.Last_Updated_By_Function = p_strCurrent_Function;
+        await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
+        await v_objConnection.OpenAsync(p_objCancellationToken);
+        using var v_objTransaction = v_objConnection.BeginTransaction();
+        try
+        {
+            p_objCancellationToken.ThrowIfCancellationRequested();
+            m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_objConnection, v_objTransaction, p_objDocument);
+            foreach (var v_objDetail in p_arrDetails)
+            {
+                p_objCancellationToken.ThrowIfCancellationRequested();
+                v_objDetail.Auto_ID = 0;
+                v_objDetail.Nhap_Kho_ID = p_objDocument.Auto_ID;
+                v_objDetail.Ma_Dang_Nhap = p_strCurrent_User;
+                v_objDetail.Created_By = p_strCurrent_User;
+                v_objDetail.Created_By_Function = p_strCurrent_Function;
+                v_objDetail.Last_Updated_By = p_strCurrent_User;
+                v_objDetail.Last_Updated_By_Function = p_strCurrent_Function;
+                m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_objConnection, v_objTransaction, v_objDetail);
+            }
+            v_objTransaction.Commit();
+        }
+        catch
+        {
+            try { v_objTransaction.Rollback(); }
+            catch { }
+            throw;
+        }
+    }
+
+    public async Task Save_Xuat_Kho_Atomically_Async(
+        CXNK_Xuat_Kho p_objDocument,
+        IReadOnlyList<CXNK_Xuat_Kho_Detail> p_arrDetails,
+        string p_strCurrent_User,
+        string p_strCurrent_Function,
+        CancellationToken p_objCancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(p_objDocument);
+        ArgumentNullException.ThrowIfNull(p_arrDetails);
+        if (p_objDocument.Auto_ID != 0)
+            throw new ArgumentException("Import chỉ được tạo chứng từ mới.", nameof(p_objDocument));
+        if (p_arrDetails.Count == 0)
+            throw new ArgumentException("Chứng từ phải có ít nhất một dòng chi tiết.", nameof(p_arrDetails));
+
+        p_objDocument.Ma_Dang_Nhap = p_strCurrent_User;
+        p_objDocument.Created_By = p_strCurrent_User;
+        p_objDocument.Created_By_Function = p_strCurrent_Function;
+        p_objDocument.Last_Updated_By = p_strCurrent_User;
+        p_objDocument.Last_Updated_By_Function = p_strCurrent_Function;
+        await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
+        await v_objConnection.OpenAsync(p_objCancellationToken);
+        using var v_objTransaction = v_objConnection.BeginTransaction();
+        try
+        {
+            p_objCancellationToken.ThrowIfCancellationRequested();
+            m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_objConnection, v_objTransaction, p_objDocument);
+            foreach (var v_objDetail in p_arrDetails)
+            {
+                p_objCancellationToken.ThrowIfCancellationRequested();
+                v_objDetail.Auto_ID = 0;
+                v_objDetail.Xuat_Kho_ID = p_objDocument.Auto_ID;
+                v_objDetail.Ma_Dang_Nhap = p_strCurrent_User;
+                v_objDetail.Created_By = p_strCurrent_User;
+                v_objDetail.Created_By_Function = p_strCurrent_Function;
+                v_objDetail.Last_Updated_By = p_strCurrent_User;
+                v_objDetail.Last_Updated_By_Function = p_strCurrent_Function;
+                m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_objConnection, v_objTransaction, v_objDetail);
+            }
+            v_objTransaction.Commit();
+        }
+        catch
+        {
+            try { v_objTransaction.Rollback(); }
+            catch { }
+            throw;
+        }
     }
 
     private async Task<List<CTransactionImportExistingDocument>> Load_Existing_Documents_Async(
@@ -272,23 +407,40 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
         var v_setDocumentNumbers = p_arrDocumentNumbers
             .Select(CImportBusinessValueComparer.Normalize)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var v_arrHeaders = await m_objDocumentController.List_Documents_Async(p_bIsReceipt, p_strCurrent_Login);
-        var v_arrMatches = v_arrHeaders
-            .Where(v_objHeader => v_setDocumentNumbers.Contains(CImportBusinessValueComparer.Normalize(v_objHeader.So_Phieu)))
-            .ToArray();
-        var v_arrExisting = new List<CTransactionImportExistingDocument>(v_arrMatches.Length);
-        foreach (var v_objHeader in v_arrMatches)
+        var v_arrExisting = new List<CTransactionImportExistingDocument>();
+        if (p_bIsReceipt)
         {
-            p_objCancellationToken.ThrowIfCancellationRequested();
-            var v_arrDetails = await m_objDocumentController.List_Document_Details_Async(
-                p_bIsReceipt, v_objHeader.Auto_ID, p_strCurrent_Login);
-            v_arrExisting.Add(new CTransactionImportExistingDocument(v_objHeader, v_arrDetails));
+            var v_arrHeaders = m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(p_strCurrent_Login);
+            foreach (var v_objHeader in v_arrHeaders.Where(v_objHeader =>
+                v_setDocumentNumbers.Contains(CImportBusinessValueComparer.Normalize(v_objHeader.So_Phieu_Nhap_Kho))))
+            {
+                p_objCancellationToken.ThrowIfCancellationRequested();
+                var v_arrDetails = m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(v_objHeader.Auto_ID, p_strCurrent_Login);
+                v_arrExisting.Add(new CTransactionImportExistingDocument(true, v_objHeader.So_Phieu_Nhap_Kho,
+                    v_objHeader.Kho_ID, v_objHeader.NCC_ID, v_objHeader.Ngay_Nhap_Kho, v_objHeader.Ghi_Chu,
+                    v_arrDetails.Select(v_objDetail => new CTransactionImportExistingLine(
+                        v_objDetail.San_Pham_ID, v_objDetail.SL_Nhap, v_objDetail.Don_Gia_Nhap)).ToArray()));
+            }
+        }
+        else
+        {
+            var v_arrHeaders = m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(p_strCurrent_Login);
+            foreach (var v_objHeader in v_arrHeaders.Where(v_objHeader =>
+                v_setDocumentNumbers.Contains(CImportBusinessValueComparer.Normalize(v_objHeader.So_Phieu_Xuat_Kho))))
+            {
+                p_objCancellationToken.ThrowIfCancellationRequested();
+                var v_arrDetails = m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(v_objHeader.Auto_ID, p_strCurrent_Login);
+                v_arrExisting.Add(new CTransactionImportExistingDocument(false, v_objHeader.So_Phieu_Xuat_Kho,
+                    v_objHeader.Kho_ID, v_objHeader.NCC_ID, v_objHeader.Ngay_Xuat_Kho, v_objHeader.Ghi_Chu,
+                    v_arrDetails.Select(v_objDetail => new CTransactionImportExistingLine(
+                        v_objDetail.San_Pham_ID, v_objDetail.SL_Xuat, v_objDetail.Don_Gia_Xuat)).ToArray()));
+            }
         }
 
         return v_arrExisting;
     }
 
-    private async Task<IReadOnlyList<CTransactionImportInventoryBalance>> Load_Current_Inventory_Balances_Async(
+    private IReadOnlyList<CTransactionImportInventoryBalance> Load_Current_Inventory_Balances(
         string p_strCurrent_Login,
         CancellationToken p_objCancellationToken)
     {
@@ -300,9 +452,8 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
         do
         {
             p_objCancellationToken.ThrowIfCancellationRequested();
-            var v_objPage = await m_objReportController.Inventory_Report_Page_Async(
-                DateTime.Today, DateTime.Today, v_iPage, v_iPageSize, p_strCurrent_Login,
-                p_bRead_Current_Balance: true);
+            var v_objPage = m_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                v_iPage, v_iPageSize, p_strCurrent_Login);
             v_iTotal = v_objPage.Total_Count;
             v_arrBalances.AddRange(v_objPage.Items.Select(v_objBalance => new CTransactionImportInventoryBalance(
                 v_objBalance.Kho_ID,

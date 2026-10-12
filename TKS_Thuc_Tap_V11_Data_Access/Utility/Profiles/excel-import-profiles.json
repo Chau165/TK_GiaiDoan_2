@@ -274,6 +274,7 @@
           { "field": "CategoryCode", "required": false, "aliases": ["Mã loại sản phẩm", "Mã nhóm"], "policy": "IgnoreSourceOnly", "policyReason": "Category is derived from Product master data." },
           { "field": "Quantity", "required": true, "aliases": ["SL xuất", "Số lượng xuất"] },
           { "field": "LineNumber", "required": false, "aliases": ["Dòng"], "policy": "SafeIgnore", "policyReason": "The current Preview preserves source detail row order and has no separately persisted source line-number field." },
+          { "field": "UnitPrice", "required": false, "aliases": ["Đơn giá"] },
           { "field": "RequestedQuantity", "required": false, "aliases": ["SL yêu cầu"], "policy": "IgnoreSourceOnly", "policyReason": "The current issue detail stores actual issued quantity only; SL xuất is the persisted quantity." },
           { "field": "LineNote", "required": false, "aliases": ["Ghi chú"], "policy": "IgnoreSourceOnly", "policyReason": "Current issue detail has no line-note field." },
           { "field": "LotCode", "required": false, "aliases": ["LOT xuất", "Mã LOT", "LOT"], "policy": "IgnoreSourceOnly", "policyReason": "Current issue and inventory detail have no lot identity." },

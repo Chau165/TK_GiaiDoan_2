@@ -10,7 +10,7 @@ Every measured request follows the existing Data Access controller, Warehouse co
 |---|---|---|
 | MasterPaged | `CWarehouseMasterSupport_Controller.List_Master_Page_Async` | `dbo.sp_DM_Master_Page` |
 | LookupPaged | `CWarehouseMasterSupport_Controller.List_Lookup_Page_Async` | `dbo.sp_DM_Lookup_Page` |
-| DocumentPaged | `CWarehouseDocument_Controller.List_Documents_Page_Async` | `dbo.sp_XNK_Document_Page` |
+| DocumentPaged | `CWarehouseDocumentSupport_Controller.sp_XNK_Document_Page` | `dbo.sp_XNK_Document_Page` |
 | DetailReportPaged | `CWarehouseReport_Controller.Detail_Report_Page_Async` | `dbo.sp_BC_Chi_Tiet_Nhap_Page` |
 | InventoryHistoricalReportPaged | `CWarehouseReport_Controller.Inventory_Report_Page_Async` | `dbo.sp_BC_Xuat_Nhap_Ton_Page` |
 | InventoryCurrentBalancePaged | `CWarehouseReport_Controller.Inventory_Report_Page_Async` | `dbo.sp_BC_Ton_Kho_Hien_Tai_Page` |

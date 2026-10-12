@@ -20,8 +20,33 @@ public class CDM_Loai_San_Pham_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_Loai_San_Pham v_objRes = CUtility.Map_Row_To_Entity<CDM_Loai_San_Pham>(v_row);
-                v_objRes.Ma_LSP = Convert.ToString(v_row["Code"]) ?? "";
-                v_objRes.Ten_LSP = Convert.ToString(v_row["Name"]) ?? "";
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public List<CDM_Loai_San_Pham> F2017_sp_sel_List_Loai_San_Pham_For_Cache()
+    {
+        List<CDM_Loai_San_Pham> v_arrRes = new List<CDM_Loai_San_Pham>();
+        DataTable v_dt = new DataTable();
+
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2017_sp_sel_List_Loai_San_Pham_For_Cache");
+
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CDM_Loai_San_Pham v_objRes = CUtility.Map_Row_To_Entity<CDM_Loai_San_Pham>(v_row);
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -49,8 +74,6 @@ public class CDM_Loai_San_Pham_Controller
             foreach (DataRow v_row in v_dt.Rows)
             {
                 CDM_Loai_San_Pham v_objRes = CUtility.Map_Row_To_Entity<CDM_Loai_San_Pham>(v_row);
-                v_objRes.Ma_LSP = Convert.ToString(v_row["Code"] ) ?? "";
-                v_objRes.Ten_LSP = Convert.ToString(v_row["Name"] ) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }

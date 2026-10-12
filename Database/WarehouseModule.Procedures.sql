@@ -3747,7 +3747,7 @@ CREATE OR ALTER PROCEDURE dbo.F2009_sp_sel_List_Kho
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Kho AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
+    SELECT Auto_ID, Ten_Kho, Ghi_Chu FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
 END
 GO
 
@@ -3755,7 +3755,7 @@ CREATE OR ALTER PROCEDURE dbo.F2016_sp_sel_List_Don_Vi_Tinh
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Don_Vi_Tinh AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Don_Vi_Tinh ORDER BY Ten_Don_Vi_Tinh;
+    SELECT Auto_ID, Ten_Don_Vi_Tinh, Ghi_Chu FROM dbo.tbl_DM_Don_Vi_Tinh ORDER BY Ten_Don_Vi_Tinh;
 END
 GO
 
@@ -3763,7 +3763,7 @@ CREATE OR ALTER PROCEDURE dbo.F2017_sp_sel_List_Loai_San_Pham
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, Ma_LSP AS Code, Ten_LSP AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_Loai_San_Pham ORDER BY Ma_LSP;
+    SELECT Auto_ID, Ma_LSP, Ten_LSP, Ghi_Chu FROM dbo.tbl_DM_Loai_San_Pham ORDER BY Ma_LSP;
 END
 GO
 
@@ -3771,7 +3771,7 @@ CREATE OR ALTER PROCEDURE dbo.F2018_sp_sel_List_San_Pham
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, Ma_San_Pham AS Code, Ten_San_Pham AS Name, Loai_San_Pham_ID AS Related_ID, Don_Vi_Tinh_ID AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_San_Pham ORDER BY Ma_San_Pham;
+    SELECT Auto_ID, Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu FROM dbo.tbl_DM_San_Pham ORDER BY Ma_San_Pham;
 END
 GO
 
@@ -3779,7 +3779,47 @@ CREATE OR ALTER PROCEDURE dbo.F2019_sp_sel_List_NCC
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, Ma_NCC AS Code, Ten_NCC AS Name, CAST(0 AS BIGINT) AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2, CAST(N'' AS NVARCHAR(100)) AS Login_Name, Ghi_Chu FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
+    SELECT Auto_ID, Ma_NCC, Ten_NCC, Ghi_Chu FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.F2009_sp_sel_List_Kho_For_Cache
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ten_Kho, Ghi_Chu FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.F2016_sp_sel_List_Don_Vi_Tinh_For_Cache
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ten_Don_Vi_Tinh, Ghi_Chu FROM dbo.tbl_DM_Don_Vi_Tinh ORDER BY Ten_Don_Vi_Tinh;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.F2017_sp_sel_List_Loai_San_Pham_For_Cache
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ma_LSP, Ten_LSP, Ghi_Chu FROM dbo.tbl_DM_Loai_San_Pham ORDER BY Ma_LSP;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.F2018_sp_sel_List_San_Pham_For_Cache
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu FROM dbo.tbl_DM_San_Pham ORDER BY Ma_San_Pham;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.F2019_sp_sel_List_NCC_For_Cache
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ma_NCC, Ten_NCC, Ghi_Chu FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
 END
 GO
 
@@ -3787,7 +3827,7 @@ CREATE OR ALTER PROCEDURE dbo.F2009_sp_sel_List_Kho_Lookup
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Kho AS Name FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
+    SELECT Auto_ID, Ten_Kho FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
 END
 GO
 
@@ -3795,7 +3835,7 @@ CREATE OR ALTER PROCEDURE dbo.F2016_sp_sel_List_Don_Vi_Tinh_Lookup
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, Ten_Don_Vi_Tinh AS Name FROM dbo.tbl_DM_Don_Vi_Tinh ORDER BY Ten_Don_Vi_Tinh;
+    SELECT Auto_ID, Ten_Don_Vi_Tinh FROM dbo.tbl_DM_Don_Vi_Tinh ORDER BY Ten_Don_Vi_Tinh;
 END
 GO
 
@@ -3803,7 +3843,7 @@ CREATE OR ALTER PROCEDURE dbo.F2017_sp_sel_List_Loai_San_Pham_Lookup
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, Ma_LSP AS Code, Ten_LSP AS Name FROM dbo.tbl_DM_Loai_San_Pham ORDER BY Ma_LSP;
+    SELECT Auto_ID, Ma_LSP, Ten_LSP FROM dbo.tbl_DM_Loai_San_Pham ORDER BY Ma_LSP;
 END
 GO
 
@@ -3811,7 +3851,7 @@ CREATE OR ALTER PROCEDURE dbo.F2018_sp_sel_List_San_Pham_Lookup
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, Ma_San_Pham AS Code, Ten_San_Pham AS Name FROM dbo.tbl_DM_San_Pham ORDER BY Ma_San_Pham;
+    SELECT Auto_ID, Ma_San_Pham, Ten_San_Pham FROM dbo.tbl_DM_San_Pham ORDER BY Ma_San_Pham;
 END
 GO
 
@@ -3819,7 +3859,7 @@ CREATE OR ALTER PROCEDURE dbo.F2019_sp_sel_List_NCC_Lookup
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Auto_ID, Ma_NCC AS Code, Ten_NCC AS Name FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
+    SELECT Auto_ID, Ma_NCC, Ten_NCC FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
 END
 GO
 
@@ -4940,7 +4980,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DECLARE @Filter NVARCHAR(260) = N'%' + ISNULL(@Search_Text, N'') + N'%';
-    SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, tv.Ho_Ten AS Name, u.Ma_Dang_Nhap AS Login_Name, k.Ten_Kho AS Ghi_Chu, u.Kho_ID AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2
+    SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, tv.Ho_Ten AS Ho_Ten, u.Ma_Dang_Nhap AS Ma_Dang_Nhap, k.Ten_Kho AS Ten_Kho, u.Kho_ID AS Kho_ID, CAST(0 AS BIGINT) AS Related_ID_2
     FROM dbo.tbl_DM_Kho_User u LEFT JOIN dbo.tbl_Sys_Thanh_Vien tv ON tv.Ma_Dang_Nhap = u.Ma_Dang_Nhap JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = u.Kho_ID
     WHERE ISNULL(@Search_Text, N'') = N'' OR u.Ma_Dang_Nhap LIKE @Filter OR tv.Ho_Ten LIKE @Filter OR k.Ten_Kho LIKE @Filter
     ORDER BY u.Ma_Dang_Nhap, k.Ten_Kho;
@@ -4958,7 +4998,7 @@ BEGIN
     SELECT COUNT(*) AS Total_Count
     FROM dbo.tbl_DM_Kho_User u LEFT JOIN dbo.tbl_Sys_Thanh_Vien tv ON tv.Ma_Dang_Nhap = u.Ma_Dang_Nhap JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = u.Kho_ID
     WHERE ISNULL(@Search_Text, N'') = N'' OR u.Ma_Dang_Nhap LIKE @Filter OR tv.Ho_Ten LIKE @Filter OR k.Ten_Kho LIKE @Filter;
-    SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, tv.Ho_Ten AS Name, u.Ma_Dang_Nhap AS Login_Name, k.Ten_Kho AS Ghi_Chu, u.Kho_ID AS Related_ID, CAST(0 AS BIGINT) AS Related_ID_2
+    SELECT u.Auto_ID, CAST(N'' AS NVARCHAR(100)) AS Code, tv.Ho_Ten AS Ho_Ten, u.Ma_Dang_Nhap AS Ma_Dang_Nhap, k.Ten_Kho AS Ten_Kho, u.Kho_ID AS Kho_ID, CAST(0 AS BIGINT) AS Related_ID_2
     FROM dbo.tbl_DM_Kho_User u LEFT JOIN dbo.tbl_Sys_Thanh_Vien tv ON tv.Ma_Dang_Nhap = u.Ma_Dang_Nhap JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = u.Kho_ID
     WHERE ISNULL(@Search_Text, N'') = N'' OR u.Ma_Dang_Nhap LIKE @Filter OR tv.Ho_Ten LIKE @Filter OR k.Ten_Kho LIKE @Filter
     ORDER BY u.Ma_Dang_Nhap, k.Ten_Kho OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
@@ -4971,7 +5011,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    SELECT h.Auto_ID, CAST(1 AS BIT) AS Is_Receipt, h.So_Phieu_Nhap_Kho AS So_Phieu, h.Kho_ID, k.Ten_Kho, h.NCC_ID, n.Ten_NCC, h.Ngay_Nhap_Kho AS Ngay_Chung_Tu, h.Is_Posted, h.Ghi_Chu
+    SELECT h.Auto_ID, CAST(1 AS BIT) AS Is_Receipt, h.So_Phieu_Nhap_Kho AS So_Phieu_Nhap_Kho, h.Kho_ID, k.Ten_Kho, h.NCC_ID, n.Ten_NCC, h.Ngay_Nhap_Kho AS Ngay_Nhap_Kho, h.Is_Posted, h.Ghi_Chu
     FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = h.Kho_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = h.NCC_ID
     WHERE EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
     ORDER BY h.Ngay_Nhap_Kho DESC, h.Auto_ID DESC;
@@ -4984,7 +5024,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    SELECT h.Auto_ID, CAST(0 AS BIT) AS Is_Receipt, h.So_Phieu_Xuat_Kho AS So_Phieu, h.Kho_ID, k.Ten_Kho, CAST(0 AS BIGINT) AS NCC_ID, CAST(N'' AS NVARCHAR(255)) AS Ten_NCC, h.Ngay_Xuat_Kho AS Ngay_Chung_Tu, h.Is_Posted, h.Ghi_Chu
+    SELECT h.Auto_ID, CAST(0 AS BIT) AS Is_Receipt, h.So_Phieu_Xuat_Kho AS So_Phieu_Xuat_Kho, h.Kho_ID, k.Ten_Kho, CAST(0 AS BIGINT) AS NCC_ID, CAST(N'' AS NVARCHAR(255)) AS Ten_NCC, h.Ngay_Xuat_Kho AS Ngay_Xuat_Kho, h.Is_Posted, h.Ghi_Chu
     FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = h.Kho_ID
     WHERE EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
     ORDER BY h.Ngay_Xuat_Kho DESC, h.Auto_ID DESC;
@@ -5000,7 +5040,7 @@ BEGIN
     SELECT @Kho_ID = Kho_ID FROM dbo.tbl_XNK_Nhap_Kho WHERE Auto_ID = @Document_ID;
     IF @Kho_ID IS NULL THROW 51105, N'Phiếu nhập không tồn tại.', 1;
     EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    SELECT d.Auto_ID, d.Nhap_Kho_ID AS Document_ID, d.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, dv.Ten_Don_Vi_Tinh, d.SL_Nhap AS So_Luong, d.Don_Gia_Nhap AS Don_Gia
+    SELECT d.Auto_ID, d.Nhap_Kho_ID AS Nhap_Kho_ID, d.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, dv.Ten_Don_Vi_Tinh, d.SL_Nhap AS SL_Nhap, d.Don_Gia_Nhap AS Don_Gia_Nhap
     FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID JOIN dbo.tbl_DM_Don_Vi_Tinh dv ON dv.Auto_ID = p.Don_Vi_Tinh_ID
     WHERE d.Nhap_Kho_ID = @Document_ID ORDER BY d.Auto_ID;
 END
@@ -5015,7 +5055,7 @@ BEGIN
     SELECT @Kho_ID = Kho_ID FROM dbo.tbl_XNK_Xuat_Kho WHERE Auto_ID = @Document_ID;
     IF @Kho_ID IS NULL THROW 51134, N'Phiếu xuất không tồn tại.', 1;
     EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    SELECT d.Auto_ID, d.Xuat_Kho_ID AS Document_ID, d.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, dv.Ten_Don_Vi_Tinh, d.SL_Xuat AS So_Luong, d.Don_Gia_Xuat AS Don_Gia
+    SELECT d.Auto_ID, d.Xuat_Kho_ID AS Xuat_Kho_ID, d.San_Pham_ID, p.Ma_San_Pham, p.Ten_San_Pham, dv.Ten_Don_Vi_Tinh, d.SL_Xuat AS SL_Xuat, d.Don_Gia_Xuat AS Don_Gia_Xuat
     FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID JOIN dbo.tbl_DM_Don_Vi_Tinh dv ON dv.Auto_ID = p.Don_Vi_Tinh_ID
     WHERE d.Xuat_Kho_ID = @Document_ID ORDER BY d.Auto_ID;
 END

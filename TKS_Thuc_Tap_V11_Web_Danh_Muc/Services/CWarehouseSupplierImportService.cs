@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.Cache;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
@@ -127,6 +128,17 @@ public sealed class CWarehouseSupplierImportService
                 // Preserve the original insert or commit failure.
             }
             throw;
+        }
+
+        try
+        {
+            CCache_NCC.Load_Cache_NCC();
+        }
+        catch (Exception p_objException)
+        {
+            throw new InvalidOperationException(
+                "Import nhà cung cấp đã commit thành công, nhưng cache nhà cung cấp chưa được làm mới. Dữ liệu vẫn đã lưu trong cơ sở dữ liệu; cache sẽ được nạp lại ở lần tải tiếp theo.",
+                p_objException);
         }
     }
 

@@ -209,7 +209,7 @@ public sealed class CTransactionImportPreviewService
                 continue;
 
             var v_arrMatches = p_arrExistingDocuments
-                .Where(v_objExisting => ComparisonKey(v_objExisting.Header.So_Phieu) == v_strDocumentKey)
+                .Where(v_objExisting => ComparisonKey(v_objExisting.So_Phieu) == v_strDocumentKey)
                 .ToArray();
             if (v_arrMatches.Length == 0)
                 continue;
@@ -240,7 +240,7 @@ public sealed class CTransactionImportPreviewService
         CTransactionImportExistingDocument p_objExisting,
         bool p_bIsReceipt)
     {
-        var v_objHeader = p_objExisting.Header;
+        var v_objHeader = p_objExisting;
         if (v_objHeader.Is_Receipt != p_bIsReceipt ||
             v_objHeader.Kho_ID != p_objDocument.Warehouse_ID ||
             (p_bIsReceipt && v_objHeader.NCC_ID != p_objDocument.Supplier_ID) ||

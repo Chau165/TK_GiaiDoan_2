@@ -720,14 +720,14 @@ internal static partial class Program
             new { MasterType = "SanPham", PageNumber = 1, PageSize = LiteV2PageSize, SearchText = "" }),
         new("LookupPaged", "LookupPaged", "CWarehouseMasterSupport_Controller.List_Lookup_Page_Async", "dbo.sp_DM_Lookup_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
             new { MasterType = "SanPham", PageNumber = 1, PageSize = LiteV2PageSize, SearchText = "" }),
-        new("DocumentPaged", "DocumentPaged", "CWarehouseDocument_Controller.List_Documents_Page_Async", "dbo.sp_XNK_Document_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
+        new("DocumentPaged", "DocumentPaged", "CWarehouseDocumentSupport_Controller.sp_XNK_Document_Page", "dbo.sp_XNK_Document_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
             new { IsReceipt = true, PageNumber = 1, PageSize = LiteV2PageSize, SearchText = "", Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("DetailReportPaged", "DetailReportPaged", "CWarehouseReport_Controller.Detail_Report_Page_Async", "dbo.sp_BC_Chi_Tiet_Nhap_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
-            new { IsReceipt = true, From = "2025-01-01", To = "2026-12-31", PageNumber = 1, PageSize = LiteV2PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("InventoryHistoricalReportPaged", "InventoryHistoricalReportPaged", "CWarehouseReport_Controller.Inventory_Report_Page_Async", "dbo.sp_BC_Xuat_Nhap_Ton_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
-            new { From = "2025-01-01", To = "2026-12-31", PageNumber = 1, PageSize = LiteV2PageSize, Login = ApplicationLogin, WarehouseId = (long?)null, ReadCurrentBalance = false }),
-        new("InventoryCurrentBalancePaged", "InventoryCurrentBalancePaged", "CWarehouseReport_Controller.Inventory_Report_Page_Async", "dbo.sp_BC_Ton_Kho_Hien_Tai_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
-            new { PageNumber = 1, PageSize = LiteV2PageSize, Login = ApplicationLogin, WarehouseId = (long?)null, ReadCurrentBalance = true })
+        new("DetailReportPaged", "DetailReportPaged", "CWarehouseReport_Controller.sp_BC_Chi_Tiet_Nhap_Page", "dbo.sp_BC_Chi_Tiet_Nhap_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
+            new { From = "2025-01-01", To = "2026-12-31", PageNumber = 1, PageSize = LiteV2PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
+        new("InventoryHistoricalReportPaged", "InventoryHistoricalReportPaged", "CWarehouseReport_Controller.sp_BC_Xuat_Nhap_Ton_Page", "dbo.sp_BC_Xuat_Nhap_Ton_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
+            new { From = "2025-01-01", To = "2026-12-31", PageNumber = 1, PageSize = LiteV2PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
+        new("InventoryCurrentBalancePaged", "InventoryCurrentBalancePaged", "CWarehouseReport_Controller.sp_BC_Ton_Kho_Hien_Tai_Page", "dbo.sp_BC_Ton_Kho_Hien_Tai_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
+            new { PageNumber = 1, PageSize = LiteV2PageSize, Login = ApplicationLogin, WarehouseId = (long?)null })
     ];
 
     private static async Task<LiteScenarioResult> RunMeasuredCaseAsync(
@@ -874,22 +874,22 @@ internal static partial class Program
             }
             case "DocumentPaged":
             {
-                var page = await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, definition.PageNumber, definition.PageSize, definition.SearchText, ApplicationLogin, null).ConfigureAwait(false);
+                var page = new CWarehouseDocumentSupport_Controller().sp_XNK_Document_Page(true, definition.PageNumber, definition.PageSize, definition.SearchText, ApplicationLogin, null);
                 return new LiteCallOutcome(page.Items.Count, page.Total_Count, page.Items.Cast<object>().ToArray());
             }
             case "DetailReportPaged":
             {
-                var page = await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, definition.FromDate, definition.ToDate, definition.PageNumber, definition.PageSize, ApplicationLogin, null).ConfigureAwait(false);
+                var page = new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(definition.FromDate, definition.ToDate, definition.PageNumber, definition.PageSize, ApplicationLogin, null);
                 return new LiteCallOutcome(page.Items.Count, page.Total_Count, page.Items.Cast<object>().ToArray());
             }
             case "InventoryHistoricalReportPaged":
             {
-                var page = await new CWarehouseReport_Controller().Inventory_Report_Page_Async(definition.FromDate, definition.ToDate, definition.PageNumber, definition.PageSize, ApplicationLogin, null, false).ConfigureAwait(false);
+                var page = new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(definition.FromDate, definition.ToDate, definition.PageNumber, definition.PageSize, ApplicationLogin, null);
                 return new LiteCallOutcome(page.Items.Count, page.Total_Count, page.Items.Cast<object>().ToArray());
             }
             case "InventoryCurrentBalancePaged":
             {
-                var page = await new CWarehouseReport_Controller().Inventory_Report_Page_Async(definition.FromDate, definition.ToDate, definition.PageNumber, definition.PageSize, ApplicationLogin, null, true).ConfigureAwait(false);
+                var page = new CWarehouseReport_Controller().sp_BC_Ton_Kho_Hien_Tai_Page(definition.PageNumber, definition.PageSize, ApplicationLogin, null);
                 return new LiteCallOutcome(page.Items.Count, page.Total_Count, page.Items.Cast<object>().ToArray());
             }
             default:

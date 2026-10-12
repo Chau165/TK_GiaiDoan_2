@@ -253,14 +253,14 @@ public static class PerformanceBenchmark
             new CWarehouseMasterSupport_Controller().List_Lookup_Page_Async("SanPham", 1, p_options.PageSize, "")
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "DocumentPaged", p_options, () =>
-            new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)
+            new WarehouseDocumentTestHarness().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "DetailReportPaged", p_options, () =>
-            new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)
-                .ContinueWith(v_task => v_task.Result.Items.Count));
+            Task.FromResult(new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(
+                new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count));
         await AddMetricAsync(v_metrics, "InventoryHistoricalReportPaged", p_options, () =>
-            new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)
-                .ContinueWith(v_task => v_task.Result.Items.Count));
+            Task.FromResult(new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(
+                new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count));
 
         if (p_options.AllowFullLoad)
         {
@@ -269,17 +269,17 @@ public static class PerformanceBenchmark
             await AddMetricAsync(v_metrics, "LookupFullLoad", p_options, () =>
                 Task.FromResult(new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup().Count));
             await AddMetricAsync(v_metrics, "DocumentFullLoad", p_options, () =>
-                new CWarehouseDocument_Controller().List_Documents_Async(true, p_options.LoginName)
+                new WarehouseDocumentTestHarness().List_Documents_Async(true, p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DocumentDetailFullLoad", p_options, ()
-                => new CWarehouseDocument_Controller().List_Document_Details_Async(true, 1, p_options.LoginName)
+                => new WarehouseDocumentTestHarness().List_Document_Details_Async(true, 1, p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DetailReportFullLoad", p_options, () =>
-                new CWarehouseReport_Controller().Detail_Report_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName)
-                    .ContinueWith(v_task => v_task.Result.Count));
+                Task.FromResult(new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap(
+                    new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName).Count));
             await AddMetricAsync(v_metrics, "InventoryReportFullLoad", p_options, () =>
-                new CWarehouseReport_Controller().Inventory_Report_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName)
-                    .ContinueWith(v_task => v_task.Result.Count));
+                Task.FromResult(new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton(
+                    new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName).Count));
         }
         else
         {
@@ -310,13 +310,15 @@ public static class PerformanceBenchmark
                         v_iRows = (await new CWarehouseMasterSupport_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")).Items.Count;
                         break;
                     case 1:
-                        v_iRows = (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count;
+                        v_iRows = (await new WarehouseDocumentTestHarness().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count;
                         break;
                     case 2:
-                        v_iRows = (await new CWarehouseReport_Controller().Detail_Report_Page_Async(true, new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count;
+                        v_iRows = new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(
+                            new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count;
                         break;
                     default:
-                        v_iRows = (await new CWarehouseReport_Controller().Inventory_Report_Page_Async(new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName)).Items.Count;
+                        v_iRows = new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(
+                            new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count;
                         break;
                 }
 
@@ -555,7 +557,7 @@ public static class PerformanceBenchmark
             return 1;
         });
 
-        var v_documentController = new CWarehouseDocument_Controller();
+        var v_documentController = new WarehouseDocumentTestHarness();
         await AddMetricAsync(p_metrics, "Crud_Document_Save_Controller", p_options, async ()
             => await SaveDocumentAsync(v_documentController, p_options.LoginName));
         await AddMetricAsync(p_metrics, "Crud_Detail_Save_Controller", p_options, async ()
@@ -570,7 +572,7 @@ public static class PerformanceBenchmark
         p_notes.Add("CRUD controller metrics intentionally retain parameter-contract failures; these are correctness findings, not hidden benchmark successes.");
     }
 
-    private static async Task<int> SaveDocumentAsync(CWarehouseDocument_Controller p_controller, string p_loginName)
+    private static async Task<int> SaveDocumentAsync(WarehouseDocumentTestHarness p_controller, string p_loginName)
     {
         var v_document = new CWarehouseDocument
         {
@@ -591,7 +593,7 @@ public static class PerformanceBenchmark
         }
     }
 
-    private static async Task<int> SaveDetailAsync(CWarehouseDocument_Controller p_controller, string p_loginName)
+    private static async Task<int> SaveDetailAsync(WarehouseDocumentTestHarness p_controller, string p_loginName)
     {
         var v_detail = new CWarehouseDocumentDetail
         {

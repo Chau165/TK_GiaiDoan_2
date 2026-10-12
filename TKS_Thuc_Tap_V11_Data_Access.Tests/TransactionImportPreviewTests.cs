@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -141,6 +142,23 @@ public sealed class TransactionImportPreviewTests
     }
 
     [Fact]
+    public async Task Outbound_preview_maps_customer_unit_price_column()
+    {
+        var v_objPreview = await PreviewAsync(
+            "Outbound",
+            new[] { "Số PX", "Ngày xuất", "Kho xuất" },
+            new object?[][] { new object?[] { "PX-01", new DateTime(2026, 9, 2), "WH-01" } },
+            new[] { "Số PX", "Mã hàng", "SL xuất", "Đơn giá" },
+            new object?[][] { new object?[] { "PX-01", "SP-01", 2d, 135000d } },
+            References());
+
+        Assert.Contains("Đơn giá", v_objPreview.Mapped_Columns);
+        Assert.DoesNotContain("Đơn giá", v_objPreview.Unsupported_Columns);
+        Assert.Equal(135000m, Assert.Single(Assert.Single(v_objPreview.Documents).Lines).UnitPrice);
+        Assert.DoesNotContain(v_objPreview.Errors, v_objError => v_objError.CanonicalField == "UnitPrice");
+    }
+
+    [Fact]
     public async Task Outbound_preview_aggregates_same_inventory_key_across_documents()
     {
         var v_objPreview = await PreviewAsync(
@@ -260,8 +278,8 @@ public sealed class TransactionImportPreviewTests
 
         Assert.Equal(1, v_objStore.Reference_Load_Count);
         var v_objSaved = Assert.Single(v_objStore.Saved_Documents);
-        Assert.Equal("PN-02", v_objSaved.Header.So_Phieu);
-        Assert.Equal(5m, Assert.Single(v_objSaved.Details).So_Luong);
+        Assert.Equal("PN-02", v_objSaved.DocumentNumber);
+        Assert.Equal(5m, Assert.Single(v_objSaved.Quantities));
         Assert.Equal(1, v_objResult.Imported_Documents);
         Assert.Equal(1, v_objResult.Skipped_Documents);
     }
@@ -352,27 +370,9 @@ public sealed class TransactionImportPreviewTests
         }
     };
 
-    private static CTransactionImportExistingDocument ExistingDocument(string p_strDocumentNumber, decimal p_decQuantity, decimal p_decPrice) => new(
-        new CWarehouseDocument
-        {
-            Auto_ID = 100,
-            Is_Receipt = true,
-            So_Phieu = p_strDocumentNumber,
-            Kho_ID = 10,
-            NCC_ID = 20,
-            Ngay_Chung_Tu = new DateTime(2026, 9, 1),
-            Ghi_Chu = ""
-        },
-        new[]
-        {
-            new CWarehouseDocumentDetail
-            {
-                Document_ID = 100,
-                San_Pham_ID = 30,
-                So_Luong = p_decQuantity,
-                Don_Gia = p_decPrice
-            }
-        });
+    private static CTransactionImportExistingDocument ExistingDocument(string p_strDocumentNumber, decimal p_decQuantity, decimal p_decPrice) =>
+        new(true, p_strDocumentNumber, 10, 20, new DateTime(2026, 9, 1), "",
+            new[] { new CTransactionImportExistingLine(30, p_decQuantity, p_decPrice) });
 
     private static void AddSheet(
         XLWorkbook p_objWorkbook,
@@ -391,7 +391,7 @@ public sealed class TransactionImportPreviewTests
     private sealed class CTestTransactionImportStore(CTransactionImportReferences p_objReferences) : ITransactionImportStore
     {
         public int Reference_Load_Count { get; private set; }
-        public List<(CWarehouseDocument Header, IReadOnlyList<CWarehouseDocumentDetail> Details)> Saved_Documents { get; } = new();
+        public List<(string DocumentNumber, IReadOnlyList<decimal> Quantities)> Saved_Documents { get; } = new();
 
         public Task<CTransactionImportReferences> Load_References_Async(
             string p_strProfileCode,
@@ -403,14 +403,25 @@ public sealed class TransactionImportPreviewTests
             return Task.FromResult(p_objReferences);
         }
 
-        public Task Save_Document_Atomically_Async(
-            CWarehouseDocument p_objDocument,
-            IReadOnlyList<CWarehouseDocumentDetail> p_arrDetails,
+        public Task Save_Nhap_Kho_Atomically_Async(
+            CXNK_Nhap_Kho p_objDocument,
+            IReadOnlyList<CXNK_Nhap_Kho_Detail> p_arrDetails,
             string p_strCurrent_User,
             string p_strCurrent_Function,
             CancellationToken p_objCancellationToken)
         {
-            Saved_Documents.Add((p_objDocument, p_arrDetails));
+            Saved_Documents.Add((p_objDocument.So_Phieu_Nhap_Kho, p_arrDetails.Select(v_objDetail => v_objDetail.SL_Nhap).ToArray()));
+            return Task.CompletedTask;
+        }
+
+        public Task Save_Xuat_Kho_Atomically_Async(
+            CXNK_Xuat_Kho p_objDocument,
+            IReadOnlyList<CXNK_Xuat_Kho_Detail> p_arrDetails,
+            string p_strCurrent_User,
+            string p_strCurrent_Function,
+            CancellationToken p_objCancellationToken)
+        {
+            Saved_Documents.Add((p_objDocument.So_Phieu_Xuat_Kho, p_arrDetails.Select(v_objDetail => v_objDetail.SL_Xuat).ToArray()));
             return Task.CompletedTask;
         }
     }

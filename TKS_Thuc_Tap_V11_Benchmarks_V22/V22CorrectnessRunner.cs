@@ -357,7 +357,7 @@ internal static class V22CorrectnessRunner
             }
             case "DocumentPaged":
             {
-                var result = await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, page, size, "", login, null);
+                var result = new CWarehouseDocumentSupport_Controller().sp_XNK_Document_Page(true, page, size, "", login, null);
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Auto_ID", item.Auto_ID), ("Is_Receipt", item.Is_Receipt), ("So_Phieu", item.So_Phieu),
                     ("Kho_ID", item.Kho_ID), ("Ten_Kho", item.Ten_Kho), ("NCC_ID", item.NCC_ID),
@@ -366,8 +366,8 @@ internal static class V22CorrectnessRunner
             }
             case "DetailReportPaged":
             {
-                var result = await new CWarehouseReport_Controller().Detail_Report_Page_Async(
-                    true, V22CorrectnessOracle.ReportFrom, V22CorrectnessOracle.ReportTo, page, size, login, null);
+                var result = new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(
+                    V22CorrectnessOracle.ReportFrom, V22CorrectnessOracle.ReportTo, page, size, login, null);
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Ngay", item.Ngay), ("So_Phieu", item.So_Phieu), ("Nha_Cung_Cap", item.Nha_Cung_Cap),
                     ("Ma_San_Pham", item.Ma_San_Pham), ("Ten_San_Pham", item.Ten_San_Pham),
@@ -377,9 +377,12 @@ internal static class V22CorrectnessRunner
             case "InventoryCurrentBalancePaged":
             {
                 var isCurrent = scenario == "InventoryCurrentBalancePaged";
-                var result = await new CWarehouseReport_Controller().Inventory_Report_Page_Async(
-                    V22CorrectnessOracle.ReportFrom, V22CorrectnessOracle.ReportTo, page, size, login, null,
-                    p_bRead_Current_Balance: isCurrent);
+                var v_objReportController = new CWarehouseReport_Controller();
+                var result = isCurrent
+                    ? v_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                        page, size, login, null)
+                    : v_objReportController.sp_BC_Xuat_Nhap_Ton_Page(
+                        V22CorrectnessOracle.ReportFrom, V22CorrectnessOracle.ReportTo, page, size, login, null);
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Kho_ID", item.Kho_ID), ("Ten_Kho", item.Ten_Kho), ("San_Pham_ID", item.San_Pham_ID),
                     ("Ma_San_Pham", item.Ma_San_Pham), ("Ten_San_Pham", item.Ten_San_Pham),

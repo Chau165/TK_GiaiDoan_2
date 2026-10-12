@@ -13,8 +13,18 @@ public sealed class CTransactionImportReferences
 }
 
 public sealed record CTransactionImportExistingDocument(
-    CWarehouseDocument Header,
-    IReadOnlyList<CWarehouseDocumentDetail> Lines);
+    bool Is_Receipt,
+    string So_Phieu,
+    long Kho_ID,
+    long NCC_ID,
+    DateTime Ngay_Chung_Tu,
+    string Ghi_Chu,
+    IReadOnlyList<CTransactionImportExistingLine> Lines);
+
+public sealed record CTransactionImportExistingLine(
+    long San_Pham_ID,
+    decimal So_Luong,
+    decimal Don_Gia);
 
 public sealed record CTransactionImportInventoryBalance(
     long Warehouse_ID,

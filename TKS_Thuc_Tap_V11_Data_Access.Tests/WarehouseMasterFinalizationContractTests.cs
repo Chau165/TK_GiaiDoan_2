@@ -87,16 +87,16 @@ public sealed class WarehouseMasterFinalizationContractTests
     [Fact]
     public void Entity_store_methods_use_synchronous_company_style_signatures()
     {
-        (Type Controller, string ListMethod, string LookupMethod, string InsertMethod, string UpdateMethod, string DeleteMethod)[] v_arrContracts =
+        (Type Controller, string ListMethod, string CacheListMethod, string LookupMethod, string InsertMethod, string UpdateMethod, string DeleteMethod)[] v_arrContracts =
         [
-            (typeof(CDM_Kho_Controller), "F2009_sp_sel_List_Kho", "F2009_sp_sel_List_Kho_Lookup", "F2009_sp_ins_Kho", "F2009_sp_upd_Kho", "F2009_sp_del_Kho"),
-            (typeof(CDM_Don_Vi_Tinh_Controller), "F2016_sp_sel_List_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_Lookup", "F2016_sp_ins_Don_Vi_Tinh", "F2016_sp_upd_Don_Vi_Tinh", "F2016_sp_del_Don_Vi_Tinh"),
-            (typeof(CDM_Loai_San_Pham_Controller), "F2017_sp_sel_List_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_Lookup", "F2017_sp_ins_Loai_San_Pham", "F2017_sp_upd_Loai_San_Pham", "F2017_sp_del_Loai_San_Pham"),
-            (typeof(CDM_San_Pham_Controller), "F2018_sp_sel_List_San_Pham", "F2018_sp_sel_List_San_Pham_Lookup", "F2018_sp_ins_San_Pham", "F2018_sp_upd_San_Pham", "F2018_sp_del_San_Pham"),
-            (typeof(CDM_NCC_Controller), "F2019_sp_sel_List_NCC", "F2019_sp_sel_List_NCC_Lookup", "F2019_sp_ins_NCC", "F2019_sp_upd_NCC", "F2019_sp_del_NCC")
+            (typeof(CDM_Kho_Controller), "F2009_sp_sel_List_Kho", "F2009_sp_sel_List_Kho_For_Cache", "F2009_sp_sel_List_Kho_Lookup", "F2009_sp_ins_Kho", "F2009_sp_upd_Kho", "F2009_sp_del_Kho"),
+            (typeof(CDM_Don_Vi_Tinh_Controller), "F2016_sp_sel_List_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_For_Cache", "F2016_sp_sel_List_Don_Vi_Tinh_Lookup", "F2016_sp_ins_Don_Vi_Tinh", "F2016_sp_upd_Don_Vi_Tinh", "F2016_sp_del_Don_Vi_Tinh"),
+            (typeof(CDM_Loai_San_Pham_Controller), "F2017_sp_sel_List_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_For_Cache", "F2017_sp_sel_List_Loai_San_Pham_Lookup", "F2017_sp_ins_Loai_San_Pham", "F2017_sp_upd_Loai_San_Pham", "F2017_sp_del_Loai_San_Pham"),
+            (typeof(CDM_San_Pham_Controller), "F2018_sp_sel_List_San_Pham", "F2018_sp_sel_List_San_Pham_For_Cache", "F2018_sp_sel_List_San_Pham_Lookup", "F2018_sp_ins_San_Pham", "F2018_sp_upd_San_Pham", "F2018_sp_del_San_Pham"),
+            (typeof(CDM_NCC_Controller), "F2019_sp_sel_List_NCC", "F2019_sp_sel_List_NCC_For_Cache", "F2019_sp_sel_List_NCC_Lookup", "F2019_sp_ins_NCC", "F2019_sp_upd_NCC", "F2019_sp_del_NCC")
         ];
 
-        foreach ((Type v_objController, string v_strListMethod, string v_strLookupMethod, string v_strInsertMethod, string v_strUpdateMethod, string v_strDeleteMethod) in v_arrContracts)
+        foreach ((Type v_objController, string v_strListMethod, string v_strCacheListMethod, string v_strLookupMethod, string v_strInsertMethod, string v_strUpdateMethod, string v_strDeleteMethod) in v_arrContracts)
         {
             string v_strEntityName = v_objController.Name.Replace("_Controller", "", StringComparison.Ordinal);
             Type? v_objEntity = v_objController.Assembly.GetType(
@@ -104,6 +104,7 @@ public sealed class WarehouseMasterFinalizationContractTests
             Assert.NotNull(v_objEntity);
             Type v_objEntityListType = typeof(List<>).MakeGenericType(v_objEntity!);
             Assert.Equal(v_objEntityListType, v_objController.GetMethod(v_strListMethod)?.ReturnType);
+            Assert.Equal(v_objEntityListType, v_objController.GetMethod(v_strCacheListMethod)?.ReturnType);
             Assert.Equal(v_objEntityListType, v_objController.GetMethod(v_strLookupMethod)?.ReturnType);
             Assert.Equal(typeof(void), v_objController.GetMethod(v_strUpdateMethod)?.ReturnType);
             Assert.Equal(typeof(void), v_objController.GetMethod(v_strDeleteMethod)?.ReturnType);
@@ -128,7 +129,7 @@ public sealed class WarehouseMasterFinalizationContractTests
 
             MatchCollection v_arrStoreMethods = Regex.Matches(v_strControllerSource,
                 @"(?ms)^    public (?:List<\w+>|long|void) (?<name>F\w+)\(.*?^    \}");
-            Assert.Equal(6, v_arrStoreMethods.Count);
+            Assert.Equal(7, v_arrStoreMethods.Count);
             foreach (Match v_objStoreMethod in v_arrStoreMethods)
             {
                 MatchCollection v_arrStoreCalls = Regex.Matches(v_objStoreMethod.Value,

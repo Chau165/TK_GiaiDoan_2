@@ -19,7 +19,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
             g_dicData_Ma_San_Pham.Clear();
 
             CDM_San_Pham_Controller v_objCtrl = new CDM_San_Pham_Controller();
-            List<CDM_San_Pham> v_arrTemp_Data = v_objCtrl.F2018_sp_sel_List_San_Pham();
+            List<CDM_San_Pham> v_arrTemp_Data = v_objCtrl.F2018_sp_sel_List_San_Pham_For_Cache();
 
             foreach (CDM_San_Pham v_objData in v_arrTemp_Data)
                 Add_Data(v_objData);

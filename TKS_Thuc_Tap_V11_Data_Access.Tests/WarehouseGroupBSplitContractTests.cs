@@ -10,8 +10,10 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strMenu = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Menu.sql"));
         var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var v_strReceiptController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
+        var v_strIssueController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
         var v_strSecurity = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Security.sql"));
         var v_strPreflight = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Security.Preflight.sql"));
 
@@ -23,8 +25,8 @@ public sealed class WarehouseGroupBSplitContractTests
         Assert.Equal(8, Regex.Matches(v_strProcedures, @"(?im)^CREATE\s+OR\s+ALTER\s+PROCEDURE\s+dbo\.F3002_").Count);
         Assert.DoesNotContain("F2011_sp_", v_strProcedures);
         Assert.DoesNotContain("F2012_sp_", v_strProcedures);
-        Assert.Contains("F3001_sp_ins_Nhap_Kho_Header", v_strController);
-        Assert.Contains("F3002_sp_ins_Xuat_Kho_Header", v_strController);
+        Assert.Contains("F3001_sp_ins_Nhap_Kho_Header", v_strReceiptController);
+        Assert.Contains("F3002_sp_ins_Xuat_Kho_Header", v_strIssueController);
         Assert.Contains("GRANT EXECUTE ON OBJECT::dbo.F3001_sp_ins_Nhap_Kho_Header", v_strSecurity);
         Assert.Contains("GRANT EXECUTE ON OBJECT::dbo.F3002_sp_ins_Xuat_Kho_Header", v_strSecurity);
         Assert.Contains("dbo.F3001_sp_ins_Nhap_Kho_Header", v_strPreflight);
@@ -264,13 +266,15 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Kho_User_controller_dispatches_by_zero_or_nonzero_Permission_ID()
+    public void Kho_User_controller_exposes_separate_insert_and_update_stores()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehousePermission_Controller.cs"));
-        var v_strExpectedDispatch = @"var\s+v_bIsCreate\s*=\s*p_objData\.Permission_ID\s*==\s*0\s*;\s*string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2015_sp_ins_Kho_User"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2015_sp_upd_Kho_User"";\s*\}\s*p_objData\.Permission_ID\s*=\s*Scalar_ID\s*\(\s*v_strProcedure";
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CDM_Kho_User_Controller.cs"));
 
-        Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
+        Assert.Contains("F2015_sp_ins_Kho_User", v_strController);
+        Assert.Contains("F2015_sp_upd_Kho_User", v_strController);
+        Assert.DoesNotContain("v_strProcedure", v_strController);
+        Assert.DoesNotContain("Save_Kho_User_Async", v_strController);
     }
     [Fact]
     public void Receipt_Header_split_preserves_fence_savepoint_posted_guard_and_result_contract()
@@ -306,13 +310,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Receipt_Header_controller_dispatches_by_Auto_ID()
+    public void Receipt_Header_controller_exposes_separate_insert_and_update_store_methods()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"if\s*\(\s*p_objData\.Is_Receipt\s*\)\s*\{[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_ins_Nhap_Kho_Header"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_upd_Nhap_Kho_Header"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
-
-        Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
+        Assert.Contains("Scalar_ID(\"F3001_sp_ins_Nhap_Kho_Header\"", v_strController);
+        Assert.Contains("Scalar_ID(\"F3001_sp_upd_Nhap_Kho_Header\"", v_strController);
+        Assert.DoesNotContain("p_bIs_Receipt", v_strController);
+        Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
     [Fact]
     public void Receipt_Detail_split_preserves_fence_savepoint_posted_guard_and_write_contracts()
@@ -354,13 +359,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Receipt_Detail_controller_dispatches_by_Auto_ID()
+    public void Receipt_Detail_controller_exposes_separate_insert_and_update_store_methods()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"if\s*\(\s*p_bIs_Receipt\s*\)\s*\{[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_ins_Nhap_Kho_Detail"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_upd_Nhap_Kho_Detail"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
-
-        Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
+        Assert.Contains("Scalar_ID(\"F3001_sp_ins_Nhap_Kho_Detail\"", v_strController);
+        Assert.Contains("Scalar_ID(\"F3001_sp_upd_Nhap_Kho_Detail\"", v_strController);
+        Assert.DoesNotContain("p_bIs_Receipt", v_strController);
+        Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
 
     [Fact]
@@ -401,13 +407,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Issue_Header_controller_dispatches_by_Auto_ID()
+    public void Issue_Header_controller_exposes_separate_insert_and_update_store_methods()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"else\s*\{\s*string\?\s+v_strCreatedBy;[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_ins_Xuat_Kho_Header"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_upd_Xuat_Kho_Header"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
-
-        Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
+        Assert.Contains("Scalar_ID(\"F3002_sp_ins_Xuat_Kho_Header\"", v_strController);
+        Assert.Contains("Scalar_ID(\"F3002_sp_upd_Xuat_Kho_Header\"", v_strController);
+        Assert.DoesNotContain("p_bIs_Receipt", v_strController);
+        Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
 
     [Fact]
@@ -454,13 +461,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Issue_Detail_controller_dispatches_by_Auto_ID()
+    public void Issue_Detail_controller_exposes_separate_insert_and_update_store_methods()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"if\s*\(\s*p_bIs_Receipt\s*\)\s*\{[\s\S]*?F3001_sp_ins_Nhap_Kho_Detail[\s\S]*?\}\s*else\s*\{[\s\S]*?if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_ins_Xuat_Kho_Detail"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_upd_Xuat_Kho_Detail"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
-
-        Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
+        Assert.Contains("Scalar_ID(\"F3002_sp_ins_Xuat_Kho_Detail\"", v_strController);
+        Assert.Contains("Scalar_ID(\"F3002_sp_upd_Xuat_Kho_Detail\"", v_strController);
+        Assert.DoesNotContain("p_bIs_Receipt", v_strController);
+        Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
 
     [Fact]

@@ -19,7 +19,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
             g_dicData_Ten_Don_Vi_Tinh.Clear();
 
             CDM_Don_Vi_Tinh_Controller v_objCtrl = new CDM_Don_Vi_Tinh_Controller();
-            List<CDM_Don_Vi_Tinh> v_arrTemp_Data = v_objCtrl.F2016_sp_sel_List_Don_Vi_Tinh();
+            List<CDM_Don_Vi_Tinh> v_arrTemp_Data = v_objCtrl.F2016_sp_sel_List_Don_Vi_Tinh_For_Cache();
 
             foreach (CDM_Don_Vi_Tinh v_objData in v_arrTemp_Data)
                 Add_Data(v_objData);

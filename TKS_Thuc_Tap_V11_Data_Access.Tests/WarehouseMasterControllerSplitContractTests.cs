@@ -13,6 +13,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         ["TKS_Thuc_Tap_V11_Data_Access.Controller.DM.CDM_Kho_Controller", new[]
         {
             "F2009_sp_sel_List_Kho",
+            "F2009_sp_sel_List_Kho_For_Cache",
             "F2009_sp_sel_List_Kho_Lookup",
             "F2009_sp_ins_Kho",
             "F2009_sp_ins_Kho",
@@ -22,6 +23,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         ["TKS_Thuc_Tap_V11_Data_Access.Controller.DM.CDM_Don_Vi_Tinh_Controller", new[]
         {
             "F2016_sp_sel_List_Don_Vi_Tinh",
+            "F2016_sp_sel_List_Don_Vi_Tinh_For_Cache",
             "F2016_sp_sel_List_Don_Vi_Tinh_Lookup",
             "F2016_sp_ins_Don_Vi_Tinh",
             "F2016_sp_ins_Don_Vi_Tinh",
@@ -31,6 +33,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         ["TKS_Thuc_Tap_V11_Data_Access.Controller.DM.CDM_Loai_San_Pham_Controller", new[]
         {
             "F2017_sp_sel_List_Loai_San_Pham",
+            "F2017_sp_sel_List_Loai_San_Pham_For_Cache",
             "F2017_sp_sel_List_Loai_San_Pham_Lookup",
             "F2017_sp_ins_Loai_San_Pham",
             "F2017_sp_ins_Loai_San_Pham",
@@ -40,6 +43,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         ["TKS_Thuc_Tap_V11_Data_Access.Controller.DM.CDM_San_Pham_Controller", new[]
         {
             "F2018_sp_sel_List_San_Pham",
+            "F2018_sp_sel_List_San_Pham_For_Cache",
             "F2018_sp_sel_List_San_Pham_Lookup",
             "F2018_sp_ins_San_Pham",
             "F2018_sp_ins_San_Pham",
@@ -49,6 +53,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         ["TKS_Thuc_Tap_V11_Data_Access.Controller.DM.CDM_NCC_Controller", new[]
         {
             "F2019_sp_sel_List_NCC",
+            "F2019_sp_sel_List_NCC_For_Cache",
             "F2019_sp_sel_List_NCC_Lookup",
             "F2019_sp_ins_NCC",
             "F2019_sp_ins_NCC",
