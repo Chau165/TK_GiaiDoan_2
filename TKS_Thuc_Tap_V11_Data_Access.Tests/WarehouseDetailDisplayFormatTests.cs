@@ -80,8 +80,8 @@ public sealed class WarehouseDetailDisplayFormatTests
     {
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
-        Assert.Contains("F2011_sp_sel_List_Nhap_Kho_Detail", v_Procedures);
-        Assert.Contains("F2012_sp_sel_List_Xuat_Kho_Detail", v_Procedures);
+        Assert.Contains("F3001_sp_sel_List_Nhap_Kho_Detail", v_Procedures);
+        Assert.Contains("F3002_sp_sel_List_Xuat_Kho_Detail", v_Procedures);
         Assert.Contains("dv.Ten_Don_Vi_Tinh", v_Procedures);
         Assert.Contains("JOIN dbo.tbl_DM_Don_Vi_Tinh dv", v_Procedures);
     }

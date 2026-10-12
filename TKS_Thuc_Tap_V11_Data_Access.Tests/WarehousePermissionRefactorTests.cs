@@ -58,7 +58,7 @@ public sealed class WarehousePermissionRefactorTests
         Assert.NotNull(v_objPermissionControllerType.GetMethod("List_User_Lookup_Async"));
 
         var v_strMasterSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_strPermissionSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehousePermission_Controller.cs"));
 
@@ -121,7 +121,7 @@ public sealed class WarehousePermissionRefactorTests
     public void Master_controller_does_not_dispatch_user_warehouse_mapping()
     {
         var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
 
         Assert.DoesNotContain("if (p_strMaster_Type == \"KhoUser\")", v_strSource);
         Assert.DoesNotContain("\"KhoUser\" =>", v_strSource);

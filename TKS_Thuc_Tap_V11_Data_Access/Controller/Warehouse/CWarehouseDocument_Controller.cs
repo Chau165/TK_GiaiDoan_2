@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 
@@ -11,11 +12,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
         string v_strProcedure;
         if (p_bIs_Receipt)
         {
-            v_strProcedure = "F2011_sp_sel_List_Nhap_Kho";
+            v_strProcedure = "F3001_sp_sel_List_Nhap_Kho";
         }
         else
         {
-            v_strProcedure = "F2012_sp_sel_List_Xuat_Kho";
+            v_strProcedure = "F3002_sp_sel_List_Xuat_Kho";
         }
 
         return Task.FromResult(List_From_Procedure<CWarehouseDocument>(v_strProcedure, p_strCurrent_Login, p_iWarehouse_ID));
@@ -56,11 +57,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
             string v_strProcedure;
             if (v_bIsCreate)
             {
-                v_strProcedure = "F2011_sp_ins_Nhap_Kho_Header";
+                v_strProcedure = "F3001_sp_ins_Nhap_Kho_Header";
             }
             else
             {
-                v_strProcedure = "F2011_sp_upd_Nhap_Kho_Header";
+                v_strProcedure = "F3001_sp_upd_Nhap_Kho_Header";
             }
 
             p_objData.Auto_ID = Scalar_ID(v_strProcedure,
@@ -94,11 +95,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
             string v_strProcedure;
             if (v_bIsCreate)
             {
-                v_strProcedure = "F2012_sp_ins_Xuat_Kho_Header";
+                v_strProcedure = "F3002_sp_ins_Xuat_Kho_Header";
             }
             else
             {
-                v_strProcedure = "F2012_sp_upd_Xuat_Kho_Header";
+                v_strProcedure = "F3002_sp_upd_Xuat_Kho_Header";
             }
 
             p_objData.Auto_ID = Scalar_ID(v_strProcedure,
@@ -123,11 +124,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
         var v_strProcedure = "";
         if (p_bIs_Receipt)
         {
-            v_strProcedure = "F2011_sp_del_Nhap_Kho_Header";
+            v_strProcedure = "F3001_sp_del_Nhap_Kho_Header";
         }
         else
         {
-            v_strProcedure = "F2012_sp_del_Xuat_Kho_Header";
+            v_strProcedure = "F3002_sp_del_Xuat_Kho_Header";
         }
 
         Execute_Procedure(v_strProcedure,
@@ -152,10 +153,10 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
     {
         if (p_bIs_Receipt)
         {
-            return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("F2011_sp_sel_List_Nhap_Kho_Detail", p_iDocument_ID, p_strCurrent_Login));
+            return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("F3001_sp_sel_List_Nhap_Kho_Detail", p_iDocument_ID, p_strCurrent_Login));
         }
 
-        return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("F2012_sp_sel_List_Xuat_Kho_Detail", p_iDocument_ID, p_strCurrent_Login));
+        return Task.FromResult(List_From_Procedure<CWarehouseDocumentDetail>("F3002_sp_sel_List_Xuat_Kho_Detail", p_iDocument_ID, p_strCurrent_Login));
     }
 
     public Task Save_Document_Detail_Async(bool p_bIs_Receipt, CWarehouseDocumentDetail p_objData,
@@ -188,11 +189,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
             string v_strProcedure;
             if (v_bIsCreate)
             {
-                v_strProcedure = "F2011_sp_ins_Nhap_Kho_Detail";
+                v_strProcedure = "F3001_sp_ins_Nhap_Kho_Detail";
             }
             else
             {
-                v_strProcedure = "F2011_sp_upd_Nhap_Kho_Detail";
+                v_strProcedure = "F3001_sp_upd_Nhap_Kho_Detail";
             }
 
             p_objData.Auto_ID = Scalar_ID(v_strProcedure,
@@ -225,11 +226,11 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
             string v_strProcedure;
             if (v_bIsCreate)
             {
-                v_strProcedure = "F2012_sp_ins_Xuat_Kho_Detail";
+                v_strProcedure = "F3002_sp_ins_Xuat_Kho_Detail";
             }
             else
             {
-                v_strProcedure = "F2012_sp_upd_Xuat_Kho_Detail";
+                v_strProcedure = "F3002_sp_upd_Xuat_Kho_Detail";
             }
 
             p_objData.Auto_ID = Scalar_ID(v_strProcedure,
@@ -248,17 +249,117 @@ public class CWarehouseDocument_Controller : CWarehouse_Controller_Base
         return Task.CompletedTask;
     }
 
+    public async Task<long> Save_Imported_Document_Atomically_Async(
+        CWarehouseDocument p_objDocument,
+        IReadOnlyList<CWarehouseDocumentDetail> p_arrDetails,
+        string p_strCurrent_User,
+        string p_strCurrent_Function,
+        CancellationToken p_objCancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(p_objDocument);
+        ArgumentNullException.ThrowIfNull(p_arrDetails);
+        if (p_objDocument.Auto_ID != 0)
+            throw new ArgumentException("Import chỉ được tạo chứng từ mới.", nameof(p_objDocument));
+        if (p_arrDetails.Count == 0)
+            throw new ArgumentException("Chứng từ phải có ít nhất một dòng chi tiết.", nameof(p_arrDetails));
+
+        p_objDocument.Created_By = p_strCurrent_User;
+        p_objDocument.Created_By_Function = p_strCurrent_Function;
+        p_objDocument.Last_Updated_By = p_strCurrent_User;
+        p_objDocument.Last_Updated_By_Function = p_strCurrent_Function;
+
+        await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
+        await v_objConnection.OpenAsync(p_objCancellationToken);
+        using var v_objTransaction = v_objConnection.BeginTransaction();
+
+        try
+        {
+            p_objCancellationToken.ThrowIfCancellationRequested();
+            if (p_objDocument.Is_Receipt)
+            {
+                p_objDocument.Auto_ID = Scalar_ID(v_objConnection, v_objTransaction, "F3001_sp_ins_Nhap_Kho_Header",
+                    InputOutput_BigInt("@Auto_ID", 0),
+                    NVarChar("@So_Phieu_Nhap_Kho", p_objDocument.So_Phieu, 100),
+                    BigInt("@Kho_ID", p_objDocument.Kho_ID),
+                    BigInt("@NCC_ID", p_objDocument.NCC_ID),
+                    Date("@Ngay_Nhap_Kho", p_objDocument.Ngay_Chung_Tu),
+                    NVarChar("@Ghi_Chu", p_objDocument.Ghi_Chu, 1000),
+                    NVarChar("@Ma_Dang_Nhap", p_strCurrent_User, 100),
+                    NVarChar("@Created_By", p_objDocument.Created_By, 100),
+                    NVarChar("@Created_By_Function", p_objDocument.Created_By_Function, 100),
+                    NVarChar("@Last_Updated_By", p_objDocument.Last_Updated_By, 100),
+                    NVarChar("@Last_Updated_By_Function", p_objDocument.Last_Updated_By_Function, 100));
+            }
+            else
+            {
+                p_objDocument.Auto_ID = Scalar_ID(v_objConnection, v_objTransaction, "F3002_sp_ins_Xuat_Kho_Header",
+                    InputOutput_BigInt("@Auto_ID", 0),
+                    NVarChar("@So_Phieu_Xuat_Kho", p_objDocument.So_Phieu, 100),
+                    BigInt("@Kho_ID", p_objDocument.Kho_ID),
+                    Date("@Ngay_Xuat_Kho", p_objDocument.Ngay_Chung_Tu),
+                    NVarChar("@Ghi_Chu", p_objDocument.Ghi_Chu, 1000),
+                    NVarChar("@Ma_Dang_Nhap", p_strCurrent_User, 100),
+                    NVarChar("@Created_By", p_objDocument.Created_By, 100),
+                    NVarChar("@Created_By_Function", p_objDocument.Created_By_Function, 100),
+                    NVarChar("@Last_Updated_By", p_objDocument.Last_Updated_By, 100),
+                    NVarChar("@Last_Updated_By_Function", p_objDocument.Last_Updated_By_Function, 100));
+            }
+
+            foreach (var v_objDetail in p_arrDetails)
+            {
+                p_objCancellationToken.ThrowIfCancellationRequested();
+                v_objDetail.Auto_ID = 0;
+                v_objDetail.Document_ID = p_objDocument.Auto_ID;
+                v_objDetail.Created_By = p_strCurrent_User;
+                v_objDetail.Created_By_Function = p_strCurrent_Function;
+                v_objDetail.Last_Updated_By = p_strCurrent_User;
+                v_objDetail.Last_Updated_By_Function = p_strCurrent_Function;
+
+                var v_strProcedure = p_objDocument.Is_Receipt
+                    ? "F3001_sp_ins_Nhap_Kho_Detail"
+                    : "F3002_sp_ins_Xuat_Kho_Detail";
+                v_objDetail.Auto_ID = Scalar_ID(v_objConnection, v_objTransaction, v_strProcedure,
+                    InputOutput_BigInt("@Auto_ID", 0),
+                    BigInt(p_objDocument.Is_Receipt ? "@Nhap_Kho_ID" : "@Xuat_Kho_ID", v_objDetail.Document_ID),
+                    BigInt("@San_Pham_ID", v_objDetail.San_Pham_ID),
+                    Decimal(p_objDocument.Is_Receipt ? "@SL_Nhap" : "@SL_Xuat", v_objDetail.So_Luong, 18, 3),
+                    Decimal(p_objDocument.Is_Receipt ? "@Don_Gia_Nhap" : "@Don_Gia_Xuat", v_objDetail.Don_Gia, 18, 2),
+                    NVarChar("@Ma_Dang_Nhap", p_strCurrent_User, 100),
+                    NVarChar("@Created_By", v_objDetail.Created_By, 100),
+                    NVarChar("@Created_By_Function", v_objDetail.Created_By_Function, 100),
+                    NVarChar("@Last_Updated_By", v_objDetail.Last_Updated_By, 100),
+                    NVarChar("@Last_Updated_By_Function", v_objDetail.Last_Updated_By_Function, 100));
+            }
+
+            v_objTransaction.Commit();
+            return p_objDocument.Auto_ID;
+        }
+        catch
+        {
+            try
+            {
+                v_objTransaction.Rollback();
+            }
+            catch
+            {
+                // Preserve the original save error.
+            }
+
+            throw;
+        }
+    }
+
     public Task Delete_Document_Detail_Async(bool p_bIs_Receipt, long p_iAuto_ID,
         string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "", string p_strCurrent_Login = "")
     {
         var v_strProcedure = "";
         if (p_bIs_Receipt)
         {
-            v_strProcedure = "F2011_sp_del_Nhap_Kho_Detail";
+            v_strProcedure = "F3001_sp_del_Nhap_Kho_Detail";
         }
         else
         {
-            v_strProcedure = "F2012_sp_del_Xuat_Kho_Detail";
+            v_strProcedure = "F3002_sp_del_Xuat_Kho_Detail";
         }
 
         Execute_Procedure(v_strProcedure,

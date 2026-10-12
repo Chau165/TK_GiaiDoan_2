@@ -116,11 +116,11 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
             await AssertDirectMutationRejectedAsync(v_Connection, v_Transaction,
                 "DELETE FROM dbo.InventoryReservation_Current WHERE 1 = 0;");
 
-            var receiptId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+            var receiptId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3001_sp_ins_Nhap_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Fixture.Tag}-app-receipt", 100), BigInt("@Kho_ID", v_Fixture.WarehouseId),
                 BigInt("@NCC_ID", v_Fixture.SupplierId), Date("@Ngay_Nhap_Kho", DateTime.Today), Text("@Ghi_Chu", "", 1000), Text("@Ma_Dang_Nhap", v_Fixture.Login, 100),
                 Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "Phase10.1-App", 100), Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-App", 100));
-            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", receiptId), BigInt("@San_Pham_ID", v_Fixture.ProductId), Decimal("@SL_Nhap", 1m), Decimal("@Don_Gia_Nhap", 1m),
                 Text("@Ma_Dang_Nhap", v_Fixture.Login, 100), Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "Phase10.1-App", 100),
                 Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-App", 100));
@@ -128,11 +128,11 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
                 Bit("@Is_Receipt", true), BigInt("@Document_ID", receiptId), Text("@Ma_Dang_Nhap", v_Fixture.Login, 100),
                 Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-App", 100));
 
-            var issueId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2012_sp_ins_Xuat_Kho_Header",
+            var issueId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3002_sp_ins_Xuat_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Xuat_Kho", $"{v_Fixture.Tag}-app-issue", 100), BigInt("@Kho_ID", v_Fixture.WarehouseId),
                 Date("@Ngay_Xuat_Kho", DateTime.Today), Text("@Ghi_Chu", "", 1000), Text("@Ma_Dang_Nhap", v_Fixture.Login, 100),
                 Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "Phase10.1-App", 100), Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-App", 100));
-            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2012_sp_ins_Xuat_Kho_Detail",
+            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3002_sp_ins_Xuat_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Xuat_Kho_ID", issueId), BigInt("@San_Pham_ID", v_Fixture.ProductId), Decimal("@SL_Xuat", 1m), Decimal("@Don_Gia_Xuat", 1m),
                 Text("@Ma_Dang_Nhap", v_Fixture.Login, 100), Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "Phase10.1-App", 100),
                 Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-App", 100));
@@ -358,12 +358,12 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
                 "INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, deleted) VALUES (@MemberId, @Login, N'Phase 10.1 R01', 0); INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId);",
                 BigInt("@MemberId", memberId), Text("@Login", v_Login, 100), BigInt("@WarehouseId", warehouseId));
 
-            var receiptId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+            var receiptId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3001_sp_ins_Nhap_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Tag}-receipt", 100), BigInt("@Kho_ID", warehouseId),
                 BigInt("@NCC_ID", supplierId), Date("@Ngay_Nhap_Kho", DateTime.Today), Text("@Ghi_Chu", "", 1000),
                 Text("@Ma_Dang_Nhap", v_Login, 100), Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1", 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "Phase10.1", 100));
-            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", receiptId), BigInt("@San_Pham_ID", productId),
                 Decimal("@SL_Nhap", 10m), Decimal("@Don_Gia_Nhap", 1m), Text("@Ma_Dang_Nhap", v_Login, 100),
                 Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1", 100),
@@ -372,12 +372,12 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
                 Bit("@Is_Receipt", true), BigInt("@Document_ID", receiptId), Text("@Ma_Dang_Nhap", v_Login, 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "Phase10.1", 100));
 
-            var issueId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2012_sp_ins_Xuat_Kho_Header",
+            var issueId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3002_sp_ins_Xuat_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Xuat_Kho", $"{v_Tag}-issue", 100), BigInt("@Kho_ID", warehouseId),
                 Date("@Ngay_Xuat_Kho", DateTime.Today), Text("@Ghi_Chu", "", 1000), Text("@Ma_Dang_Nhap", v_Login, 100),
                 Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1", 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "Phase10.1", 100));
-            var detailId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2012_sp_ins_Xuat_Kho_Detail",
+            var detailId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3002_sp_ins_Xuat_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Xuat_Kho_ID", issueId), BigInt("@San_Pham_ID", productId),
                 Decimal("@SL_Xuat", 2m), Decimal("@Don_Gia_Xuat", 1m), Text("@Ma_Dang_Nhap", v_Login, 100),
                 Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1", 100),
@@ -428,12 +428,12 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
 
             await using var v_DraftConnection = new SqlConnection(ConnectionString);
             await v_DraftConnection.OpenAsync();
-            var draftReceiptId = await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+            var draftReceiptId = await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F3001_sp_ins_Nhap_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Tag}-draft-receipt", 100), BigInt("@Kho_ID", warehouseB),
                 BigInt("@NCC_ID", supplierId), Date("@Ngay_Nhap_Kho", DateTime.Today), Text("@Ghi_Chu", "", 1000),
                 Text("@Ma_Dang_Nhap", v_Login, 100), Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1", 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "Phase10.1", 100));
-            await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+            await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", draftReceiptId), BigInt("@San_Pham_ID", postedProductId),
                 Decimal("@SL_Nhap", 10m), Decimal("@Don_Gia_Nhap", 1m), Text("@Ma_Dang_Nhap", v_Login, 100),
                 Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1", 100),
@@ -475,11 +475,11 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
 
             await using var v_DraftConnection = new SqlConnection(ConnectionString);
             await v_DraftConnection.OpenAsync();
-            var draftReceiptId = await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+            var draftReceiptId = await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F3001_sp_ins_Nhap_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Tag}-draft-receipt", 100), BigInt("@Kho_ID", warehouseB),
                 BigInt("@NCC_ID", supplierId), Date("@Ngay_Nhap_Kho", v_dtmBusinessDate), Text("@Ghi_Chu", "", 1000), Text("@Ma_Dang_Nhap", v_Login, 100),
                 Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1-R02-Paged", 100), Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-R02-Paged", 100));
-            await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+            await ExecuteStoredIdAsync(v_DraftConnection, null, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", draftReceiptId), BigInt("@San_Pham_ID", productId), Decimal("@SL_Nhap", 10m), Decimal("@Don_Gia_Nhap", 1m),
                 Text("@Ma_Dang_Nhap", v_Login, 100), Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "Phase10.1-R02-Paged", 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "Phase10.1-R02-Paged", 100));

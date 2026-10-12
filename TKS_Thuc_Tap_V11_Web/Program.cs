@@ -9,7 +9,9 @@ using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Append.Blazor.Printing;
 using TKS_Thuc_Tap_V11_Web.Background_Service;
 using TKS_Thuc_Tap_V11_Web;
+using Telerik.Licensing;
 
+TelerikLicensing.Register();
 var v_Builder = WebApplication.CreateBuilder(args);
 v_Builder.Services.AddControllers();
 //builder.Services.AddSignalR();
@@ -26,7 +28,10 @@ v_Builder.Services.AddMvc();
 
 // Add services to the container.
 v_Builder.Services.AddRazorPages().AddNewtonsoftJson();
-v_Builder.Services.AddServerSideBlazor().AddCircuitOptions(options => { options.DetailedErrors = true; });
+v_Builder.Services.AddServerSideBlazor()
+    .AddCircuitOptions(options => { options.DetailedErrors = true; })
+    // Covers the shared FileSelect limit of 20,480,000 bytes with bounded transport headroom.
+    .AddHubOptions(options => { options.MaximumReceiveMessageSize = 22 * 1024 * 1024; });
 v_Builder.Services.AddHttpContextAccessor();
 v_Builder.Services.AddScoped<IPrintingService, PrintingService>();
 

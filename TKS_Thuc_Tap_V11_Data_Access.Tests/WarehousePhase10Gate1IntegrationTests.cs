@@ -171,7 +171,7 @@ public sealed class WarehousePhase10Gate1IntegrationTests
             Assert.Equal(51407, v_SaveError.Number);
             await v_SaveTransaction.RollbackAsync();
 
-            await ExecuteStoredAsync(v_DeleteConnection, v_DeleteTransaction, "dbo.F2012_sp_del_Xuat_Kho_Header",
+            await ExecuteStoredAsync(v_DeleteConnection, v_DeleteTransaction, "dbo.F3002_sp_del_Xuat_Kho_Header",
                 BigInt("@Auto_ID", v_Scope.IssueId), Text("@Last_Updated_By", v_Scope.Login, 100),
                 Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", v_Scope.Login, 100));
             await v_DeleteTransaction.CommitAsync();
@@ -225,14 +225,14 @@ public sealed class WarehousePhase10Gate1IntegrationTests
             var v_DeleteError = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(
                 v_DeleteConnection,
                 null,
-                "dbo.F2012_sp_del_Xuat_Kho_Header",
+                "dbo.F3002_sp_del_Xuat_Kho_Header",
                 BigInt("@Auto_ID", v_Scope.IssueId), Text("@Last_Updated_By", v_Scope.Login, 100),
                 Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", v_Scope.Login, 100)));
 
             Assert.Equal(51407, v_DeleteError.Number);
             await v_SaveTransaction.RollbackAsync();
 
-            await ExecuteStoredAsync(v_DeleteConnection, null, "dbo.F2012_sp_del_Xuat_Kho_Header",
+            await ExecuteStoredAsync(v_DeleteConnection, null, "dbo.F3002_sp_del_Xuat_Kho_Header",
                 BigInt("@Auto_ID", v_Scope.IssueId), Text("@Last_Updated_By", v_Scope.Login, 100),
                 Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", v_Scope.Login, 100));
 
@@ -262,7 +262,7 @@ public sealed class WarehousePhase10Gate1IntegrationTests
             await using (var v_Connection = new SqlConnection(ConnectionString))
             {
                 await v_Connection.OpenAsync();
-                await ExecuteStoredAsync(v_Connection, null, "dbo.F2012_sp_del_Xuat_Kho_Header",
+                await ExecuteStoredAsync(v_Connection, null, "dbo.F3002_sp_del_Xuat_Kho_Header",
                     BigInt("@Auto_ID", v_Scope.IssueId), Text("@Last_Updated_By", v_Scope.Login, 100),
                     Text("@Last_Updated_By_Function", "TDD", 100), Text("@Ma_Dang_Nhap", v_Scope.Login, 100));
             }
@@ -313,11 +313,11 @@ public sealed class WarehousePhase10Gate1IntegrationTests
         string v_strProcedure;
         if (autoId == 0)
         {
-            v_strProcedure = "dbo.F2012_sp_ins_Xuat_Kho_Detail";
+            v_strProcedure = "dbo.F3002_sp_ins_Xuat_Kho_Detail";
         }
         else
         {
-            v_strProcedure = "dbo.F2012_sp_upd_Xuat_Kho_Detail";
+            v_strProcedure = "dbo.F3002_sp_upd_Xuat_Kho_Detail";
         }
 
         return await ExecuteStoredIdAsync(p_Connection, p_Transaction, v_strProcedure,

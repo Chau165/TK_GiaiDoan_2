@@ -408,7 +408,7 @@ public sealed class WarehousePhase3H03H08M06IntegrationTests : IAsyncLifetime
     {
         await using var v_Connection = OpenConnection($"P3-save-receipt-header-{p_Fixture.Tag}");
         await v_Connection.OpenAsync();
-        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F3001_sp_ins_Nhap_Kho_Header",
             BigInt("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{p_Fixture.Tag}-{p_Suffix}-{Guid.NewGuid():N}", 100),
             BigInt("@Kho_ID", warehouseId), BigInt("@NCC_ID", p_Fixture.SupplierId), Date("@Ngay_Nhap_Kho", p_dtmDate),
             Text("@Ghi_Chu", "phase 3 test", 1000), Text("@Ma_Dang_Nhap", p_Fixture.Login, 100));
@@ -418,7 +418,7 @@ public sealed class WarehousePhase3H03H08M06IntegrationTests : IAsyncLifetime
     {
         await using var v_Connection = OpenConnection($"P3-save-receipt-detail-{p_Fixture.Tag}");
         await v_Connection.OpenAsync();
-        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
             BigInt("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", receiptId), BigInt("@San_Pham_ID", productId),
             Decimal("@SL_Nhap", p_Quantity), Decimal("@Don_Gia_Nhap", 1m), Text("@Ma_Dang_Nhap", p_Fixture.Login, 100));
     }
@@ -427,7 +427,7 @@ public sealed class WarehousePhase3H03H08M06IntegrationTests : IAsyncLifetime
     {
         await using var v_Connection = OpenConnection($"P3-save-issue-header-{p_Fixture.Tag}");
         await v_Connection.OpenAsync();
-        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F2012_sp_ins_Xuat_Kho_Header",
+        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F3002_sp_ins_Xuat_Kho_Header",
             BigInt("@Auto_ID", 0), Text("@So_Phieu_Xuat_Kho", $"{p_Fixture.Tag}-{p_Suffix}-{Guid.NewGuid():N}", 100),
             BigInt("@Kho_ID", p_Fixture.WarehouseAId), Date("@Ngay_Xuat_Kho", p_dtmDate),
             Text("@Ghi_Chu", "phase 3 test", 1000), Text("@Ma_Dang_Nhap", p_Fixture.Login, 100));
@@ -437,7 +437,7 @@ public sealed class WarehousePhase3H03H08M06IntegrationTests : IAsyncLifetime
     {
         await using var v_Connection = OpenConnection($"P3-save-issue-detail-{p_Fixture.Tag}");
         await v_Connection.OpenAsync();
-        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F2012_sp_ins_Xuat_Kho_Detail",
+        return await ExecuteStoredWithOutputAsync(v_Connection, null, "dbo.F3002_sp_ins_Xuat_Kho_Detail",
             BigInt("@Auto_ID", 0), BigInt("@Xuat_Kho_ID", issueId), BigInt("@San_Pham_ID", productId),
             Decimal("@SL_Xuat", p_Quantity), Decimal("@Don_Gia_Xuat", 1m), Text("@Ma_Dang_Nhap", p_Fixture.Login, 100));
     }

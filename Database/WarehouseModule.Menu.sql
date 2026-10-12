@@ -64,10 +64,10 @@ VALUES
     (@Master_Product_ID, N'2018', N'Sản phẩm', 7, @Master_Data_ID, 1, N'/Kho/San_Pham', N'', 1, 1, 1, 1, 1, N'Quản lý sản phẩm'),
     (@Master_Supplier_ID, N'2019', N'Nhà cung cấp', 8, @Master_Data_ID, 1, N'/Kho/Nha_Cung_Cap', N'', 1, 1, 1, 1, 1, N'Quản lý nhà cung cấp'),
     (@Warehouse_Management_ID, N'2010', N'Quản lý kho', 5, 0, 1, N'#', N'ri-archive-line', 1, 0, 0, 0, 0, N'Bài tập thực tập giai đoạn 2'),
-    (@Receipt_ID, N'2011', N'Nhập kho', 1, @Warehouse_Management_ID, 1, N'/Kho/Nhap_Kho', N'', 1, 1, 1, 1, 1, N'Quản lý phiếu nhập kho'),
-    (@Issue_ID, N'2012', N'Xuất kho', 2, @Warehouse_Management_ID, 1, N'/Kho/Xuat_Kho', N'', 1, 1, 1, 1, 1, N'Quản lý phiếu xuất kho'),
-    (@Inventory_ID, N'2013', N'Tồn kho', 3, @Warehouse_Management_ID, 1, N'/Kho/Ton_Kho', N'', 1, 0, 0, 0, 1, N'Xem tồn kho hiện tại'),
-    (@Report_ID, N'2014', N'Báo cáo', 4, @Warehouse_Management_ID, 1, N'/Kho/Bao_Cao', N'', 1, 0, 0, 0, 1, N'Báo cáo nhập, xuất và tồn theo kỳ');
+    (@Receipt_ID, N'3001', N'Nhập kho', 1, @Warehouse_Management_ID, 1, N'/Kho/Nhap_Kho', N'', 1, 1, 1, 1, 1, N'Quản lý phiếu nhập kho'),
+    (@Issue_ID, N'3002', N'Xuất kho', 2, @Warehouse_Management_ID, 1, N'/Kho/Xuat_Kho', N'', 1, 1, 1, 1, 1, N'Quản lý phiếu xuất kho'),
+    (@Inventory_ID, N'9001', N'Tồn kho', 3, @Warehouse_Management_ID, 1, N'/Kho/Ton_Kho', N'', 1, 0, 0, 0, 1, N'Xem tồn kho hiện tại'),
+    (@Report_ID, N'9002', N'Báo cáo', 4, @Warehouse_Management_ID, 1, N'/Kho/Bao_Cao', N'', 1, 0, 0, 0, 1, N'Báo cáo nhập, xuất và tồn theo kỳ');
 
 INSERT @MenuDefinition
     (Auto_ID, Ma_Chuc_Nang, Ten_Chuc_Nang, Sort_Priority, Chuc_Nang_Parent_ID, Nhom_Chuc_Nang_ID, Func_URL, Image_URL, Is_View, Is_New, Is_Edit, Is_Delete, Is_Export, Ghi_Chu)

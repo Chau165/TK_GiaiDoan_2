@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
@@ -48,17 +49,31 @@ public class WarehouseUnitDuplicateEncodingTests
     }
 
     [Fact]
-    public void DonViTinh_duplicate_check_must_be_case_insensitive()
+    public void DonViTinh_duplicate_checks_must_be_case_insensitive_and_accent_sensitive()
     {
         var v_Root = FindRepoRoot();
         var v_Path = Path.Combine(v_Root, "Database", "WarehouseModule.Procedures.sql");
         var v_Text = File.ReadAllText(v_Path, Encoding.UTF8);
-        // Must use explicit COLLATE CI_AI so "Cái" vs "CÁI" is considered duplicate even if DB collation is CS or BIN
-        // Require at least one occurrence of COLLATE with CI in the duplicate check
-        Assert.Contains("COLLATE", v_Text);
-        // Duplicate check line must reference Ten_Don_Vi_Tinh with COLLATE
-        var v_bHasCiDuplicate = v_Text.Contains("Ten_Don_Vi_Tinh COLLATE") && v_Text.Contains("THROW 51002");
-        Assert.True(v_bHasCiDuplicate, "F2016_sp_ins_Don_Vi_Tinh must use COLLATE Vietnamese_CI_AI or Latin1_General_CI_AI for case-insensitive duplicate detection (Cái vs CÁI)");
+        foreach (var v_strProcedure in new[] { "F2016_sp_ins_Don_Vi_Tinh", "F2016_sp_upd_Don_Vi_Tinh" })
+        {
+            var v_objMatch = Regex.Match(
+                v_Text,
+                $"(?ims)CREATE\\s+OR\\s+ALTER\\s+PROCEDURE\\s+dbo\\.{Regex.Escape(v_strProcedure)}(?<body>.*?)(?=^\\s*GO\\s*$|\\z)");
+
+            Assert.True(v_objMatch.Success, $"Procedure definition not found: {v_strProcedure}");
+            Assert.Contains("Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS", v_objMatch.Groups["body"].Value);
+            Assert.DoesNotContain("Latin1_General_CI_AI", v_objMatch.Groups["body"].Value);
+        }
+    }
+
+    [Fact]
+    public void DonViTinh_name_column_must_use_the_business_ci_as_collation()
+    {
+        var v_Root = FindRepoRoot();
+        var v_Path = Path.Combine(v_Root, "Database", "WarehouseModule.Schema.sql");
+        var v_Text = File.ReadAllText(v_Path, Encoding.UTF8);
+
+        Assert.Contains("Ten_Don_Vi_Tinh NVARCHAR(200) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL", v_Text);
     }
 
     [Fact]

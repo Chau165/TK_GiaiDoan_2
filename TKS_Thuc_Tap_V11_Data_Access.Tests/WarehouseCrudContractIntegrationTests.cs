@@ -202,7 +202,7 @@ public sealed class WarehouseCrudContractIntegrationTests : IAsyncLifetime
         using var v_objConnection = new SqlConnection(ConnectionString);
         await v_objConnection.OpenAsync();
         using var v_objTransaction = v_objConnection.BeginTransaction();
-        using var v_objDelete = new SqlCommand("dbo.F2011_sp_del_Nhap_Kho_Header", v_objConnection, v_objTransaction)
+        using var v_objDelete = new SqlCommand("dbo.F3001_sp_del_Nhap_Kho_Header", v_objConnection, v_objTransaction)
         {
             CommandType = CommandType.StoredProcedure
         };

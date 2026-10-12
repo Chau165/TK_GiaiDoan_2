@@ -1,0 +1,268 @@
+@using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
+
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" style="background-color: rgba(10, 10, 10, .8);">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">Nhập Excel - Sản phẩm</h5>
+                <button type="button" class="btn-close" aria-label="Đóng" disabled="@(m_eState == EProductImportState.Importing)" @onclick="Close_Async"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+                    <a class="btn btn-outline-secondary" href="/FileManagement/Template/San_Pham_Import_Template.xlsx" download>
+                        <i class="ri-download-2-line me-1"></i>Tải template
+                    </a>
+                    <div>
+                        <label class="form-label" for="product-import-file">Chọn file .xlsx</label>
+                        <InputFile id="product-import-file" OnChange="On_File_Changed" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled="@(m_eState is EProductImportState.Parsing or EProductImportState.Importing)" />
+                    </div>
+                    <button type="button" class="btn btn-primary" @onclick="Preview_Async" disabled="@(!Can_Preview)">
+                        @if (m_eState == EProductImportState.Parsing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            <span>Đang kiểm tra</span>
+                        }
+                        else
+                        {
+                            <span>Xem trước</span>
+                        }
+                    </button>
+                </div>
+                <p class="small text-muted">Chỉ nhận .xlsx, tối đa 1 MiB và 100 dòng sản phẩm.</p>
+                @if (m_objFile is not null)
+                {
+                    <p class="small">File: @m_objFile.Name (@m_objFile.Size.ToString("N0") byte)</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(m_strError))
+                {
+                    <div class="alert alert-danger" role="alert">@m_strError</div>
+                }
+                @if (m_eState == EProductImportState.Success)
+                {
+                    <div class="alert alert-success" role="status">@m_strSuccess</div>
+                }
+                @if (m_objPreview is not null)
+                {
+                    <div class="row g-3 mb-3" aria-live="polite">
+                        <div class="col-6 col-lg-3"><strong>Tổng:</strong> @m_objPreview.Total_Rows</div>
+                        <div class="col-6 col-lg-3"><strong>Hợp lệ:</strong> @m_objPreview.Valid_Rows</div>
+                        <div class="col-6 col-lg-3"><strong>Bỏ qua:</strong> @m_objPreview.Skipped_Rows</div>
+                        <div class="col-6 col-lg-3"><strong>Lỗi:</strong> @m_objPreview.Invalid_Rows</div>
+                    </div>
+                    @if (m_objPreview.Unsupported_Columns.Count > 0)
+                    {
+                        <div class="alert alert-warning py-2" role="alert">Không nhập các cột chưa hỗ trợ: @(string.Join(", ", m_objPreview.Unsupported_Columns)).</div>
+                    }
+                    <div class="small text-muted mb-2">
+                        <div>Cột đã ánh xạ: @(string.Join(", ", m_objPreview.Mapped_Columns))</div>
+                        <div>Cột bỏ qua: @(string.Join(", ", m_objPreview.Ignored_Columns))</div>
+                    </div>
+                    <FImportFieldPolicyDiagnostics Diagnostics="m_objPreview.Field_Policy_Diagnostics" />
+                    @if (m_objPreview.Unsupported_Capabilities.Count > 0)
+                    {
+                        <div class="alert alert-danger py-2" role="alert">
+                            <strong>Không thể xác nhận do giới hạn dữ liệu:</strong>
+                            <ul class="mb-0">
+                                @foreach (var v_objCapability in m_objPreview.Unsupported_Capabilities)
+                                {
+                                    <li>Dòng @v_objCapability.RowNumber, @v_objCapability.SourceColumn (@v_objCapability.SourceValue): @v_objCapability.Message</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    @if (m_objPreview.Value_Mappings.Count > 0)
+                    {
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-bordered">
+                                <thead><tr><th>Dòng</th><th>Trường</th><th>Giá trị gốc</th><th>Giá trị ánh xạ</th><th>ID resolve</th><th>Trạng thái</th></tr></thead>
+                                <tbody>
+                                    @foreach (var v_objMapping in m_objPreview.Value_Mappings)
+                                    {
+                                        <tr><td>@v_objMapping.RowNumber</td><td>@v_objMapping.CanonicalField</td><td>@v_objMapping.SourceValue</td><td>@v_objMapping.MappedValue</td><td>@v_objMapping.ResolvedId</td><td>@v_objMapping.Status</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    @foreach (var v_objError in m_objPreview.Errors.Where(v_objError => !m_objPreview.Rows.Any(v_objRow => v_objRow.Row_Number == v_objError.Row_Number)))
+                    {
+                        <div class="alert alert-danger py-2" role="alert">@v_objError.Message</div>
+                    }
+                    @if (m_objPreview.Rows.Count > 0)
+                    {
+                        <div class="table-responsive" style="max-height: 55vh;">
+                            <table class="table table-sm table-bordered table-striped align-middle">
+                                <thead class="table-light position-sticky top-0">
+                                    <tr>
+                                        <th scope="col">Dòng</th>
+                                        <th scope="col">Ma_San_Pham</th>
+                                        <th scope="col">Ten_San_Pham</th>
+                                        <th scope="col">Ma_LSP</th>
+                                        <th scope="col">Ten_Don_Vi_Tinh</th>
+                                        <th scope="col">Trạng thái / lỗi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var v_objRow in m_objPreview.Rows)
+                                    {
+                                        <tr>
+                                            <td>@v_objRow.Row_Number</td>
+                                            <td>@v_objRow.Ma_San_Pham</td>
+                                            <td>@v_objRow.Ten_San_Pham</td>
+                                            <td>@v_objRow.Ma_LSP</td>
+                                            <td>@v_objRow.Ten_Don_Vi_Tinh</td>
+                                            <td>
+                                                @if (v_objRow.Is_Skipped)
+                                                {
+                                                    <span class="text-muted">Bỏ qua (trùng dữ liệu)</span>
+                                                }
+                                                else if (v_objRow.Is_Valid)
+                                                {
+                                                    <span class="text-success">Hợp lệ</span>
+                                                }
+                                                else
+                                                {
+                                                    <ul class="mb-0 ps-3">
+                                                        @foreach (var v_objRowError in v_objRow.Errors)
+                                                        {
+                                                            <li>@v_objRowError.Message</li>
+                                                        }
+                                                    </ul>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" disabled="@(m_eState == EProductImportState.Importing)" @onclick="Close_Async">Đóng</button>
+                <button type="button" class="btn btn-primary" disabled="@(!Can_Confirm)" @onclick="Confirm_Async">
+                    @if (m_eState == EProductImportState.Importing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        <span>Đang nhập</span>
+                    }
+                    else
+                    {
+                        <span>Xác nhận nhập</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private const long m_iMaxFileSize = 1_048_576;
+    private readonly CWarehouseProductImportService m_objImportService = new();
+    private IBrowserFile? m_objFile;
+    private CProductImportPreviewResult? m_objPreview;
+    private EProductImportState m_eState = EProductImportState.NoFile;
+    private string m_strError = "";
+    private string m_strSuccess = "";
+
+    [Parameter] public string UserName { get; set; } = "";
+    [Parameter] public string FunctionCode { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<int> OnCompleted { get; set; }
+
+    private bool Can_Preview => m_objFile is not null &&
+        string.Equals(Path.GetExtension(m_objFile.Name), ".xlsx", StringComparison.OrdinalIgnoreCase) &&
+        m_objFile.Size <= m_iMaxFileSize &&
+        m_eState is not EProductImportState.Parsing and not EProductImportState.Importing and not EProductImportState.Success;
+    private bool Can_Confirm => m_objPreview?.Can_Confirm == true && m_eState == EProductImportState.PreviewValid;
+
+    private void On_File_Changed(InputFileChangeEventArgs p_objArgs)
+    {
+        m_objFile = p_objArgs.File;
+        m_objPreview = null;
+        m_strError = "";
+        m_strSuccess = "";
+        m_eState = EProductImportState.NoFile;
+
+        if (!string.Equals(Path.GetExtension(m_objFile.Name), ".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            m_strError = "Chỉ chấp nhận file Excel .xlsx theo template Sản phẩm.";
+            m_eState = EProductImportState.Failed;
+        }
+        else if (m_objFile.Size > m_iMaxFileSize)
+        {
+            m_strError = "File không được vượt quá 1 MiB.";
+            m_eState = EProductImportState.Failed;
+        }
+    }
+
+    private async Task Preview_Async()
+    {
+        if (m_objFile is null || !Can_Preview)
+            return;
+
+        m_eState = EProductImportState.Parsing;
+        m_objPreview = null;
+        m_strError = "";
+        m_strSuccess = "";
+        try
+        {
+            var v_arrContent = await FBase.Read_Import_File_Async(m_objFile, ".xlsx", m_iMaxFileSize);
+            using var v_objStream = new MemoryStream(v_arrContent, writable: false);
+            m_objPreview = await m_objImportService.PreviewAsync(m_objFile.Name, v_objStream, UserName, FunctionCode);
+            m_eState = m_objPreview.Can_Confirm ? EProductImportState.PreviewValid : EProductImportState.PreviewInvalid;
+        }
+        catch (CProductImportValidationException p_objException)
+        {
+            m_objPreview = p_objException.PreviewResult;
+            m_eState = EProductImportState.PreviewInvalid;
+        }
+        catch (Exception p_objException)
+        {
+            m_strError = p_objException.Message;
+            m_eState = EProductImportState.Failed;
+        }
+    }
+
+    private async Task Confirm_Async()
+    {
+        if (!Can_Confirm || m_objPreview is null)
+            return;
+
+        m_eState = EProductImportState.Importing;
+        m_strError = "";
+        try
+        {
+            var v_iRowCount = await m_objImportService.ConfirmAsync(m_objPreview, UserName, FunctionCode);
+            m_eState = EProductImportState.Success;
+            m_strSuccess = $"Đã nhập thành công {v_iRowCount} sản phẩm.";
+            await OnCompleted.InvokeAsync(v_iRowCount);
+        }
+        catch (CProductImportValidationException p_objException)
+        {
+            m_objPreview = p_objException.PreviewResult;
+            m_eState = EProductImportState.PreviewInvalid;
+        }
+        catch (Exception p_objException)
+        {
+            m_strError = p_objException.Message;
+            m_eState = EProductImportState.Failed;
+        }
+    }
+
+    private Task Close_Async()
+    {
+        return OnClose.InvokeAsync();
+    }
+
+    private enum EProductImportState
+    {
+        NoFile,
+        Parsing,
+        PreviewValid,
+        PreviewInvalid,
+        Importing,
+        Success,
+        Failed
+    }
+}

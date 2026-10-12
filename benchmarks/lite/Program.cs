@@ -522,7 +522,7 @@ internal static partial class Program
             "benchmarks/lite/appsettings.Benchmark.json",
             "Database/WarehouseModule.Procedures.sql",
             "Database/WarehouseModule.Schema.sql",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseMaster_Controller.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/DM/CWarehouseMaster_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocument_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseReport_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouse_Controller_Base.cs",

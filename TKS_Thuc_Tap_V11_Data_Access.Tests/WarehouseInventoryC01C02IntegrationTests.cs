@@ -809,7 +809,7 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
         return await ExecuteStoredWithOutputAsync(
             v_Connection,
             null,
-            "dbo.F2011_sp_ins_Nhap_Kho_Header",
+            "dbo.F3001_sp_ins_Nhap_Kho_Header",
             Text("@So_Phieu_Nhap_Kho", $"{p_Fixture.Tag}-{Guid.NewGuid():N}", 100),
             BigInt("@Kho_ID", p_Fixture.WarehouseId),
             BigInt("@NCC_ID", p_Fixture.SupplierId),
@@ -837,11 +837,11 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
             string v_strProcedure;
             if (detailId == 0)
             {
-                v_strProcedure = "dbo.F2011_sp_ins_Nhap_Kho_Detail";
+                v_strProcedure = "dbo.F3001_sp_ins_Nhap_Kho_Detail";
             }
             else
             {
-                v_strProcedure = "dbo.F2011_sp_upd_Nhap_Kho_Detail";
+                v_strProcedure = "dbo.F3001_sp_upd_Nhap_Kho_Detail";
             }
 
             return await ExecuteStoredWithOutputAsync(
@@ -867,7 +867,7 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
         await ExecuteStoredAsync(
             p_Fixture.ConnectionString,
             null,
-            "dbo.F2011_sp_del_Nhap_Kho_Detail",
+            "dbo.F3001_sp_del_Nhap_Kho_Detail",
             BigInt("@Auto_ID", detailId),
             Text("@Ma_Dang_Nhap", p_Login, 100));
     }

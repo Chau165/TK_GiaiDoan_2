@@ -2,6 +2,8 @@ using System.Data;
 using System.Text.RegularExpressions;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
+using Telerik.DataSource;
+using TKS_Thuc_Tap_V11_Web_Common.Common;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
@@ -102,7 +104,7 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_lists_use_server_side_ten_record_paging()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
-        var v_MasterController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+        var v_MasterController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
         var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
         var v_ControllerBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouse_Controller_Base.cs"));
@@ -137,6 +139,117 @@ public sealed class WarehouseUiWorkflowTests
             if (v_GridTag.Value.Contains("OnRead=", StringComparison.Ordinal))
                 Assert.DoesNotContain("Data=", v_GridTag.Value, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void Warehouse_excel_export_uses_telerik_all_pages_for_on_read_grids()
+    {
+        var v_FBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("if (p_grdGrid.OnRead.HasDelegate)", v_FBase);
+        Assert.Contains("await Export_Excel_Telerik_Default(p_grdGrid);", v_FBase);
+        Assert.Contains("await Export_Excel_Custom(p_grdGrid);", v_FBase);
+        Assert.Contains("p_objArgs.Columns.RemoveAll(v_objColumn => string.IsNullOrWhiteSpace(v_objColumn.Field));", v_FBase);
+        Assert.Equal(5, Regex.Matches(v_List, "<GridExcelExport\\b[^>]*AllPages=\"true\"[^>]*>").Count);
+        Assert.Equal(5, Regex.Matches(v_List, "OnBeforeExport=\"Prepare_Excel_Export\"").Count);
+        Assert.Equal(5, Regex.Matches(v_List, "CGrid_DataSource_Utility.Requires_Full_Source\\(args.Request, r_bIs_Excel_OnRead_Export").Count);
+    }
+
+    [Fact]
+    public void Warehouse_excel_export_registers_telerik_document_processing_license_in_root_app()
+    {
+        var v_Project = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web", "TKS_Thuc_Tap_V11_Web.csproj"));
+        var v_Program = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web", "Program.cs"));
+        var v_iRegistration = v_Program.IndexOf("TelerikLicensing.Register();", StringComparison.Ordinal);
+        var v_iAppBuilder = v_Program.IndexOf("WebApplication.CreateBuilder(args)", StringComparison.Ordinal);
+
+        Assert.Contains("<PackageReference Include=\"Telerik.Licensing\" Version=\"1.8.2\" />", v_Project);
+        Assert.True(v_iRegistration >= 0, "The root app must register Telerik licensing at runtime.");
+        Assert.True(v_iAppBuilder >= 0, "The root app builder was not found.");
+        Assert.True(v_iRegistration < v_iAppBuilder, "Telerik licensing must register before app initialization.");
+    }
+
+    [Fact]
+    public void Warehouse_all_pages_read_supports_zero_page_size_without_paging()
+    {
+        var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+        var v_iProcStart = v_Procedures.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_BC_Ton_Kho_Hien_Tai_Page", StringComparison.Ordinal);
+        var v_iProcEnd = v_Procedures.IndexOf("\nGO", v_iProcStart, StringComparison.Ordinal);
+
+        Assert.True(v_iProcStart >= 0, "Current inventory paging procedure was not found.");
+        Assert.True(v_iProcEnd > v_iProcStart, "Current inventory paging procedure end was not found.");
+
+        var v_Procedure = v_Procedures[v_iProcStart..v_iProcEnd];
+        Assert.Contains("IF @Page_Size = 0", v_Procedure);
+        Assert.DoesNotContain("IF @Page_Size < 1 SET @Page_Size = 10;", v_Procedure);
+    }
+
+    [Fact]
+    public void Warehouse_excel_read_exports_all_filtered_and_sorted_rows_independent_of_current_page()
+    {
+        var v_arrData = Enumerable.Range(1, 84)
+            .Select(v_i => new CWarehouseMaster
+            {
+                Auto_ID = v_i,
+                Code = $"SP-{v_i:000}",
+                Name = v_i <= 12 ? $"Thịt {v_i:00}" : $"Hàng {v_i:00}"
+            })
+            .ToList();
+        var v_objRequest = CreateDataSourceRequest(2, 0);
+        v_objRequest.Filters.Add(new FilterDescriptor("Name", FilterOperator.Contains, "Thịt"));
+        v_objRequest.Sorts.Add(new SortDescriptor("Code", Telerik.DataSource.ListSortDirection.Descending));
+        var v_objGridPageRequest = CreateDataSourceRequest(2, 5);
+        v_objGridPageRequest.Filters.Add(new FilterDescriptor("Name", FilterOperator.Contains, "Thịt"));
+        v_objGridPageRequest.Sorts.Add(new SortDescriptor("Code", Telerik.DataSource.ListSortDirection.Descending));
+
+        var v_objResult = CGrid_DataSource_Utility.Apply(v_arrData, v_objRequest);
+        var v_objGridPage = CGrid_DataSource_Utility.Apply(v_arrData, v_objGridPageRequest);
+
+        Assert.Equal(12, v_objResult.Total_Count);
+        Assert.Equal(12, v_objResult.Items.Count);
+        Assert.Equal("SP-012", v_objResult.Items[0].Code);
+        Assert.Equal("SP-001", v_objResult.Items[^1].Code);
+        Assert.Equal(12, v_objGridPage.Total_Count);
+        Assert.Equal(5, v_objGridPage.Items.Count);
+        Assert.Equal("SP-007", v_objGridPage.Items[0].Code);
+        Assert.Equal("SP-003", v_objGridPage.Items[^1].Code);
+    }
+
+    [Fact]
+    public void Warehouse_excel_read_returns_all_rows_and_empty_filtered_results_without_error()
+    {
+        var v_arrData = Enumerable.Range(1, 84)
+            .Select(v_i => new CWarehouseMaster { Auto_ID = v_i, Code = $"SP-{v_i:000}", Name = $"Hàng {v_i:00}" })
+            .ToList();
+        var v_objAllPagesRequest = CreateDataSourceRequest(3, 0);
+        var v_objEmptyRequest = CreateDataSourceRequest(2, 0);
+        v_objEmptyRequest.Filters.Add(new FilterDescriptor("Name", FilterOperator.Contains, "không tồn tại"));
+
+        var v_objAllPages = CGrid_DataSource_Utility.Apply(v_arrData, v_objAllPagesRequest);
+        var v_objEmpty = CGrid_DataSource_Utility.Apply(v_arrData, v_objEmptyRequest);
+
+        Assert.Equal(84, v_objAllPages.Total_Count);
+        Assert.Equal(84, v_objAllPages.Items.Count);
+        Assert.Equal(0, v_objEmpty.Total_Count);
+        Assert.Empty(v_objEmpty.Items);
+    }
+
+    [Fact]
+    public void Warehouse_full_source_is_used_only_for_grid_operations_or_excel_all_pages()
+    {
+        var v_objNormalRequest = CreateDataSourceRequest(2, 10);
+        var v_objAllPagesRequest = CreateDataSourceRequest(2, 0);
+        var v_objFilteredRequest = CreateDataSourceRequest(1, 10);
+        var v_objSortedRequest = CreateDataSourceRequest(1, 10);
+        v_objFilteredRequest.Filters.Add(new FilterDescriptor("Name", FilterOperator.Contains, "Thịt"));
+        v_objSortedRequest.Sorts.Add(new SortDescriptor("Code", Telerik.DataSource.ListSortDirection.Descending));
+
+        Assert.False(CGrid_DataSource_Utility.Requires_Full_Source(v_objNormalRequest, false));
+        Assert.False(CGrid_DataSource_Utility.Requires_Full_Source(v_objAllPagesRequest, false));
+        Assert.True(CGrid_DataSource_Utility.Requires_Full_Source(v_objAllPagesRequest, true));
+        Assert.True(CGrid_DataSource_Utility.Requires_Full_Source(v_objFilteredRequest, false));
+        Assert.True(CGrid_DataSource_Utility.Requires_Full_Source(v_objSortedRequest, false));
     }
 
     [Fact]
@@ -216,7 +329,7 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("m_iReport_Warehouse_ID", v_List);
         Assert.Contains("<option value=\"\">Tất cả kho</option>", v_List);
         Assert.Contains("Detail_Report_Page_Async(m_strReport_Type == \"Receipt\", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
-        Assert.Contains("Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report)", v_List);
+        Assert.Contains("Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report)", v_List);
         Assert.Contains("long? p_iWarehouse_ID = null", v_ReportController);
         Assert.Contains("List_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_strCurrent_Login, p_iWarehouse_ID)", v_ReportController);
         Assert.Contains("Page_From_Procedure<CWarehouseDetailReport>(v_strProcedure, p_dtmFrom.Date, p_dtmTo.Date, p_iPage_Number, p_iPage_Size, p_strCurrent_Login, p_iWarehouse_ID)", v_ReportController);
@@ -258,8 +371,8 @@ public sealed class WarehouseUiWorkflowTests
 
         foreach (var v_Procedure in new[]
         {
-            "F2011_sp_sel_List_Nhap_Kho",
-            "F2012_sp_sel_List_Xuat_Kho",
+            "F3001_sp_sel_List_Nhap_Kho",
+            "F3002_sp_sel_List_Xuat_Kho",
             "sp_XNK_Document_Page"
         })
         {
@@ -277,7 +390,7 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var v_ControllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
-        var v_Master = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseMaster_Controller.cs"));
+        var v_Master = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_Document = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseDocument_Controller.cs"));
         var v_Report = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseReport_Controller.cs"));
         var v_BaseController = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouse_Controller_Base.cs"));
@@ -292,10 +405,10 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("F2017_sp_sel_List_Loai_San_Pham", v_Source);
         Assert.Contains("F2018_sp_sel_List_San_Pham", v_Source);
         Assert.Contains("F2019_sp_sel_List_NCC", v_Source);
-        Assert.Contains("F2011_sp_sel_List_Nhap_Kho", v_Source);
-        Assert.Contains("F2012_sp_sel_List_Xuat_Kho", v_Source);
-        Assert.Contains("F2011_sp_sel_List_Nhap_Kho_Detail", v_Source);
-        Assert.Contains("F2012_sp_sel_List_Xuat_Kho_Detail", v_Source);
+        Assert.Contains("F3001_sp_sel_List_Nhap_Kho", v_Source);
+        Assert.Contains("F3002_sp_sel_List_Xuat_Kho", v_Source);
+        Assert.Contains("F3001_sp_sel_List_Nhap_Kho_Detail", v_Source);
+        Assert.Contains("F3002_sp_sel_List_Xuat_Kho_Detail", v_Source);
     }
 
     [Fact]
@@ -342,6 +455,17 @@ public sealed class WarehouseUiWorkflowTests
         var v_Editor = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
         Assert.Contains("ValueExpression=\"@(() => m_objPermission.Login_Name)\"", v_Editor);
+    }
+
+    private static DataSourceRequest CreateDataSourceRequest(int p_iPage, int p_iPage_Size)
+    {
+        return new DataSourceRequest
+        {
+            Page = p_iPage,
+            PageSize = p_iPage_Size,
+            Filters = new List<IFilterDescriptor>(),
+            Sorts = new List<SortDescriptor>()
+        };
     }
 
     private static string FindWarehousePage()

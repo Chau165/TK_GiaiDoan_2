@@ -33,10 +33,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.27" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Update="Pages\Danh_Muc\Chu_Hang.razor">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </Content>
-  </ItemGroup>
-
+	<ItemGroup>
+		<Content Update="Pages\Danh_Muc\Chu_Hang.razor">
+			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+		</Content>
+	</ItemGroup>
 </Project>

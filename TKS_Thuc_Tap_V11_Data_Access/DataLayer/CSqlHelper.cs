@@ -431,7 +431,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.DataLayer
             return v_objResult;
         }
 
-        private static object ExecuteScalar(SqlConnection p_conn, SqlTransaction p_trans, string p_strStoreName,
+        public static object ExecuteScalar(SqlConnection p_conn, SqlTransaction p_trans, string p_strStoreName,
             params SqlParameter[] p_arrSQLParameter)
         {
             DateTime v_dtmStart = DateTime.Now;

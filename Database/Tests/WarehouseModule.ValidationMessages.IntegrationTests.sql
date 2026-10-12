@@ -96,7 +96,7 @@ BEGIN TRY
 
     /* Phiếu nhập: missing/duplicate header and invalid detail data. */
     BEGIN TRY
-        EXEC dbo.F2011_sp_ins_Nhap_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'', @Kho_ID = 6, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F3001_sp_ins_Nhap_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'', @Kho_ID = 6, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53014, 'Expected empty receipt-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -105,7 +105,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.F2011_sp_ins_Nhap_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'SEED-PNK-0003', @Kho_ID = 7, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F3001_sp_ins_Nhap_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Nhap_Kho = N'SEED-PNK-0003', @Kho_ID = 7, @NCC_ID = 6, @Ngay_Nhap_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53016, 'Expected duplicate receipt-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -114,7 +114,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.F2011_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = 10, @San_Pham_ID = 0, @SL_Nhap = 1, @Don_Gia_Nhap = 1;
+        EXEC dbo.F3001_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = 10, @San_Pham_ID = 0, @SL_Nhap = 1, @Don_Gia_Nhap = 1;
         THROW 53018, 'Expected invalid receipt-product validation.', 1;
     END TRY
     BEGIN CATCH
@@ -124,7 +124,7 @@ BEGIN TRY
 
     /* Phiếu xuất: missing/duplicate header and invalid detail data. */
     BEGIN TRY
-        EXEC dbo.F2012_sp_ins_Xuat_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'', @Kho_ID = 6, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F3002_sp_ins_Xuat_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'', @Kho_ID = 6, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53020, 'Expected empty issue-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -133,7 +133,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.F2012_sp_ins_Xuat_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'SEED-PXK-0002', @Kho_ID = 7, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
+        EXEC dbo.F3002_sp_ins_Xuat_Kho_Header @Auto_ID = @Id OUTPUT, @So_Phieu_Xuat_Kho = N'SEED-PXK-0002', @Kho_ID = 7, @Ngay_Xuat_Kho = '2026-08-17', @Ghi_Chu = N'';
         THROW 53022, 'Expected duplicate issue-number validation.', 1;
     END TRY
     BEGIN CATCH
@@ -142,7 +142,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.F2012_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = 10, @San_Pham_ID = 0, @SL_Xuat = 1, @Don_Gia_Xuat = 1;
+        EXEC dbo.F3002_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = 10, @San_Pham_ID = 0, @SL_Xuat = 1, @Don_Gia_Xuat = 1;
         THROW 53024, 'Expected invalid issue-product validation.', 1;
     END TRY
     BEGIN CATCH

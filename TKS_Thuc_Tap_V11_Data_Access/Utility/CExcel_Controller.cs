@@ -24,6 +24,64 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 			m_objExcel_Package = new ExcelPackage(p_objFile_Info);
         }
 
+        public static void Validate_Header_Matches(FileInfo p_objSource_File, FileInfo p_objTemplate_File)
+        {
+            if (p_objSource_File == null || !p_objSource_File.Exists)
+                throw new InvalidDataException("Không tìm thấy file Excel cần nhập.");
+            if (p_objTemplate_File == null || !p_objTemplate_File.Exists)
+                throw new InvalidDataException("Không tìm thấy file template Excel để kiểm tra cấu trúc.");
+
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var v_objSource_Package = new ExcelPackage(p_objSource_File);
+            using var v_objTemplate_Package = new ExcelPackage(p_objTemplate_File);
+
+            ExcelWorksheet v_objSource_Sheet = v_objSource_Package.Workbook.Worksheets.FirstOrDefault();
+            ExcelWorksheet v_objTemplate_Sheet = v_objTemplate_Package.Workbook.Worksheets.FirstOrDefault();
+            if (v_objSource_Sheet?.Dimension == null || v_objTemplate_Sheet?.Dimension == null)
+                throw new InvalidDataException("File Excel không có sheet hoặc tiêu đề để nhập.");
+
+            if (v_objSource_Sheet.Dimension.Start.Row != 1 || v_objSource_Sheet.Dimension.Start.Column != 1 ||
+                v_objTemplate_Sheet.Dimension.Start.Row != 1 || v_objTemplate_Sheet.Dimension.Start.Column != 1)
+                throw new InvalidDataException("Tiêu đề Excel phải bắt đầu tại ô A1. Import đã dừng để tránh đọc sai cột.");
+
+            string[] v_arrExpected_Headers = Read_Header_Row(v_objTemplate_Sheet);
+            string[] v_arrActual_Headers = Read_Header_Row(v_objSource_Sheet);
+            if (v_arrActual_Headers.Length != v_arrExpected_Headers.Length)
+                throw new InvalidDataException($"Số cột tiêu đề không khớp template '{p_objTemplate_File.Name}'. Import đã dừng để tránh đọc sai dữ liệu.");
+
+            for (int v_i = 0; v_i < v_arrExpected_Headers.Length; v_i++)
+            {
+                if (!string.Equals(v_arrActual_Headers[v_i], v_arrExpected_Headers[v_i], StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException($"Tiêu đề cột {v_i + 1} không khớp template '{p_objTemplate_File.Name}' (dự kiến '{v_arrExpected_Headers[v_i]}', nhận '{v_arrActual_Headers[v_i]}'). Import đã dừng để tránh ghi sai dữ liệu.");
+            }
+        }
+
+        private static string[] Read_Header_Row(ExcelWorksheet p_objWorksheet)
+        {
+            int v_iLast_Column = Math.Min(p_objWorksheet.Dimension.End.Column, 256);
+            int v_iLast_Header_Column = 0;
+            string[] v_arrHeaders = new string[v_iLast_Column];
+
+            for (int v_iColumn = 1; v_iColumn <= v_iLast_Column; v_iColumn++)
+            {
+                string v_strHeader = p_objWorksheet.Cells[1, v_iColumn].Text.Trim().Normalize(NormalizationForm.FormC);
+                v_arrHeaders[v_iColumn - 1] = v_strHeader;
+                if (!string.IsNullOrEmpty(v_strHeader))
+                    v_iLast_Header_Column = v_iColumn;
+            }
+
+            if (v_iLast_Header_Column == 0)
+                throw new InvalidDataException("Không tìm thấy tiêu đề tại hàng đầu tiên của file Excel.");
+
+            for (int v_iColumn = 1; v_iColumn <= v_iLast_Header_Column; v_iColumn++)
+            {
+                if (string.IsNullOrEmpty(v_arrHeaders[v_iColumn - 1]))
+                    throw new InvalidDataException($"Tiêu đề Excel bị trống tại cột {v_iColumn}. Import đã dừng để tránh lệch dữ liệu.");
+            }
+
+            return v_arrHeaders.Take(v_iLast_Header_Column).ToArray();
+        }
+
         public static bool Check_Excel_File_Type(string p_strFileName)
 		{
 			if (p_strFileName != ".xls" && p_strFileName != ".xlsx")

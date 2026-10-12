@@ -423,11 +423,11 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
             string v_strProcedure;
             if (autoId == 0)
             {
-                v_strProcedure = "dbo.F2011_sp_ins_Nhap_Kho_Header";
+                v_strProcedure = "dbo.F3001_sp_ins_Nhap_Kho_Header";
             }
             else
             {
-                v_strProcedure = "dbo.F2011_sp_upd_Nhap_Kho_Header";
+                v_strProcedure = "dbo.F3001_sp_upd_Nhap_Kho_Header";
             }
 
             return await ExecuteStoredWithOutputAsync(
@@ -467,11 +467,11 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
             string v_strProcedure;
             if (autoId == 0)
             {
-                v_strProcedure = "dbo.F2012_sp_ins_Xuat_Kho_Header";
+                v_strProcedure = "dbo.F3002_sp_ins_Xuat_Kho_Header";
             }
             else
             {
-                v_strProcedure = "dbo.F2012_sp_upd_Xuat_Kho_Header";
+                v_strProcedure = "dbo.F3002_sp_upd_Xuat_Kho_Header";
             }
 
             return await ExecuteStoredWithOutputAsync(
@@ -510,11 +510,11 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
             string v_strProcedure;
             if (detailId == 0)
             {
-                v_strProcedure = "dbo.F2011_sp_ins_Nhap_Kho_Detail";
+                v_strProcedure = "dbo.F3001_sp_ins_Nhap_Kho_Detail";
             }
             else
             {
-                v_strProcedure = "dbo.F2011_sp_upd_Nhap_Kho_Detail";
+                v_strProcedure = "dbo.F3001_sp_upd_Nhap_Kho_Detail";
             }
 
             return await ExecuteStoredWithOutputAsync(
@@ -553,11 +553,11 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
             string v_strProcedure;
             if (detailId == 0)
             {
-                v_strProcedure = "dbo.F2012_sp_ins_Xuat_Kho_Detail";
+                v_strProcedure = "dbo.F3002_sp_ins_Xuat_Kho_Detail";
             }
             else
             {
-                v_strProcedure = "dbo.F2012_sp_upd_Xuat_Kho_Detail";
+                v_strProcedure = "dbo.F3002_sp_upd_Xuat_Kho_Detail";
             }
 
             return await ExecuteStoredWithOutputAsync(
@@ -596,7 +596,7 @@ public sealed class WarehousePhase2H01H02M04IntegrationTests : IAsyncLifetime
 
     private static Task DeleteIssueDetailAsync(Fixture p_Fixture, long detailId, string p_Login)
     {
-        return ExecuteStoredAsync("dbo.F2012_sp_del_Xuat_Kho_Detail", BigInt("@Auto_ID", detailId), Text("@Ma_Dang_Nhap", p_Login, 100));
+        return ExecuteStoredAsync("dbo.F3002_sp_del_Xuat_Kho_Detail", BigInt("@Auto_ID", detailId), Text("@Ma_Dang_Nhap", p_Login, 100));
     }
 
     private static async Task<long> WarehouseOfReceiptAsync(Fixture p_Fixture, long receiptId)

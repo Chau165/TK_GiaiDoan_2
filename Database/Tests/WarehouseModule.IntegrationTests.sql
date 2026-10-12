@@ -53,14 +53,14 @@ BEGIN TRY
     EXEC dbo.F2019_sp_ins_NCC @Auto_ID = @SupplierId OUTPUT, @Ma_NCC = N'UT-NCC', @Ten_NCC = N'UT Nha Cung Cap', @Ghi_Chu = N'';
     EXEC dbo.F2009_sp_ins_Kho @Auto_ID = @WarehouseId OUTPUT, @Ten_Kho = N'UT Kho', @Ghi_Chu = N'';
 
-    EXEC dbo.F2011_sp_ins_Nhap_Kho_Header @Auto_ID = @ReceiptId OUTPUT, @So_Phieu_Nhap_Kho = N'UT-PN-OPEN', @Kho_ID = @WarehouseId, @NCC_ID = @SupplierId, @Ngay_Nhap_Kho = '2026-01-05', @Ghi_Chu = N'';
-    EXEC dbo.F2011_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = @ReceiptId, @San_Pham_ID = @ProductId, @SL_Nhap = 10, @Don_Gia_Nhap = 100;
+    EXEC dbo.F3001_sp_ins_Nhap_Kho_Header @Auto_ID = @ReceiptId OUTPUT, @So_Phieu_Nhap_Kho = N'UT-PN-OPEN', @Kho_ID = @WarehouseId, @NCC_ID = @SupplierId, @Ngay_Nhap_Kho = '2026-01-05', @Ghi_Chu = N'';
+    EXEC dbo.F3001_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = @ReceiptId, @San_Pham_ID = @ProductId, @SL_Nhap = 10, @Don_Gia_Nhap = 100;
 
-    EXEC dbo.F2011_sp_ins_Nhap_Kho_Header @Auto_ID = @PeriodReceiptId OUTPUT, @So_Phieu_Nhap_Kho = N'UT-PN-PERIOD', @Kho_ID = @WarehouseId, @NCC_ID = @SupplierId, @Ngay_Nhap_Kho = '2026-02-10', @Ghi_Chu = N'';
-    EXEC dbo.F2011_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = @PeriodReceiptId, @San_Pham_ID = @ProductId, @SL_Nhap = 5, @Don_Gia_Nhap = 120;
+    EXEC dbo.F3001_sp_ins_Nhap_Kho_Header @Auto_ID = @PeriodReceiptId OUTPUT, @So_Phieu_Nhap_Kho = N'UT-PN-PERIOD', @Kho_ID = @WarehouseId, @NCC_ID = @SupplierId, @Ngay_Nhap_Kho = '2026-02-10', @Ghi_Chu = N'';
+    EXEC dbo.F3001_sp_ins_Nhap_Kho_Detail @Auto_ID = 0, @Nhap_Kho_ID = @PeriodReceiptId, @San_Pham_ID = @ProductId, @SL_Nhap = 5, @Don_Gia_Nhap = 120;
 
-    EXEC dbo.F2012_sp_ins_Xuat_Kho_Header @Auto_ID = @IssueId OUTPUT, @So_Phieu_Xuat_Kho = N'UT-PX-PERIOD', @Kho_ID = @WarehouseId, @Ngay_Xuat_Kho = '2026-02-15', @Ghi_Chu = N'';
-    EXEC dbo.F2012_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = @IssueId, @San_Pham_ID = @ProductId, @SL_Xuat = 4, @Don_Gia_Xuat = 150;
+    EXEC dbo.F3002_sp_ins_Xuat_Kho_Header @Auto_ID = @IssueId OUTPUT, @So_Phieu_Xuat_Kho = N'UT-PX-PERIOD', @Kho_ID = @WarehouseId, @Ngay_Xuat_Kho = '2026-02-15', @Ghi_Chu = N'';
+    EXEC dbo.F3002_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = @IssueId, @San_Pham_ID = @ProductId, @SL_Xuat = 4, @Don_Gia_Xuat = 150;
 
     /* Opening = 10; period receipt = 5; period issue = 4; closing = 11. */
     DECLARE @Inventory TABLE (Kho_ID BIGINT, San_Pham_ID BIGINT, Ma_San_Pham NVARCHAR(100), Ten_San_Pham NVARCHAR(255), SL_Dau_Ky DECIMAL(18,3), SL_Nhap DECIMAL(18,3), SL_Xuat DECIMAL(18,3), SL_Cuoi_Ky DECIMAL(18,3));
@@ -70,8 +70,8 @@ BEGIN TRY
 
     /* No movement is allowed to make the historical warehouse-product balance negative. */
     BEGIN TRY
-        EXEC dbo.F2012_sp_ins_Xuat_Kho_Header @Auto_ID = @NegativeIssueId OUTPUT, @So_Phieu_Xuat_Kho = N'UT-PX-NEGATIVE', @Kho_ID = @WarehouseId, @Ngay_Xuat_Kho = '2026-02-20', @Ghi_Chu = N'';
-        EXEC dbo.F2012_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = @NegativeIssueId, @San_Pham_ID = @ProductId, @SL_Xuat = 12, @Don_Gia_Xuat = 150;
+        EXEC dbo.F3002_sp_ins_Xuat_Kho_Header @Auto_ID = @NegativeIssueId OUTPUT, @So_Phieu_Xuat_Kho = N'UT-PX-NEGATIVE', @Kho_ID = @WarehouseId, @Ngay_Xuat_Kho = '2026-02-20', @Ghi_Chu = N'';
+        EXEC dbo.F3002_sp_ins_Xuat_Kho_Detail @Auto_ID = 0, @Xuat_Kho_ID = @NegativeIssueId, @San_Pham_ID = @ProductId, @SL_Xuat = 12, @Don_Gia_Xuat = 150;
         THROW 52003, 'Expected negative inventory to be rejected.', 1;
     END TRY
     BEGIN CATCH

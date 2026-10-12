@@ -39,6 +39,7 @@
 
     // Error, message
     public string r_strError = "";
+    protected bool r_bIs_Excel_OnRead_Export;
 
     [Parameter]
     public string r_strMessage_Header { get; set; } = "";
@@ -285,6 +286,30 @@
 
     }
 
+    public static async Task<byte[]> Read_Import_File_Async(
+        IBrowserFile p_objFile,
+        string p_strExpectedExtension,
+        long p_iMaxFileSize,
+        CancellationToken p_objCancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(p_objFile);
+        if (p_iMaxFileSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(p_iMaxFileSize));
+
+        if (!string.Equals(Path.GetExtension(p_objFile.Name), p_strExpectedExtension, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"Chỉ chấp nhận file {p_strExpectedExtension}.");
+        if (p_objFile.Size < 0 || p_objFile.Size > p_iMaxFileSize)
+            throw new InvalidDataException($"Kích thước file không được vượt quá {p_iMaxFileSize:N0} byte.");
+
+        await using var v_objSource = p_objFile.OpenReadStream(p_iMaxFileSize, p_objCancellationToken);
+        using var v_objBuffer = new MemoryStream();
+        await v_objSource.CopyToAsync(v_objBuffer, p_objCancellationToken);
+        if (v_objBuffer.Length > p_iMaxFileSize)
+            throw new InvalidDataException($"Kích thước file không được vượt quá {p_iMaxFileSize:N0} byte.");
+
+        return v_objBuffer.ToArray();
+    }
+
     protected virtual void Delete_Data_Entry(long p_iAuto_ID)
     {
 
@@ -330,10 +355,20 @@
 
         try
         {
-            v_iQueue_ID = Process_Queue("Import Excel");
-
             FileInfo fileInfo = new FileInfo(r_objImport_Excel.Path_File);
+            string v_strTemplate_Name = Path.GetFileName(r_objImport_Excel.URL_File_Template);
+            if (string.IsNullOrWhiteSpace(v_strTemplate_Name))
+                throw new InvalidDataException("Chưa xác định template Excel để kiểm tra cấu trúc file.");
+
+            FileInfo v_objTemplate_File = new FileInfo(Path.Combine(
+                g_objEnvironment.WebRootPath,
+                "FileManagement",
+                "Template",
+                v_strTemplate_Name));
+            CExcel_Controller.Validate_Header_Matches(fileInfo, v_objTemplate_File);
+
             v_objCtrExcel = new CExcel_Controller(fileInfo);
+            v_iQueue_ID = Process_Queue("Import Excel");
 
             Import_Excel_Entry(v_objCtrExcel, ref v_iCount_Success, ref v_iCount_Error);
 
@@ -935,7 +970,16 @@
         {
             v_iQueue_ID = Process_Queue("Export Excel Telerik");
 
-            await p_grdGrid.SaveAsExcelFileAsync();
+            var v_bPreviousExportState = r_bIs_Excel_OnRead_Export;
+            r_bIs_Excel_OnRead_Export = p_grdGrid.OnRead.HasDelegate;
+            try
+            {
+                await p_grdGrid.SaveAsExcelFileAsync();
+            }
+            finally
+            {
+                r_bIs_Excel_OnRead_Export = v_bPreviousExportState;
+            }
 
             CLog_Nhat_Ky_Truy_Cap_Chuc_Nang v_objFH = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang()
                 {
@@ -973,7 +1017,15 @@
 
     public async Task Export_Excel<T>(TelerikGrid<T> p_grdGrid)
     {
-        await Export_Excel_Custom(p_grdGrid);
+        if (p_grdGrid.OnRead.HasDelegate)
+            await Export_Excel_Telerik_Default(p_grdGrid);
+        else
+            await Export_Excel_Custom(p_grdGrid);
+    }
+
+    public void Prepare_Excel_Export(GridBeforeExcelExportEventArgs p_objArgs)
+    {
+        p_objArgs.Columns.RemoveAll(v_objColumn => string.IsNullOrWhiteSpace(v_objColumn.Field));
     }
 
     public async Task Export_CSV<T>(TelerikGrid<T> p_grdGrid)
@@ -1780,7 +1832,7 @@
         return ColumnTemplate;
     }
 
-    public RenderFragment Layout_Tool_Button<T>(TelerikGrid<T> p_objGrid)
+    public RenderFragment Layout_Tool_Button<T>(TelerikGrid<T> p_objGrid, RenderFragment? p_objAdditional_Tool_Item = null)
     {
         RenderFragment ColumnTemplate = __builder =>
          {
@@ -1789,6 +1841,11 @@
                     @Get_Language_Data_Field("Công cụ")
                 </button>
                 <ul class="dropdown-menu">
+                    @if (p_objAdditional_Tool_Item is not null)
+                    {
+                        @p_objAdditional_Tool_Item
+                        <div class="dropdown-divider"></div>
+                    }
                     @if (r_objChuc_Nang.Is_Have_Export_Permission == true)
                     {
                         <button class="dropdown-item" type="button" @onclick="@(()=> Export_Excel(p_objGrid))"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Export Excel")</button>

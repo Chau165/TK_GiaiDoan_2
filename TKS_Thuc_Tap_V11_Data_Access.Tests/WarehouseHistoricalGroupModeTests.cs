@@ -840,7 +840,7 @@ public sealed class WarehouseHistoricalGroupModeTests
             var receiptId = await ExecuteStoredWithOutputAsync(
                 v_Connection,
                 null,
-                "dbo.F2011_sp_ins_Nhap_Kho_Header",
+                "dbo.F3001_sp_ins_Nhap_Kho_Header",
                 Text("@So_Phieu_Nhap_Kho", $"{v_Tag}-{Guid.NewGuid():N}", 100),
                 BigInt("@Kho_ID", warehouseId),
                 BigInt("@NCC_ID", supplierId),
@@ -850,7 +850,7 @@ public sealed class WarehouseHistoricalGroupModeTests
             await ExecuteStoredWithOutputAsync(
                 v_Connection,
                 null,
-                "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+                "dbo.F3001_sp_ins_Nhap_Kho_Detail",
                 BigInt("@Nhap_Kho_ID", receiptId),
                 BigInt("@San_Pham_ID", productId),
                 Decimal("@SL_Nhap", 1),

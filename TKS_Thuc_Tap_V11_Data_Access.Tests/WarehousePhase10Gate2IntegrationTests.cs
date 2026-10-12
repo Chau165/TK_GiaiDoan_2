@@ -128,12 +128,12 @@ public sealed class WarehousePhase10Gate2IntegrationTests
                 "INSERT dbo.tbl_Sys_Thanh_Vien(Auto_ID, Ma_Dang_Nhap, Ho_Ten, deleted) VALUES (@MemberId, @Login, N'Phase 10 Gate 2', 0); INSERT dbo.tbl_DM_Kho_User(Ma_Dang_Nhap, Kho_ID) VALUES (@Login, @WarehouseId); INSERT dbo.InventoryBalance_Current(Kho_ID, San_Pham_ID, CurrentQuantity, ReservedQuantity) VALUES (@WarehouseId, @ProductId, 100, 0); INSERT dbo.Inventory_Balance_Daily(Balance_Date, Kho_ID, San_Pham_ID, OpeningQuantity, TotalReceived, TotalIssued, ClosingQuantity, CumulativeReceived, CumulativeIssued, IsValid) VALUES (@Date, @WarehouseId, @ProductId, 0, 100, 0, 100, 100, 0, 1); INSERT dbo.InventoryBalance_Snapshot_Daily(Snapshot_Date, Kho_ID, San_Pham_ID, ClosingQuantity, IsValid, [Version]) VALUES (@Date, @WarehouseId, @ProductId, 100, 1, 1);",
                 BigInt("@MemberId", memberId), Text("@Login", v_Login, 100), BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId), Date("@Date", new DateTime(2099, 6, 1)));
 
-            var receiptId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+            var receiptId = await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3001_sp_ins_Nhap_Kho_Header",
                 BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Tag}-receipt", 100), BigInt("@Kho_ID", warehouseId),
                 BigInt("@NCC_ID", supplierId), Date("@Ngay_Nhap_Kho", new DateTime(2099, 6, 1)), Text("@Ghi_Chu", "", 1000),
                 Text("@Ma_Dang_Nhap", v_Login, 100), Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "TDD-H05", 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "TDD-H05", 100));
-            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+            await ExecuteStoredIdAsync(v_Connection, v_Transaction, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
                 BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", receiptId), BigInt("@San_Pham_ID", productId), Decimal("@SL_Nhap", 20), Decimal("@Don_Gia_Nhap", 1),
                 Text("@Ma_Dang_Nhap", v_Login, 100), Text("@Created_By", v_Login, 100), Text("@Created_By_Function", "TDD-H05", 100),
                 Text("@Last_Updated_By", v_Login, 100), Text("@Last_Updated_By_Function", "TDD-H05", 100));

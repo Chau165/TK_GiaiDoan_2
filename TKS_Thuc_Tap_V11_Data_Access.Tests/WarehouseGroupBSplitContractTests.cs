@@ -6,6 +6,32 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 public sealed class WarehouseGroupBSplitContractTests
 {
     [Fact]
+    public void Approved_function_codes_and_transaction_store_prefixes_are_used()
+    {
+        var v_strMenu = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Menu.sql"));
+        var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
+        var v_strController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
+        var v_strSecurity = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Security.sql"));
+        var v_strPreflight = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Security.Preflight.sql"));
+
+        Assert.Matches(new Regex(@"(?m)^\s*\(@Receipt_ID,\s*N'3001',\s*N'Nhập kho'.*N'/Kho/Nhap_Kho'"), v_strMenu);
+        Assert.Matches(new Regex(@"(?m)^\s*\(@Issue_ID,\s*N'3002',\s*N'Xuất kho'.*N'/Kho/Xuat_Kho'"), v_strMenu);
+        Assert.Matches(new Regex(@"(?m)^\s*\(@Inventory_ID,\s*N'9001',\s*N'Tồn kho'.*N'/Kho/Ton_Kho'"), v_strMenu);
+        Assert.Matches(new Regex(@"(?m)^\s*\(@Report_ID,\s*N'9002',\s*N'Báo cáo'.*N'/Kho/Bao_Cao'"), v_strMenu);
+        Assert.Equal(8, Regex.Matches(v_strProcedures, @"(?im)^CREATE\s+OR\s+ALTER\s+PROCEDURE\s+dbo\.F3001_").Count);
+        Assert.Equal(8, Regex.Matches(v_strProcedures, @"(?im)^CREATE\s+OR\s+ALTER\s+PROCEDURE\s+dbo\.F3002_").Count);
+        Assert.DoesNotContain("F2011_sp_", v_strProcedures);
+        Assert.DoesNotContain("F2012_sp_", v_strProcedures);
+        Assert.Contains("F3001_sp_ins_Nhap_Kho_Header", v_strController);
+        Assert.Contains("F3002_sp_ins_Xuat_Kho_Header", v_strController);
+        Assert.Contains("GRANT EXECUTE ON OBJECT::dbo.F3001_sp_ins_Nhap_Kho_Header", v_strSecurity);
+        Assert.Contains("GRANT EXECUTE ON OBJECT::dbo.F3002_sp_ins_Xuat_Kho_Header", v_strSecurity);
+        Assert.Contains("dbo.F3001_sp_ins_Nhap_Kho_Header", v_strPreflight);
+        Assert.Contains("dbo.F3002_sp_ins_Xuat_Kho_Header", v_strPreflight);
+    }
+
+    [Fact]
     public void Don_Vi_Tinh_insert_and_update_stores_preserve_the_shared_contract_and_one_write_path_each()
     {
         var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
@@ -36,7 +62,7 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Don_Vi_Tinh_controller_dispatches_by_zero_or_nonzero_Auto_ID()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_strExpectedCase = @"case\s+""DonViTinh""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2016_sp_ins_Don_Vi_Tinh"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2016_sp_upd_Don_Vi_Tinh"";\s*\}";
 
         Assert.Contains("p_objData.Auto_ID == 0", v_strController);
@@ -74,7 +100,7 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Kho_controller_dispatches_by_zero_or_nonzero_Auto_ID()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_strExpectedCase = @"case\s+""Kho""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2009_sp_ins_Kho"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2009_sp_upd_Kho"";\s*\}";
 
         Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
@@ -114,7 +140,7 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Loai_San_Pham_controller_dispatches_by_zero_or_nonzero_Auto_ID()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_strExpectedCase = @"case\s+""LoaiSanPham""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2017_sp_ins_Loai_San_Pham"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2017_sp_upd_Loai_San_Pham"";\s*\}";
 
         Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
@@ -158,7 +184,7 @@ public sealed class WarehouseGroupBSplitContractTests
     public void San_Pham_controller_dispatches_by_zero_or_nonzero_Auto_ID()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_strExpectedCase = @"case\s+""SanPham""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2018_sp_ins_San_Pham"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2018_sp_upd_San_Pham"";\s*\}";
 
         Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
@@ -198,7 +224,7 @@ public sealed class WarehouseGroupBSplitContractTests
     public void NCC_controller_dispatches_by_zero_or_nonzero_Auto_ID()
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_strExpectedCase = @"case\s+""NCC""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2019_sp_ins_NCC"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2019_sp_upd_NCC"";\s*\}";
 
         Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
@@ -246,8 +272,8 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Receipt_Header_split_preserves_fence_savepoint_posted_guard_and_result_contract()
     {
         var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strInsert = ExtractProcedure(v_strProcedures, "F2011_sp_ins_Nhap_Kho_Header");
-        var v_strUpdate = ExtractProcedure(v_strProcedures, "F2011_sp_upd_Nhap_Kho_Header");
+        var v_strInsert = ExtractProcedure(v_strProcedures, "F3001_sp_ins_Nhap_Kho_Header");
+        var v_strUpdate = ExtractProcedure(v_strProcedures, "F3001_sp_upd_Nhap_Kho_Header");
 
         foreach (var v_strSharedRule in new[]
         {
@@ -280,7 +306,7 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"if\s*\(\s*p_objData\.Is_Receipt\s*\)\s*\{[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2011_sp_ins_Nhap_Kho_Header"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2011_sp_upd_Nhap_Kho_Header"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
+        var v_strExpectedDispatch = @"if\s*\(\s*p_objData\.Is_Receipt\s*\)\s*\{[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_ins_Nhap_Kho_Header"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_upd_Nhap_Kho_Header"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
 
         Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
     }
@@ -288,8 +314,8 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Receipt_Detail_split_preserves_fence_savepoint_posted_guard_and_write_contracts()
     {
         var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strInsert = ExtractProcedure(v_strProcedures, "F2011_sp_ins_Nhap_Kho_Detail");
-        var v_strUpdate = ExtractProcedure(v_strProcedures, "F2011_sp_upd_Nhap_Kho_Detail");
+        var v_strInsert = ExtractProcedure(v_strProcedures, "F3001_sp_ins_Nhap_Kho_Detail");
+        var v_strUpdate = ExtractProcedure(v_strProcedures, "F3001_sp_upd_Nhap_Kho_Detail");
 
         foreach (var v_strSharedRule in new[]
         {
@@ -328,7 +354,7 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"if\s*\(\s*p_bIs_Receipt\s*\)\s*\{[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2011_sp_ins_Nhap_Kho_Detail"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2011_sp_upd_Nhap_Kho_Detail"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
+        var v_strExpectedDispatch = @"if\s*\(\s*p_bIs_Receipt\s*\)\s*\{[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_ins_Nhap_Kho_Detail"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3001_sp_upd_Nhap_Kho_Detail"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
 
         Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
     }
@@ -337,8 +363,8 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Issue_Header_split_preserves_fences_move_reservation_and_single_write_paths()
     {
         var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strInsert = ExtractProcedure(v_strProcedures, "F2012_sp_ins_Xuat_Kho_Header");
-        var v_strUpdate = ExtractProcedure(v_strProcedures, "F2012_sp_upd_Xuat_Kho_Header");
+        var v_strInsert = ExtractProcedure(v_strProcedures, "F3002_sp_ins_Xuat_Kho_Header");
+        var v_strUpdate = ExtractProcedure(v_strProcedures, "F3002_sp_upd_Xuat_Kho_Header");
 
         foreach (var v_strSharedRule in new[]
         {
@@ -375,7 +401,7 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"else\s*\{\s*string\?\s+v_strCreatedBy;[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2012_sp_ins_Xuat_Kho_Header"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2012_sp_upd_Xuat_Kho_Header"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
+        var v_strExpectedDispatch = @"else\s*\{\s*string\?\s+v_strCreatedBy;[\s\S]*?string\s+v_strProcedure\s*;\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_ins_Xuat_Kho_Header"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_upd_Xuat_Kho_Header"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
 
         Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
     }
@@ -384,8 +410,8 @@ public sealed class WarehouseGroupBSplitContractTests
     public void Issue_Detail_split_preserves_reservation_and_single_business_write_paths()
     {
         var v_strProcedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strInsert = ExtractProcedure(v_strProcedures, "F2012_sp_ins_Xuat_Kho_Detail");
-        var v_strUpdate = ExtractProcedure(v_strProcedures, "F2012_sp_upd_Xuat_Kho_Detail");
+        var v_strInsert = ExtractProcedure(v_strProcedures, "F3002_sp_ins_Xuat_Kho_Detail");
+        var v_strUpdate = ExtractProcedure(v_strProcedures, "F3002_sp_upd_Xuat_Kho_Detail");
 
         foreach (var v_strSharedRule in new[]
         {
@@ -428,7 +454,7 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strExpectedDispatch = @"if\s*\(\s*p_bIs_Receipt\s*\)\s*\{[\s\S]*?F2011_sp_ins_Nhap_Kho_Detail[\s\S]*?\}\s*else\s*\{[\s\S]*?if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2012_sp_ins_Xuat_Kho_Detail"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2012_sp_upd_Xuat_Kho_Detail"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
+        var v_strExpectedDispatch = @"if\s*\(\s*p_bIs_Receipt\s*\)\s*\{[\s\S]*?F3001_sp_ins_Nhap_Kho_Detail[\s\S]*?\}\s*else\s*\{[\s\S]*?if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_ins_Xuat_Kho_Detail"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F3002_sp_upd_Xuat_Kho_Detail"";\s*\}[\s\S]*?Scalar_ID\s*\(\s*v_strProcedure";
 
         Assert.Matches(new Regex(v_strExpectedDispatch, RegexOptions.Singleline), v_strController);
     }

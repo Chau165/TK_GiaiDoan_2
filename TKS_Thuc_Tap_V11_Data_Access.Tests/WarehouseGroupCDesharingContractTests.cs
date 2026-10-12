@@ -11,7 +11,7 @@ public sealed class WarehouseGroupCDesharingContractTests
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_arrEntities = new[]
         {
             ("Kho", "F2009", "tbl_DM_Kho"),
@@ -39,7 +39,7 @@ public sealed class WarehouseGroupCDesharingContractTests
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_arrEntities = new[]
         {
             ("Kho", "F2009", "tbl_DM_Kho"),
@@ -67,7 +67,7 @@ public sealed class WarehouseGroupCDesharingContractTests
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMaster_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_arrEntities = new[]
         {
             ("Kho", "F2009", "tbl_DM_Kho"),
@@ -106,16 +106,16 @@ public sealed class WarehouseGroupCDesharingContractTests
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strReceiptList = ExtractProcedure(v_strSql, "F2011_sp_sel_List_Nhap_Kho");
-        var v_strIssueList = ExtractProcedure(v_strSql, "F2012_sp_sel_List_Xuat_Kho");
+        var v_strReceiptList = ExtractProcedure(v_strSql, "F3001_sp_sel_List_Nhap_Kho");
+        var v_strIssueList = ExtractProcedure(v_strSql, "F3002_sp_sel_List_Xuat_Kho");
         Assert.DoesNotContain("@Is_Receipt", v_strReceiptList, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("@Is_Receipt", v_strIssueList, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("tbl_XNK_Nhap_Kho", v_strReceiptList, StringComparison.Ordinal);
         Assert.DoesNotContain("tbl_XNK_Xuat_Kho", v_strReceiptList, StringComparison.Ordinal);
         Assert.Contains("tbl_XNK_Xuat_Kho", v_strIssueList, StringComparison.Ordinal);
         Assert.DoesNotContain("tbl_XNK_Nhap_Kho", v_strIssueList, StringComparison.Ordinal);
-        Assert.Contains("\"F2011_sp_sel_List_Nhap_Kho\"", v_strController, StringComparison.Ordinal);
-        Assert.Contains("\"F2012_sp_sel_List_Xuat_Kho\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F3001_sp_sel_List_Nhap_Kho\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F3002_sp_sel_List_Xuat_Kho\"", v_strController, StringComparison.Ordinal);
         Assert.DoesNotContain("\"sp_XNK_Document_List\"", v_strController, StringComparison.Ordinal);
     }
 
@@ -125,8 +125,8 @@ public sealed class WarehouseGroupCDesharingContractTests
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocument_Controller.cs"));
-        var v_strReceiptDetail = ExtractProcedure(v_strSql, "F2011_sp_sel_List_Nhap_Kho_Detail");
-        var v_strIssueDetail = ExtractProcedure(v_strSql, "F2012_sp_sel_List_Xuat_Kho_Detail");
+        var v_strReceiptDetail = ExtractProcedure(v_strSql, "F3001_sp_sel_List_Nhap_Kho_Detail");
+        var v_strIssueDetail = ExtractProcedure(v_strSql, "F3002_sp_sel_List_Xuat_Kho_Detail");
 
         Assert.DoesNotContain("@Is_Receipt", v_strReceiptDetail, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("@Is_Receipt", v_strIssueDetail, StringComparison.OrdinalIgnoreCase);
@@ -134,8 +134,8 @@ public sealed class WarehouseGroupCDesharingContractTests
         Assert.DoesNotContain("tbl_XNK_Xuat_Kho_Raw_Data", v_strReceiptDetail, StringComparison.Ordinal);
         Assert.Contains("tbl_XNK_Xuat_Kho_Raw_Data", v_strIssueDetail, StringComparison.Ordinal);
         Assert.DoesNotContain("tbl_XNK_Nhap_Kho_Raw_Data", v_strIssueDetail, StringComparison.Ordinal);
-        Assert.Contains("\"F2011_sp_sel_List_Nhap_Kho_Detail\"", v_strController, StringComparison.Ordinal);
-        Assert.Contains("\"F2012_sp_sel_List_Xuat_Kho_Detail\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F3001_sp_sel_List_Nhap_Kho_Detail\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F3002_sp_sel_List_Xuat_Kho_Detail\"", v_strController, StringComparison.Ordinal);
         Assert.DoesNotContain("\"sp_XNK_Document_Detail_List\"", v_strController, StringComparison.Ordinal);
     }
 

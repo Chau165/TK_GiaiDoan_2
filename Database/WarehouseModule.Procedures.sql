@@ -3918,7 +3918,7 @@ BEGIN
         EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
         SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
         IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
-        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI=@Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS=@Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
         INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh,Ghi_Chu,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Don_Vi_Tinh,@Ghi_Chu,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
         SET @Auto_ID=SCOPE_IDENTITY();
         SELECT @Auto_ID AS Auto_ID;
@@ -3949,7 +3949,7 @@ BEGIN
         EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
         SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
         IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
-        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI=@Ten_Don_Vi_Tinh COLLATE Latin1_General_CI_AI AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
+        IF EXISTS(SELECT 1 FROM dbo.tbl_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS=@Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
         UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh=@Ten_Don_Vi_Tinh,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
         SELECT @Auto_ID AS Auto_ID;
         IF @OwnTransaction = 1 COMMIT TRANSACTION;
@@ -4164,7 +4164,7 @@ GO
 
 
 
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_ins_Nhap_Kho_Header
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_ins_Nhap_Kho_Header
     @Auto_ID BIGINT OUTPUT, @So_Phieu_Nhap_Kho NVARCHAR(100), @Kho_ID BIGINT, @NCC_ID BIGINT, @Ngay_Nhap_Kho DATE, @Ghi_Chu NVARCHAR(1000)=NULL, @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
@@ -4236,7 +4236,7 @@ BEGIN
     END CATCH
 END
 GO
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_upd_Nhap_Kho_Header
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_upd_Nhap_Kho_Header
     @Auto_ID BIGINT OUTPUT, @So_Phieu_Nhap_Kho NVARCHAR(100), @Kho_ID BIGINT, @NCC_ID BIGINT, @Ngay_Nhap_Kho DATE, @Ghi_Chu NVARCHAR(1000)=NULL, @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
@@ -4313,7 +4313,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_ins_Nhap_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_ins_Nhap_Kho_Detail
     @Auto_ID BIGINT OUTPUT, @Nhap_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Nhap DECIMAL(18,3), @Don_Gia_Nhap DECIMAL(18,2), @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
@@ -4387,7 +4387,7 @@ BEGIN
     END CATCH
 END
 GO
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_upd_Nhap_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_upd_Nhap_Kho_Detail
     @Auto_ID BIGINT OUTPUT, @Nhap_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Nhap DECIMAL(18,3), @Don_Gia_Nhap DECIMAL(18,2), @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
@@ -4460,7 +4460,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_del_Nhap_Kho_Header
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_del_Nhap_Kho_Header
     @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
@@ -4965,7 +4965,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_sel_List_Nhap_Kho
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_sel_List_Nhap_Kho
     @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -4978,7 +4978,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_sel_List_Xuat_Kho
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_sel_List_Xuat_Kho
     @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -4991,7 +4991,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_sel_List_Nhap_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_sel_List_Nhap_Kho_Detail
     @Document_ID BIGINT, @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
@@ -5006,7 +5006,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_sel_List_Xuat_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_sel_List_Xuat_Kho_Detail
     @Document_ID BIGINT, @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
@@ -5228,7 +5228,7 @@ BEGIN
     END CATCH
 END
 GO
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_ins_Xuat_Kho_Header
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_ins_Xuat_Kho_Header
     @Auto_ID BIGINT OUTPUT, @So_Phieu_Xuat_Kho NVARCHAR(100), @Kho_ID BIGINT, @Ngay_Xuat_Kho DATE,
     @Ghi_Chu NVARCHAR(1000)=NULL, @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
@@ -5317,7 +5317,7 @@ END
 
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_upd_Xuat_Kho_Header
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_upd_Xuat_Kho_Header
     @Auto_ID BIGINT OUTPUT, @So_Phieu_Xuat_Kho NVARCHAR(100), @Kho_ID BIGINT, @Ngay_Xuat_Kho DATE,
     @Ghi_Chu NVARCHAR(1000)=NULL, @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
@@ -5408,7 +5408,7 @@ END
 
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_ins_Xuat_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_ins_Xuat_Kho_Detail
     @Auto_ID BIGINT OUTPUT, @Xuat_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Xuat DECIMAL(18,3), @Don_Gia_Xuat DECIMAL(18,2), @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
@@ -5532,7 +5532,7 @@ END
 
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_upd_Xuat_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_upd_Xuat_Kho_Detail
     @Auto_ID BIGINT OUTPUT, @Xuat_Kho_ID BIGINT, @San_Pham_ID BIGINT, @SL_Xuat DECIMAL(18,3), @Don_Gia_Xuat DECIMAL(18,2), @Ma_Dang_Nhap NVARCHAR(100),
     @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
     @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
@@ -5650,7 +5650,7 @@ END
 
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2011_sp_del_Nhap_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3001_sp_del_Nhap_Kho_Detail
     @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
@@ -5706,7 +5706,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_del_Xuat_Kho_Detail
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_del_Xuat_Kho_Detail
     @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
@@ -5798,7 +5798,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.F2012_sp_del_Xuat_Kho_Header
+CREATE OR ALTER PROCEDURE dbo.F3002_sp_del_Xuat_Kho_Header
     @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL, @Ma_Dang_Nhap NVARCHAR(100)
 AS
 BEGIN
@@ -6613,7 +6613,7 @@ BEGIN
        OR NOT EXISTS (SELECT 1 FROM dbo.tbl_Sys_Thanh_Vien WHERE Ma_Dang_Nhap = @Ma_Dang_Nhap)
         THROW 51053, N'Phiên đăng nhập không hợp lệ.', 1;
     IF @Page_Number < 1 SET @Page_Number = 1;
-    IF @Page_Size < 1 SET @Page_Size = 10;
+    IF @Page_Size < 0 SET @Page_Size = 10;
     IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
 
     CREATE TABLE #AuthorizedWarehouse
@@ -6679,10 +6679,52 @@ BEGIN
     JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
     JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = b.Kho_ID
     JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = b.San_Pham_ID
-    /* The clustered balance key supplies deterministic, seek-friendly order.
-       Sorting by display names would reintroduce a large workspace grant. */
-    ORDER BY b.Kho_ID, b.San_Pham_ID
-    OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+    WHERE 1 = 0;
+
+        IF @Page_Size = 0
+        BEGIN
+            INSERT INTO #CurrentReportPage
+            SELECT b.Kho_ID,
+                   k.Ten_Kho,
+                   b.San_Pham_ID,
+                   p.Ma_San_Pham,
+                   p.Ten_San_Pham,
+                   CAST(0 AS DECIMAL(18,3)),
+                   CAST(0 AS DECIMAL(18,3)),
+                   CAST(0 AS DECIMAL(18,3)),
+                   b.CurrentQuantity,
+                   b.CurrentQuantity,
+                   b.ReservedQuantity,
+                   CAST(b.CurrentQuantity - b.ReservedQuantity AS DECIMAL(18,3))
+            FROM dbo.InventoryBalance_Current b
+            JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+            JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = b.Kho_ID
+            JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = b.San_Pham_ID;
+        END
+        ELSE
+        BEGIN
+            /* The clustered balance key supplies deterministic, seek-friendly order.
+               Sorting by display names would reintroduce a large workspace grant. */
+            INSERT INTO #CurrentReportPage
+            SELECT b.Kho_ID,
+                   k.Ten_Kho,
+                   b.San_Pham_ID,
+                   p.Ma_San_Pham,
+                   p.Ten_San_Pham,
+                   CAST(0 AS DECIMAL(18,3)),
+                   CAST(0 AS DECIMAL(18,3)),
+                   CAST(0 AS DECIMAL(18,3)),
+                   b.CurrentQuantity,
+                   b.CurrentQuantity,
+                   b.ReservedQuantity,
+                   CAST(b.CurrentQuantity - b.ReservedQuantity AS DECIMAL(18,3))
+            FROM dbo.InventoryBalance_Current b
+            JOIN #AuthorizedWarehouse aw ON aw.Kho_ID = b.Kho_ID
+            JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = b.Kho_ID
+            JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = b.San_Pham_ID
+            ORDER BY b.Kho_ID, b.San_Pham_ID
+            OFFSET (@Page_Number - 1) * @Page_Size ROWS FETCH NEXT @Page_Size ROWS ONLY;
+        END;
 
         SELECT @Current_Report_Generation_End = Generation
     FROM dbo.Inventory_Current_Report_State

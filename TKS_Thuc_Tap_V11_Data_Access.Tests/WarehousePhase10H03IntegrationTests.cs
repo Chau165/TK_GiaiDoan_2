@@ -112,12 +112,12 @@ public sealed class WarehousePhase10H03IntegrationTests
         await v_Connection.OpenAsync();
 
         var supplierId = await LongScalarAsync(v_Connection, null, "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_NCC ORDER BY Auto_ID;");
-        var receiptId = await ExecuteStoredIdAsync(v_Connection, null, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+        var receiptId = await ExecuteStoredIdAsync(v_Connection, null, "dbo.F3001_sp_ins_Nhap_Kho_Header",
             BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Fixture.Tag}-future-receipt", 100), BigInt("@Kho_ID", v_Fixture.WarehouseId),
             BigInt("@NCC_ID", supplierId), Date("@Ngay_Nhap_Kho", v_Fixture.BusinessDate.AddDays(1)), Text("@Ghi_Chu", "", 1000),
             Text("@Ma_Dang_Nhap", v_Fixture.Login, 100), Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "TDD-H03", 100),
             Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "TDD-H03", 100));
-        await ExecuteStoredIdAsync(v_Connection, null, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+        await ExecuteStoredIdAsync(v_Connection, null, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
             BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", receiptId), BigInt("@San_Pham_ID", v_Fixture.ProductId), Decimal("@SL_Nhap", 50), Decimal("@Don_Gia_Nhap", 1),
             Text("@Ma_Dang_Nhap", v_Fixture.Login, 100), Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "TDD-H03", 100),
             Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "TDD-H03", 100));
@@ -145,12 +145,12 @@ public sealed class WarehousePhase10H03IntegrationTests
         await using var v_Connection = new SqlConnection(ConnectionString);
         await v_Connection.OpenAsync();
         var supplierId = await LongScalarAsync(v_Connection, null, "SELECT TOP (1) Auto_ID FROM dbo.tbl_DM_NCC ORDER BY Auto_ID;");
-        var receiptId = await ExecuteStoredIdAsync(v_Connection, null, "dbo.F2011_sp_ins_Nhap_Kho_Header",
+        var receiptId = await ExecuteStoredIdAsync(v_Connection, null, "dbo.F3001_sp_ins_Nhap_Kho_Header",
             BigIntOutput("@Auto_ID", 0), Text("@So_Phieu_Nhap_Kho", $"{v_Fixture.Tag}-future-receipt", 100), BigInt("@Kho_ID", v_Fixture.WarehouseId),
             BigInt("@NCC_ID", supplierId), Date("@Ngay_Nhap_Kho", v_Fixture.BusinessDate.AddDays(1)), Text("@Ghi_Chu", "", 1000),
             Text("@Ma_Dang_Nhap", v_Fixture.Login, 100), Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "TDD-N01", 100),
             Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "TDD-N01", 100));
-        await ExecuteStoredIdAsync(v_Connection, null, "dbo.F2011_sp_ins_Nhap_Kho_Detail",
+        await ExecuteStoredIdAsync(v_Connection, null, "dbo.F3001_sp_ins_Nhap_Kho_Detail",
             BigIntOutput("@Auto_ID", 0), BigInt("@Nhap_Kho_ID", receiptId), BigInt("@San_Pham_ID", v_Fixture.ProductId), Decimal("@SL_Nhap", 100), Decimal("@Don_Gia_Nhap", 1),
             Text("@Ma_Dang_Nhap", v_Fixture.Login, 100), Text("@Created_By", v_Fixture.Login, 100), Text("@Created_By_Function", "TDD-N01", 100),
             Text("@Last_Updated_By", v_Fixture.Login, 100), Text("@Last_Updated_By_Function", "TDD-N01", 100));

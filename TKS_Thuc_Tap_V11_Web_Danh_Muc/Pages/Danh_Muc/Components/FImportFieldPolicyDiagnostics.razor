@@ -1,0 +1,22 @@
+@using TKS_Thuc_Tap_V11_Data_Access.Utility
+
+@if (SourceOnlyDiagnostics.Count > 0)
+{
+    <div class="alert alert-info py-2" role="status">
+        <strong>Không lưu vào WMS (@SourceOnlyDiagnostics.Count trường):</strong>
+        <ul class="mb-0">
+            @foreach (var v_objDiagnostic in SourceOnlyDiagnostics)
+            {
+                <li><code>SOURCE_FIELD_IGNORED</code> — Dòng @v_objDiagnostic.RowNumber, @v_objDiagnostic.SourceColumn (@v_objDiagnostic.SourceValue): @v_objDiagnostic.Reason</li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<CImportFieldPolicyDiagnostic> Diagnostics { get; set; } = Array.Empty<CImportFieldPolicyDiagnostic>();
+
+    private IReadOnlyList<CImportFieldPolicyDiagnostic> SourceOnlyDiagnostics => Diagnostics
+        .Where(v_objDiagnostic => v_objDiagnostic.Policy == "SOURCE_FIELD_IGNORED" && v_objDiagnostic.Status == "IGNORED")
+        .ToArray();
+}

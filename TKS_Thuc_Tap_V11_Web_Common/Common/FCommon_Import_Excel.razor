@@ -88,43 +88,13 @@
 
                 var v_strPath_File_New = v_strFolder + v_strFile_Name + "_" + DateTime.Now.ToString("ddMMyyHHmmss") + v_strTextExl;
 
-                int toCopyLength = 0;
-                int eachReadLength = 10000;
-                await using FileStream fs = new FileStream(v_strPath_File_New, FileMode.Create);
-                CancellationTokenSource cts = new CancellationTokenSource();
-                if (toCopyLength < v_objFile.Stream.Length)
+                await using (var v_objSource = v_objFile.Stream)
                 {
-                    byte[] buffer = new byte[eachReadLength];
-                    long copied = 0;
-                    while (copied <= v_objFile.Stream.Length - eachReadLength)
+                    await using (var fs = new FileStream(v_strPath_File_New, FileMode.Create))
                     {
-                        toCopyLength = await v_objFile.Stream.ReadAsync(buffer, 0, eachReadLength, cts.Token);
-
-                        await fs.WriteAsync(buffer, 0, eachReadLength);
-                        await fs.FlushAsync();
-                        fs.Position = v_objFile.Stream.Position;
-                        copied += toCopyLength;
+                        await CStream_Copy_Utility.Copy_Async(v_objSource, fs);
                     }
-                    int left = (int)(v_objFile.Stream.Length - copied);
-                    toCopyLength = await v_objFile.Stream.ReadAsync(buffer, 0, left, cts.Token);
-
-                    await fs.WriteAsync(buffer, 0, left);
-                    await fs.FlushAsync();
                 }
-
-                else
-                {
-                    //If the length of the file copied each time is greater than the length of the source file, copy the actual file length directly
-                    byte[] buffer = new byte[v_objFile.Stream.Length];
-                    await v_objFile.Stream.ReadAsync(buffer, 0, buffer.Length);
-                    await v_objFile.Stream.FlushAsync();
-                    await fs.WriteAsync(buffer, 0, buffer.Length);
-                    await fs.FlushAsync();
-                }
-
-                //await v_objFile.Stream.CopyToAsync(fs);
-                v_objFile.Stream.Close();
-                fs.Close();
 
                 r_objImport_Excel.Path_File = v_strPath_File_New;
                 await OnClose.InvokeAsync(r_objImport_Excel);

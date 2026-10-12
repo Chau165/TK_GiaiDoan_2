@@ -1,3 +1,4 @@
+@using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @inherits FBase
 
 <div class="card">
@@ -39,7 +40,7 @@
                     }
                     else
                     {
-                        @Layout_Tool_Button(m_grdMaster)
+                        @Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null)
                     }
                 </div>
             </div>
@@ -47,7 +48,7 @@
             @if (m_strMaster_Type == "KhoUser")
             {
                 <TelerikGrid TItem="CWarehousePermission" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Kho_User_Async" @ref="m_grdPermission">
-                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
+                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
                     <GridColumns>
                         <GridColumn Width="70px">
                             <Template>
@@ -79,7 +80,7 @@
             else
             {
                 <TelerikGrid TItem="CWarehouseMaster" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Master_Async" @ref="m_grdMaster">
-                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
+                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
                     <GridColumns>
                         <GridColumn Width="70px">
                             <Template>
@@ -148,7 +149,7 @@
                     </div>
                 </div>
                 <div class="d-flex gap-2">
-                    @Layout_Tool_Button(m_grdDocument)
+                    @Layout_Tool_Button(m_grdDocument, Can_Import_Document ? Document_Import_Tool_Item : null)
                     @if (r_objChuc_Nang.Is_Have_Add_Permission)
                     {
                         <button class="btn btn-primary" @onclick="New_Document">Tạo phiếu mới</button>
@@ -160,7 +161,7 @@
                 <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Document" m_bIs_Receipt="@Is_Receipt" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
             }
             <TelerikGrid TItem="CWarehouseDocument" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Document_Async" @ref="m_grdDocument">
-                <GridExport><GridExcelExport FileName="Warehouse_Document_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Document_Export" AllPages="true" /></GridExport>
+                <GridExport><GridExcelExport FileName="Warehouse_Document_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Document_Export" AllPages="true" /></GridExport>
                 <GridColumns>
                     <GridColumn Field="Ngay_Chung_Tu" Title="Ngày" Width="120px" />
                     <GridColumn Field="So_Phieu" Title="Số phiếu" Width="160px" />
@@ -199,7 +200,7 @@
             {
                 <TelerikGrid TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory">
                     <GridExport>
-                        <GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" />
+                        <GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" />
                         <GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" />
                     </GridExport>
                     <GridColumns>
@@ -238,7 +239,7 @@
             }
             else
             {
-            <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseDetailReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Report_Detail_Async" @ref="m_grdReportDetail"><GridExport><GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ngay" Title="Ngày" /><GridColumn Field="So_Phieu" Title="Số phiếu" />@if(m_strReport_Type=="Receipt"){<GridColumn Field="Nha_Cung_Cap" Title="NCC" />}<GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn><GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn><GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn></GridColumns></TelerikGrid>
+            <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseDetailReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Report_Detail_Async" @ref="m_grdReportDetail"><GridExport><GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ngay" Title="Ngày" /><GridColumn Field="So_Phieu" Title="Số phiếu" />@if(m_strReport_Type=="Receipt"){<GridColumn Field="Nha_Cung_Cap" Title="NCC" />}<GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn><GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn><GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn></GridColumns></TelerikGrid>
             }
             @if (r_objChuc_Nang.Is_Have_Export_Permission)
             {
@@ -272,6 +273,31 @@
     }
 }
 
+@if (m_bShow_Product_Import)
+{
+    <FWarehouse_Product_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Product_Import" OnCompleted="On_Product_Import_Completed" />
+}
+@if (m_bShow_Unit_Import)
+{
+    <FWarehouse_Unit_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Unit_Import" OnCompleted="On_Unit_Import_Completed" />
+}
+@if (m_bShow_Category_Import)
+{
+    <FWarehouse_Category_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Category_Import" OnCompleted="On_Category_Import_Completed" />
+}
+@if (m_bShow_Supplier_Import)
+{
+    <FWarehouse_Supplier_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Supplier_Import" OnCompleted="On_Supplier_Import_Completed" />
+}
+@if (m_bShow_Warehouse_Import)
+{
+    <FWarehouse_Kho_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Warehouse_Import" OnCompleted="On_Warehouse_Import_Completed" />
+}
+@if (m_bShow_Document_Import)
+{
+    <FWarehouse_Transaction_Import IsReceipt="@Is_Receipt" UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Document_Import" OnCompleted="On_Document_Import_Completed" />
+}
+
 @code {
     [Parameter] public string m_strSection { get; set; } = "Master";
     [Parameter] public string m_strInitial_Master_Type { get; set; } = "DonViTinh";
@@ -285,6 +311,12 @@
     private readonly CWarehouseReport_Controller m_objReportController = new();
     private string m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private bool m_bRouteParametersApplied;
+    private bool m_bShow_Product_Import;
+    private bool m_bShow_Unit_Import;
+    private bool m_bShow_Category_Import;
+    private bool m_bShow_Supplier_Import;
+    private bool m_bShow_Warehouse_Import;
+    private bool m_bShow_Document_Import;
     private CWarehouseMaster m_objMaster = new();
     private CWarehousePermission m_objPermission = new();
     private CWarehouseDocument m_objDocument = new();
@@ -309,6 +341,11 @@
             return m_strSection == "Receipt";
         }
     }
+
+    private bool Can_Import_Document =>
+        (m_strSection is "Receipt" or "Issue") && r_objChuc_Nang.Is_Have_Add_Permission;
+
+    private RenderFragment Document_Import_Tool_Item => @<button type="button" class="dropdown-item" @onclick="Open_Document_Import"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; Nhập Excel</button>;
 
     private bool Is_Current_Inventory_Report
     {
@@ -571,6 +608,158 @@
         else m_objMaster = new();
         r_bIs_Show_Edit = true;
         Clear_Message();
+    }
+
+    private bool Can_Import_Selected_Master =>
+        m_strSection == "Master" &&
+        r_objChuc_Nang.Is_Have_Add_Permission &&
+        m_strMaster_Type is "SanPham" or "DonViTinh" or "LoaiSanPham" or "NCC" or "Kho";
+
+    private RenderFragment Master_Import_Tool_Item => @<button type="button" class="dropdown-item" @onclick="Open_Selected_Master_Import"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; Nhập Excel</button>;
+
+    private void Open_Selected_Master_Import()
+    {
+        switch (m_strMaster_Type)
+        {
+            case "SanPham": Open_Product_Import(); break;
+            case "DonViTinh": Open_Unit_Import(); break;
+            case "LoaiSanPham": Open_Category_Import(); break;
+            case "NCC": Open_Supplier_Import(); break;
+            case "Kho": Open_Warehouse_Import(); break;
+        }
+    }
+
+    private void Open_Document_Import()
+    {
+        if (!Can_Import_Document)
+            return;
+
+        m_bShow_Document_Import = true;
+        Clear_Message();
+    }
+
+    private void Close_Document_Import()
+    {
+        m_bShow_Document_Import = false;
+    }
+
+    private Task On_Document_Import_Completed(CTransactionImportConfirmResult p_objResult)
+    {
+        var v_strDocumentType = Is_Receipt ? "phiếu nhập" : "phiếu xuất";
+        Try_Record_Action_History(0, $"{(Is_Receipt ? "Receipt" : "Issue")} Excel Import",
+            $"Imported: {p_objResult.Imported_Documents}; skipped duplicates: {p_objResult.Skipped_Documents}");
+        m_objSelectedDocument = null;
+        m_arrDetail.Clear();
+        m_grdDocument.Rebind();
+        Set_Success($"Đã nhập {p_objResult.Imported_Documents} {v_strDocumentType}; bỏ qua {p_objResult.Skipped_Documents} chứng từ trùng khớp.");
+        return Task.CompletedTask;
+    }
+
+    private void Open_Product_Import()
+    {
+        if (m_strSection != "Master" || m_strMaster_Type != "SanPham" || !r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+
+        m_bShow_Product_Import = true;
+        Clear_Message();
+    }
+
+    private void Close_Product_Import()
+    {
+        m_bShow_Product_Import = false;
+    }
+
+    private Task On_Product_Import_Completed(int p_iRowCount)
+    {
+        Try_Record_Action_History(0, "Product Excel Import", $"Rows: {p_iRowCount}");
+        m_grdMaster.Rebind();
+        Set_Success($"Đã nhập thành công {p_iRowCount} sản phẩm.");
+        return Task.CompletedTask;
+    }
+
+    private void Open_Unit_Import()
+    {
+        if (m_strSection != "Master" || m_strMaster_Type != "DonViTinh" || !r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+
+        m_bShow_Unit_Import = true;
+        Clear_Message();
+    }
+
+    private void Close_Unit_Import()
+    {
+        m_bShow_Unit_Import = false;
+    }
+
+    private Task On_Unit_Import_Completed(int p_iRowCount)
+    {
+        Try_Record_Action_History(0, "Unit Excel Import", $"Rows: {p_iRowCount}");
+        m_grdMaster.Rebind();
+        Set_Success($"Đã nhập thành công {p_iRowCount} đơn vị tính.");
+        return Task.CompletedTask;
+    }
+
+    private void Open_Category_Import()
+    {
+        if (m_strSection != "Master" || m_strMaster_Type != "LoaiSanPham" || !r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+        m_bShow_Category_Import = true;
+        Clear_Message();
+    }
+
+    private void Close_Category_Import()
+    {
+        m_bShow_Category_Import = false;
+    }
+
+    private Task On_Category_Import_Completed(int p_iRowCount)
+    {
+        Try_Record_Action_History(0, "Category Excel Import", $"Rows: {p_iRowCount}");
+        m_grdMaster.Rebind();
+        Set_Success($"Đã nhập thành công {p_iRowCount} loại sản phẩm.");
+        return Task.CompletedTask;
+    }
+
+    private void Open_Supplier_Import()
+    {
+        if (m_strSection != "Master" || m_strMaster_Type != "NCC" || !r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+        m_bShow_Supplier_Import = true;
+        Clear_Message();
+    }
+
+    private void Close_Supplier_Import()
+    {
+        m_bShow_Supplier_Import = false;
+    }
+
+    private Task On_Supplier_Import_Completed(int p_iRowCount)
+    {
+        Try_Record_Action_History(0, "Supplier Excel Import", $"Rows: {p_iRowCount}");
+        m_grdMaster.Rebind();
+        Set_Success($"Đã nhập thành công {p_iRowCount} nhà cung cấp.");
+        return Task.CompletedTask;
+    }
+
+    private void Open_Warehouse_Import()
+    {
+        if (m_strSection != "Master" || m_strMaster_Type != "Kho" || !r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+        m_bShow_Warehouse_Import = true;
+        Clear_Message();
+    }
+
+    private void Close_Warehouse_Import()
+    {
+        m_bShow_Warehouse_Import = false;
+    }
+
+    private Task On_Warehouse_Import_Completed(int p_iRowCount)
+    {
+        Try_Record_Action_History(0, "Warehouse Excel Import", $"Rows: {p_iRowCount}");
+        m_grdMaster.Rebind();
+        Set_Success($"Đã nhập thành công {p_iRowCount} kho.");
+        return Task.CompletedTask;
     }
 
     private void Edit_Master(CWarehouseMaster p_objData)
@@ -872,8 +1061,20 @@
     {
         try
         {
-            var v_objResult = await m_objMasterController.List_Master_Page_Async(m_strMaster_Type, args.Request.Page, args.Request.PageSize);
-            m_arrMaster = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export))
+            {
+                var v_arrSource = await m_objMasterController.List_Master_Async(m_strMaster_Type);
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
+                args.Data = v_objReadResult.Items;
+                args.Total = v_objReadResult.Total_Count;
+                if (args.Request.PageSize > 0)
+                    m_arrMaster = v_objReadResult.Items;
+            }
+            else
+            {
+                var v_objResult = await m_objMasterController.List_Master_Page_Async(m_strMaster_Type, args.Request.Page, args.Request.PageSize);
+                m_arrMaster = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            }
         }
         catch (Exception ex)
         {
@@ -887,8 +1088,17 @@
     {
         try
         {
-            var v_objResult = await m_objPermissionController.List_Kho_User_Page_Async(args.Request.Page, args.Request.PageSize);
-            args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
+            {
+                var v_arrSource = await m_objPermissionController.List_Kho_User_Async();
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
+                args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
+            }
+            else
+            {
+                var v_objResult = await m_objPermissionController.List_Kho_User_Page_Async(args.Request.Page, args.Request.PageSize);
+                args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            }
         }
         catch (Exception ex)
         {
@@ -902,8 +1112,19 @@
     {
         try
         {
-            var v_objResult = await m_objDocumentController.List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name, m_iDocument_Warehouse_ID);
-            m_arrDocument = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
+            {
+                var v_arrSource = await m_objDocumentController.List_Documents_Async(Is_Receipt, r_strActive_User_Name, m_iDocument_Warehouse_ID);
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
+                args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
+                if (args.Request.PageSize > 0)
+                    m_arrDocument = v_objReadResult.Items;
+            }
+            else
+            {
+                var v_objResult = await m_objDocumentController.List_Documents_Page_Async(Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name, m_iDocument_Warehouse_ID);
+                m_arrDocument = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            }
         }
         catch (Exception ex)
         {
@@ -917,8 +1138,19 @@
     {
         try
         {
-            var v_objResult = await m_objReportController.Detail_Report_Page_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
-            m_arrDetailReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
+            {
+                var v_arrSource = await m_objReportController.Detail_Report_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
+                args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
+                if (args.Request.PageSize > 0)
+                    m_arrDetailReport = v_objReadResult.Items;
+            }
+            else
+            {
+                var v_objResult = await m_objReportController.Detail_Report_Page_Async(m_strReport_Type == "Receipt", m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                m_arrDetailReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            }
         }
         catch (Exception ex)
         {
@@ -932,8 +1164,33 @@
     {
         try
         {
-            var v_objResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report);
-            m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
+            {
+                List<CWarehouseInventoryReport> v_arrSource;
+                if (Is_Current_Inventory_Report)
+                {
+                    var v_objFullResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, 1, 0, r_strActive_User_Name, m_iReport_Warehouse_ID, true);
+                    v_arrSource = v_objFullResult.Items;
+                }
+                else
+                {
+                    v_arrSource = await m_objReportController.Inventory_Report_Async(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                }
+
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
+                args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
+                if (args.Request.PageSize > 0)
+                    m_arrInventoryReport = v_objReadResult.Items;
+            }
+            else
+            {
+                var v_iPage_Size = args.Request.PageSize;
+                if (v_iPage_Size == 0 && !r_bIs_Excel_OnRead_Export)
+                    v_iPage_Size = 10;
+
+                var v_objResult = await m_objReportController.Inventory_Report_Page_Async(m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID, Is_Current_Inventory_Report);
+                m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
+            }
         }
         catch (Exception ex)
         {

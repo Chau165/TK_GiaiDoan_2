@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="ExcelDataReader" Version="3.9.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -15,8 +17,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Fixtures\ProductXlsxCompatibility\*.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\docs\test-data\customer-import\*.xlsx" Link="Fixtures\CustomerImport\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\TKS_Thuc_Tap_V11_Data_Access\TKS_Thuc_Tap_V11_Data_Access.csproj" />
     <ProjectReference Include="..\TKS_Thuc_Tap_V11_Web_Common\TKS_Thuc_Tap_V11_Web_Common.csproj" />
+    <ProjectReference Include="..\TKS_Thuc_Tap_V11_Web_Danh_Muc\TKS_Thuc_Tap_V11_Web_Danh_Muc.csproj" />
     <ProjectReference Include="..\TKS_Thuc_Tap_V11_Benchmarks\TKS_Thuc_Tap_V11_Benchmarks.csproj" />
   </ItemGroup>
 </Project>
