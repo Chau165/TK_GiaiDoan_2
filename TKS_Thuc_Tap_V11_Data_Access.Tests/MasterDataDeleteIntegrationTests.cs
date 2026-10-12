@@ -27,7 +27,7 @@ public sealed class MasterDataDeleteIntegrationTests
 
         try
         {
-            await new CDM_Loai_San_Pham_Controller().F2017_sp_del_Loai_San_Pham(
+            new CDM_Loai_San_Pham_Controller().F2017_sp_del_Loai_San_Pham(
                 v_iCategoryId, "tdd-delete-user", "tdd-delete-function");
 
             Assert.Equal(0L, await ScalarLongAsync(

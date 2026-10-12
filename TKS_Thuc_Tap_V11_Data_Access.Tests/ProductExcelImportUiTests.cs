@@ -83,11 +83,11 @@ public sealed class ProductExcelImportUiTests
     public void Product_batch_shares_one_transaction_aware_connection_across_all_inserts()
     {
         var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
-        var v_iStart = v_strSource.IndexOf("public async Task Import_Products_Async(", StringComparison.Ordinal);
-        var v_iEnd = v_strSource.IndexOf("public async Task Import_Units_Async(", v_iStart, StringComparison.Ordinal);
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", "CWarehouseProductImportService.cs"));
+        var v_iStart = v_strSource.IndexOf("internal async Task Import_Products_Async(", StringComparison.Ordinal);
+        var v_iEnd = v_strSource.IndexOf("private void Demand_Add_Permission(", v_iStart, StringComparison.Ordinal);
 
-        Assert.True(v_iStart >= 0 && v_iEnd > v_iStart, "Product import batch and next entity import were not found.");
+        Assert.True(v_iStart >= 0 && v_iEnd > v_iStart, "Product import batch boundaries were not found.");
         var v_strBatchMethod = v_strSource[v_iStart..v_iEnd];
         Assert.Equal(1, v_strBatchMethod.Split("new SqlConnection(", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, v_strBatchMethod.Split("BeginTransaction(", StringSplitOptions.None).Length - 1);
@@ -95,7 +95,7 @@ public sealed class ProductExcelImportUiTests
         Assert.Contains("v_objTransaction.Rollback();", v_strBatchMethod);
         var v_strProductController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CDM_San_Pham_Controller.cs"));
-        Assert.Contains("Scalar_ID(p_conn, p_trans, \"F2018_sp_ins_San_Pham\"", v_strProductController);
+        Assert.Contains("CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, \"F2018_sp_ins_San_Pham\"", v_strProductController);
     }
 
     private static string FindRepositoryPath(params string[] p_arrParts)

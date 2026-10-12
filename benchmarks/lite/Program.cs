@@ -357,13 +357,13 @@ internal static partial class Program
         {
             case "MasterPaged":
             {
-                var page = await new CWarehouseMaster_Controller()
+                var page = await new CWarehouseMasterSupport_Controller()
                     .List_Master_Page_Async("SanPham", PageNumber, PageSize, "").ConfigureAwait(false);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             case "LookupPaged":
             {
-                var page = await new CWarehouseMaster_Controller()
+                var page = await new CWarehouseMasterSupport_Controller()
                     .List_Lookup_Page_Async("SanPham", PageNumber, PageSize, "").ConfigureAwait(false);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
@@ -398,9 +398,9 @@ internal static partial class Program
 
     private static IReadOnlyList<ScenarioDefinition> CreateScenarioDefinitions() =>
     [
-        new("MasterPaged", "CWarehouseMaster_Controller.List_Master_Page_Async", "dbo.sp_DM_Master_Page",
+        new("MasterPaged", "CWarehouseMasterSupport_Controller.List_Master_Page_Async", "dbo.sp_DM_Master_Page",
             new { MasterType = "SanPham", PageNumber, PageSize, SearchText = "" }),
-        new("LookupPaged", "CWarehouseMaster_Controller.List_Lookup_Page_Async", "dbo.sp_DM_Lookup_Page",
+        new("LookupPaged", "CWarehouseMasterSupport_Controller.List_Lookup_Page_Async", "dbo.sp_DM_Lookup_Page",
             new { MasterType = "SanPham", PageNumber, PageSize, SearchText = "" }),
         new("DocumentPaged", "CWarehouseDocument_Controller.List_Documents_Page_Async", "dbo.sp_XNK_Document_Page",
             new { IsReceipt = true, PageNumber, PageSize, SearchText = "", Login = ApplicationLogin, WarehouseId = (long?)null }),
@@ -522,7 +522,7 @@ internal static partial class Program
             "benchmarks/lite/appsettings.Benchmark.json",
             "Database/WarehouseModule.Procedures.sql",
             "Database/WarehouseModule.Schema.sql",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/DM/CWarehouseMaster_Controller.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseMasterSupport_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocument_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseReport_Controller.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouse_Controller_Base.cs",
@@ -535,7 +535,7 @@ internal static partial class Program
                 : "NOT_FOUND",
             StringComparer.Ordinal);
         var benchmarkAssembly = Assembly.GetExecutingAssembly().Location;
-        var dataAccessAssembly = typeof(CWarehouseMaster_Controller).Assembly.Location;
+        var dataAccessAssembly = typeof(CWarehouseMasterSupport_Controller).Assembly.Location;
         return new SourceIdentityDocument
         {
             SourceFilesSha256 = hashes,
@@ -543,7 +543,7 @@ internal static partial class Program
             BenchmarkAssemblySha256 = HashFile(benchmarkAssembly),
             DataAccessAssemblyPath = dataAccessAssembly,
             DataAccessAssemblySha256 = HashFile(dataAccessAssembly),
-            DataAccessAssemblyName = typeof(CWarehouseMaster_Controller).Assembly.GetName().Name
+            DataAccessAssemblyName = typeof(CWarehouseMasterSupport_Controller).Assembly.GetName().Name
         };
     }
 

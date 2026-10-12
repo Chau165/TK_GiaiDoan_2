@@ -246,10 +246,10 @@ public static class PerformanceBenchmark
         var v_notes = new List<string>();
 
         await AddMetricAsync(v_metrics, "MasterPaged", p_options, () =>
-            new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")
+            new CWarehouseMasterSupport_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "LookupPaged", p_options, () =>
-            new CWarehouseMaster_Controller().List_Lookup_Page_Async("SanPham", 1, p_options.PageSize, "")
+            new CWarehouseMasterSupport_Controller().List_Lookup_Page_Async("SanPham", 1, p_options.PageSize, "")
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "DocumentPaged", p_options, () =>
             new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)
@@ -264,11 +264,9 @@ public static class PerformanceBenchmark
         if (p_options.AllowFullLoad)
         {
             await AddMetricAsync(v_metrics, "MasterFullLoad", p_options, () =>
-                new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
-                    .ContinueWith(v_task => v_task.Result.Count));
+                Task.FromResult(new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham().Count));
             await AddMetricAsync(v_metrics, "LookupFullLoad", p_options, () =>
-                new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup()
-                    .ContinueWith(v_task => v_task.Result.Count));
+                Task.FromResult(new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup().Count));
             await AddMetricAsync(v_metrics, "DocumentFullLoad", p_options, () =>
                 new CWarehouseDocument_Controller().List_Documents_Async(true, p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
@@ -308,7 +306,7 @@ public static class PerformanceBenchmark
                 switch (v_index)
                 {
                     case 0:
-                        v_iRows = (await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")).Items.Count;
+                        v_iRows = (await new CWarehouseMasterSupport_Controller().List_Master_Page_Async("SanPham", 1, p_options.PageSize, "")).Items.Count;
                         break;
                     case 1:
                         v_iRows = (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count;
@@ -532,9 +530,9 @@ public static class PerformanceBenchmark
         {
             var v_name = "PERF_BM_" + Guid.NewGuid().ToString("N");
             var v_item = new CWarehouseMaster { Name = v_name };
-            await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
+            v_item.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
             v_item.Name = v_name + "_U";
-            await v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(v_item, "benchmark", "performance");
+            v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(v_item, "benchmark", "performance");
             await CleanupUnitAsync(v_name, v_item.Name);
             return 2;
         });
@@ -543,10 +541,10 @@ public static class PerformanceBenchmark
         {
             var v_name = "PERF_BM_" + Guid.NewGuid().ToString("N");
             var v_item = new CWarehouseMaster { Name = v_name };
-            await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
+            v_item.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
             try
             {
-                await v_objUnitController.F2016_sp_del_Don_Vi_Tinh(v_item.Auto_ID, "benchmark", "performance");
+                v_objUnitController.F2016_sp_del_Don_Vi_Tinh(v_item.Auto_ID, "benchmark", "performance");
             }
             finally
             {

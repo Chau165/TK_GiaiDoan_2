@@ -60,7 +60,7 @@ public sealed class WarehouseImportRuntimeIntegrationTests
             }
 
             var v_objDuplicateException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Warehouses_Async(
+                new CWarehouseKhoImportService().Import_Warehouses_Async(
                     new[] { new CWarehouseImportRow { Row_Number = 2, Ten_Kho = v_arrRows[0].Name } },
                     m_strTestUser,
                     m_strTestFunction));
@@ -70,7 +70,7 @@ public sealed class WarehouseImportRuntimeIntegrationTests
 
             var v_strRollbackPrefix = v_strPrefix + "ROLLBACK_";
             var v_objRollbackException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Warehouses_Async(
+                new CWarehouseKhoImportService().Import_Warehouses_Async(
                     new[]
                     {
                         new CWarehouseImportRow { Row_Number = 2, Ten_Kho = v_strRollbackPrefix + "FIRST" },

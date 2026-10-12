@@ -195,10 +195,10 @@ internal static class V22PerformanceRunner
     }
 
     private static async Task<int> ReadMasterAsync(int page, int size) =>
-        (await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", page, size, "").ConfigureAwait(false)).Items.Count;
+        (await new CWarehouseMasterSupport_Controller().List_Master_Page_Async("SanPham", page, size, "").ConfigureAwait(false)).Items.Count;
 
     private static async Task<int> ReadLookupAsync(int page, int size) =>
-        (await new CWarehouseMaster_Controller().List_Lookup_Page_Async("SanPham", page, size, "").ConfigureAwait(false)).Items.Count;
+        (await new CWarehouseMasterSupport_Controller().List_Lookup_Page_Async("SanPham", page, size, "").ConfigureAwait(false)).Items.Count;
 
     private static async Task<int> ReadDocumentsAsync(int page, int size, string login) =>
         (await new CWarehouseDocument_Controller().List_Documents_Page_Async(true, page, size, "", login, null).ConfigureAwait(false)).Items.Count;

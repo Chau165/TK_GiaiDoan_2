@@ -344,14 +344,14 @@ internal static class V22CorrectnessRunner
         {
             case "MasterPaged":
             {
-                var result = await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", page, size, "");
+                var result = await new CWarehouseMasterSupport_Controller().List_Master_Page_Async("SanPham", page, size, "");
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Auto_ID", item.Auto_ID), ("Code", item.Code), ("Name", item.Name),
                     ("Related_ID", item.Related_ID), ("Related_ID_2", item.Related_ID_2), ("Ghi_Chu", item.Ghi_Chu))).ToList());
             }
             case "LookupPaged":
             {
-                var result = await new CWarehouseMaster_Controller().List_Lookup_Page_Async("SanPham", page, size, "");
+                var result = await new CWarehouseMasterSupport_Controller().List_Lookup_Page_Async("SanPham", page, size, "");
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Auto_ID", item.Auto_ID), ("Code", item.Code), ("Name", item.Name))).ToList());
             }

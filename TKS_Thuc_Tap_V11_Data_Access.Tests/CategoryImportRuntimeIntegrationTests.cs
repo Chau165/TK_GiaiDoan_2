@@ -72,7 +72,7 @@ public sealed class CategoryImportRuntimeIntegrationTests
             }
 
             var v_objDuplicateException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Categories_Async(
+                new CWarehouseCategoryImportService().Import_Categories_Async(
                     new[] { new CCategoryImportRow { Row_Number = 2, Ma_LSP = v_arrRows[0].Code, Ten_LSP = v_strPrefix + "DB_DUPLICATE_NAME" } },
                     m_strTestUser,
                     m_strTestFunction));
@@ -82,7 +82,7 @@ public sealed class CategoryImportRuntimeIntegrationTests
 
             var v_strRollbackPrefix = v_strPrefix + "ROLLBACK_";
             var v_objRollbackException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Categories_Async(
+                new CWarehouseCategoryImportService().Import_Categories_Async(
                     new[]
                     {
                         new CCategoryImportRow { Row_Number = 2, Ma_LSP = v_strRollbackPrefix + "FIRST", Ten_LSP = v_strRollbackPrefix + "FIRST_NAME" },

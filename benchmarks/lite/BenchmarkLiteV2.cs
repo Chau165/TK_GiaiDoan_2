@@ -716,9 +716,9 @@ internal static partial class Program
 
     private static IReadOnlyList<LiteCaseDefinition> CreateLiteSequentialCases() =>
     [
-        new("MasterPaged", "MasterPaged", "CWarehouseMaster_Controller.List_Master_Page_Async", "dbo.sp_DM_Master_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
+        new("MasterPaged", "MasterPaged", "CWarehouseMasterSupport_Controller.List_Master_Page_Async", "dbo.sp_DM_Master_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
             new { MasterType = "SanPham", PageNumber = 1, PageSize = LiteV2PageSize, SearchText = "" }),
-        new("LookupPaged", "LookupPaged", "CWarehouseMaster_Controller.List_Lookup_Page_Async", "dbo.sp_DM_Lookup_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
+        new("LookupPaged", "LookupPaged", "CWarehouseMasterSupport_Controller.List_Lookup_Page_Async", "dbo.sp_DM_Lookup_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
             new { MasterType = "SanPham", PageNumber = 1, PageSize = LiteV2PageSize, SearchText = "" }),
         new("DocumentPaged", "DocumentPaged", "CWarehouseDocument_Controller.List_Documents_Page_Async", "dbo.sp_XNK_Document_Page", 1, LiteV2PageSize, "", LiteV2From, LiteV2To,
             new { IsReceipt = true, PageNumber = 1, PageSize = LiteV2PageSize, SearchText = "", Login = ApplicationLogin, WarehouseId = (long?)null }),
@@ -864,12 +864,12 @@ internal static partial class Program
         {
             case "MasterPaged":
             {
-                var page = await new CWarehouseMaster_Controller().List_Master_Page_Async("SanPham", definition.PageNumber, definition.PageSize, definition.SearchText).ConfigureAwait(false);
+                var page = await new CWarehouseMasterSupport_Controller().List_Master_Page_Async("SanPham", definition.PageNumber, definition.PageSize, definition.SearchText).ConfigureAwait(false);
                 return new LiteCallOutcome(page.Items.Count, page.Total_Count, page.Items.Cast<object>().ToArray());
             }
             case "LookupPaged":
             {
-                var page = await new CWarehouseMaster_Controller().List_Lookup_Page_Async("SanPham", definition.PageNumber, definition.PageSize, definition.SearchText).ConfigureAwait(false);
+                var page = await new CWarehouseMasterSupport_Controller().List_Lookup_Page_Async("SanPham", definition.PageNumber, definition.PageSize, definition.SearchText).ConfigureAwait(false);
                 return new LiteCallOutcome(page.Items.Count, page.Total_Count, page.Items.Cast<object>().ToArray());
             }
             case "DocumentPaged":

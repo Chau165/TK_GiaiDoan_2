@@ -1,4 +1,4 @@
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -14,26 +14,26 @@ public interface IProductImportPermissionResolver
 public sealed class CWarehouseProductImportService
 {
     private readonly CProduct_Xlsx_Reader m_objReader;
-    private readonly CWarehouseMaster_Controller m_objMasterController;
+    private readonly CWarehouseProductSupport_Service m_objProductSupportService;
     private readonly IProductImportPermissionResolver m_objPermissionResolver;
 
     public CWarehouseProductImportService()
-        : this(new CProduct_Xlsx_Reader(), new CWarehouseMaster_Controller(), new CProductImportPermissionResolver())
+        : this(new CProduct_Xlsx_Reader(), new CWarehouseProductSupport_Service(), new CProductImportPermissionResolver())
     {
     }
 
     public CWarehouseProductImportService(IProductImportPermissionResolver p_objPermissionResolver)
-        : this(new CProduct_Xlsx_Reader(), new CWarehouseMaster_Controller(), p_objPermissionResolver)
+        : this(new CProduct_Xlsx_Reader(), new CWarehouseProductSupport_Service(), p_objPermissionResolver)
     {
     }
 
     private CWarehouseProductImportService(
         CProduct_Xlsx_Reader p_objReader,
-        CWarehouseMaster_Controller p_objMasterController,
+        CWarehouseProductSupport_Service p_objProductSupportService,
         IProductImportPermissionResolver p_objPermissionResolver)
     {
         m_objReader = p_objReader;
-        m_objMasterController = p_objMasterController;
+        m_objProductSupportService = p_objProductSupportService;
         m_objPermissionResolver = p_objPermissionResolver;
     }
 
@@ -73,12 +73,76 @@ public sealed class CWarehouseProductImportService
         if (!v_objCurrentPreview.Can_Confirm)
             throw new CProductImportValidationException(v_objCurrentPreview);
 
-        await m_objMasterController.Import_Products_Async(
+        await Import_Products_Async(
             v_objCurrentPreview.Rows.Where(v_objRow => v_objRow.Is_Valid).ToArray(),
             p_strCurrentUser,
             p_strCurrentFunction,
             p_objCancellationToken);
         return v_objCurrentPreview.Valid_Rows;
+    }
+
+    internal async Task Import_Products_Async(
+        IReadOnlyList<CProductImportRow> p_arrRows,
+        string p_strCurrent_User,
+        string p_strCurrent_Function,
+        CancellationToken p_objCancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(p_arrRows);
+        if (p_arrRows.Count == 0)
+            throw new ArgumentException("The product import batch cannot be empty.", nameof(p_arrRows));
+
+        CDM_San_Pham_Controller v_objProductController = new CDM_San_Pham_Controller();
+        await using SqlConnection v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
+        await v_objConnection.OpenAsync(p_objCancellationToken);
+        using SqlTransaction v_objTransaction = v_objConnection.BeginTransaction();
+
+        try
+        {
+            foreach (CProductImportRow v_objRow in p_arrRows)
+            {
+                p_objCancellationToken.ThrowIfCancellationRequested();
+                CWarehouseMaster v_objProduct = new CWarehouseMaster
+                {
+                    Auto_ID = 0,
+                    Code = v_objRow.Ma_San_Pham,
+                    Name = v_objRow.Ten_San_Pham,
+                    Related_ID = v_objRow.Loai_San_Pham_ID,
+                    Related_ID_2 = v_objRow.Don_Vi_Tinh_ID,
+                    Ghi_Chu = v_objRow.Ghi_Chu
+                };
+
+                try
+                {
+                    v_objProduct.Auto_ID = v_objProductController.F2018_sp_ins_San_Pham(v_objConnection, v_objTransaction, v_objProduct, p_strCurrent_User, p_strCurrent_Function);
+                }
+                catch (SqlException p_objException)
+                {
+                    string v_strMessage = p_objException.Number switch
+                    {
+                        2601 or 2627 or 51021 => $"Dòng {v_objRow.Row_Number}: Mã sản phẩm '{v_objRow.Ma_San_Pham}' đã tồn tại; toàn bộ lô đã được hủy.",
+                        51023 => $"Dòng {v_objRow.Row_Number}: Loại sản phẩm không còn tồn tại; toàn bộ lô đã được hủy.",
+                        51024 => $"Dòng {v_objRow.Row_Number}: Đơn vị tính không còn tồn tại; toàn bộ lô đã được hủy.",
+                        _ => $"Dòng {v_objRow.Row_Number}: Không thể lưu sản phẩm; toàn bộ lô đã được hủy."
+                    };
+                    throw new InvalidOperationException(v_strMessage, p_objException);
+                }
+            }
+
+            v_objTransaction.Commit();
+        }
+        catch
+        {
+            try
+            {
+                v_objTransaction.Rollback();
+            }
+            catch
+            {
+                // Preserve the original insert or commit failure.
+            }
+
+            throw;
+        }
     }
 
     private void Demand_Add_Permission(string p_strCurrentUser, string p_strCurrentFunction)
@@ -94,9 +158,9 @@ public sealed class CWarehouseProductImportService
     private async Task<(List<CWarehouseMaster> Categories, List<CWarehouseMaster> Units, List<CWarehouseMaster> Products)> Load_Reference_Data_Async(
         CancellationToken p_objCancellationToken)
     {
-        var v_arrCategories = await new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();
-        var v_arrUnits = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
-        var v_arrProducts = await m_objMasterController.List_Product_Masters_Async(p_objCancellationToken);
+        var v_arrCategories = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();
+        var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
+        var v_arrProducts = await m_objProductSupportService.List_Product_Masters_Async(p_objCancellationToken);
         return (v_arrCategories, v_arrUnits, v_arrProducts);
     }
 

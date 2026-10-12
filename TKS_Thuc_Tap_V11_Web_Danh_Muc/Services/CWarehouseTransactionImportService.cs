@@ -187,7 +187,7 @@ public sealed class CTransactionImportValidationException : Exception
 
 public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
 {
-    private readonly CWarehouseMaster_Controller m_objMasterController = new();
+    private readonly CWarehouseProductSupport_Service m_objProductSupportService = new();
     private readonly CWarehouseDocument_Controller m_objDocumentController = new();
     private readonly CWarehousePermission_Controller m_objPermissionController = new();
     private readonly CWarehouseReport_Controller m_objReportController = new();
@@ -207,10 +207,10 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
             Name = v_objWarehouse.Name
         }).ToArray();
         IReadOnlyList<CWarehouseMaster> v_arrSuppliers = v_bIsReceipt
-            ? await new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
+            ? new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
             : Array.Empty<CWarehouseMaster>();
-        var v_arrUnits = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
-        var v_arrProducts = await m_objMasterController.List_Product_Masters_Async(p_objCancellationToken);
+        var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
+        var v_arrProducts = await m_objProductSupportService.List_Product_Masters_Async(p_objCancellationToken);
         var v_arrExistingDocuments = await Load_Existing_Documents_Async(
             v_bIsReceipt, p_arrDocumentNumbers, p_strCurrent_Login, p_objCancellationToken);
         var v_arrInventoryBalances = v_bIsReceipt

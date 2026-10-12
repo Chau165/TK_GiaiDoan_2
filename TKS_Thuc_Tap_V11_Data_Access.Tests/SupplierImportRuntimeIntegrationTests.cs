@@ -69,7 +69,7 @@ public sealed class SupplierImportRuntimeIntegrationTests
             }
 
             var v_objDuplicateException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Suppliers_Async(
+                new CWarehouseSupplierImportService().Import_Suppliers_Async(
                     new[] { new CSupplierImportRow { Row_Number = 2, Ma_NCC = v_arrRows[0].Code, Ten_NCC = v_strPrefix + "DB_DUPLICATE_NAME" } },
                     m_strTestUser,
                     m_strTestFunction));
@@ -79,7 +79,7 @@ public sealed class SupplierImportRuntimeIntegrationTests
 
             var v_strRollbackPrefix = v_strPrefix + "ROLLBACK_";
             var v_objRollbackException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Suppliers_Async(
+                new CWarehouseSupplierImportService().Import_Suppliers_Async(
                     new[]
                     {
                         new CSupplierImportRow { Row_Number = 2, Ma_NCC = v_strRollbackPrefix + "FIRST", Ten_NCC = v_strRollbackPrefix + "FIRST_NAME" },

@@ -63,7 +63,7 @@ public sealed class UnitImportRuntimeIntegrationTests
             }
 
             var v_objDuplicateException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Units_Async(
+                new CWarehouseUnitImportService().Import_Units_Async(
                     new[] { new CUnitImportRow { Row_Number = 2, Ten_Don_Vi_Tinh = v_arrNames[0] } },
                     m_strTestUser,
                     m_strTestFunction));
@@ -73,7 +73,7 @@ public sealed class UnitImportRuntimeIntegrationTests
 
             var v_strRollbackPrefix = v_strPrefix + "ROLLBACK_";
             var v_objRollbackException = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new CWarehouseMaster_Controller().Import_Units_Async(
+                new CWarehouseUnitImportService().Import_Units_Async(
                     new[]
                     {
                         new CUnitImportRow { Row_Number = 2, Ten_Don_Vi_Tinh = v_strRollbackPrefix + "FIRST" },

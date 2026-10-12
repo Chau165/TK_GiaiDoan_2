@@ -63,7 +63,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         string p_strControllerName,
         string[] p_arrExpectedMethodNames)
     {
-        var v_objAssembly = typeof(CWarehouseMaster_Controller).Assembly;
+        var v_objAssembly = typeof(CWarehouseMasterSupport_Controller).Assembly;
         var v_objController = v_objAssembly.GetType(p_strControllerName);
 
         Assert.NotNull(v_objController);
@@ -85,7 +85,7 @@ public sealed class WarehouseMasterControllerSplitContractTests
         string p_strControllerName,
         string p_strStoreName)
     {
-        var v_objController = typeof(CWarehouseMaster_Controller).Assembly.GetType(p_strControllerName);
+        var v_objController = typeof(CWarehouseMasterSupport_Controller).Assembly.GetType(p_strControllerName);
         Assert.NotNull(v_objController);
 
         var v_arrMethods = v_objController!
@@ -103,9 +103,9 @@ public sealed class WarehouseMasterControllerSplitContractTests
     }
 
     [Fact]
-    public void Generic_master_store_routers_are_removed_from_the_compatibility_controller()
+    public void Temporary_page_support_does_not_own_generic_master_store_routers()
     {
-        var v_arrMethodNames = typeof(CWarehouseMaster_Controller)
+        var v_arrMethodNames = typeof(CWarehouseMasterSupport_Controller)
             .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
             .Select(v_objMethod => v_objMethod.Name);
 

@@ -44,13 +44,13 @@ public sealed class V2ReadOperations
 
     private async Task<int> MasterPagedAsync()
     {
-        return (await new CWarehouseMaster_Controller()
+        return (await new CWarehouseMasterSupport_Controller()
             .List_Master_Page_Async("SanPham", V2Constants.PageNumber, m_settings.PageSize, "")).Items.Count;
     }
 
     private async Task<int> LookupPagedAsync()
     {
-        return (await new CWarehouseMaster_Controller()
+        return (await new CWarehouseMasterSupport_Controller()
             .List_Lookup_Page_Async("SanPham", V2Constants.PageNumber, m_settings.PageSize, "")).Items.Count;
     }
 

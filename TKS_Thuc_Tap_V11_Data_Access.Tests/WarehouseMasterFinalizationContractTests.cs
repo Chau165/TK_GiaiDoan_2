@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
@@ -15,8 +16,10 @@ public sealed class WarehouseMasterFinalizationContractTests
 
         Assert.Null(v_objDataAccessAssembly.GetType(
             "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseMaster_Controller"));
-        Assert.False(File.Exists(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs")));
+        string v_strDataAccessProject = FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "TKS_Thuc_Tap_V11_Data_Access.csproj");
+        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(v_strDataAccessProject)!,
+            "Controller", "DM", "CWarehouseMaster_Controller.cs")));
 
         Type? v_objSupportType = v_objDataAccessAssembly.GetType(
             "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseMasterSupport_Controller");
@@ -115,6 +118,56 @@ public sealed class WarehouseMasterFinalizationContractTests
             Assert.DoesNotContain("Task.FromResult", v_strControllerSource);
             Assert.DoesNotContain("Task.CompletedTask", v_strControllerSource);
             Assert.DoesNotContain("=>", v_strControllerSource);
+            Assert.DoesNotContain("p_strMaster_Type", v_strControllerSource);
+            Assert.DoesNotContain("var ", v_strControllerSource);
+
+            MatchCollection v_arrStoreMethods = Regex.Matches(v_strControllerSource,
+                @"(?ms)^    public (?:List<\w+>|long|void) (?<name>F\w+)\(.*?^    \}");
+            Assert.Equal(6, v_arrStoreMethods.Count);
+            foreach (Match v_objStoreMethod in v_arrStoreMethods)
+            {
+                MatchCollection v_arrStoreCalls = Regex.Matches(v_objStoreMethod.Value,
+                    @"CSqlHelper\.(?:FillDataTable|ExecuteScalar|ExecuteNonquery)\([^;]*?""(?<store>F\w+)""");
+                Assert.Single(v_arrStoreCalls.Cast<Match>());
+                Assert.Equal(v_objStoreMethod.Groups["name"].Value, v_arrStoreCalls[0].Groups["store"].Value);
+            }
+        }
+    }
+
+    [Fact]
+    public void Audit_values_keep_the_existing_insert_and_update_assignment_contract()
+    {
+        Type[] v_arrControllerTypes =
+        [
+            typeof(CDM_Kho_Controller), typeof(CDM_Don_Vi_Tinh_Controller),
+            typeof(CDM_Loai_San_Pham_Controller), typeof(CDM_San_Pham_Controller), typeof(CDM_NCC_Controller)
+        ];
+
+        foreach (Type v_objControllerType in v_arrControllerTypes)
+        {
+            MethodInfo? v_objAuditMethod = v_objControllerType.GetMethod(
+                "Set_Audit_Fields", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.NotNull(v_objAuditMethod);
+
+            foreach (long v_iAuto_ID in new[] { 0L, 17L })
+            {
+                CWarehouseMaster v_objData = new CWarehouseMaster
+                {
+                    Auto_ID = v_iAuto_ID,
+                    Created_By = "original creator",
+                    Created_By_Function = "original function",
+                    Last_Updated_By = "original updater",
+                    Last_Updated_By_Function = "original update function"
+                };
+
+                v_objAuditMethod!.Invoke(null, new object[] { v_objData, "current user", "current function" });
+
+                Assert.Equal(v_iAuto_ID, v_objData.Auto_ID);
+                Assert.Equal("current user", v_objData.Created_By);
+                Assert.Equal("current function", v_objData.Created_By_Function);
+                Assert.Equal("current user", v_objData.Last_Updated_By);
+                Assert.Equal("current function", v_objData.Last_Updated_By_Function);
+            }
         }
     }
 

@@ -1,56 +1,138 @@
 using Microsoft.Data.SqlClient;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using System.Data;
+using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
+using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 
-public class CDM_San_Pham_Controller : CWarehouse_Controller_Base
+public class CDM_San_Pham_Controller
 {
-    public Task<List<CWarehouseMaster>> F2018_sp_sel_List_San_Pham() =>
-        Task.FromResult(List_From_Procedure<CWarehouseMaster>("F2018_sp_sel_List_San_Pham"));
+    public List<CWarehouseMaster> F2018_sp_sel_List_San_Pham()
+    {
+        List<CWarehouseMaster> v_arrRes = new List<CWarehouseMaster>();
+        DataTable v_dt = new DataTable();
 
-    public Task<List<CWarehouseLookup>> F2018_sp_sel_List_San_Pham_Lookup() =>
-        Task.FromResult(List_From_Procedure<CWarehouseLookup>("F2018_sp_sel_List_San_Pham_Lookup"));
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2018_sp_sel_List_San_Pham");
 
-    public Task F2018_sp_ins_San_Pham(
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CWarehouseMaster v_objRes = CUtility.Map_Row_To_Entity<CWarehouseMaster>(v_row);
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public List<CWarehouseLookup> F2018_sp_sel_List_San_Pham_Lookup()
+    {
+        List<CWarehouseLookup> v_arrRes = new List<CWarehouseLookup>();
+        DataTable v_dt = new DataTable();
+
+        try
+        {
+            CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dt, "F2018_sp_sel_List_San_Pham_Lookup");
+
+            foreach (DataRow v_row in v_dt.Rows)
+            {
+                CWarehouseLookup v_objRes = CUtility.Map_Row_To_Entity<CWarehouseLookup>(v_row);
+                v_arrRes.Add(v_objRes);
+            }
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            v_dt.Dispose();
+        }
+
+        return v_arrRes;
+    }
+
+    public long F2018_sp_ins_San_Pham(
         CWarehouseMaster p_objData,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
-        Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        p_objData.Auto_ID = Scalar_ID("F2018_sp_ins_San_Pham", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function);
-        return Task.CompletedTask;
+        long v_iRes = 0;
+
+        try
+        {
+            Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
+            v_iRes = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2018_sp_ins_San_Pham", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+
+        return v_iRes;
     }
 
-    public Task F2018_sp_ins_San_Pham(
+    public long F2018_sp_ins_San_Pham(
         SqlConnection p_conn,
         SqlTransaction p_trans,
         CWarehouseMaster p_objData,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
-        Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        p_objData.Auto_ID = Scalar_ID(p_conn, p_trans, "F2018_sp_ins_San_Pham", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function);
-        return Task.CompletedTask;
+        long v_iRes = 0;
+
+        try
+        {
+            Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
+            v_iRes = Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2018_sp_ins_San_Pham", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+
+        return v_iRes;
     }
 
-    public Task F2018_sp_upd_San_Pham(
+    public void F2018_sp_upd_San_Pham(
         CWarehouseMaster p_objData,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
-        Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        p_objData.Auto_ID = Scalar_ID("F2018_sp_upd_San_Pham", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function);
-        return Task.CompletedTask;
+        try
+        {
+            Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
+            p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2018_sp_upd_San_Pham", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
 
-    public Task F2018_sp_del_San_Pham(
+    public void F2018_sp_del_San_Pham(
         long p_iAuto_ID,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
-        Execute_Procedure("F2018_sp_del_San_Pham", p_iAuto_ID, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        return Task.CompletedTask;
+        try
+        {
+            CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2018_sp_del_San_Pham", p_iAuto_ID, p_strLast_Updated_By, p_strLast_Updated_By_Function);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
 
     private static void Set_Audit_Fields(

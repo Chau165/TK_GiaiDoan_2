@@ -77,7 +77,7 @@ public sealed class ProductImportRuntimeIntegrationTests
             Assert.Equal(0, await CountUnitPrefixAsync(v_objDatabase, v_strUnitPrefix));
             m_objOutput.WriteLine("CLEANUP_ALL_TEST_DATA=0");
 
-            await MeasureProductCodePreloadAsync(v_objDatabase, new CWarehouseMaster_Controller());
+            await MeasureProductCodePreloadAsync(v_objDatabase, new CWarehouseProductSupport_Service());
             await MeasureImportAsync(v_objDatabase, v_objService, v_strRootPrefix, 10);
             await MeasureImportAsync(v_objDatabase, v_objService, v_strRootPrefix, 100);
         }
@@ -164,21 +164,21 @@ public sealed class ProductImportRuntimeIntegrationTests
         await EnsureTargetIdentityAsync(p_objConnection);
 
         var v_objCuon = new CWarehouseMaster { Name = v_strCuon };
-        await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuon, m_strTestUser, m_strTestFunction);
+        v_objCuon.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuon, m_strTestUser, m_strTestFunction);
         var v_objCuonAccent = new CWarehouseMaster { Name = v_strCuonAccent };
         await EnsureTargetIdentityAsync(p_objConnection);
-        await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuonAccent, m_strTestUser, m_strTestFunction);
+        v_objCuonAccent.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuonAccent, m_strTestUser, m_strTestFunction);
         Assert.NotEqual(0, v_objCuon.Auto_ID);
         Assert.NotEqual(0, v_objCuonAccent.Auto_ID);
         Assert.NotEqual(v_objCuon.Auto_ID, v_objCuonAccent.Auto_ID);
 
         await EnsureTargetIdentityAsync(p_objConnection);
-        var v_objInsertDuplicate = await Record.ExceptionAsync(() => v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(
+        var v_objInsertDuplicate = Record.Exception(() => v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(
             new CWarehouseMaster { Name = p_strUnitPrefix + "CUỘN" }, m_strTestUser, m_strTestFunction));
         Assert.Equal(51002, Assert.IsType<SqlException>(v_objInsertDuplicate).Number);
 
         await EnsureTargetIdentityAsync(p_objConnection);
-        var v_objUpdateDuplicate = await Record.ExceptionAsync(() => v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(
+        var v_objUpdateDuplicate = Record.Exception(() => v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(
             new CWarehouseMaster { Auto_ID = v_objCuonAccent.Auto_ID, Name = p_strUnitPrefix + "CUỘN" },
             m_strTestUser, m_strTestFunction));
         Assert.Equal(51002, Assert.IsType<SqlException>(v_objUpdateDuplicate).Number);
@@ -268,7 +268,7 @@ public sealed class ProductImportRuntimeIntegrationTests
             .ToArray();
 
         await EnsureTargetIdentityAsync(p_objConnection);
-        var v_objFailure = await Record.ExceptionAsync(() => new CWarehouseMaster_Controller()
+        var v_objFailure = await Record.ExceptionAsync(() => new CWarehouseProductImportService()
             .Import_Products_Async(v_arrRows, m_strTestUser, m_strTestFunction));
         var v_objImportError = Assert.IsType<InvalidOperationException>(v_objFailure);
         var v_objSqlError = Assert.IsType<SqlException>(v_objImportError.InnerException);
@@ -329,7 +329,7 @@ public sealed class ProductImportRuntimeIntegrationTests
 
     private async Task MeasureProductCodePreloadAsync(
         SqlConnection p_objConnection,
-        CWarehouseMaster_Controller p_objController)
+        CWarehouseProductSupport_Service p_objController)
     {
         var v_iProductCount = await CountAllProductsAsync(p_objConnection);
         var v_arrRuns = new List<double>();

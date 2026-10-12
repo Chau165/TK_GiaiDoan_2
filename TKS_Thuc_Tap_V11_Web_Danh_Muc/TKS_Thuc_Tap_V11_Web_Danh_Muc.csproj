@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
+    <InternalsVisibleTo Include="TKS_Thuc_Tap_V11_Data_Access.Tests" />
   </ItemGroup>
 
   <ItemGroup>
