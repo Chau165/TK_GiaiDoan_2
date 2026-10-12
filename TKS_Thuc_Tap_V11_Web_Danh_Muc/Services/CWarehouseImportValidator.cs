@@ -1,5 +1,6 @@
 using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
@@ -12,7 +13,7 @@ public static class CWarehouseImportValidator
 
     public static CWarehouseImportPreviewResult Preview(
         CWarehouse_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingWarehouses)
+        IReadOnlyList<CDM_Kho> p_arrExistingWarehouses)
     {
         ArgumentNullException.ThrowIfNull(p_objWorksheet);
         ArgumentNullException.ThrowIfNull(p_arrExistingWarehouses);
@@ -44,7 +45,7 @@ public static class CWarehouseImportValidator
 
     internal static CWarehouseImportPreviewResult Revalidate(
         IReadOnlyList<CWarehouseImportRow> p_arrRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingWarehouses)
+        IReadOnlyList<CDM_Kho> p_arrExistingWarehouses)
     {
         ArgumentNullException.ThrowIfNull(p_arrRows);
         ArgumentNullException.ThrowIfNull(p_arrExistingWarehouses);
@@ -59,12 +60,12 @@ public static class CWarehouseImportValidator
 
     private static CWarehouseImportPreviewResult ValidateRows(
         IReadOnlyList<CWarehouseImportRow> p_arrInputRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingWarehouses,
+        IReadOnlyList<CDM_Kho> p_arrExistingWarehouses,
         CWarehouseImportPreviewResult p_objResult)
     {
         var v_dicExistingByName = p_arrExistingWarehouses
-            .Where(v_objWarehouse => !string.IsNullOrWhiteSpace(v_objWarehouse.Name))
-            .GroupBy(v_objWarehouse => ComparisonKey(v_objWarehouse.Name), StringComparer.Ordinal)
+            .Where(v_objWarehouse => !string.IsNullOrWhiteSpace(v_objWarehouse.Ten_Kho))
+            .GroupBy(v_objWarehouse => ComparisonKey(v_objWarehouse.Ten_Kho), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicFirstByName = new Dictionary<string, CWarehouseImportRow>(StringComparer.Ordinal);
 

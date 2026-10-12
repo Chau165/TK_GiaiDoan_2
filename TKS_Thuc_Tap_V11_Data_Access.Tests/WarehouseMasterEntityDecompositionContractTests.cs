@@ -47,14 +47,14 @@ public sealed class WarehouseMasterEntityDecompositionContractTests
         Assert.True(HasParameters(v_objController.GetMethod(p_strUpdateMethod)!, v_objEntity!, typeof(string), typeof(string)));
         Assert.True(HasParameters(v_objController.GetMethod(p_strDeleteMethod)!, typeof(long), typeof(string), typeof(string)));
 
-        Type? v_objLookup = v_objAssembly.GetType("TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse.CWarehouseLookup");
-        Assert.NotNull(v_objLookup);
-        Assert.Equal(typeof(List<>).MakeGenericType(v_objLookup!), v_objController.GetMethod(p_strLookupMethod)?.ReturnType);
+        Assert.Equal(typeof(List<>).MakeGenericType(v_objEntity!), v_objController.GetMethod(p_strLookupMethod)?.ReturnType);
 
         foreach (MethodInfo v_objMethod in v_objController.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
         {
             Assert.DoesNotContain("CWarehouseMaster", v_objMethod.ReturnType.FullName ?? "");
             Assert.DoesNotContain("CWarehouseMaster", string.Join(" ", v_objMethod.GetParameters().Select(p_objParameter => p_objParameter.ParameterType.FullName)));
+            Assert.DoesNotContain("CWarehouseLookup", v_objMethod.ReturnType.FullName ?? "");
+            Assert.DoesNotContain("CWarehouseLookup", string.Join(" ", v_objMethod.GetParameters().Select(p_objParameter => p_objParameter.ParameterType.FullName)));
         }
     }
 

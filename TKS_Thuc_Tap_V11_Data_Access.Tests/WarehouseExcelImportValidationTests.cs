@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -27,7 +28,7 @@ public sealed class WarehouseExcelImportValidationTests
             new object?[] { "Kho chính", "" },
             new object?[] { "kHO CHÍNH", "" }));
         var v_objExisting = Preview(Worksheet(m_arrHeaders, new object?[] { "Kho hiện hữu", "" }),
-            new[] { new CWarehouseMaster { Name = "KHO HIỆN HỮU" } });
+            new[] { new CDM_Kho { Ten_Kho = "KHO HIỆN HỮU" } });
 
         Assert.True(v_objInFile.Can_Confirm);
         Assert.Equal(1, v_objInFile.Skipped_Rows);
@@ -101,8 +102,8 @@ public sealed class WarehouseExcelImportValidationTests
 
     private static CWarehouseImportPreviewResult Preview(
         CWarehouse_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster>? p_arrExisting = null) =>
-        CWarehouseImportValidator.Preview(p_objWorksheet, p_arrExisting ?? Array.Empty<CWarehouseMaster>());
+        IReadOnlyList<CDM_Kho>? p_arrExisting = null) =>
+        CWarehouseImportValidator.Preview(p_objWorksheet, p_arrExisting ?? Array.Empty<CDM_Kho>());
 
     private static CWarehouse_Xlsx_Worksheet Worksheet(string?[] p_arrHeaders, params object?[][] p_arrDataRows) =>
         WorksheetOnSheet(p_arrHeaders, "Kho", p_arrDataRows);

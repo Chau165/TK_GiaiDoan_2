@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -163,9 +164,9 @@ public sealed class ProductImportRuntimeIntegrationTests
         var v_objUnitController = new CDM_Don_Vi_Tinh_Controller();
         await EnsureTargetIdentityAsync(p_objConnection);
 
-        var v_objCuon = new CWarehouseMaster { Name = v_strCuon };
+        var v_objCuon = new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = v_strCuon };
         v_objCuon.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuon, m_strTestUser, m_strTestFunction);
-        var v_objCuonAccent = new CWarehouseMaster { Name = v_strCuonAccent };
+        var v_objCuonAccent = new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = v_strCuonAccent };
         await EnsureTargetIdentityAsync(p_objConnection);
         v_objCuonAccent.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuonAccent, m_strTestUser, m_strTestFunction);
         Assert.NotEqual(0, v_objCuon.Auto_ID);
@@ -174,12 +175,12 @@ public sealed class ProductImportRuntimeIntegrationTests
 
         await EnsureTargetIdentityAsync(p_objConnection);
         var v_objInsertDuplicate = Record.Exception(() => v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(
-            new CWarehouseMaster { Name = p_strUnitPrefix + "CUỘN" }, m_strTestUser, m_strTestFunction));
+            new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = p_strUnitPrefix + "CUỘN" }, m_strTestUser, m_strTestFunction));
         Assert.Equal(51002, Assert.IsType<SqlException>(v_objInsertDuplicate).Number);
 
         await EnsureTargetIdentityAsync(p_objConnection);
         var v_objUpdateDuplicate = Record.Exception(() => v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(
-            new CWarehouseMaster { Auto_ID = v_objCuonAccent.Auto_ID, Name = p_strUnitPrefix + "CUỘN" },
+            new CDM_Don_Vi_Tinh { Auto_ID = v_objCuonAccent.Auto_ID, Ten_Don_Vi_Tinh = p_strUnitPrefix + "CUỘN" },
             m_strTestUser, m_strTestFunction));
         Assert.Equal(51002, Assert.IsType<SqlException>(v_objUpdateDuplicate).Number);
         Assert.Equal(v_strCuonAccent, await GetUnitNameAsync(p_objConnection, v_objCuonAccent.Auto_ID));

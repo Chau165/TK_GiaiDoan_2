@@ -29,14 +29,12 @@ public class WarehouseModuleStructureTests
     }
 
     [Fact]
-    public void Master_list_reads_bigint_ids_and_int_zero_placeholders()
+    public void Master_list_maps_unit_names_to_the_entity_property()
     {
         CConfig.TKS_Thuc_Tap_V11_Conn_String = WarehouseTestDatabase.ConnectionString;
 
         var v_arrResult = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
 
-        Assert.Contains(v_arrResult, item => item.Name == "Cái");
-        Assert.All(v_arrResult, item => Assert.Equal(0L, item.Related_ID));
-        Assert.All(v_arrResult, item => Assert.Equal(0L, item.Related_ID_2));
+        Assert.Contains(v_arrResult, item => item.Ten_Don_Vi_Tinh == "Cái");
     }
 }

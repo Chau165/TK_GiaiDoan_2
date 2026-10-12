@@ -1,5 +1,6 @@
 using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
@@ -15,22 +16,22 @@ public static class CProductImportValidator
 
     public static CProductImportPreviewResult Preview(
         CProduct_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster> p_arrCategories,
-        IReadOnlyList<CWarehouseMaster> p_arrUnits,
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrCategories,
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrUnits,
         IEnumerable<string> p_arrExistingProductCodes)
     {
         ArgumentNullException.ThrowIfNull(p_arrExistingProductCodes);
         return Preview(p_objWorksheet, p_arrCategories, p_arrUnits, p_arrExistingProductCodes
             .Where(v_strCode => !string.IsNullOrWhiteSpace(v_strCode))
-            .Select(v_strCode => new CWarehouseMaster { Code = v_strCode })
+            .Select(v_strCode => new CDM_San_Pham { Ma_San_Pham = v_strCode })
             .ToArray());
     }
 
     public static CProductImportPreviewResult Preview(
         CProduct_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster> p_arrCategories,
-        IReadOnlyList<CWarehouseMaster> p_arrUnits,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingProducts)
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrCategories,
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrUnits,
+        IReadOnlyList<CDM_San_Pham> p_arrExistingProducts)
     {
         ArgumentNullException.ThrowIfNull(p_objWorksheet);
         ArgumentNullException.ThrowIfNull(p_arrCategories);
@@ -62,22 +63,22 @@ public static class CProductImportValidator
 
     internal static CProductImportPreviewResult Revalidate(
         IReadOnlyList<CProductImportRow> p_arrRows,
-        IReadOnlyList<CWarehouseMaster> p_arrCategories,
-        IReadOnlyList<CWarehouseMaster> p_arrUnits,
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrCategories,
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrUnits,
         IEnumerable<string> p_arrExistingProductCodes)
     {
         ArgumentNullException.ThrowIfNull(p_arrExistingProductCodes);
         return Revalidate(p_arrRows, p_arrCategories, p_arrUnits, p_arrExistingProductCodes
             .Where(v_strCode => !string.IsNullOrWhiteSpace(v_strCode))
-            .Select(v_strCode => new CWarehouseMaster { Code = v_strCode })
+            .Select(v_strCode => new CDM_San_Pham { Ma_San_Pham = v_strCode })
             .ToArray());
     }
 
     internal static CProductImportPreviewResult Revalidate(
         IReadOnlyList<CProductImportRow> p_arrRows,
-        IReadOnlyList<CWarehouseMaster> p_arrCategories,
-        IReadOnlyList<CWarehouseMaster> p_arrUnits,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingProducts)
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrCategories,
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrUnits,
+        IReadOnlyList<CDM_San_Pham> p_arrExistingProducts)
     {
         ArgumentNullException.ThrowIfNull(p_arrRows);
         ArgumentNullException.ThrowIfNull(p_arrCategories);
@@ -99,22 +100,22 @@ public static class CProductImportValidator
 
     private static CProductImportPreviewResult ValidateRows(
         IReadOnlyList<CProductImportRow> p_arrInputRows,
-        IReadOnlyList<CWarehouseMaster> p_arrCategories,
-        IReadOnlyList<CWarehouseMaster> p_arrUnits,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingProducts,
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrCategories,
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrUnits,
+        IReadOnlyList<CDM_San_Pham> p_arrExistingProducts,
         CProductImportPreviewResult p_objResult)
     {
         var v_dicCategoryByCode = p_arrCategories
-            .Where(v_objCategory => !string.IsNullOrWhiteSpace(v_objCategory.Code))
-            .GroupBy(v_objCategory => CodeComparisonKey(v_objCategory.Code))
+            .Where(v_objCategory => !string.IsNullOrWhiteSpace(v_objCategory.Ma_LSP))
+            .GroupBy(v_objCategory => CodeComparisonKey(v_objCategory.Ma_LSP))
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray());
         var v_dicUnitByName = p_arrUnits
-            .Where(v_objUnit => !string.IsNullOrWhiteSpace(v_objUnit.Name))
-            .GroupBy(v_objUnit => UnitComparisonKey(v_objUnit.Name))
+            .Where(v_objUnit => !string.IsNullOrWhiteSpace(v_objUnit.Ten_Don_Vi_Tinh))
+            .GroupBy(v_objUnit => UnitComparisonKey(v_objUnit.Ten_Don_Vi_Tinh))
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray());
         var v_dicExistingByCode = p_arrExistingProducts
-            .Where(v_objProduct => !string.IsNullOrWhiteSpace(v_objProduct.Code))
-            .GroupBy(v_objProduct => CodeComparisonKey(v_objProduct.Code), StringComparer.Ordinal)
+            .Where(v_objProduct => !string.IsNullOrWhiteSpace(v_objProduct.Ma_San_Pham))
+            .GroupBy(v_objProduct => CodeComparisonKey(v_objProduct.Ma_San_Pham), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicFirstByCode = new Dictionary<string, CProductImportRow>(StringComparer.Ordinal);
 
@@ -179,9 +180,9 @@ public static class CProductImportValidator
             if (v_dicExistingByCode.TryGetValue(v_strCodeKey, out var v_arrExistingByCode))
             {
                 if (v_arrExistingByCode.All(v_objExisting =>
-                    CodeComparisonKey(v_objExisting.Name) == CodeComparisonKey(v_objRow.Ten_San_Pham) &&
-                    v_objExisting.Related_ID == v_objRow.Loai_San_Pham_ID &&
-                    v_objExisting.Related_ID_2 == v_objRow.Don_Vi_Tinh_ID &&
+                    CodeComparisonKey(v_objExisting.Ten_San_Pham) == CodeComparisonKey(v_objRow.Ten_San_Pham) &&
+                    v_objExisting.Loai_San_Pham_ID == v_objRow.Loai_San_Pham_ID &&
+                    v_objExisting.Don_Vi_Tinh_ID == v_objRow.Don_Vi_Tinh_ID &&
                     CodeComparisonKey(v_objExisting.Ghi_Chu) == CodeComparisonKey(v_objRow.Ghi_Chu)))
                     v_objRow.Is_Skipped = true;
                 else

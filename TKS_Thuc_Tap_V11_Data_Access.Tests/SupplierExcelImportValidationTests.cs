@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -30,10 +31,10 @@ public sealed class SupplierExcelImportValidationTests
             new object?[] { "NCC003", "nhà cung cấp a", "" }));
         var v_objExistingCode = Preview(Worksheet(m_arrHeaders,
             new object?[] { "ncc-db", "Tên mới", "" }),
-            new[] { new CWarehouseMaster { Code = "NCC-DB", Name = "Tên cũ" } });
+            new[] { new CDM_NCC { Ma_NCC = "NCC-DB", Ten_NCC = "Tên cũ" } });
         var v_objExistingName = Preview(Worksheet(m_arrHeaders,
             new object?[] { "NCC-NEW", "tÊN cŨ", "" }),
-            new[] { new CWarehouseMaster { Code = "NCC-DB", Name = "Tên cũ" } });
+            new[] { new CDM_NCC { Ma_NCC = "NCC-DB", Ten_NCC = "Tên cũ" } });
 
         Assert.Contains(v_objInFile.Errors, v_objError => v_objError.Column_Name == "Ma_NCC");
         Assert.Contains(v_objInFile.Errors, v_objError => v_objError.Column_Name == "Ten_NCC");
@@ -52,7 +53,7 @@ public sealed class SupplierExcelImportValidationTests
             new object?[] { "ncc001", "Nhà cung cấp B", "" }));
         var v_objExistingExact = Preview(
             Worksheet(m_arrHeaders, new object?[] { "NCC001", "Nhà cung cấp A", "Ghi chú" }),
-            new[] { new CWarehouseMaster { Code = "ncc001", Name = " nhà cung cấp a ", Ghi_Chu = " Ghi chú " } });
+            new[] { new CDM_NCC { Ma_NCC = "ncc001", Ten_NCC = " nhà cung cấp a ", Ghi_Chu = " Ghi chú " } });
 
         Assert.True(v_objExact.Can_Confirm);
         Assert.Equal(1, v_objExact.Skipped_Rows);
@@ -118,8 +119,8 @@ public sealed class SupplierExcelImportValidationTests
 
     private static CSupplierImportPreviewResult Preview(
         CSupplier_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster>? p_arrExisting = null) =>
-        CSupplierImportValidator.Preview(p_objWorksheet, p_arrExisting ?? Array.Empty<CWarehouseMaster>());
+        IReadOnlyList<CDM_NCC>? p_arrExisting = null) =>
+        CSupplierImportValidator.Preview(p_objWorksheet, p_arrExisting ?? Array.Empty<CDM_NCC>());
 
     private static CSupplier_Xlsx_Worksheet Worksheet(string?[] p_arrHeaders, params object?[][] p_arrDataRows) =>
         WorksheetOnSheet(p_arrHeaders, "NhaCungCap", p_arrDataRows);

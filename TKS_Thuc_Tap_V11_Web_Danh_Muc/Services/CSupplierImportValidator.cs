@@ -1,5 +1,6 @@
 using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
@@ -10,7 +11,7 @@ public static class CSupplierImportValidator
 
     public static CSupplierImportPreviewResult Preview(
         CSupplier_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingSuppliers)
+        IReadOnlyList<CDM_NCC> p_arrExistingSuppliers)
     {
         ArgumentNullException.ThrowIfNull(p_objWorksheet);
         ArgumentNullException.ThrowIfNull(p_arrExistingSuppliers);
@@ -42,7 +43,7 @@ public static class CSupplierImportValidator
 
     internal static CSupplierImportPreviewResult Revalidate(
         IReadOnlyList<CSupplierImportRow> p_arrRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingSuppliers)
+        IReadOnlyList<CDM_NCC> p_arrExistingSuppliers)
     {
         ArgumentNullException.ThrowIfNull(p_arrRows);
         ArgumentNullException.ThrowIfNull(p_arrExistingSuppliers);
@@ -58,16 +59,16 @@ public static class CSupplierImportValidator
 
     private static CSupplierImportPreviewResult ValidateRows(
         IReadOnlyList<CSupplierImportRow> p_arrInputRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingSuppliers,
+        IReadOnlyList<CDM_NCC> p_arrExistingSuppliers,
         CSupplierImportPreviewResult p_objResult)
     {
         var v_dicExistingByCode = p_arrExistingSuppliers
-            .Where(v_objSupplier => !string.IsNullOrWhiteSpace(v_objSupplier.Code))
-            .GroupBy(v_objSupplier => ComparisonKey(v_objSupplier.Code), StringComparer.Ordinal)
+            .Where(v_objSupplier => !string.IsNullOrWhiteSpace(v_objSupplier.Ma_NCC))
+            .GroupBy(v_objSupplier => ComparisonKey(v_objSupplier.Ma_NCC), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicExistingByName = p_arrExistingSuppliers
-            .Where(v_objSupplier => !string.IsNullOrWhiteSpace(v_objSupplier.Name))
-            .GroupBy(v_objSupplier => ComparisonKey(v_objSupplier.Name), StringComparer.Ordinal)
+            .Where(v_objSupplier => !string.IsNullOrWhiteSpace(v_objSupplier.Ten_NCC))
+            .GroupBy(v_objSupplier => ComparisonKey(v_objSupplier.Ten_NCC), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicFirstByCode = new Dictionary<string, CSupplierImportRow>(StringComparer.Ordinal);
         var v_dicFirstByName = new Dictionary<string, CSupplierImportRow>(StringComparer.Ordinal);
@@ -87,7 +88,7 @@ public static class CSupplierImportValidator
             if (v_dicExistingByCode.TryGetValue(v_strCodeKey, out var v_arrExistingByCode))
             {
                 if (v_arrExistingByCode.All(v_objExisting =>
-                    ComparisonKey(v_objExisting.Name) == v_strNameKey &&
+                    ComparisonKey(v_objExisting.Ten_NCC) == v_strNameKey &&
                     ComparisonKey(v_objExisting.Ghi_Chu) == ComparisonKey(v_objRow.Ghi_Chu)))
                     v_objRow.Is_Skipped = true;
                 else

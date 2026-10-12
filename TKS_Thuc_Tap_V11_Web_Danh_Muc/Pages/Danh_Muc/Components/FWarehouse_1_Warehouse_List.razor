@@ -1,5 +1,6 @@
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 @inherits FBase
 
 <div class="card">
@@ -270,7 +271,7 @@
     }
     else
     {
-        <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objMaster="@m_objMaster" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrUser="@m_arrUser" OnSave_Master="Save_Master_Async" OnClose="@Close_Edit" />
+        <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="@m_strMaster_Type" m_objKho="@m_objKho" m_objDon_Vi_Tinh="@m_objDon_Vi_Tinh" m_objLoai_San_Pham="@m_objLoai_San_Pham" m_objSan_Pham="@m_objSan_Pham" m_objNCC="@m_objNCC" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrAllWarehouse" m_arrUser="@m_arrUser" OnAdd_Kho="Add_Kho_Async" OnUpdate_Kho="Update_Kho_Async" OnAdd_Don_Vi_Tinh="Add_Don_Vi_Tinh_Async" OnUpdate_Don_Vi_Tinh="Update_Don_Vi_Tinh_Async" OnAdd_Loai_San_Pham="Add_Loai_San_Pham_Async" OnUpdate_Loai_San_Pham="Update_Loai_San_Pham_Async" OnAdd_San_Pham="Add_San_Pham_Async" OnUpdate_San_Pham="Update_San_Pham_Async" OnAdd_NCC="Add_NCC_Async" OnUpdate_NCC="Update_NCC_Async" OnClose="@Close_Edit" />
     }
 }
 
@@ -319,6 +320,11 @@
     private bool m_bShow_Warehouse_Import;
     private bool m_bShow_Document_Import;
     private CWarehouseMaster m_objMaster = new();
+    private CDM_Kho m_objKho = new();
+    private CDM_Don_Vi_Tinh m_objDon_Vi_Tinh = new();
+    private CDM_Loai_San_Pham m_objLoai_San_Pham = new();
+    private CDM_San_Pham m_objSan_Pham = new();
+    private CDM_NCC m_objNCC = new();
     private CWarehousePermission m_objPermission = new();
     private CWarehouseDocument m_objDocument = new();
     private CWarehouseDocument? m_objSelectedDocument;
@@ -515,11 +521,21 @@
 
     private async Task Load_Lookups_Async()
     {
-        m_arrUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup();
-        m_arrCategory = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup();
-        m_arrProduct = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup();
-        m_arrSupplier = new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup();
-        m_arrAllWarehouse = new CDM_Kho_Controller().F2009_sp_sel_List_Kho_Lookup();
+        m_arrUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
+            .Select(v_objUnit => new CWarehouseLookup { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh })
+            .ToList();
+        m_arrCategory = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup()
+            .Select(v_objCategory => new CWarehouseLookup { Auto_ID = v_objCategory.Auto_ID, Code = v_objCategory.Ma_LSP, Name = v_objCategory.Ten_LSP })
+            .ToList();
+        m_arrProduct = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup()
+            .Select(v_objProduct => new CWarehouseLookup { Auto_ID = v_objProduct.Auto_ID, Code = v_objProduct.Ma_San_Pham, Name = v_objProduct.Ten_San_Pham })
+            .ToList();
+        m_arrSupplier = new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup()
+            .Select(v_objSupplier => new CWarehouseLookup { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC })
+            .ToList();
+        m_arrAllWarehouse = new CDM_Kho_Controller().F2009_sp_sel_List_Kho_Lookup()
+            .Select(v_objWarehouse => new CWarehouseLookup { Auto_ID = v_objWarehouse.Auto_ID, Name = v_objWarehouse.Ten_Kho })
+            .ToList();
         m_arrWarehouse = await m_objPermissionController.List_Authorized_Warehouses_Async(r_strActive_User_Name);
         m_arrUser = await m_objPermissionController.List_User_Lookup_Async();
         m_arrWarehouseUser = await m_objPermissionController.List_Kho_User_Async();
@@ -537,63 +553,79 @@
         catch (Exception ex) { Set_Error(ex); }
     }
 
-    private async Task Save_Master_Async(CWarehouseMaster p_objData)
+    private Task Add_Kho_Async(CDM_Kho p_objData) => Save_Master_Operation_Async(
+        true,
+        () => p_objData.Auto_ID = new CDM_Kho_Controller().F2009_sp_ins_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "Kho");
+
+    private Task Update_Kho_Async(CDM_Kho p_objData) => Save_Master_Operation_Async(
+        false,
+        () => new CDM_Kho_Controller().F2009_sp_upd_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "Kho");
+
+    private Task Add_Don_Vi_Tinh_Async(CDM_Don_Vi_Tinh p_objData) => Save_Master_Operation_Async(
+        true,
+        () => p_objData.Auto_ID = new CDM_Don_Vi_Tinh_Controller().F2016_sp_ins_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "DonViTinh");
+
+    private Task Update_Don_Vi_Tinh_Async(CDM_Don_Vi_Tinh p_objData) => Save_Master_Operation_Async(
+        false,
+        () => new CDM_Don_Vi_Tinh_Controller().F2016_sp_upd_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "DonViTinh");
+
+    private Task Add_Loai_San_Pham_Async(CDM_Loai_San_Pham p_objData) => Save_Master_Operation_Async(
+        true,
+        () => p_objData.Auto_ID = new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "LoaiSanPham");
+
+    private Task Update_Loai_San_Pham_Async(CDM_Loai_San_Pham p_objData) => Save_Master_Operation_Async(
+        false,
+        () => new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "LoaiSanPham");
+
+    private Task Add_San_Pham_Async(CDM_San_Pham p_objData) => Save_Master_Operation_Async(
+        true,
+        () => p_objData.Auto_ID = new CDM_San_Pham_Controller().F2018_sp_ins_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "SanPham");
+
+    private Task Update_San_Pham_Async(CDM_San_Pham p_objData) => Save_Master_Operation_Async(
+        false,
+        () => new CDM_San_Pham_Controller().F2018_sp_upd_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "SanPham");
+
+    private Task Add_NCC_Async(CDM_NCC p_objData) => Save_Master_Operation_Async(
+        true,
+        () => p_objData.Auto_ID = new CDM_NCC_Controller().F2019_sp_ins_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "NCC");
+
+    private Task Update_NCC_Async(CDM_NCC p_objData) => Save_Master_Operation_Async(
+        false,
+        () => new CDM_NCC_Controller().F2019_sp_upd_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code),
+        () => p_objData.Auto_ID,
+        "NCC");
+
+    private async Task Save_Master_Operation_Async(
+        bool p_bIsAdd,
+        Action p_actSave,
+        Func<long> p_fncGetAuto_ID,
+        string p_strMaster_Type)
     {
+        if (p_bIsAdd && !r_objChuc_Nang.Is_Have_Add_Permission || !p_bIsAdd && !r_objChuc_Nang.Is_Have_Edit_Permission)
+            return;
+
         try
         {
-            var v_iAuto_ID = p_objData.Auto_ID;
-            if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
-            switch (m_strMaster_Type)
-            {
-                case "Kho":
-                    if (v_iAuto_ID == 0)
-                        p_objData.Auto_ID = new CDM_Kho_Controller().F2009_sp_ins_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    else
-                        new CDM_Kho_Controller().F2009_sp_upd_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    break;
-                case "DonViTinh":
-                    if (v_iAuto_ID == 0)
-                        p_objData.Auto_ID = new CDM_Don_Vi_Tinh_Controller().F2016_sp_ins_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    else
-                        new CDM_Don_Vi_Tinh_Controller().F2016_sp_upd_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    break;
-                case "LoaiSanPham":
-                    if (v_iAuto_ID == 0)
-                        p_objData.Auto_ID = new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    else
-                        new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    break;
-                case "SanPham":
-                    if (v_iAuto_ID == 0)
-                        p_objData.Auto_ID = new CDM_San_Pham_Controller().F2018_sp_ins_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    else
-                        new CDM_San_Pham_Controller().F2018_sp_upd_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    break;
-                case "NCC":
-                    if (v_iAuto_ID == 0)
-                        p_objData.Auto_ID = new CDM_NCC_Controller().F2019_sp_ins_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    else
-                        new CDM_NCC_Controller().F2019_sp_upd_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
-                    break;
-                default:
-                    throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type));
-            }
-
-            string v_strAction;
-            if (v_iAuto_ID == 0)
-            {
-                v_strAction = "Thêm mới";
-            }
-            else
-            {
-                v_strAction = "Hiệu chỉnh";
-            }
-
-            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse " + m_strMaster_Type);
+            p_actSave();
+            Try_Record_Action_History(p_fncGetAuto_ID(), p_bIsAdd ? "Thêm mới" : "Hiệu chỉnh", "Warehouse " + p_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
             Set_Success("Đã lưu danh mục.");
@@ -639,8 +671,14 @@
 
     private void New_Master()
     {
-        if (m_strMaster_Type == "KhoUser") m_objPermission = new();
-        else m_objMaster = new();
+        m_objMaster = new();
+        m_objKho = new();
+        m_objDon_Vi_Tinh = new();
+        m_objLoai_San_Pham = new();
+        m_objSan_Pham = new();
+        m_objNCC = new();
+        if (m_strMaster_Type == "KhoUser")
+            m_objPermission = new();
         r_bIs_Show_Edit = true;
         Clear_Message();
     }
@@ -800,7 +838,34 @@
     private void Edit_Master(CWarehouseMaster p_objData)
     {
         r_iAuto_ID = p_objData.Auto_ID;
-        m_objMaster = Clone_Master(p_objData);
+        switch (m_strMaster_Type)
+        {
+            case "Kho":
+                m_objKho = new CDM_Kho { Auto_ID = p_objData.Auto_ID, Ten_Kho = p_objData.Name, Ghi_Chu = p_objData.Ghi_Chu };
+                break;
+            case "DonViTinh":
+                m_objDon_Vi_Tinh = new CDM_Don_Vi_Tinh { Auto_ID = p_objData.Auto_ID, Ten_Don_Vi_Tinh = p_objData.Name, Ghi_Chu = p_objData.Ghi_Chu };
+                break;
+            case "LoaiSanPham":
+                m_objLoai_San_Pham = new CDM_Loai_San_Pham { Auto_ID = p_objData.Auto_ID, Ma_LSP = p_objData.Code, Ten_LSP = p_objData.Name, Ghi_Chu = p_objData.Ghi_Chu };
+                break;
+            case "SanPham":
+                m_objSan_Pham = new CDM_San_Pham
+                {
+                    Auto_ID = p_objData.Auto_ID,
+                    Ma_San_Pham = p_objData.Code,
+                    Ten_San_Pham = p_objData.Name,
+                    Loai_San_Pham_ID = p_objData.Related_ID,
+                    Don_Vi_Tinh_ID = p_objData.Related_ID_2,
+                    Ghi_Chu = p_objData.Ghi_Chu
+                };
+                break;
+            case "NCC":
+                m_objNCC = new CDM_NCC { Auto_ID = p_objData.Auto_ID, Ma_NCC = p_objData.Code, Ten_NCC = p_objData.Name, Ghi_Chu = p_objData.Ghi_Chu };
+                break;
+            default:
+                throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type));
+        }
         r_bIs_Show_Edit = true;
         Clear_Message();
     }
@@ -832,6 +897,11 @@
     private void Cancel_Master()
     {
         m_objMaster = new();
+        m_objKho = new();
+        m_objDon_Vi_Tinh = new();
+        m_objLoai_San_Pham = new();
+        m_objSan_Pham = new();
+        m_objNCC = new();
         m_objPermission = new();
         r_bIs_Show_Edit = false;
     }
@@ -1117,13 +1187,31 @@
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export))
             {
-                var v_arrSource = m_strMaster_Type switch
+                List<CWarehouseMaster> v_arrSource = m_strMaster_Type switch
                 {
-                    "Kho" => new CDM_Kho_Controller().F2009_sp_sel_List_Kho(),
-                    "DonViTinh" => new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh(),
-                    "LoaiSanPham" => new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham(),
-                    "SanPham" => new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham(),
-                    "NCC" => new CDM_NCC_Controller().F2019_sp_sel_List_NCC(),
+                    "Kho" => new CDM_Kho_Controller().F2009_sp_sel_List_Kho()
+                        .Select(v_objWarehouse => new CWarehouseMaster { Auto_ID = v_objWarehouse.Auto_ID, Name = v_objWarehouse.Ten_Kho, Ghi_Chu = v_objWarehouse.Ghi_Chu })
+                        .ToList(),
+                    "DonViTinh" => new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh()
+                        .Select(v_objUnit => new CWarehouseMaster { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh, Ghi_Chu = v_objUnit.Ghi_Chu })
+                        .ToList(),
+                    "LoaiSanPham" => new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham()
+                        .Select(v_objCategory => new CWarehouseMaster { Auto_ID = v_objCategory.Auto_ID, Code = v_objCategory.Ma_LSP, Name = v_objCategory.Ten_LSP, Ghi_Chu = v_objCategory.Ghi_Chu })
+                        .ToList(),
+                    "SanPham" => new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
+                        .Select(v_objProduct => new CWarehouseMaster
+                        {
+                            Auto_ID = v_objProduct.Auto_ID,
+                            Code = v_objProduct.Ma_San_Pham,
+                            Name = v_objProduct.Ten_San_Pham,
+                            Related_ID = v_objProduct.Loai_San_Pham_ID,
+                            Related_ID_2 = v_objProduct.Don_Vi_Tinh_ID,
+                            Ghi_Chu = v_objProduct.Ghi_Chu
+                        })
+                        .ToList(),
+                    "NCC" => new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
+                        .Select(v_objSupplier => new CWarehouseMaster { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC, Ghi_Chu = v_objSupplier.Ghi_Chu })
+                        .ToList(),
                     _ => throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type))
                 };
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);

@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -30,10 +31,10 @@ public sealed class CategoryExcelImportValidationTests
             new object?[] { "LSP003", "đồ UỐNG", "" }));
         var v_objDatabaseCode = Preview(
             Worksheet(m_arrHeaders, new object?[] { "lsp-db", "Tên mới", "" }),
-            new[] { new CWarehouseMaster { Code = "LSP-DB", Name = "Tên cũ" } });
+            new[] { new CDM_Loai_San_Pham { Ma_LSP = "LSP-DB", Ten_LSP = "Tên cũ" } });
         var v_objDatabaseName = Preview(
             Worksheet(m_arrHeaders, new object?[] { "LSP-NEW", "tÊN cŨ", "" }),
-            new[] { new CWarehouseMaster { Code = "LSP-DB", Name = "Tên cũ" } });
+            new[] { new CDM_Loai_San_Pham { Ma_LSP = "LSP-DB", Ten_LSP = "Tên cũ" } });
 
         Assert.Contains(v_objInFile.Errors, v_objError => v_objError.Column_Name == "Ma_LSP");
         Assert.Contains(v_objInFile.Errors, v_objError => v_objError.Column_Name == "Ten_LSP");
@@ -52,7 +53,7 @@ public sealed class CategoryExcelImportValidationTests
             new object?[] { "lsp001", "Hàng khô", "Khô" }));
         var v_objExistingExact = Preview(
             Worksheet(m_arrHeaders, new object?[] { "LSP001", "Đồ uống", "Nước" }),
-            new[] { new CWarehouseMaster { Code = "lsp001", Name = "đồ uống", Ghi_Chu = "Nước" } });
+            new[] { new CDM_Loai_San_Pham { Ma_LSP = "lsp001", Ten_LSP = "đồ uống", Ghi_Chu = "Nước" } });
 
         Assert.True(v_objExact.Can_Confirm);
         Assert.Equal(1, v_objExact.Skipped_Rows);
@@ -116,8 +117,8 @@ public sealed class CategoryExcelImportValidationTests
 
     private static CCategoryImportPreviewResult Preview(
         CCategory_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster>? p_arrExisting = null) =>
-        CCategoryImportValidator.Preview(p_objWorksheet, p_arrExisting ?? Array.Empty<CWarehouseMaster>());
+        IReadOnlyList<CDM_Loai_San_Pham>? p_arrExisting = null) =>
+        CCategoryImportValidator.Preview(p_objWorksheet, p_arrExisting ?? Array.Empty<CDM_Loai_San_Pham>());
 
     private static CCategory_Xlsx_Worksheet Worksheet(string?[] p_arrHeaders, params object?[][] p_arrDataRows) =>
         WorksheetOnSheet(p_arrHeaders, "LoaiSanPham", p_arrDataRows);

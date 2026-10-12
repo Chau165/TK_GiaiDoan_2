@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -138,25 +139,25 @@ public sealed class ProductExcelImportValidationTests
     [Fact]
     public void Preview_skips_exact_database_product_and_rejects_same_code_with_different_content()
     {
-        var v_objExisting = new CWarehouseMaster
+        var v_objExisting = new CDM_San_Pham
         {
-            Code = "SP001",
-            Name = "Sữa",
-            Related_ID = 10,
-            Related_ID_2 = 20,
+            Ma_San_Pham = "SP001",
+            Ten_San_Pham = "Sữa",
+            Loai_San_Pham_ID = 10,
+            Don_Vi_Tinh_ID = 20,
             Ghi_Chu = "Lạnh"
         };
         var v_objExact = CProductImportValidator.Preview(
             Worksheet(m_arrHeaders,
                 new object?[] { "sp001", " sữa ", "lsp001", "HỘP", " Lạnh " },
                 new object?[] { "SP002", "Nước", "LSP001", "Hộp", "" }),
-            new[] { new CWarehouseMaster { Auto_ID = 10, Code = "LSP001", Name = "Đồ uống" } },
-            new[] { new CWarehouseMaster { Auto_ID = 20, Name = "Hộp" } },
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 10, Ma_LSP = "LSP001", Ten_LSP = "Đồ uống" } },
+            new[] { new CDM_Don_Vi_Tinh { Auto_ID = 20, Ten_Don_Vi_Tinh = "Hộp" } },
             new[] { v_objExisting });
         var v_objConflict = CProductImportValidator.Preview(
             Worksheet(m_arrHeaders, new object?[] { "SP001", "Sữa khác", "LSP001", "Hộp", "Lạnh" }),
-            new[] { new CWarehouseMaster { Auto_ID = 10, Code = "LSP001", Name = "Đồ uống" } },
-            new[] { new CWarehouseMaster { Auto_ID = 20, Name = "Hộp" } },
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 10, Ma_LSP = "LSP001", Ten_LSP = "Đồ uống" } },
+            new[] { new CDM_Don_Vi_Tinh { Auto_ID = 20, Ten_Don_Vi_Tinh = "Hộp" } },
             new[] { v_objExisting });
 
         Assert.True(v_objExact.Can_Confirm);
@@ -175,7 +176,7 @@ public sealed class ProductExcelImportValidationTests
             new[] { "SPE" });
         var v_objCategoryCode = Preview(
             Worksheet(m_arrHeaders, new object?[] { "SP002", "Sữa", "LSPE", "Hộp", "" }),
-            categories: new[] { new CWarehouseMaster { Auto_ID = 10, Code = "LSPÉ", Name = "Đồ uống" } });
+            categories: new[] { new CDM_Loai_San_Pham { Auto_ID = 10, Ma_LSP = "LSPÉ", Ten_LSP = "Đồ uống" } });
         var v_objUnitName = Preview(
             Worksheet(m_arrHeaders, new object?[] { "SP003", "Sữa", "LSP001", "BOX_EXTERNAL", "" }));
 
@@ -201,9 +202,9 @@ public sealed class ProductExcelImportValidationTests
     {
         var v_objResult = CProductImportValidator.Preview(
             Worksheet(m_arrHeaders, new object?[] { "SP001", "Sữa", "LSP001", " THUNG ", "" }),
-            new[] { new CWarehouseMaster { Auto_ID = 10, Code = "LSP001" } },
-            new[] { new CWarehouseMaster { Auto_ID = 77, Name = "Thùng" } },
-            Array.Empty<CWarehouseMaster>());
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 10, Ma_LSP = "LSP001" } },
+            new[] { new CDM_Don_Vi_Tinh { Auto_ID = 77, Ten_Don_Vi_Tinh = "Thùng" } },
+            Array.Empty<string>());
 
         var v_objRow = Assert.Single(v_objResult.Rows);
         Assert.True(v_objRow.Is_Valid);
@@ -221,8 +222,8 @@ public sealed class ProductExcelImportValidationTests
             Worksheet(m_arrHeaders, new object?[] { "SP001", "Sữa", "LSP001", "Hộp", "" }),
             units: new[]
             {
-                new CWarehouseMaster { Auto_ID = 20, Name = "Hộp" },
-                new CWarehouseMaster { Auto_ID = 21, Name = "HỘP" }
+                new CDM_Don_Vi_Tinh { Auto_ID = 20, Ten_Don_Vi_Tinh = "Hộp" },
+                new CDM_Don_Vi_Tinh { Auto_ID = 21, Ten_Don_Vi_Tinh = "HỘP" }
             });
 
         Assert.Equal(20L, Assert.Single(v_objUnique.Rows).Don_Vi_Tinh_ID);
@@ -240,8 +241,8 @@ public sealed class ProductExcelImportValidationTests
             Worksheet(m_arrHeaders, new object?[] { "SP001", "Sản phẩm", "LSP001", p_strUnitName, "" }),
             units: new[]
             {
-                new CWarehouseMaster { Auto_ID = 205, Name = "Cuộn" },
-                new CWarehouseMaster { Auto_ID = 211, Name = "Cuốn" }
+                new CDM_Don_Vi_Tinh { Auto_ID = 205, Ten_Don_Vi_Tinh = "Cuộn" },
+                new CDM_Don_Vi_Tinh { Auto_ID = 211, Ten_Don_Vi_Tinh = "Cuốn" }
             });
 
         Assert.True(v_objResult.Can_Confirm);
@@ -266,13 +267,13 @@ public sealed class ProductExcelImportValidationTests
     private static CProductImportPreviewResult Preview(
         CProduct_Xlsx_Worksheet p_objWorksheet,
         IEnumerable<string>? p_arrExistingCodes = null,
-        IReadOnlyList<CWarehouseMaster>? categories = null,
-        IReadOnlyList<CWarehouseMaster>? units = null)
+        IReadOnlyList<CDM_Loai_San_Pham>? categories = null,
+        IReadOnlyList<CDM_Don_Vi_Tinh>? units = null)
     {
         return CProductImportValidator.Preview(
             p_objWorksheet,
-            categories ?? new[] { new CWarehouseMaster { Auto_ID = 10, Code = "LSP001", Name = "Đồ uống" } },
-            units ?? new[] { new CWarehouseMaster { Auto_ID = 20, Name = "Hộp" } },
+            categories ?? new[] { new CDM_Loai_San_Pham { Auto_ID = 10, Ma_LSP = "LSP001", Ten_LSP = "Đồ uống" } },
+            units ?? new[] { new CDM_Don_Vi_Tinh { Auto_ID = 20, Ten_Don_Vi_Tinh = "Hộp" } },
             p_arrExistingCodes ?? Array.Empty<string>());
     }
 

@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
 using Xunit;
@@ -112,14 +113,14 @@ public sealed class ImportStructureDetectionTests
 
         await using var v_objCategoryStream = OpenFixture("03_Loai_san_pham_KH.xlsx");
         var v_objCategory = await new CCategory_Xlsx_Reader().ReadAsync(v_objCategoryStream);
-        var v_objCategoryPreview = CCategoryImportValidator.Preview(v_objCategory, Array.Empty<CWarehouseMaster>());
+        var v_objCategoryPreview = CCategoryImportValidator.Preview(v_objCategory, Array.Empty<CDM_Loai_San_Pham>());
         Assert.True(v_objCategoryPreview.Can_Confirm, string.Join("; ", v_objCategoryPreview.Errors.Select(v_objError => v_objError.Message)));
         Assert.Equal(5, v_objCategoryPreview.Valid_Rows);
         Assert.Empty(v_objCategoryPreview.Unsupported_Capabilities);
 
         await using var v_objSupplierStream = OpenFixture("05_Nha_cung_cap_KH.xlsx");
         var v_objSupplier = await new CSupplier_Xlsx_Reader().ReadAsync(v_objSupplierStream);
-        var v_objSupplierPreview = CSupplierImportValidator.Preview(v_objSupplier, Array.Empty<CWarehouseMaster>());
+        var v_objSupplierPreview = CSupplierImportValidator.Preview(v_objSupplier, Array.Empty<CDM_NCC>());
         Assert.True(v_objSupplierPreview.Can_Confirm, string.Join("; ", v_objSupplierPreview.Errors.Select(v_objError => v_objError.Message)));
         Assert.Equal(5, v_objSupplierPreview.Valid_Rows);
         Assert.Empty(v_objSupplierPreview.Unsupported_Capabilities);
@@ -137,7 +138,7 @@ public sealed class ImportStructureDetectionTests
 
         await using var v_objWarehouseStream = OpenFixture("01_Danh_muc_Kho_KH.xlsx");
         var v_objWarehouse = await new CWarehouse_Xlsx_Reader().ReadAsync(v_objWarehouseStream);
-        var v_objWarehousePreview = CWarehouseImportValidator.Preview(v_objWarehouse, Array.Empty<CWarehouseMaster>());
+        var v_objWarehousePreview = CWarehouseImportValidator.Preview(v_objWarehouse, Array.Empty<CDM_Kho>());
         Assert.True(v_objWarehousePreview.Can_Confirm, string.Join("; ", v_objWarehousePreview.Errors.Select(v_objError => v_objError.Message)));
         Assert.Equal(4, v_objWarehousePreview.Valid_Rows);
         Assert.Empty(v_objWarehousePreview.Unsupported_Capabilities);
@@ -161,11 +162,11 @@ public sealed class ImportStructureDetectionTests
         var v_objCategorySheet = await new CCategory_Xlsx_Reader().ReadAsync(v_objCategoryStream);
         var v_arrCategories = v_objCategorySheet.Rows
             .Where(v_objRow => v_objRow.RowNumber > 1)
-            .Select((v_objRow, v_iIndex) => new CWarehouseMaster
+            .Select((v_objRow, v_iIndex) => new CDM_Loai_San_Pham
             {
                 Auto_ID = v_iIndex + 1,
-                Code = CellText(v_objRow.Cells, 1),
-                Name = CellText(v_objRow.Cells, 2),
+                Ma_LSP = CellText(v_objRow.Cells, 1),
+                Ten_LSP = CellText(v_objRow.Cells, 2),
                 Ghi_Chu = CellText(v_objRow.Cells, 3)
             })
             .ToArray();
@@ -174,10 +175,10 @@ public sealed class ImportStructureDetectionTests
         var v_objUnitSheet = await new CUnit_Xlsx_Reader().ReadAsync(v_objUnitStream);
         var v_arrUnits = v_objUnitSheet.Rows
             .Where(v_objRow => v_objRow.RowNumber > 1)
-            .Select((v_objRow, v_iIndex) => new CWarehouseMaster
+            .Select((v_objRow, v_iIndex) => new CDM_Don_Vi_Tinh
             {
                 Auto_ID = v_iIndex + 1,
-                Name = CellText(v_objRow.Cells, 1),
+                Ten_Don_Vi_Tinh = CellText(v_objRow.Cells, 1),
                 Ghi_Chu = CellText(v_objRow.Cells, 2)
             })
             .ToArray();
@@ -188,7 +189,7 @@ public sealed class ImportStructureDetectionTests
             v_objProductSheet,
             v_arrCategories,
             v_arrUnits,
-            Array.Empty<CWarehouseMaster>());
+            Array.Empty<string>());
 
         Assert.True(v_objPreview.Can_Confirm, string.Join("; ", v_objPreview.Errors.Select(v_objError => v_objError.Message)));
         Assert.Equal(15, v_objPreview.Total_Rows);
@@ -226,7 +227,7 @@ public sealed class ImportStructureDetectionTests
         var v_objSheet = await new CSupplier_Xlsx_Reader().ReadAsync(v_objStream);
         var v_objPreview = CSupplierImportValidator.Preview(v_objSheet, new[]
         {
-            new CWarehouseMaster { Code = "NCC-01", Name = "Nhà cung cấp A" }
+            new CDM_NCC { Ma_NCC = "NCC-01", Ten_NCC = "Nhà cung cấp A" }
         });
 
         var v_objRow = Assert.Single(v_objPreview.Rows);
@@ -250,13 +251,13 @@ public sealed class ImportStructureDetectionTests
         var v_objProjected = CImportLegacyWorksheetAdapter.ToProduct(v_objSheet);
         var v_objPreview = CProductImportValidator.Preview(
             v_objProjected,
-            new[] { new CWarehouseMaster { Auto_ID = 1, Code = "CAT-01" } },
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 1, Ma_LSP = "CAT-01" } },
             new[]
             {
-                new CWarehouseMaster { Auto_ID = 2, Name = "Thùng" },
-                new CWarehouseMaster { Auto_ID = 3, Name = "Chai" }
+                new CDM_Don_Vi_Tinh { Auto_ID = 2, Ten_Don_Vi_Tinh = "Thùng" },
+                new CDM_Don_Vi_Tinh { Auto_ID = 3, Ten_Don_Vi_Tinh = "Chai" }
             },
-            Array.Empty<CWarehouseMaster>());
+            Array.Empty<string>());
 
         var v_objRow = Assert.Single(v_objPreview.Rows);
         Assert.True(v_objPreview.Can_Confirm, string.Join("; ", v_objPreview.Errors.Select(v_objError => v_objError.Message)));
@@ -280,9 +281,9 @@ public sealed class ImportStructureDetectionTests
         var v_objSheet = await new CProduct_Xlsx_Reader().ReadAsync(v_objStream);
         var v_objPreview = CProductImportValidator.Preview(
             v_objSheet,
-            new[] { new CWarehouseMaster { Auto_ID = 1, Code = "CAT-01" } },
-            new[] { new CWarehouseMaster { Auto_ID = 2, Name = "Thùng" } },
-            Array.Empty<CWarehouseMaster>());
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 1, Ma_LSP = "CAT-01" } },
+            new[] { new CDM_Don_Vi_Tinh { Auto_ID = 2, Ten_Don_Vi_Tinh = "Thùng" } },
+            Array.Empty<string>());
 
         var v_objRow = Assert.Single(v_objPreview.Rows);
         Assert.True(v_objPreview.Can_Confirm, string.Join("; ", v_objPreview.Errors.Select(v_objError => v_objError.Message)));
@@ -305,9 +306,9 @@ public sealed class ImportStructureDetectionTests
         var v_objSheet = await new CProduct_Xlsx_Reader().ReadAsync(v_objStream);
         var v_objPreview = CProductImportValidator.Preview(
             v_objSheet,
-            new[] { new CWarehouseMaster { Auto_ID = 1, Code = "CAT-01" } },
-            new[] { new CWarehouseMaster { Auto_ID = 3, Name = "Chai" } },
-            Array.Empty<CWarehouseMaster>());
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 1, Ma_LSP = "CAT-01" } },
+            new[] { new CDM_Don_Vi_Tinh { Auto_ID = 3, Ten_Don_Vi_Tinh = "Chai" } },
+            Array.Empty<string>());
 
         var v_objRow = Assert.Single(v_objPreview.Rows);
         Assert.False(v_objPreview.Can_Confirm);
@@ -330,20 +331,20 @@ public sealed class ImportStructureDetectionTests
         var v_objSheet = await new CProduct_Xlsx_Reader().ReadAsync(v_objStream);
         var v_objPreview = CProductImportValidator.Preview(
             v_objSheet,
-            new[] { new CWarehouseMaster { Auto_ID = 1, Code = "CAT-01" } },
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 1, Ma_LSP = "CAT-01" } },
             new[]
             {
-                new CWarehouseMaster { Auto_ID = 2, Name = "Thùng" },
-                new CWarehouseMaster { Auto_ID = 3, Name = "Chai" }
+                new CDM_Don_Vi_Tinh { Auto_ID = 2, Ten_Don_Vi_Tinh = "Thùng" },
+                new CDM_Don_Vi_Tinh { Auto_ID = 3, Ten_Don_Vi_Tinh = "Chai" }
             },
             new[]
             {
-                new CWarehouseMaster
+                new CDM_San_Pham
                 {
-                    Code = "SP-03",
-                    Name = "Nước",
-                    Related_ID = 1,
-                    Related_ID_2 = 2
+                    Ma_San_Pham = "SP-03",
+                    Ten_San_Pham = "Nước",
+                    Loai_San_Pham_ID = 1,
+                    Don_Vi_Tinh_ID = 2
                 }
             });
 
@@ -365,20 +366,20 @@ public sealed class ImportStructureDetectionTests
         var v_objSheet = await new CProduct_Xlsx_Reader().ReadAsync(v_objStream);
         var v_objPreview = CProductImportValidator.Preview(
             v_objSheet,
-            new[] { new CWarehouseMaster { Auto_ID = 1, Code = "CAT-01" } },
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 1, Ma_LSP = "CAT-01" } },
             new[]
             {
-                new CWarehouseMaster { Auto_ID = 2, Name = "Thùng" },
-                new CWarehouseMaster { Auto_ID = 3, Name = "Chai" }
+                new CDM_Don_Vi_Tinh { Auto_ID = 2, Ten_Don_Vi_Tinh = "Thùng" },
+                new CDM_Don_Vi_Tinh { Auto_ID = 3, Ten_Don_Vi_Tinh = "Chai" }
             },
             new[]
             {
-                new CWarehouseMaster
+                new CDM_San_Pham
                 {
-                    Code = "SP-03",
-                    Name = "Nước",
-                    Related_ID = 1,
-                    Related_ID_2 = 2
+                    Ma_San_Pham = "SP-03",
+                    Ten_San_Pham = "Nước",
+                    Loai_San_Pham_ID = 1,
+                    Don_Vi_Tinh_ID = 2
                 }
             });
 
@@ -491,8 +492,8 @@ public sealed class ImportStructureDetectionTests
         var v_objLegacySheet = CImportLegacyWorksheetAdapter.ToProduct(v_objSheet);
         var v_objPreview = CProductImportValidator.Preview(
             v_objLegacySheet,
-            new[] { new CWarehouseMaster { Auto_ID = 10, Code = "CAT-01" } },
-            new[] { new CWarehouseMaster { Auto_ID = 20, Name = "Cái" } },
+            new[] { new CDM_Loai_San_Pham { Auto_ID = 10, Ma_LSP = "CAT-01" } },
+            new[] { new CDM_Don_Vi_Tinh { Auto_ID = 20, Ten_Don_Vi_Tinh = "Cái" } },
             Array.Empty<string>());
         Assert.Contains("Customer extra", v_objPreview.Unsupported_Columns);
     }

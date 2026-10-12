@@ -94,12 +94,17 @@ public sealed class WarehouseMasterControllerSplitContractTests
             .ToArray();
 
         Assert.Equal(2, v_arrMethods.Length);
+        string v_strControllerShortName = p_strControllerName[(p_strControllerName.LastIndexOf('.') + 1)..];
+        string v_strEntityName = v_strControllerShortName.Replace("_Controller", "", StringComparison.Ordinal);
+        Type? v_objEntity = typeof(CWarehouseMasterSupport_Controller).Assembly.GetType(
+            "TKS_Thuc_Tap_V11_Data_Access.Entity.DM." + v_strEntityName);
+        Assert.NotNull(v_objEntity);
         Assert.Contains(v_arrMethods, v_objMethod => HasParameters(
             v_objMethod,
-            typeof(CWarehouseMaster), typeof(string), typeof(string)));
+            v_objEntity!, typeof(string), typeof(string)));
         Assert.Contains(v_arrMethods, v_objMethod => HasParameters(
             v_objMethod,
-            typeof(SqlConnection), typeof(SqlTransaction), typeof(CWarehouseMaster), typeof(string), typeof(string)));
+            typeof(SqlConnection), typeof(SqlTransaction), v_objEntity!, typeof(string), typeof(string)));
     }
 
     [Fact]

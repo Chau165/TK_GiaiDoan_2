@@ -1,5 +1,6 @@
 using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
@@ -12,7 +13,7 @@ public static class CCategoryImportValidator
 
     public static CCategoryImportPreviewResult Preview(
         CCategory_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingCategories)
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrExistingCategories)
     {
         ArgumentNullException.ThrowIfNull(p_objWorksheet);
         ArgumentNullException.ThrowIfNull(p_arrExistingCategories);
@@ -44,7 +45,7 @@ public static class CCategoryImportValidator
 
     internal static CCategoryImportPreviewResult Revalidate(
         IReadOnlyList<CCategoryImportRow> p_arrRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingCategories)
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrExistingCategories)
     {
         ArgumentNullException.ThrowIfNull(p_arrRows);
         ArgumentNullException.ThrowIfNull(p_arrExistingCategories);
@@ -60,16 +61,16 @@ public static class CCategoryImportValidator
 
     private static CCategoryImportPreviewResult ValidateRows(
         IReadOnlyList<CCategoryImportRow> p_arrInputRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingCategories,
+        IReadOnlyList<CDM_Loai_San_Pham> p_arrExistingCategories,
         CCategoryImportPreviewResult p_objResult)
     {
         var v_dicExistingByCode = p_arrExistingCategories
-            .Where(v_objCategory => !string.IsNullOrWhiteSpace(v_objCategory.Code))
-            .GroupBy(v_objCategory => ComparisonKey(v_objCategory.Code), StringComparer.Ordinal)
+            .Where(v_objCategory => !string.IsNullOrWhiteSpace(v_objCategory.Ma_LSP))
+            .GroupBy(v_objCategory => ComparisonKey(v_objCategory.Ma_LSP), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicExistingByName = p_arrExistingCategories
-            .Where(v_objCategory => !string.IsNullOrWhiteSpace(v_objCategory.Name))
-            .GroupBy(v_objCategory => ComparisonKey(v_objCategory.Name), StringComparer.Ordinal)
+            .Where(v_objCategory => !string.IsNullOrWhiteSpace(v_objCategory.Ten_LSP))
+            .GroupBy(v_objCategory => ComparisonKey(v_objCategory.Ten_LSP), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicFirstByCode = new Dictionary<string, CCategoryImportRow>(StringComparer.Ordinal);
         var v_dicFirstByName = new Dictionary<string, CCategoryImportRow>(StringComparer.Ordinal);
@@ -89,7 +90,7 @@ public static class CCategoryImportValidator
             if (v_dicExistingByCode.TryGetValue(v_strCodeKey, out var v_arrExistingByCode))
             {
                 if (v_arrExistingByCode.All(v_objExisting =>
-                    ComparisonKey(v_objExisting.Name) == v_strNameKey &&
+                    ComparisonKey(v_objExisting.Ten_LSP) == v_strNameKey &&
                     ComparisonKey(v_objExisting.Ghi_Chu) == ComparisonKey(v_objRow.Ghi_Chu)))
                     v_objRow.Is_Skipped = true;
                 else

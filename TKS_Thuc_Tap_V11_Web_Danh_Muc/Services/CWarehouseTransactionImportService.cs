@@ -208,9 +208,33 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
         }).ToArray();
         IReadOnlyList<CWarehouseMaster> v_arrSuppliers = v_bIsReceipt
             ? new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
+                .Select(v_objSupplier => new CWarehouseMaster
+                {
+                    Auto_ID = v_objSupplier.Auto_ID,
+                    Code = v_objSupplier.Ma_NCC,
+                    Name = v_objSupplier.Ten_NCC
+                })
+                .ToArray()
             : Array.Empty<CWarehouseMaster>();
-        var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
-        var v_arrProducts = await m_objProductSupportService.List_Product_Masters_Async(p_objCancellationToken);
+        IReadOnlyList<CWarehouseMaster> v_arrUnits = new CDM_Don_Vi_Tinh_Controller()
+            .F2016_sp_sel_List_Don_Vi_Tinh()
+            .Select(v_objUnit => new CWarehouseMaster
+            {
+                Auto_ID = v_objUnit.Auto_ID,
+                Name = v_objUnit.Ten_Don_Vi_Tinh
+            })
+            .ToArray();
+        IReadOnlyList<CWarehouseMaster> v_arrProducts = (await m_objProductSupportService.List_Product_Masters_Async(p_objCancellationToken))
+            .Select(v_objProduct => new CWarehouseMaster
+            {
+                Auto_ID = v_objProduct.Auto_ID,
+                Code = v_objProduct.Ma_San_Pham,
+                Name = v_objProduct.Ten_San_Pham,
+                Related_ID = v_objProduct.Loai_San_Pham_ID,
+                Related_ID_2 = v_objProduct.Don_Vi_Tinh_ID,
+                Ghi_Chu = v_objProduct.Ghi_Chu
+            })
+            .ToArray();
         var v_arrExistingDocuments = await Load_Existing_Documents_Async(
             v_bIsReceipt, p_arrDocumentNumbers, p_strCurrent_Login, p_objCancellationToken);
         var v_arrInventoryBalances = v_bIsReceipt

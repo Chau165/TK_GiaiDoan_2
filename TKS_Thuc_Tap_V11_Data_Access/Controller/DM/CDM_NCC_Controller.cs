@@ -2,15 +2,15 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
-using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 
 public class CDM_NCC_Controller
 {
-    public List<CWarehouseMaster> F2019_sp_sel_List_NCC()
+    public List<CDM_NCC> F2019_sp_sel_List_NCC()
     {
-        List<CWarehouseMaster> v_arrRes = new List<CWarehouseMaster>();
+        List<CDM_NCC> v_arrRes = new List<CDM_NCC>();
         DataTable v_dt = new DataTable();
 
         try
@@ -19,7 +19,9 @@ public class CDM_NCC_Controller
 
             foreach (DataRow v_row in v_dt.Rows)
             {
-                CWarehouseMaster v_objRes = CUtility.Map_Row_To_Entity<CWarehouseMaster>(v_row);
+                CDM_NCC v_objRes = CUtility.Map_Row_To_Entity<CDM_NCC>(v_row);
+                v_objRes.Ma_NCC = Convert.ToString(v_row["Code"]) ?? "";
+                v_objRes.Ten_NCC = Convert.ToString(v_row["Name"]) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -35,9 +37,9 @@ public class CDM_NCC_Controller
         return v_arrRes;
     }
 
-    public List<CWarehouseLookup> F2019_sp_sel_List_NCC_Lookup()
+    public List<CDM_NCC> F2019_sp_sel_List_NCC_Lookup()
     {
-        List<CWarehouseLookup> v_arrRes = new List<CWarehouseLookup>();
+        List<CDM_NCC> v_arrRes = new List<CDM_NCC>();
         DataTable v_dt = new DataTable();
 
         try
@@ -46,7 +48,9 @@ public class CDM_NCC_Controller
 
             foreach (DataRow v_row in v_dt.Rows)
             {
-                CWarehouseLookup v_objRes = CUtility.Map_Row_To_Entity<CWarehouseLookup>(v_row);
+                CDM_NCC v_objRes = CUtility.Map_Row_To_Entity<CDM_NCC>(v_row);
+                v_objRes.Ma_NCC = Convert.ToString(v_row["Code"] ) ?? "";
+                v_objRes.Ten_NCC = Convert.ToString(v_row["Name"] ) ?? "";
                 v_arrRes.Add(v_objRes);
             }
         }
@@ -63,7 +67,7 @@ public class CDM_NCC_Controller
     }
 
     public long F2019_sp_ins_NCC(
-        CWarehouseMaster p_objData,
+        CDM_NCC p_objData,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
@@ -72,7 +76,7 @@ public class CDM_NCC_Controller
         try
         {
             Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-            v_iRes = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2019_sp_ins_NCC", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
+            v_iRes = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2019_sp_ins_NCC", p_objData.Auto_ID, p_objData.Ma_NCC, p_objData.Ten_NCC, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
         }
         catch (Exception)
         {
@@ -85,7 +89,7 @@ public class CDM_NCC_Controller
     public long F2019_sp_ins_NCC(
         SqlConnection p_conn,
         SqlTransaction p_trans,
-        CWarehouseMaster p_objData,
+        CDM_NCC p_objData,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
@@ -94,7 +98,7 @@ public class CDM_NCC_Controller
         try
         {
             Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-            v_iRes = Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2019_sp_ins_NCC", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
+            v_iRes = Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2019_sp_ins_NCC", p_objData.Auto_ID, p_objData.Ma_NCC, p_objData.Ten_NCC, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
         }
         catch (Exception)
         {
@@ -105,14 +109,14 @@ public class CDM_NCC_Controller
     }
 
     public void F2019_sp_upd_NCC(
-        CWarehouseMaster p_objData,
+        CDM_NCC p_objData,
         string p_strLast_Updated_By = "",
         string p_strLast_Updated_By_Function = "")
     {
         try
         {
             Set_Audit_Fields(p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-            p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2019_sp_upd_NCC", p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
+            p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F2019_sp_upd_NCC", p_objData.Auto_ID, p_objData.Ma_NCC, p_objData.Ten_NCC, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function));
         }
         catch (Exception)
         {
@@ -136,7 +140,7 @@ public class CDM_NCC_Controller
     }
 
     private static void Set_Audit_Fields(
-        CWarehouseMaster p_objData,
+        CDM_NCC p_objData,
         string p_strLast_Updated_By,
         string p_strLast_Updated_By_Function)
     {

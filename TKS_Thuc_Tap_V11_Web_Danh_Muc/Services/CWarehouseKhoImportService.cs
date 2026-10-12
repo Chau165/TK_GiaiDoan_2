@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
 
@@ -90,10 +91,10 @@ public sealed class CWarehouseKhoImportService
             foreach (CWarehouseImportRow v_objRow in p_arrRows)
             {
                 p_objCancellationToken.ThrowIfCancellationRequested();
-                CWarehouseMaster v_objWarehouse = new CWarehouseMaster
+                CDM_Kho v_objWarehouse = new CDM_Kho
                 {
                     Auto_ID = 0,
-                    Name = v_objRow.Ten_Kho,
+                    Ten_Kho = v_objRow.Ten_Kho,
                     Ghi_Chu = v_objRow.Ghi_Chu
                 };
                 try

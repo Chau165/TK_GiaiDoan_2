@@ -98,8 +98,13 @@ public sealed class WarehouseMasterFinalizationContractTests
 
         foreach ((Type v_objController, string v_strListMethod, string v_strLookupMethod, string v_strInsertMethod, string v_strUpdateMethod, string v_strDeleteMethod) in v_arrContracts)
         {
-            Assert.Equal(typeof(List<CWarehouseMaster>), v_objController.GetMethod(v_strListMethod)?.ReturnType);
-            Assert.Equal(typeof(List<CWarehouseLookup>), v_objController.GetMethod(v_strLookupMethod)?.ReturnType);
+            string v_strEntityName = v_objController.Name.Replace("_Controller", "", StringComparison.Ordinal);
+            Type? v_objEntity = v_objController.Assembly.GetType(
+                "TKS_Thuc_Tap_V11_Data_Access.Entity.DM." + v_strEntityName);
+            Assert.NotNull(v_objEntity);
+            Type v_objEntityListType = typeof(List<>).MakeGenericType(v_objEntity!);
+            Assert.Equal(v_objEntityListType, v_objController.GetMethod(v_strListMethod)?.ReturnType);
+            Assert.Equal(v_objEntityListType, v_objController.GetMethod(v_strLookupMethod)?.ReturnType);
             Assert.Equal(typeof(void), v_objController.GetMethod(v_strUpdateMethod)?.ReturnType);
             Assert.Equal(typeof(void), v_objController.GetMethod(v_strDeleteMethod)?.ReturnType);
 
@@ -151,22 +156,24 @@ public sealed class WarehouseMasterFinalizationContractTests
 
             foreach (long v_iAuto_ID in new[] { 0L, 17L })
             {
-                CWarehouseMaster v_objData = new CWarehouseMaster
-                {
-                    Auto_ID = v_iAuto_ID,
-                    Created_By = "original creator",
-                    Created_By_Function = "original function",
-                    Last_Updated_By = "original updater",
-                    Last_Updated_By_Function = "original update function"
-                };
+                string v_strEntityName = v_objControllerType.Name.Replace("_Controller", "", StringComparison.Ordinal);
+                Type? v_objEntityType = v_objControllerType.Assembly.GetType(
+                    "TKS_Thuc_Tap_V11_Data_Access.Entity.DM." + v_strEntityName);
+                Assert.NotNull(v_objEntityType);
+                object v_objData = Activator.CreateInstance(v_objEntityType!)!;
+                v_objEntityType!.GetProperty("Auto_ID")!.SetValue(v_objData, v_iAuto_ID);
+                v_objEntityType.GetProperty("Created_By")!.SetValue(v_objData, "original creator");
+                v_objEntityType.GetProperty("Created_By_Function")!.SetValue(v_objData, "original function");
+                v_objEntityType.GetProperty("Last_Updated_By")!.SetValue(v_objData, "original updater");
+                v_objEntityType.GetProperty("Last_Updated_By_Function")!.SetValue(v_objData, "original update function");
 
                 v_objAuditMethod!.Invoke(null, new object[] { v_objData, "current user", "current function" });
 
-                Assert.Equal(v_iAuto_ID, v_objData.Auto_ID);
-                Assert.Equal("current user", v_objData.Created_By);
-                Assert.Equal("current function", v_objData.Created_By_Function);
-                Assert.Equal("current user", v_objData.Last_Updated_By);
-                Assert.Equal("current function", v_objData.Last_Updated_By_Function);
+                Assert.Equal(v_iAuto_ID, v_objEntityType.GetProperty("Auto_ID")!.GetValue(v_objData));
+                Assert.Equal("current user", v_objEntityType.GetProperty("Created_By")!.GetValue(v_objData));
+                Assert.Equal("current function", v_objEntityType.GetProperty("Created_By_Function")!.GetValue(v_objData));
+                Assert.Equal("current user", v_objEntityType.GetProperty("Last_Updated_By")!.GetValue(v_objData));
+                Assert.Equal("current function", v_objEntityType.GetProperty("Last_Updated_By_Function")!.GetValue(v_objData));
             }
         }
     }

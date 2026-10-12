@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
 
@@ -101,13 +102,13 @@ public sealed class CWarehouseProductImportService
             foreach (CProductImportRow v_objRow in p_arrRows)
             {
                 p_objCancellationToken.ThrowIfCancellationRequested();
-                CWarehouseMaster v_objProduct = new CWarehouseMaster
+                CDM_San_Pham v_objProduct = new CDM_San_Pham
                 {
                     Auto_ID = 0,
-                    Code = v_objRow.Ma_San_Pham,
-                    Name = v_objRow.Ten_San_Pham,
-                    Related_ID = v_objRow.Loai_San_Pham_ID,
-                    Related_ID_2 = v_objRow.Don_Vi_Tinh_ID,
+                    Ma_San_Pham = v_objRow.Ma_San_Pham,
+                    Ten_San_Pham = v_objRow.Ten_San_Pham,
+                    Loai_San_Pham_ID = v_objRow.Loai_San_Pham_ID,
+                    Don_Vi_Tinh_ID = v_objRow.Don_Vi_Tinh_ID,
                     Ghi_Chu = v_objRow.Ghi_Chu
                 };
 
@@ -155,7 +156,7 @@ public sealed class CWarehouseProductImportService
         }
     }
 
-    private async Task<(List<CWarehouseMaster> Categories, List<CWarehouseMaster> Units, List<CWarehouseMaster> Products)> Load_Reference_Data_Async(
+    private async Task<(List<CDM_Loai_San_Pham> Categories, List<CDM_Don_Vi_Tinh> Units, List<CDM_San_Pham> Products)> Load_Reference_Data_Async(
         CancellationToken p_objCancellationToken)
     {
         var v_arrCategories = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();

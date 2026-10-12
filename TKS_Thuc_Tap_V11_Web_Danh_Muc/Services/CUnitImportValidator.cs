@@ -1,5 +1,6 @@
 using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Web_Danh_Muc.Services;
@@ -17,13 +18,13 @@ public static class CUnitImportValidator
         ArgumentNullException.ThrowIfNull(p_arrExistingNames);
         return Preview(p_objWorksheet, p_arrExistingNames
             .Where(v_strName => !string.IsNullOrWhiteSpace(v_strName))
-            .Select(v_strName => new CWarehouseMaster { Name = v_strName })
+            .Select(v_strName => new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = v_strName })
             .ToArray());
     }
 
     public static CUnitImportPreviewResult Preview(
         CUnit_Xlsx_Worksheet p_objWorksheet,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingUnits)
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrExistingUnits)
     {
         ArgumentNullException.ThrowIfNull(p_objWorksheet);
         ArgumentNullException.ThrowIfNull(p_arrExistingUnits);
@@ -62,13 +63,13 @@ public static class CUnitImportValidator
         ArgumentNullException.ThrowIfNull(p_arrExistingNames);
         return Revalidate(p_arrRows, p_arrExistingNames
             .Where(v_strName => !string.IsNullOrWhiteSpace(v_strName))
-            .Select(v_strName => new CWarehouseMaster { Name = v_strName })
+            .Select(v_strName => new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = v_strName })
             .ToArray());
     }
 
     internal static CUnitImportPreviewResult Revalidate(
         IReadOnlyList<CUnitImportRow> p_arrRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingUnits)
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrExistingUnits)
     {
         ArgumentNullException.ThrowIfNull(p_arrRows);
         ArgumentNullException.ThrowIfNull(p_arrExistingUnits);
@@ -83,12 +84,12 @@ public static class CUnitImportValidator
 
     private static CUnitImportPreviewResult ValidateRows(
         IReadOnlyList<CUnitImportRow> p_arrInputRows,
-        IReadOnlyList<CWarehouseMaster> p_arrExistingUnits,
+        IReadOnlyList<CDM_Don_Vi_Tinh> p_arrExistingUnits,
         CUnitImportPreviewResult p_objResult)
     {
         var v_dicExistingByName = p_arrExistingUnits
-            .Where(v_objUnit => !string.IsNullOrWhiteSpace(v_objUnit.Name))
-            .GroupBy(v_objUnit => ComparisonKey(v_objUnit.Name), StringComparer.Ordinal)
+            .Where(v_objUnit => !string.IsNullOrWhiteSpace(v_objUnit.Ten_Don_Vi_Tinh))
+            .GroupBy(v_objUnit => ComparisonKey(v_objUnit.Ten_Don_Vi_Tinh), StringComparer.Ordinal)
             .ToDictionary(v_objGroup => v_objGroup.Key, v_objGroup => v_objGroup.ToArray(), StringComparer.Ordinal);
         var v_dicFirstByName = new Dictionary<string, CUnitImportRow>(StringComparer.Ordinal);
 

@@ -1,4 +1,5 @@
 @inherits FBase
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 
 <div class="card border mt-3">
     <div class="card-body">
@@ -31,33 +32,76 @@
                     </div>
                 </EditForm>
             }
-            else
+            else if (m_strMaster_Type == "Kho")
             {
-                <EditForm Model="@m_objMaster" OnValidSubmit="Save_Master_Async">
+                <EditForm Model="@m_objKho" OnValidSubmit="Save_Kho_Async">
                     <DataAnnotationsValidator />
                     <div class="row g-3 align-items-end">
-                        @if (m_strMaster_Type is "LoaiSanPham" or "SanPham" or "NCC")
-                        {
-                            <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objMaster.Code" /></div>
-                        }
-                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objMaster.Name" /></div>
-                        @if (m_strMaster_Type == "SanPham")
-                        {
-                            <div class="col-md-3"><label class="form-label">Loại sản phẩm</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objMaster.Related_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn loại --" /></div>
-                            <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objMaster.Related_ID_2" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
-                        }
-                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objMaster.Ghi_Chu" /></div>
+                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objKho.Ten_Kho" /></div>
+                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objKho.Ghi_Chu" /></div>
                         <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                @if (m_objMaster.Auto_ID == 0)
-                                {
-                                    <text>Thêm</text>
-                                }
-                                else
-                                {
-                                    <text>Lưu</text>
-                                }
-                            </button>
+                            <button type="submit" class="btn btn-success">@(m_objKho.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+            else if (m_strMaster_Type == "DonViTinh")
+            {
+                <EditForm Model="@m_objDon_Vi_Tinh" OnValidSubmit="Save_Don_Vi_Tinh_Async">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ten_Don_Vi_Tinh" /></div>
+                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ghi_Chu" /></div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objDon_Vi_Tinh.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+            else if (m_strMaster_Type == "LoaiSanPham")
+            {
+                <EditForm Model="@m_objLoai_San_Pham" OnValidSubmit="Save_Loai_San_Pham_Async">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ma_LSP" /></div>
+                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ten_LSP" /></div>
+                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ghi_Chu" /></div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objLoai_San_Pham.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+            else if (m_strMaster_Type == "SanPham")
+            {
+                <EditForm Model="@m_objSan_Pham" OnValidSubmit="Save_San_Pham_Async">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ma_San_Pham" /></div>
+                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ten_San_Pham" /></div>
+                        <div class="col-md-3"><label class="form-label">Loại sản phẩm</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objSan_Pham.Loai_San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn loại --" /></div>
+                        <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objSan_Pham.Don_Vi_Tinh_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
+                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ghi_Chu" /></div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objSan_Pham.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+            else if (m_strMaster_Type == "NCC")
+            {
+                <EditForm Model="@m_objNCC" OnValidSubmit="Save_NCC_Async">
+                    <DataAnnotationsValidator />
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objNCC.Ma_NCC" /></div>
+                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objNCC.Ten_NCC" /></div>
+                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objNCC.Ghi_Chu" /></div>
+                        <div class="col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objNCC.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
                             <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
                         </div>
                     </div>
@@ -113,7 +157,11 @@
     [Parameter] public string m_strEditor_Type { get; set; } = "";
     [Parameter] public string m_strMaster_Type { get; set; } = "";
     [Parameter] public bool m_bIs_Receipt { get; set; }
-    [Parameter] public CWarehouseMaster m_objMaster { get; set; } = new();
+    [Parameter] public CDM_Kho m_objKho { get; set; } = new();
+    [Parameter] public CDM_Don_Vi_Tinh m_objDon_Vi_Tinh { get; set; } = new();
+    [Parameter] public CDM_Loai_San_Pham m_objLoai_San_Pham { get; set; } = new();
+    [Parameter] public CDM_San_Pham m_objSan_Pham { get; set; } = new();
+    [Parameter] public CDM_NCC m_objNCC { get; set; } = new();
     [Parameter] public CWarehousePermission m_objPermission { get; set; } = new();
     [Parameter] public CWarehouseDocument m_objDocument { get; set; } = new();
     [Parameter] public CWarehouseDocumentDetail m_objDetail { get; set; } = new();
@@ -124,7 +172,16 @@
     [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
     [Parameter] public List<CWarehousePermission> m_arrWarehouseUser { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
-    [Parameter] public EventCallback<CWarehouseMaster> OnSave_Master { get; set; }
+    [Parameter] public EventCallback<CDM_Kho> OnAdd_Kho { get; set; }
+    [Parameter] public EventCallback<CDM_Kho> OnUpdate_Kho { get; set; }
+    [Parameter] public EventCallback<CDM_Don_Vi_Tinh> OnAdd_Don_Vi_Tinh { get; set; }
+    [Parameter] public EventCallback<CDM_Don_Vi_Tinh> OnUpdate_Don_Vi_Tinh { get; set; }
+    [Parameter] public EventCallback<CDM_Loai_San_Pham> OnAdd_Loai_San_Pham { get; set; }
+    [Parameter] public EventCallback<CDM_Loai_San_Pham> OnUpdate_Loai_San_Pham { get; set; }
+    [Parameter] public EventCallback<CDM_San_Pham> OnAdd_San_Pham { get; set; }
+    [Parameter] public EventCallback<CDM_San_Pham> OnUpdate_San_Pham { get; set; }
+    [Parameter] public EventCallback<CDM_NCC> OnAdd_NCC { get; set; }
+    [Parameter] public EventCallback<CDM_NCC> OnUpdate_NCC { get; set; }
     [Parameter] public EventCallback<CWarehousePermission> OnSave_Permission { get; set; }
     [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
     [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
@@ -160,10 +217,11 @@
             m_arrWarehouse, m_arrWarehouseUser, m_objPermission.Login_Name, m_objPermission.Permission_ID);
     }
 
-    private Task Save_Master_Async()
-    {
-        return OnSave_Master.InvokeAsync(m_objMaster);
-    }
+    private Task Save_Kho_Async() => m_objKho.Auto_ID == 0 ? OnAdd_Kho.InvokeAsync(m_objKho) : OnUpdate_Kho.InvokeAsync(m_objKho);
+    private Task Save_Don_Vi_Tinh_Async() => m_objDon_Vi_Tinh.Auto_ID == 0 ? OnAdd_Don_Vi_Tinh.InvokeAsync(m_objDon_Vi_Tinh) : OnUpdate_Don_Vi_Tinh.InvokeAsync(m_objDon_Vi_Tinh);
+    private Task Save_Loai_San_Pham_Async() => m_objLoai_San_Pham.Auto_ID == 0 ? OnAdd_Loai_San_Pham.InvokeAsync(m_objLoai_San_Pham) : OnUpdate_Loai_San_Pham.InvokeAsync(m_objLoai_San_Pham);
+    private Task Save_San_Pham_Async() => m_objSan_Pham.Auto_ID == 0 ? OnAdd_San_Pham.InvokeAsync(m_objSan_Pham) : OnUpdate_San_Pham.InvokeAsync(m_objSan_Pham);
+    private Task Save_NCC_Async() => m_objNCC.Auto_ID == 0 ? OnAdd_NCC.InvokeAsync(m_objNCC) : OnUpdate_NCC.InvokeAsync(m_objNCC);
 
     private Task Save_Permission_Async()
     {

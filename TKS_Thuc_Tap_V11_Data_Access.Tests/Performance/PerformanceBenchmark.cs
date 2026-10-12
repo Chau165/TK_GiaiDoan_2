@@ -8,6 +8,7 @@ using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests.Performance;
@@ -529,18 +530,18 @@ public static class PerformanceBenchmark
         await AddMetricAsync(p_metrics, "Crud_Master_Save_Update", p_options, async () =>
         {
             var v_name = "PERF_BM_" + Guid.NewGuid().ToString("N");
-            var v_item = new CWarehouseMaster { Name = v_name };
+            var v_item = new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = v_name };
             v_item.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
-            v_item.Name = v_name + "_U";
+            v_item.Ten_Don_Vi_Tinh = v_name + "_U";
             v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(v_item, "benchmark", "performance");
-            await CleanupUnitAsync(v_name, v_item.Name);
+            await CleanupUnitAsync(v_name, v_item.Ten_Don_Vi_Tinh);
             return 2;
         });
 
         await AddMetricAsync(p_metrics, "Crud_Master_Delete_Controller", p_options, async () =>
         {
             var v_name = "PERF_BM_" + Guid.NewGuid().ToString("N");
-            var v_item = new CWarehouseMaster { Name = v_name };
+            var v_item = new CDM_Don_Vi_Tinh { Ten_Don_Vi_Tinh = v_name };
             v_item.Auto_ID = v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
             try
             {
