@@ -10,8 +10,15 @@ public sealed class WarehouseGroupCDesharingContractTests
     public void Master_lookup_stores_are_split_by_function_and_entity()
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
+        var v_strController = string.Concat(new[]
+        {
+            "CDM_Kho_Controller.cs",
+            "CDM_Don_Vi_Tinh_Controller.cs",
+            "CDM_Loai_San_Pham_Controller.cs",
+            "CDM_San_Pham_Controller.cs",
+            "CDM_NCC_Controller.cs"
+        }.Select(v_strFile => File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", v_strFile))));
         var v_arrEntities = new[]
         {
             ("Kho", "F2009", "tbl_DM_Kho"),
@@ -38,8 +45,15 @@ public sealed class WarehouseGroupCDesharingContractTests
     public void Master_list_stores_are_split_by_function_and_entity()
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
+        var v_strController = string.Concat(new[]
+        {
+            "CDM_Kho_Controller.cs",
+            "CDM_Don_Vi_Tinh_Controller.cs",
+            "CDM_Loai_San_Pham_Controller.cs",
+            "CDM_San_Pham_Controller.cs",
+            "CDM_NCC_Controller.cs"
+        }.Select(v_strFile => File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", v_strFile))));
         var v_arrEntities = new[]
         {
             ("Kho", "F2009", "tbl_DM_Kho"),
@@ -66,8 +80,15 @@ public sealed class WarehouseGroupCDesharingContractTests
     public void Master_delete_stores_are_split_by_function_and_entity()
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
+        var v_strController = string.Concat(new[]
+        {
+            "CDM_Kho_Controller.cs",
+            "CDM_Don_Vi_Tinh_Controller.cs",
+            "CDM_Loai_San_Pham_Controller.cs",
+            "CDM_San_Pham_Controller.cs",
+            "CDM_NCC_Controller.cs"
+        }.Select(v_strFile => File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", v_strFile))));
         var v_arrEntities = new[]
         {
             ("Kho", "F2009", "tbl_DM_Kho"),
@@ -88,16 +109,6 @@ public sealed class WarehouseGroupCDesharingContractTests
         }
 
         Assert.DoesNotContain("\"sp_DM_Delete\"", v_strController, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Master_delete_rejects_unknown_entity_before_database_call()
-    {
-        var v_objController = new CWarehouseMaster_Controller();
-        var v_objException = await Assert.ThrowsAsync<ArgumentException>(() =>
-            v_objController.Delete_Master_Async("Unknown", 0));
-
-        Assert.Contains("Loại danh mục không hợp lệ.", v_objException.Message, StringComparison.Ordinal);
     }
 
     [Fact]

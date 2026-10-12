@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
@@ -48,7 +49,7 @@ public sealed class CWarehouseUnitImportService
             throw new InvalidDataException("Chỉ chấp nhận file Excel .xlsx theo template Đơn vị tính.");
 
         var v_objWorksheet = await m_objReader.ReadAsync(p_objSource, p_objCancellationToken);
-        var v_arrExistingUnits = await m_objMasterController.List_Master_Async("DonViTinh");
+        var v_arrExistingUnits = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
         return CUnitImportValidator.Preview(v_objWorksheet, v_arrExistingUnits);
     }
 
@@ -63,7 +64,7 @@ public sealed class CWarehouseUnitImportService
         if (!p_objPreview.Can_Confirm)
             throw new CUnitImportValidationException(p_objPreview);
 
-        var v_arrExistingUnits = await m_objMasterController.List_Master_Async("DonViTinh");
+        var v_arrExistingUnits = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
         var v_objCurrentPreview = CUnitImportValidator.Revalidate(p_objPreview.Rows, v_arrExistingUnits);
         if (!v_objCurrentPreview.Can_Confirm)
             throw new CUnitImportValidationException(v_objCurrentPreview);

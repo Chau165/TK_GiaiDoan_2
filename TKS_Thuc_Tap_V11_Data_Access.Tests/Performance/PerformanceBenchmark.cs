@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
@@ -263,10 +264,10 @@ public static class PerformanceBenchmark
         if (p_options.AllowFullLoad)
         {
             await AddMetricAsync(v_metrics, "MasterFullLoad", p_options, () =>
-                new CWarehouseMaster_Controller().List_Master_Async("SanPham")
+                new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "LookupFullLoad", p_options, () =>
-                new CWarehouseMaster_Controller().List_Lookup_Async("SanPham")
+                new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup()
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DocumentFullLoad", p_options, () =>
                 new CWarehouseDocument_Controller().List_Documents_Async(true, p_options.LoginName)
@@ -526,14 +527,14 @@ public static class PerformanceBenchmark
 
     private static async Task AddCrudMetricsAsync(ICollection<PerformanceMetric> p_metrics, PerformanceOptions p_options, ICollection<string> p_notes)
     {
-        var v_masterController = new CWarehouseMaster_Controller();
+        var v_objUnitController = new CDM_Don_Vi_Tinh_Controller();
         await AddMetricAsync(p_metrics, "Crud_Master_Save_Update", p_options, async () =>
         {
             var v_name = "PERF_BM_" + Guid.NewGuid().ToString("N");
             var v_item = new CWarehouseMaster { Name = v_name };
-            await v_masterController.Save_Master_Async("DonViTinh", v_item, "benchmark", "performance");
+            await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
             v_item.Name = v_name + "_U";
-            await v_masterController.Save_Master_Async("DonViTinh", v_item, "benchmark", "performance");
+            await v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(v_item, "benchmark", "performance");
             await CleanupUnitAsync(v_name, v_item.Name);
             return 2;
         });
@@ -542,10 +543,10 @@ public static class PerformanceBenchmark
         {
             var v_name = "PERF_BM_" + Guid.NewGuid().ToString("N");
             var v_item = new CWarehouseMaster { Name = v_name };
-            await v_masterController.Save_Master_Async("DonViTinh", v_item, "benchmark", "performance");
+            await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_item, "benchmark", "performance");
             try
             {
-                await v_masterController.Delete_Master_Async("DonViTinh", v_item.Auto_ID, "benchmark", "performance");
+                await v_objUnitController.F2016_sp_del_Don_Vi_Tinh(v_item.Auto_ID, "benchmark", "performance");
             }
             finally
             {

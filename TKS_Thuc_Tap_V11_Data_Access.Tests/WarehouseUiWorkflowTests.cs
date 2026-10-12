@@ -390,7 +390,15 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
         var v_ControllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
-        var v_Master = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
+        var v_Master = string.Concat(new[]
+        {
+            "CDM_Kho_Controller.cs",
+            "CDM_Don_Vi_Tinh_Controller.cs",
+            "CDM_Loai_San_Pham_Controller.cs",
+            "CDM_San_Pham_Controller.cs",
+            "CDM_NCC_Controller.cs"
+        }.Select(v_strFile => File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", v_strFile))));
         var v_Document = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseDocument_Controller.cs"));
         var v_Report = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseReport_Controller.cs"));
         var v_BaseController = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouse_Controller_Base.cs"));

@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
@@ -47,7 +48,7 @@ public sealed class CWarehouseCategoryImportService
         if (!string.Equals(Path.GetExtension(p_strFileName), ".xlsx", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Chỉ chấp nhận file Excel .xlsx theo template Loại sản phẩm.");
         var v_objWorksheet = await m_objReader.ReadAsync(p_objSource, p_objCancellationToken);
-        var v_arrExistingCategories = await m_objMasterController.List_Master_Async("LoaiSanPham");
+        var v_arrExistingCategories = await new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();
         return CCategoryImportValidator.Preview(v_objWorksheet, v_arrExistingCategories);
     }
 
@@ -61,7 +62,7 @@ public sealed class CWarehouseCategoryImportService
         ArgumentNullException.ThrowIfNull(p_objPreview);
         if (!p_objPreview.Can_Confirm)
             throw new CCategoryImportValidationException(p_objPreview);
-        var v_arrExistingCategories = await m_objMasterController.List_Master_Async("LoaiSanPham");
+        var v_arrExistingCategories = await new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();
         var v_objCurrentPreview = CCategoryImportValidator.Revalidate(p_objPreview.Rows, v_arrExistingCategories);
         if (!v_objCurrentPreview.Can_Confirm)
             throw new CCategoryImportValidationException(v_objCurrentPreview);

@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
@@ -93,8 +94,8 @@ public sealed class CWarehouseProductImportService
     private async Task<(List<CWarehouseMaster> Categories, List<CWarehouseMaster> Units, List<CWarehouseMaster> Products)> Load_Reference_Data_Async(
         CancellationToken p_objCancellationToken)
     {
-        var v_arrCategories = await m_objMasterController.List_Master_Async("LoaiSanPham");
-        var v_arrUnits = await m_objMasterController.List_Master_Async("DonViTinh");
+        var v_arrCategories = await new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();
+        var v_arrUnits = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
         var v_arrProducts = await m_objMasterController.List_Product_Masters_Async(p_objCancellationToken);
         return (v_arrCategories, v_arrUnits, v_arrProducts);
     }

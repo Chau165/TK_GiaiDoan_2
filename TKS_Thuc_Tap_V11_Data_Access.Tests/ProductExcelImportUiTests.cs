@@ -85,16 +85,17 @@ public sealed class ProductExcelImportUiTests
         var v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
         var v_iStart = v_strSource.IndexOf("public async Task Import_Products_Async(", StringComparison.Ordinal);
-        var v_iEnd = v_strSource.IndexOf("private Task Save_Master_Async(", v_iStart, StringComparison.Ordinal);
+        var v_iEnd = v_strSource.IndexOf("public async Task Import_Units_Async(", v_iStart, StringComparison.Ordinal);
 
-        Assert.True(v_iStart >= 0 && v_iEnd > v_iStart, "Import batch and transaction-aware save methods were not found.");
+        Assert.True(v_iStart >= 0 && v_iEnd > v_iStart, "Product import batch and next entity import were not found.");
         var v_strBatchMethod = v_strSource[v_iStart..v_iEnd];
         Assert.Equal(1, v_strBatchMethod.Split("new SqlConnection(", StringSplitOptions.None).Length - 1);
         Assert.Equal(1, v_strBatchMethod.Split("BeginTransaction(", StringSplitOptions.None).Length - 1);
-        Assert.Contains("v_objConnection, v_objTransaction);", v_strBatchMethod);
+        Assert.Contains("v_objProductController.F2018_sp_ins_San_Pham(v_objConnection, v_objTransaction, v_objProduct", v_strBatchMethod);
         Assert.Contains("v_objTransaction.Rollback();", v_strBatchMethod);
-        Assert.Contains("F2018_sp_ins_San_Pham", v_strSource);
-        Assert.Contains("Scalar_ID(p_objConnection, p_objTransaction, v_objCommand.Procedure", v_strSource);
+        var v_strProductController = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CDM_San_Pham_Controller.cs"));
+        Assert.Contains("Scalar_ID(p_conn, p_trans, \"F2018_sp_ins_San_Pham\"", v_strProductController);
     }
 
     private static string FindRepositoryPath(params string[] p_arrParts)

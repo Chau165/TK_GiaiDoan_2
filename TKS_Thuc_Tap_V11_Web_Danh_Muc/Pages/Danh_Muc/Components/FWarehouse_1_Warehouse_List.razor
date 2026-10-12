@@ -1,4 +1,5 @@
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
 @inherits FBase
 
 <div class="card">
@@ -514,11 +515,11 @@
 
     private async Task Load_Lookups_Async()
     {
-        m_arrUnit = await m_objMasterController.List_Lookup_Async("DonViTinh");
-        m_arrCategory = await m_objMasterController.List_Lookup_Async("LoaiSanPham");
-        m_arrProduct = await m_objMasterController.List_Lookup_Async("SanPham");
-        m_arrSupplier = await m_objMasterController.List_Lookup_Async("NCC");
-        m_arrAllWarehouse = await m_objMasterController.List_Lookup_Async("Kho");
+        m_arrUnit = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup();
+        m_arrCategory = await new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup();
+        m_arrProduct = await new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup();
+        m_arrSupplier = await new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup();
+        m_arrAllWarehouse = await new CDM_Kho_Controller().F2009_sp_sel_List_Kho_Lookup();
         m_arrWarehouse = await m_objPermissionController.List_Authorized_Warehouses_Async(r_strActive_User_Name);
         m_arrUser = await m_objPermissionController.List_User_Lookup_Async();
         m_arrWarehouseUser = await m_objPermissionController.List_Kho_User_Async();
@@ -546,7 +547,41 @@
                 return;
             }
 
-            await m_objMasterController.Save_Master_Async(m_strMaster_Type, p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+            switch (m_strMaster_Type)
+            {
+                case "Kho":
+                    if (v_iAuto_ID == 0)
+                        await new CDM_Kho_Controller().F2009_sp_ins_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    else
+                        await new CDM_Kho_Controller().F2009_sp_upd_Kho(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "DonViTinh":
+                    if (v_iAuto_ID == 0)
+                        await new CDM_Don_Vi_Tinh_Controller().F2016_sp_ins_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    else
+                        await new CDM_Don_Vi_Tinh_Controller().F2016_sp_upd_Don_Vi_Tinh(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "LoaiSanPham":
+                    if (v_iAuto_ID == 0)
+                        await new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    else
+                        await new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "SanPham":
+                    if (v_iAuto_ID == 0)
+                        await new CDM_San_Pham_Controller().F2018_sp_ins_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    else
+                        await new CDM_San_Pham_Controller().F2018_sp_upd_San_Pham(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "NCC":
+                    if (v_iAuto_ID == 0)
+                        await new CDM_NCC_Controller().F2019_sp_ins_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    else
+                        await new CDM_NCC_Controller().F2019_sp_upd_NCC(p_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                default:
+                    throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type));
+            }
 
             string v_strAction;
             if (v_iAuto_ID == 0)
@@ -805,7 +840,26 @@
     {
         try
         {
-            await m_objMasterController.Delete_Master_Async(m_strMaster_Type, p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+            switch (m_strMaster_Type)
+            {
+                case "Kho":
+                    await new CDM_Kho_Controller().F2009_sp_del_Kho(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "DonViTinh":
+                    await new CDM_Don_Vi_Tinh_Controller().F2016_sp_del_Don_Vi_Tinh(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "LoaiSanPham":
+                    await new CDM_Loai_San_Pham_Controller().F2017_sp_del_Loai_San_Pham(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "SanPham":
+                    await new CDM_San_Pham_Controller().F2018_sp_del_San_Pham(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                case "NCC":
+                    await new CDM_NCC_Controller().F2019_sp_del_NCC(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
+                    break;
+                default:
+                    throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type));
+            }
             Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse " + m_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
@@ -1063,7 +1117,15 @@
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export))
             {
-                var v_arrSource = await m_objMasterController.List_Master_Async(m_strMaster_Type);
+                var v_arrSource = m_strMaster_Type switch
+                {
+                    "Kho" => await new CDM_Kho_Controller().F2009_sp_sel_List_Kho(),
+                    "DonViTinh" => await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh(),
+                    "LoaiSanPham" => await new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham(),
+                    "SanPham" => await new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham(),
+                    "NCC" => await new CDM_NCC_Controller().F2019_sp_sel_List_NCC(),
+                    _ => throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type))
+                };
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items;
                 args.Total = v_objReadResult.Total_Count;

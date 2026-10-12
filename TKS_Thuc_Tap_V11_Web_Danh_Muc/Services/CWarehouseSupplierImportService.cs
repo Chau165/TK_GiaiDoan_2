@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
@@ -47,7 +48,7 @@ public sealed class CWarehouseSupplierImportService
         if (!string.Equals(Path.GetExtension(p_strFileName), ".xlsx", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Chỉ chấp nhận file Excel .xlsx theo template Nhà cung cấp.");
         var v_objWorksheet = await m_objReader.ReadAsync(p_objSource, p_objCancellationToken);
-        var v_arrExistingSuppliers = await m_objMasterController.List_Master_Async("NCC");
+        var v_arrExistingSuppliers = await new CDM_NCC_Controller().F2019_sp_sel_List_NCC();
         return CSupplierImportValidator.Preview(v_objWorksheet, v_arrExistingSuppliers);
     }
 
@@ -61,7 +62,7 @@ public sealed class CWarehouseSupplierImportService
         ArgumentNullException.ThrowIfNull(p_objPreview);
         if (!p_objPreview.Can_Confirm)
             throw new CSupplierImportValidationException(p_objPreview);
-        var v_arrExistingSuppliers = await m_objMasterController.List_Master_Async("NCC");
+        var v_arrExistingSuppliers = await new CDM_NCC_Controller().F2019_sp_sel_List_NCC();
         var v_objCurrentPreview = CSupplierImportValidator.Revalidate(p_objPreview.Rows, v_arrExistingSuppliers);
         if (!v_objCurrentPreview.Can_Confirm)
             throw new CSupplierImportValidationException(v_objCurrentPreview);

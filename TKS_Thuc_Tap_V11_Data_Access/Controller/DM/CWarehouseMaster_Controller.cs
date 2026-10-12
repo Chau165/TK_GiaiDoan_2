@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
@@ -6,38 +7,6 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 
 public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
 {
-    public Task<List<CWarehouseMaster>> List_Master_Async(string p_strMaster_Type)
-    {
-        string v_strProcedure;
-        switch (p_strMaster_Type)
-        {
-            case "Kho":
-                v_strProcedure = "F2009_sp_sel_List_Kho";
-                break;
-
-            case "DonViTinh":
-                v_strProcedure = "F2016_sp_sel_List_Don_Vi_Tinh";
-                break;
-
-            case "LoaiSanPham":
-                v_strProcedure = "F2017_sp_sel_List_Loai_San_Pham";
-                break;
-
-            case "SanPham":
-                v_strProcedure = "F2018_sp_sel_List_San_Pham";
-                break;
-
-            case "NCC":
-                v_strProcedure = "F2019_sp_sel_List_NCC";
-                break;
-
-            default:
-                throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(p_strMaster_Type));
-        }
-
-        return Task.FromResult(List_From_Procedure<CWarehouseMaster>(v_strProcedure));
-    }
-
     public Task<CWarehousePagedResult<CWarehouseMaster>> List_Master_Page_Async(string p_strMaster_Type, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "")
     {
         return Task.FromResult(Page_From_Procedure<CWarehouseMaster>("sp_DM_Master_Page", p_strMaster_Type, p_iPage_Number, p_iPage_Size, p_strSearch_Text));
@@ -77,49 +46,9 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         return v_arrProducts;
     }
 
-    public Task<List<CWarehouseLookup>> List_Lookup_Async(string p_strMaster_Type)
-    {
-        string v_strProcedure;
-        switch (p_strMaster_Type)
-        {
-            case "Kho":
-                v_strProcedure = "F2009_sp_sel_List_Kho_Lookup";
-                break;
-
-            case "DonViTinh":
-                v_strProcedure = "F2016_sp_sel_List_Don_Vi_Tinh_Lookup";
-                break;
-
-            case "LoaiSanPham":
-                v_strProcedure = "F2017_sp_sel_List_Loai_San_Pham_Lookup";
-                break;
-
-            case "SanPham":
-                v_strProcedure = "F2018_sp_sel_List_San_Pham_Lookup";
-                break;
-
-            case "NCC":
-                v_strProcedure = "F2019_sp_sel_List_NCC_Lookup";
-                break;
-
-            default:
-                throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(p_strMaster_Type));
-        }
-
-        return Task.FromResult(List_From_Procedure<CWarehouseLookup>(v_strProcedure));
-    }
-
     public Task<CWarehousePagedResult<CWarehouseLookup>> List_Lookup_Page_Async(string p_strMaster_Type, int p_iPage_Number, int p_iPage_Size, string p_strSearch_Text = "")
     {
         return Task.FromResult(Page_From_Procedure<CWarehouseLookup>("sp_DM_Lookup_Page", p_strMaster_Type, p_iPage_Number, p_iPage_Size, p_strSearch_Text));
-    }
-
-    public Task Save_Master_Async(string p_strMaster_Type, CWarehouseMaster p_objData,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
-    {
-        var v_objCommand = Build_Master_Save_Command(p_strMaster_Type, p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        p_objData.Auto_ID = Scalar_ID(v_objCommand.Procedure, v_objCommand.Values);
-        return Task.CompletedTask;
     }
 
     public async Task Import_Products_Async(
@@ -132,6 +61,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         if (p_arrRows.Count == 0)
             throw new ArgumentException("The product import batch cannot be empty.", nameof(p_arrRows));
 
+        var v_objProductController = new CDM_San_Pham_Controller();
         await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
         await v_objConnection.OpenAsync(p_objCancellationToken);
         using var v_objTransaction = v_objConnection.BeginTransaction();
@@ -153,7 +83,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
 
                 try
                 {
-                    await Save_Master_Async("SanPham", v_objProduct, p_strCurrent_User, p_strCurrent_Function, v_objConnection, v_objTransaction);
+                    await v_objProductController.F2018_sp_ins_San_Pham(v_objConnection, v_objTransaction, v_objProduct, p_strCurrent_User, p_strCurrent_Function);
                 }
                 catch (SqlException p_objException)
                 {
@@ -185,19 +115,6 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         }
     }
 
-    private Task Save_Master_Async(
-        string p_strMaster_Type,
-        CWarehouseMaster p_objData,
-        string p_strLast_Updated_By,
-        string p_strLast_Updated_By_Function,
-        SqlConnection p_objConnection,
-        SqlTransaction p_objTransaction)
-    {
-        var v_objCommand = Build_Master_Save_Command(p_strMaster_Type, p_objData, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        p_objData.Auto_ID = Scalar_ID(p_objConnection, p_objTransaction, v_objCommand.Procedure, v_objCommand.Values);
-        return Task.CompletedTask;
-    }
-
     public async Task Import_Units_Async(
         IReadOnlyList<CUnitImportRow> p_arrRows,
         string p_strCurrent_User,
@@ -208,6 +125,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         if (p_arrRows.Count == 0)
             throw new ArgumentException("The unit import batch cannot be empty.", nameof(p_arrRows));
 
+        var v_objUnitController = new CDM_Don_Vi_Tinh_Controller();
         await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
         await v_objConnection.OpenAsync(p_objCancellationToken);
         using var v_objTransaction = v_objConnection.BeginTransaction();
@@ -226,7 +144,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
 
                 try
                 {
-                    await Save_Master_Async("DonViTinh", v_objUnit, p_strCurrent_User, p_strCurrent_Function, v_objConnection, v_objTransaction);
+                    await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objConnection, v_objTransaction, v_objUnit, p_strCurrent_User, p_strCurrent_Function);
                 }
                 catch (SqlException p_objException)
                 {
@@ -267,6 +185,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         if (p_arrRows.Count == 0)
             throw new ArgumentException("The category import batch cannot be empty.", nameof(p_arrRows));
 
+        var v_objCategoryController = new CDM_Loai_San_Pham_Controller();
         await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
         await v_objConnection.OpenAsync(p_objCancellationToken);
         using var v_objTransaction = v_objConnection.BeginTransaction();
@@ -284,7 +203,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
                 };
                 try
                 {
-                    await Save_Master_Async("LoaiSanPham", v_objCategory, p_strCurrent_User, p_strCurrent_Function, v_objConnection, v_objTransaction);
+                    await v_objCategoryController.F2017_sp_ins_Loai_San_Pham(v_objConnection, v_objTransaction, v_objCategory, p_strCurrent_User, p_strCurrent_Function);
                 }
                 catch (SqlException p_objException)
                 {
@@ -324,6 +243,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         if (p_arrRows.Count == 0)
             throw new ArgumentException("The supplier import batch cannot be empty.", nameof(p_arrRows));
 
+        var v_objSupplierController = new CDM_NCC_Controller();
         await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
         await v_objConnection.OpenAsync(p_objCancellationToken);
         using var v_objTransaction = v_objConnection.BeginTransaction();
@@ -341,7 +261,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
                 };
                 try
                 {
-                    await Save_Master_Async("NCC", v_objSupplier, p_strCurrent_User, p_strCurrent_Function, v_objConnection, v_objTransaction);
+                    await v_objSupplierController.F2019_sp_ins_NCC(v_objConnection, v_objTransaction, v_objSupplier, p_strCurrent_User, p_strCurrent_Function);
                 }
                 catch (SqlException p_objException)
                 {
@@ -381,6 +301,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         if (p_arrRows.Count == 0)
             throw new ArgumentException("The warehouse import batch cannot be empty.", nameof(p_arrRows));
 
+        var v_objWarehouseController = new CDM_Kho_Controller();
         await using var v_objConnection = new SqlConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String);
         await v_objConnection.OpenAsync(p_objCancellationToken);
         using var v_objTransaction = v_objConnection.BeginTransaction();
@@ -397,7 +318,7 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
                 };
                 try
                 {
-                    await Save_Master_Async("Kho", v_objWarehouse, p_strCurrent_User, p_strCurrent_Function, v_objConnection, v_objTransaction);
+                    await v_objWarehouseController.F2009_sp_ins_Kho(v_objConnection, v_objTransaction, v_objWarehouse, p_strCurrent_User, p_strCurrent_Function);
                 }
                 catch (SqlException p_objException)
                 {
@@ -426,72 +347,4 @@ public class CWarehouseMaster_Controller : CWarehouse_Controller_Base
         }
     }
 
-    private static (string Procedure, object[] Values) Build_Master_Save_Command(
-        string p_strMaster_Type,
-        CWarehouseMaster p_objData,
-        string p_strLast_Updated_By,
-        string p_strLast_Updated_By_Function)
-    {
-        p_objData.Last_Updated_By = p_strLast_Updated_By;
-        p_objData.Last_Updated_By_Function = p_strLast_Updated_By_Function;
-        p_objData.Created_By = p_strLast_Updated_By;
-        p_objData.Created_By_Function = p_strLast_Updated_By_Function;
-
-        var v_bIsCreate = p_objData.Auto_ID == 0;
-        var v_strProcedure = p_strMaster_Type switch
-        {
-            "DonViTinh" => v_bIsCreate ? "F2016_sp_ins_Don_Vi_Tinh" : "F2016_sp_upd_Don_Vi_Tinh",
-            "LoaiSanPham" => v_bIsCreate ? "F2017_sp_ins_Loai_San_Pham" : "F2017_sp_upd_Loai_San_Pham",
-            "SanPham" => v_bIsCreate ? "F2018_sp_ins_San_Pham" : "F2018_sp_upd_San_Pham",
-            "NCC" => v_bIsCreate ? "F2019_sp_ins_NCC" : "F2019_sp_upd_NCC",
-            "Kho" => v_bIsCreate ? "F2009_sp_ins_Kho" : "F2009_sp_upd_Kho",
-            _ => throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(p_strMaster_Type))
-        };
-
-        var v_arrValues = p_strMaster_Type switch
-        {
-            "DonViTinh" => new object[] { p_objData.Auto_ID, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function },
-            "LoaiSanPham" => new object[] { p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function },
-            "SanPham" => new object[] { p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Related_ID, p_objData.Related_ID_2, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function },
-            "NCC" => new object[] { p_objData.Auto_ID, p_objData.Code, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function },
-            "Kho" => new object[] { p_objData.Auto_ID, p_objData.Name, p_objData.Ghi_Chu, p_objData.Created_By, p_objData.Created_By_Function, p_objData.Last_Updated_By, p_objData.Last_Updated_By_Function },
-            _ => throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(p_strMaster_Type))
-        };
-
-        return (v_strProcedure, v_arrValues);
-    }
-
-    public Task Delete_Master_Async(string p_strMaster_Type, long p_iAuto_ID,
-        string p_strLast_Updated_By = "", string p_strLast_Updated_By_Function = "")
-    {
-        string v_strProcedure;
-        switch (p_strMaster_Type)
-        {
-            case "Kho":
-                v_strProcedure = "F2009_sp_del_Kho";
-                break;
-
-            case "DonViTinh":
-                v_strProcedure = "F2016_sp_del_Don_Vi_Tinh";
-                break;
-
-            case "LoaiSanPham":
-                v_strProcedure = "F2017_sp_del_Loai_San_Pham";
-                break;
-
-            case "SanPham":
-                v_strProcedure = "F2018_sp_del_San_Pham";
-                break;
-
-            case "NCC":
-                v_strProcedure = "F2019_sp_del_NCC";
-                break;
-
-            default:
-                throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(p_strMaster_Type));
-        }
-
-        Execute_Procedure(v_strProcedure, p_iAuto_ID, p_strLast_Updated_By, p_strLast_Updated_By_Function);
-        return Task.CompletedTask;
-    }
 }

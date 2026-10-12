@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
@@ -206,9 +207,9 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
             Name = v_objWarehouse.Name
         }).ToArray();
         IReadOnlyList<CWarehouseMaster> v_arrSuppliers = v_bIsReceipt
-            ? await m_objMasterController.List_Master_Async("NCC")
+            ? await new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
             : Array.Empty<CWarehouseMaster>();
-        var v_arrUnits = await m_objMasterController.List_Master_Async("DonViTinh");
+        var v_arrUnits = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
         var v_arrProducts = await m_objMasterController.List_Product_Masters_Async(p_objCancellationToken);
         var v_arrExistingDocuments = await Load_Existing_Documents_Async(
             v_bIsReceipt, p_arrDocumentNumbers, p_strCurrent_Login, p_objCancellationToken);

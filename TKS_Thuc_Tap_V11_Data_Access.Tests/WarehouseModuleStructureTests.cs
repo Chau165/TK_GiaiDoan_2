@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
@@ -32,7 +33,7 @@ public class WarehouseModuleStructureTests
     {
         CConfig.TKS_Thuc_Tap_V11_Conn_String = WarehouseTestDatabase.ConnectionString;
 
-        var v_arrResult = await new CWarehouseMaster_Controller().List_Master_Async("DonViTinh");
+        var v_arrResult = await new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh();
 
         Assert.Contains(v_arrResult, item => item.Name == "Cái");
         Assert.All(v_arrResult, item => Assert.Equal(0L, item.Related_ID));

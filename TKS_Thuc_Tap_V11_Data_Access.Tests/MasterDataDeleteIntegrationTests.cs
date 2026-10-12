@@ -1,6 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
 
@@ -27,8 +27,8 @@ public sealed class MasterDataDeleteIntegrationTests
 
         try
         {
-            await new CWarehouseMaster_Controller().Delete_Master_Async(
-                "LoaiSanPham", v_iCategoryId, "tdd-delete-user", "tdd-delete-function");
+            await new CDM_Loai_San_Pham_Controller().F2017_sp_del_Loai_San_Pham(
+                v_iCategoryId, "tdd-delete-user", "tdd-delete-function");
 
             Assert.Equal(0L, await ScalarLongAsync(
                 "SELECT COUNT_BIG(*) FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID = @Id;",

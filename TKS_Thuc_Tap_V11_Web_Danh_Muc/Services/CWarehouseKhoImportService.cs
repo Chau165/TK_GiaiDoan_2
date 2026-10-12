@@ -1,4 +1,5 @@
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using TKS_Thuc_Tap_V11_Web_Common.Common;
@@ -47,7 +48,7 @@ public sealed class CWarehouseKhoImportService
         if (!string.Equals(Path.GetExtension(p_strFileName), ".xlsx", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Chỉ chấp nhận file Excel .xlsx theo template Kho.");
         var v_objWorksheet = await m_objReader.ReadAsync(p_objSource, p_objCancellationToken);
-        var v_arrExistingWarehouses = await m_objMasterController.List_Master_Async("Kho");
+        var v_arrExistingWarehouses = await new CDM_Kho_Controller().F2009_sp_sel_List_Kho();
         return CWarehouseImportValidator.Preview(v_objWorksheet, v_arrExistingWarehouses);
     }
 
@@ -61,7 +62,7 @@ public sealed class CWarehouseKhoImportService
         ArgumentNullException.ThrowIfNull(p_objPreview);
         if (!p_objPreview.Can_Confirm)
             throw new CWarehouseImportValidationException(p_objPreview);
-        var v_arrExistingWarehouses = await m_objMasterController.List_Master_Async("Kho");
+        var v_arrExistingWarehouses = await new CDM_Kho_Controller().F2009_sp_sel_List_Kho();
         var v_objCurrentPreview = CWarehouseImportValidator.Revalidate(p_objPreview.Rows, v_arrExistingWarehouses);
         if (!v_objCurrentPreview.Can_Confirm)
             throw new CWarehouseImportValidationException(v_objCurrentPreview);

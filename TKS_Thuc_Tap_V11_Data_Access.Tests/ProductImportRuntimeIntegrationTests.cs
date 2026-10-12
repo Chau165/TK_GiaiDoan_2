@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -60,7 +61,7 @@ public sealed class ProductImportRuntimeIntegrationTests
 
             var v_objService = new CWarehouseProductImportService(new CAllowAddPermission());
             await VerifyUnitResolutionPreviewAsync(v_objDatabase, v_objService, v_strRootPrefix);
-            await VerifyUnitCrudAsync(v_objDatabase, new CWarehouseMaster_Controller(), v_strUnitPrefix);
+            await VerifyUnitCrudAsync(v_objDatabase, v_strUnitPrefix);
 
             await VerifyOneHundredRowImportAsync(
                 v_objDatabase,
@@ -155,30 +156,30 @@ public sealed class ProductImportRuntimeIntegrationTests
 
     private async Task VerifyUnitCrudAsync(
         SqlConnection p_objConnection,
-        CWarehouseMaster_Controller p_objController,
         string p_strUnitPrefix)
     {
         var v_strCuon = p_strUnitPrefix + "Cuộn";
         var v_strCuonAccent = p_strUnitPrefix + "Cuốn";
+        var v_objUnitController = new CDM_Don_Vi_Tinh_Controller();
         await EnsureTargetIdentityAsync(p_objConnection);
 
         var v_objCuon = new CWarehouseMaster { Name = v_strCuon };
-        await p_objController.Save_Master_Async("DonViTinh", v_objCuon, m_strTestUser, m_strTestFunction);
+        await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuon, m_strTestUser, m_strTestFunction);
         var v_objCuonAccent = new CWarehouseMaster { Name = v_strCuonAccent };
         await EnsureTargetIdentityAsync(p_objConnection);
-        await p_objController.Save_Master_Async("DonViTinh", v_objCuonAccent, m_strTestUser, m_strTestFunction);
+        await v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(v_objCuonAccent, m_strTestUser, m_strTestFunction);
         Assert.NotEqual(0, v_objCuon.Auto_ID);
         Assert.NotEqual(0, v_objCuonAccent.Auto_ID);
         Assert.NotEqual(v_objCuon.Auto_ID, v_objCuonAccent.Auto_ID);
 
         await EnsureTargetIdentityAsync(p_objConnection);
-        var v_objInsertDuplicate = await Record.ExceptionAsync(() => p_objController.Save_Master_Async(
-            "DonViTinh", new CWarehouseMaster { Name = p_strUnitPrefix + "CUỘN" }, m_strTestUser, m_strTestFunction));
+        var v_objInsertDuplicate = await Record.ExceptionAsync(() => v_objUnitController.F2016_sp_ins_Don_Vi_Tinh(
+            new CWarehouseMaster { Name = p_strUnitPrefix + "CUỘN" }, m_strTestUser, m_strTestFunction));
         Assert.Equal(51002, Assert.IsType<SqlException>(v_objInsertDuplicate).Number);
 
         await EnsureTargetIdentityAsync(p_objConnection);
-        var v_objUpdateDuplicate = await Record.ExceptionAsync(() => p_objController.Save_Master_Async(
-            "DonViTinh", new CWarehouseMaster { Auto_ID = v_objCuonAccent.Auto_ID, Name = p_strUnitPrefix + "CUỘN" },
+        var v_objUpdateDuplicate = await Record.ExceptionAsync(() => v_objUnitController.F2016_sp_upd_Don_Vi_Tinh(
+            new CWarehouseMaster { Auto_ID = v_objCuonAccent.Auto_ID, Name = p_strUnitPrefix + "CUỘN" },
             m_strTestUser, m_strTestFunction));
         Assert.Equal(51002, Assert.IsType<SqlException>(v_objUpdateDuplicate).Number);
         Assert.Equal(v_strCuonAccent, await GetUnitNameAsync(p_objConnection, v_objCuonAccent.Auto_ID));

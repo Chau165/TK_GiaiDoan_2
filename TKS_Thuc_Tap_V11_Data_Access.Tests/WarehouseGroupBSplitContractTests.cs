@@ -59,14 +59,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Don_Vi_Tinh_controller_dispatches_by_zero_or_nonzero_Auto_ID()
+    public void Don_Vi_Tinh_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
-        var v_strExpectedCase = @"case\s+""DonViTinh""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2016_sp_ins_Don_Vi_Tinh"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2016_sp_upd_Don_Vi_Tinh"";\s*\}";
+        var v_strCaller = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("p_objData.Auto_ID == 0", v_strController);
-        Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
+        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
+        Assert.Contains("F2016_sp_ins_Don_Vi_Tinh(p_objData", v_strCaller);
+        Assert.Contains("F2016_sp_upd_Don_Vi_Tinh(p_objData", v_strCaller);
     }
 
     [Fact]
@@ -97,13 +97,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Kho_controller_dispatches_by_zero_or_nonzero_Auto_ID()
+    public void Kho_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
-        var v_strExpectedCase = @"case\s+""Kho""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2009_sp_ins_Kho"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2009_sp_upd_Kho"";\s*\}";
+        var v_strCaller = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
+        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
+        Assert.Contains("F2009_sp_ins_Kho(p_objData", v_strCaller);
+        Assert.Contains("F2009_sp_upd_Kho(p_objData", v_strCaller);
     }
     [Fact]
     public void Loai_San_Pham_insert_and_update_stores_preserve_validation_and_one_write_path_each()
@@ -137,13 +138,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void Loai_San_Pham_controller_dispatches_by_zero_or_nonzero_Auto_ID()
+    public void Loai_San_Pham_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
-        var v_strExpectedCase = @"case\s+""LoaiSanPham""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2017_sp_ins_Loai_San_Pham"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2017_sp_upd_Loai_San_Pham"";\s*\}";
+        var v_strCaller = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
+        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
+        Assert.Contains("F2017_sp_ins_Loai_San_Pham(p_objData", v_strCaller);
+        Assert.Contains("F2017_sp_upd_Loai_San_Pham(p_objData", v_strCaller);
     }
     [Fact]
     public void San_Pham_insert_and_update_stores_preserve_validation_foreign_keys_and_one_write_path_each()
@@ -181,13 +183,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void San_Pham_controller_dispatches_by_zero_or_nonzero_Auto_ID()
+    public void San_Pham_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
-        var v_strExpectedCase = @"case\s+""SanPham""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2018_sp_ins_San_Pham"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2018_sp_upd_San_Pham"";\s*\}";
+        var v_strCaller = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
+        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
+        Assert.Contains("F2018_sp_ins_San_Pham(p_objData", v_strCaller);
+        Assert.Contains("F2018_sp_upd_San_Pham(p_objData", v_strCaller);
     }
     [Fact]
     public void NCC_insert_and_update_stores_preserve_validation_and_one_write_path_each()
@@ -221,13 +224,14 @@ public sealed class WarehouseGroupBSplitContractTests
     }
 
     [Fact]
-    public void NCC_controller_dispatches_by_zero_or_nonzero_Auto_ID()
+    public void NCC_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMaster_Controller.cs"));
-        var v_strExpectedCase = @"case\s+""NCC""\s*:\s*if\s*\(\s*v_bIsCreate\s*\)\s*\{\s*v_strProcedure\s*=\s*""F2019_sp_ins_NCC"";\s*\}\s*else\s*\{\s*v_strProcedure\s*=\s*""F2019_sp_upd_NCC"";\s*\}";
+        var v_strCaller = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Matches(new Regex(v_strExpectedCase, RegexOptions.Singleline), v_strController);
+        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
+        Assert.Contains("F2019_sp_ins_NCC(p_objData", v_strCaller);
+        Assert.Contains("F2019_sp_upd_NCC(p_objData", v_strCaller);
     }
     [Fact]
     public void Kho_User_insert_and_update_stores_preserve_validation_and_one_write_path_each()
