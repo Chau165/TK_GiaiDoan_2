@@ -73,26 +73,26 @@ public sealed class WarehouseMasterEntityDecompositionContractTests
             ["Ghi_Chu"] = typeof(string)
         };
 
-        Dictionary<string, string[]> v_dicBusinessProperties = new()
+        Dictionary<string, (string Name, Type Type)[]> v_dicBusinessProperties = new()
         {
-            ["CDM_Kho"] = ["Ten_Kho"],
-            ["CDM_Don_Vi_Tinh"] = ["Ten_Don_Vi_Tinh"],
-            ["CDM_Loai_San_Pham"] = ["Ma_LSP", "Ten_LSP"],
-            ["CDM_San_Pham"] = ["Ma_San_Pham", "Ten_San_Pham", "Loai_San_Pham_ID", "Don_Vi_Tinh_ID"],
-            ["CDM_NCC"] = ["Ma_NCC", "Ten_NCC"]
+            ["CDM_Kho"] = [("Ten_Kho", typeof(string))],
+            ["CDM_Don_Vi_Tinh"] = [("Ten_Don_Vi_Tinh", typeof(string))],
+            ["CDM_Loai_San_Pham"] = [("Ma_LSP", typeof(string)), ("Ten_LSP", typeof(string))],
+            ["CDM_San_Pham"] = [("Ma_San_Pham", typeof(string)), ("Ten_San_Pham", typeof(string)), ("Loai_San_Pham_ID", typeof(long)), ("Don_Vi_Tinh_ID", typeof(long))],
+            ["CDM_NCC"] = [("Ma_NCC", typeof(string)), ("Ten_NCC", typeof(string))]
         };
 
         Assembly v_objAssembly = typeof(CDM_Kho_Controller).Assembly;
-        foreach ((string v_strEntityName, string[] v_arrBusinessProperties) in v_dicBusinessProperties)
+        foreach (KeyValuePair<string, (string Name, Type Type)[]> v_objContract in v_dicBusinessProperties)
         {
-            Type? v_objEntity = v_objAssembly.GetType(EntityNamespace + v_strEntityName);
+            Type? v_objEntity = v_objAssembly.GetType(EntityNamespace + v_objContract.Key);
             Assert.NotNull(v_objEntity);
 
             foreach ((string v_strPropertyName, Type v_objPropertyType) in v_dicCommonProperties)
                 Assert.Equal(v_objPropertyType, v_objEntity!.GetProperty(v_strPropertyName)?.PropertyType);
 
-            foreach (string v_strPropertyName in v_arrBusinessProperties)
-                Assert.Equal(typeof(string), v_objEntity!.GetProperty(v_strPropertyName)?.PropertyType);
+            foreach ((string v_strPropertyName, Type v_objPropertyType) in v_objContract.Value)
+                Assert.Equal(v_objPropertyType, v_objEntity!.GetProperty(v_strPropertyName)?.PropertyType);
         }
     }
 
@@ -146,7 +146,7 @@ public sealed class WarehouseMasterEntityDecompositionContractTests
         }
 
         string v_strProductSupport = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", "CWarehouseProductSupport_Service.cs");
-        Assert.Contains("List<CDM_San_Pham> List_Product_Masters_Async", v_strProductSupport);
+        Assert.Contains("Task<List<CDM_San_Pham>> List_Product_Masters_Async", v_strProductSupport);
     }
 
     [Fact]
