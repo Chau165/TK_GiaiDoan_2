@@ -1,0 +1,27 @@
+# Risk matrix — Warehouse company-style class/method refactor
+
+Plan-only assessment. Ratings describe implementation risk, not a claim that a defect is currently present. Live database parity is not verified.
+
+| ID | Risk | Evidence | Rating | Impact | Mitigation / gate | Blocking status |
+|---|---|---|---|---|---|---|
+| R1 | Caller blast radius | 218 external direct calls across 28 source files plus 7 internal calls. | HIGH | Wrong entity/action mapping can change behavior or break build. | Migrate with caller map; preserve operation/arguments; compile and verify each phase. | Any unresolved caller blocks retiring old class. |
+| R2 | Generic Master entity model | No dedicated Kho/DVT/LSP/SP/NCC models; `CWarehouseMaster` is broadly used. | HIGH | Field mapping, validation, serialization, and import previews can drift. | Map properties and checked-in SQL parameters before typed entity migration; separate model phase. | Gate before removing generic signatures. |
+| R3 | Transaction preservation | Six orchestrators and nine insert transaction overloads (5 master + 4 document). | HIGH | Partial writes or changed rollback/error/audit behavior. | Keep transaction scope and ordering; verify rollback/error behavior against isolated test DB. | Required in CLASS-3 and CLASS-6. |
+| R4 | Receipt/issue route | Document controller uses `p_bIs_Receipt` across header/detail/list/delete/post. | HIGH | Wrong route may read/write the opposite document type. | Resolve route in caller; F3001 stays receipt and F3002 issue; keep shared Post Store until naming guidance. | Review each caller. |
+| R5 | Page/Post/shared naming unresolved | Nine Page/Post Stores plus a shared permission lookup have no confirmed owner/naming rule. | MEDIUM | Invented names or premature SQL edits violate scope. | Preserve SQL and current C# support names; isolate under an unnamed temporary owner; track SUPPORT-NAMING separately. | Explicitly non-blocking for CRUD/List decomposition. |
+| R6 | Live database parity | 59 Store names/headers match two checked-in SQL scripts; live DB not queried. | HIGH | Deployment definitions or parameters may differ from repository. | Before implementation, compare live definitions/parameters with checked-in scripts using read-only catalog access. | Live DB check is an implementation gate. |
+| R7 | Sync/async API change | 32 public methods return Task around mostly synchronous CSqlHelper calls; 225 callsites. | MEDIUM-HIGH | Await/Task changes can break UI/tests or alter error timing. | Convert method and callers together; keep async in orchestration; verify each phase. | Confirm build and behavior per phase. |
+| R8 | Report composition | `Inventory_Report_Async` calls report Store and shared permission lookup, then maps warehouse names. | MEDIUM | Partial move can change rows, labels, or authorization filter. | Split direct Store access; preserve composition/mapping at existing report workflow/caller. | Choose existing owner before implementation. |
+| R9 | No temporary-owner precedent | No shared Page/Post controller or XNK/BC folder precedent found. | MEDIUM | Invented class/folder can conflict with company conventions. | Check existing company precedent; keep owner name TBD in plan. | Does not block entity CRUD split. |
+| R10 | Product helper placement | Product code/master helpers are not direct Store methods; no product query-service precedent found. | MEDIUM | Putting orchestration in a low-level Store method violates the target boundary. | Keep helpers separate; identify existing product workflow/caller owner before implementation. | Owner decision before retiring Master class. |
+| R11 | Namespace/folder alignment | Master file is under `Controller/DM` but currently declares `.Controller.Warehouse`. | MEDIUM | Split can leave stale `using` or DI references. | Follow `CDM_Chu_Hang_Controller` namespace precedent and migrate consumers in same phase. | Verify solution build. |
+| R12 | Technical subsystem boundary | Report/permission business classes must not absorb `sp_Inventory_*`, Snapshot, Fence, Movement, Reservation, Reconciliation. | MEDIUM | Mixing technical projections with user-facing reports obscures ownership and behavior. | Keep technical subsystem boundaries intact; leave it out of this refactor. | No technical Store changes in this plan. |
+| R13 | Static caller scan limits | Map uses direct `.cs`/`.razor` invocation search; reflection, generated code, external consumers, and runtime DI are not proven absent. | MEDIUM | A dynamic/external consumer could still depend on old names. | Inspect DI/reflection/config registrations before retiring old classes. | Compatibility check before CLASS-9. |
+
+## Required implementation invariants
+
+- Preserve the same Stored Procedures, parameters and order, result mapping, errors, audit values, and receipt/issue routing.
+- Preserve one connection/transaction per import batch/document where currently required, including rollback and header/detail order.
+- Each normalized low-level Store method calls one Store with the exact existing Store name as its C# method name.
+- Page/Post/shared naming exceptions keep current SQL and C# method names until company guidance arrives; they do not block CRUD/List decomposition.
+- Keep technical `sp_Inventory_*`, Snapshot, Fence, Movement, Reservation, and Reconciliation outside business-controller decomposition.

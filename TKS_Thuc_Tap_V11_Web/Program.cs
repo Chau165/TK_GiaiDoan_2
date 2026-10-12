@@ -86,6 +86,11 @@ CCache_Common_Controller.Is_Used_Cache = true;
 CCache_Common_Controller.Is_Completed_Load_Cache = false;
 
 CCache_Chu_Hang.Load_Cache_Chu_Hang();
+CCache_Kho.Load_Cache_Kho();
+CCache_Don_Vi_Tinh.Load_Cache_Don_Vi_Tinh();
+CCache_Loai_San_Pham.Load_Cache_Loai_San_Pham();
+CCache_San_Pham.Load_Cache_San_Pham();
+CCache_NCC.Load_Cache_NCC();
 CCache_Chuc_Nang.Load_Cache_Chuc_Nang();
 CCache_Nhom_Thanh_Vien.Load_Cache_Nhom_Thanh_Vien();
 CCache_Nhom_Thanh_Vien_User.Load_Cache_Nhom_Thanh_Vien_User();
