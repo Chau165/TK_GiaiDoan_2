@@ -1,7 +1,8 @@
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
-@using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.BC
+@using TKS_Thuc_Tap_V11_Data_Access.Utility
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK
@@ -1421,8 +1422,8 @@
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
             {
                 List<CWarehouseDetailReport> v_arrSource = m_strReport_Type == "Receipt"
-                    ? m_objReportController.sp_BC_Chi_Tiet_Nhap(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID)
-                    : m_objReportController.sp_BC_Chi_Tiet_Xuat(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                    ? m_objReportController.F9002_sp_Chi_Tiet_Nhap(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID)
+                    : m_objReportController.F9002_sp_Chi_Tiet_Xuat(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
                 if (args.Request.PageSize > 0)
@@ -1431,8 +1432,8 @@
             else
             {
                 var v_objResult = m_strReport_Type == "Receipt"
-                    ? m_objReportController.sp_BC_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)
-                    : m_objReportController.sp_BC_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                    ? m_objReportController.F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)
+                    : m_objReportController.F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 m_arrDetailReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
         }
@@ -1455,7 +1456,7 @@
                 List<CWarehouseInventoryReport> v_arrSource;
                 if (Is_Current_Inventory_Report)
                 {
-                    var v_objFullResult = m_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                    var v_objFullResult = m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(
                         1, 0, r_strActive_User_Name, m_iReport_Warehouse_ID);
                     v_arrSource = v_objFullResult.Items;
                 }
@@ -1477,9 +1478,9 @@
                     v_iPage_Size = 10;
 
                 var v_objResult = Is_Current_Inventory_Report
-                    ? m_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                    ? m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(
                         args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID)
-                    : m_objReportController.sp_BC_Xuat_Nhap_Ton_Page(
+                    : m_objReportController.F9002_sp_Xuat_Nhap_Ton_Page(
                         m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID);
                 m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
@@ -1503,7 +1504,7 @@
         string p_strCurrent_Login,
         long? p_iWarehouse_ID)
     {
-        List<CWarehouseInventoryReport> v_arrReport = m_objReportController.sp_BC_Xuat_Nhap_Ton(
+        List<CWarehouseInventoryReport> v_arrReport = m_objReportController.F9002_sp_Xuat_Nhap_Ton(
             p_dtmFrom, p_dtmTo, p_strCurrent_Login, p_iWarehouse_ID);
         Dictionary<long, string> v_dicAuthorizedWarehouseNames = m_objPermissionController
             .sp_DM_Kho_User_List_Allowed(p_strCurrent_Login)

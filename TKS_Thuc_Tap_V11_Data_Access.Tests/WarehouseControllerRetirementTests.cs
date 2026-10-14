@@ -1,4 +1,7 @@
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using Xunit;
 
@@ -66,7 +69,7 @@ public sealed class WarehouseControllerRetirementTests
         Assert.NotNull(typeof(CWarehouseReport_Controller));
 
         var v_strBaseSource = File.ReadAllText(Path.Combine(FindRepositoryRoot(),
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouse_Controller_Base.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Common", "CWarehouse_Controller_Base.cs"));
         Assert.Contains("List_From_Procedure", v_strBaseSource);
         Assert.Contains("Page_From_Procedure", v_strBaseSource);
         Assert.Contains("Scalar_ID", v_strBaseSource);
@@ -81,9 +84,9 @@ public sealed class WarehouseControllerRetirementTests
         var v_strWarehouseList = File.ReadAllText(Path.Combine(v_strRoot,
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
         var v_strMasterSupport = File.ReadAllText(Path.Combine(v_strDataAccess,
-            "Controller", "Warehouse", "CWarehouseMasterSupport_Controller.cs"));
+            "Controller", "DM", "CWarehouseMasterSupport_Controller.cs"));
         var v_strReportController = File.ReadAllText(Path.Combine(v_strDataAccess,
-            "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
+            "Controller", "BC", "CWarehouseReport_Controller.cs"));
 
         Assert.NotNull(typeof(CWarehouseLookup));
         Assert.NotNull(typeof(CWarehousePagedResult<>));

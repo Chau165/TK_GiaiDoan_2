@@ -37,7 +37,7 @@ WHERE Snapshot_Date = @SnapshotDate
   AND San_Pham_ID = @San_Pham_ID;
 COMMIT TRANSACTION;
 
-EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay = @FromDate,
     @Den_Ngay = @ToDate,
     @Page_Number = 1,
@@ -82,7 +82,7 @@ EXEC dbo.sp_Inventory_Snapshot_Invalidate_From
     @San_Pham_ID = @San_Pham_ID,
     @InvalidReason = N'BACK_DATE_POST';
 
-EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay = @FromDate,
     @Den_Ngay = @ToDate,
     @Page_Number = 1,
@@ -96,7 +96,7 @@ FROM tempdb.sys.dm_db_file_space_usage;
 PRINT N'AFTER_REBUILD_QUEUE_REPORT';
 EXEC dbo.sp_Inventory_Snapshot_Process_RebuildQueue @Batch_Size = 100;
 
-EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay = @FromDate,
     @Den_Ngay = @ToDate,
     @Page_Number = 1,

@@ -106,7 +106,7 @@ public sealed class WarehouseInventorySnapshotIntegrationTests
 
     private static async Task<InventoryReportRow> ReadInventoryReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login)
     {
-        await using var v_Command = new SqlCommand("sp_BC_Xuat_Nhap_Ton_Page", p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
+        await using var v_Command = new SqlCommand("F9002_sp_Xuat_Nhap_Ton_Page", p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
         v_Command.Parameters.Add(Date("@Tu_Ngay", new DateTime(2026, 2, 1)));
         v_Command.Parameters.Add(Date("@Den_Ngay", new DateTime(2026, 2, 28)));
         v_Command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });

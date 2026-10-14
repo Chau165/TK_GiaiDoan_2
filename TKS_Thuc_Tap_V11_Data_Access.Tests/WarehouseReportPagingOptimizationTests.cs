@@ -20,9 +20,9 @@ public sealed class WarehouseReportPagingOptimizationTests
         await using var v_Connection = new SqlConnection(ConnectionString);
         await v_Connection.OpenAsync();
 
-        var v_InventoryDefinition = await ReadDefinitionAsync(v_Connection, "sp_BC_Xuat_Nhap_Ton_Page");
-        var v_ReceiptDefinition = await ReadDefinitionAsync(v_Connection, "sp_BC_Chi_Tiet_Nhap_Page");
-        var v_IssueDefinition = await ReadDefinitionAsync(v_Connection, "sp_BC_Chi_Tiet_Xuat_Page");
+        var v_InventoryDefinition = await ReadDefinitionAsync(v_Connection, "F9002_sp_Xuat_Nhap_Ton_Page");
+        var v_ReceiptDefinition = await ReadDefinitionAsync(v_Connection, "F9002_sp_Chi_Tiet_Nhap_Page");
+        var v_IssueDefinition = await ReadDefinitionAsync(v_Connection, "F9002_sp_Chi_Tiet_Xuat_Page");
 
         Assert.Contains("AuthorizedScope", v_InventoryDefinition, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CROSS APPLY", v_InventoryDefinition, StringComparison.OrdinalIgnoreCase);
@@ -67,8 +67,8 @@ public sealed class WarehouseReportPagingOptimizationTests
         await using var v_Connection = new SqlConnection(ConnectionString);
         await v_Connection.OpenAsync();
 
-        var v_ReceiptDefinition = await ReadDefinitionAsync(v_Connection, "sp_BC_Chi_Tiet_Nhap_Page");
-        var v_IssueDefinition = await ReadDefinitionAsync(v_Connection, "sp_BC_Chi_Tiet_Xuat_Page");
+        var v_ReceiptDefinition = await ReadDefinitionAsync(v_Connection, "F9002_sp_Chi_Tiet_Nhap_Page");
+        var v_IssueDefinition = await ReadDefinitionAsync(v_Connection, "F9002_sp_Chi_Tiet_Xuat_Page");
 
         Assert.DoesNotContain("#DetailScope", v_ReceiptDefinition, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("#DetailScope", v_IssueDefinition, StringComparison.OrdinalIgnoreCase);
@@ -139,12 +139,12 @@ public sealed class WarehouseReportPagingOptimizationTests
             Assert.Equal(warehouseB, v_InventoryB.Rows[0].WarehouseId);
             Assert.Equal(22m, v_InventoryB.Rows[0].Received);
 
-            var v_DetailA = await ReadPagedDetailAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap_Page", v_LoginA);
+            var v_DetailA = await ReadPagedDetailAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Nhap_Page", v_LoginA);
             Assert.Equal(1, v_DetailA.TotalCount);
             Assert.Single(v_DetailA.Rows);
             Assert.Equal($"{v_Tag}-receipt-a", v_DetailA.Rows[0].DocumentNumber);
 
-            var v_DetailB = await ReadPagedDetailAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap_Page", v_LoginB);
+            var v_DetailB = await ReadPagedDetailAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Nhap_Page", v_LoginB);
             Assert.Equal(1, v_DetailB.TotalCount);
             Assert.Single(v_DetailB.Rows);
             Assert.Equal($"{v_Tag}-receipt-b", v_DetailB.Rows[0].DocumentNumber);
@@ -219,7 +219,7 @@ public sealed class WarehouseReportPagingOptimizationTests
             Assert.Equal(1, v_Inventory.TotalCount);
             Assert.Equal(warehouseA, Assert.Single(v_Inventory.Rows).WarehouseId);
 
-            var v_Detail = await ReadPagedDetailAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap_Page", v_Login, warehouseB, v_dtmReportDate, v_dtmReportDate);
+            var v_Detail = await ReadPagedDetailAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Nhap_Page", v_Login, warehouseB, v_dtmReportDate, v_dtmReportDate);
             Assert.Equal(1, v_Detail.TotalCount);
             Assert.Equal($"{v_Tag}-receipt-b", Assert.Single(v_Detail.Rows).DocumentNumber);
 
@@ -252,7 +252,7 @@ public sealed class WarehouseReportPagingOptimizationTests
     private static async Task<(int TotalCount, List<InventoryRow> Rows)> ReadPagedInventoryAsync(
         SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login, long? warehouseId = null, DateTime? p_dtmFrom = null, DateTime? p_dtmTo = null)
     {
-        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton_Page", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "F9002_sp_Xuat_Nhap_Ton_Page", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
         await using var v_Reader = await v_Command.ExecuteReaderAsync();
         Assert.True(await v_Reader.ReadAsync());
         var v_iTotalCount = v_Reader.GetInt32(0);

@@ -25,7 +25,7 @@ EXEC dbo.sp_Benchmark_Before_Detail_Nhap
     @Ma_Dang_Nhap = N'PERF_USER';
 
 PRINT N'AFTER_DETAIL_RECEIPT';
-EXEC dbo.sp_BC_Chi_Tiet_Nhap_Page
+EXEC dbo.F9002_sp_Chi_Tiet_Nhap_Page
     @Tu_Ngay = @FromDate,
     @Den_Ngay = @ToDate,
     @Page_Number = 1,
@@ -41,7 +41,7 @@ EXEC dbo.sp_Benchmark_Before_Detail_Xuat
     @Ma_Dang_Nhap = N'PERF_USER';
 
 PRINT N'AFTER_DETAIL_ISSUE';
-EXEC dbo.sp_BC_Chi_Tiet_Xuat_Page
+EXEC dbo.F9002_sp_Chi_Tiet_Xuat_Page
     @Tu_Ngay = @FromDate,
     @Den_Ngay = @ToDate,
     @Page_Number = 1,
@@ -57,7 +57,7 @@ EXEC dbo.sp_Benchmark_Before_Inventory
     @Ma_Dang_Nhap = N'PERF_USER';
 
 PRINT N'AFTER_INVENTORY';
-EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay = @FromDate,
     @Den_Ngay = @ToDate,
     @Page_Number = 1,

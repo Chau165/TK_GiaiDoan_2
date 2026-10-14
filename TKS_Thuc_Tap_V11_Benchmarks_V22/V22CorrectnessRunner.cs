@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
@@ -366,7 +368,7 @@ internal static class V22CorrectnessRunner
             }
             case "DetailReportPaged":
             {
-                var result = new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(
+                var result = new CWarehouseReport_Controller().F9002_sp_Chi_Tiet_Nhap_Page(
                     V22CorrectnessOracle.ReportFrom, V22CorrectnessOracle.ReportTo, page, size, login, null);
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Ngay", item.Ngay), ("So_Phieu", item.So_Phieu), ("Nha_Cung_Cap", item.Nha_Cung_Cap),
@@ -379,9 +381,9 @@ internal static class V22CorrectnessRunner
                 var isCurrent = scenario == "InventoryCurrentBalancePaged";
                 var v_objReportController = new CWarehouseReport_Controller();
                 var result = isCurrent
-                    ? v_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+                    ? v_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(
                         page, size, login, null)
-                    : v_objReportController.sp_BC_Xuat_Nhap_Ton_Page(
+                    : v_objReportController.F9002_sp_Xuat_Nhap_Ton_Page(
                         V22CorrectnessOracle.ReportFrom, V22CorrectnessOracle.ReportTo, page, size, login, null);
                 return new ActualPage(result.Total_Count, result.Items.Select(item => Row(
                     ("Kho_ID", item.Kho_ID), ("Ten_Kho", item.Ten_Kho), ("San_Pham_ID", item.San_Pham_ID),

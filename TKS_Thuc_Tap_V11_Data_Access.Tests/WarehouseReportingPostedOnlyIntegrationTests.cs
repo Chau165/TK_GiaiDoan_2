@@ -85,27 +85,27 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
                 """,
                 BigInt("@WarehouseId", warehouseId), BigInt("@ProductId", productId));
 
-            var v_arrReceiptRows = await ReadDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap", v_Login);
+            var v_arrReceiptRows = await ReadDetailReportAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Nhap", v_Login);
             Assert.Single(v_arrReceiptRows);
             Assert.Equal($"{v_Tag}-posted-receipt", v_arrReceiptRows[0].DocumentNumber);
             Assert.Equal(10m, v_arrReceiptRows[0].Quantity);
 
-            var v_arrIssueRows = await ReadDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Xuat", v_Login);
+            var v_arrIssueRows = await ReadDetailReportAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Xuat", v_Login);
             Assert.Single(v_arrIssueRows);
             Assert.Equal($"{v_Tag}-posted-issue", v_arrIssueRows[0].DocumentNumber);
             Assert.Equal(3m, v_arrIssueRows[0].Quantity);
 
-            var v_arrInventoryRows = await ReadInventoryReportAsync(v_Connection, v_Transaction, "sp_BC_Xuat_Nhap_Ton", v_Login);
+            var v_arrInventoryRows = await ReadInventoryReportAsync(v_Connection, v_Transaction, "F9002_sp_Xuat_Nhap_Ton", v_Login);
             var v_Inventory = Assert.Single(v_arrInventoryRows);
             Assert.Equal(productId, v_Inventory.ProductId);
             Assert.Equal(10m, v_Inventory.Received);
             Assert.Equal(3m, v_Inventory.Issued);
             Assert.Equal(7m, v_Inventory.Closing);
 
-            var v_ReceiptPage = await ReadPagedDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Nhap_Page", v_Login);
+            var v_ReceiptPage = await ReadPagedDetailReportAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Nhap_Page", v_Login);
             Assert.Equal(1, v_ReceiptPage.TotalCount);
             Assert.Single(v_ReceiptPage.Rows);
-            var v_IssuePage = await ReadPagedDetailReportAsync(v_Connection, v_Transaction, "sp_BC_Chi_Tiet_Xuat_Page", v_Login);
+            var v_IssuePage = await ReadPagedDetailReportAsync(v_Connection, v_Transaction, "F9002_sp_Chi_Tiet_Xuat_Page", v_Login);
             Assert.Equal(1, v_IssuePage.TotalCount);
             Assert.Single(v_IssuePage.Rows);
 
@@ -242,7 +242,7 @@ public sealed class WarehouseReportingPostedOnlyIntegrationTests
 
     private static async Task<(int TotalCount, List<InventoryRow> Rows)> ReadPagedInventoryReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login)
     {
-        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton_Page", p_Login, p_bPaged: true);
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "F9002_sp_Xuat_Nhap_Ton_Page", p_Login, p_bPaged: true);
         await using var v_Reader = await v_Command.ExecuteReaderAsync();
         Assert.True(await v_Reader.ReadAsync());
         var v_iTotalCount = v_Reader.GetInt32(0);

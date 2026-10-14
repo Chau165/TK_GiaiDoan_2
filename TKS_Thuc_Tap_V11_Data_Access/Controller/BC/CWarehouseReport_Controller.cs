@@ -3,11 +3,11 @@ using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
-namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+namespace TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
 
 public class CWarehouseReport_Controller
 {
-    public List<CWarehouseDetailReport> sp_BC_Chi_Tiet_Nhap(
+    public List<CWarehouseDetailReport> F9002_sp_Chi_Tiet_Nhap(
         DateTime p_dtmFrom,
         DateTime p_dtmTo,
         string p_strCurrent_Login = "",
@@ -21,7 +21,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataTable(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_dt,
-                "sp_BC_Chi_Tiet_Nhap",
+                "F9002_sp_Chi_Tiet_Nhap",
                 p_dtmFrom.Date,
                 p_dtmTo.Date,
                 p_strCurrent_Login,
@@ -45,7 +45,7 @@ public class CWarehouseReport_Controller
         return v_arrRes;
     }
 
-    public List<CWarehouseDetailReport> sp_BC_Chi_Tiet_Xuat(
+    public List<CWarehouseDetailReport> F9002_sp_Chi_Tiet_Xuat(
         DateTime p_dtmFrom,
         DateTime p_dtmTo,
         string p_strCurrent_Login = "",
@@ -59,7 +59,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataTable(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_dt,
-                "sp_BC_Chi_Tiet_Xuat",
+                "F9002_sp_Chi_Tiet_Xuat",
                 p_dtmFrom.Date,
                 p_dtmTo.Date,
                 p_strCurrent_Login,
@@ -83,7 +83,7 @@ public class CWarehouseReport_Controller
         return v_arrRes;
     }
 
-    public CWarehousePagedResult<CWarehouseDetailReport> sp_BC_Chi_Tiet_Nhap_Page(
+    public CWarehousePagedResult<CWarehouseDetailReport> F9002_sp_Chi_Tiet_Nhap_Page(
         DateTime p_dtmFrom,
         DateTime p_dtmTo,
         int p_iPage_Number,
@@ -99,7 +99,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataSet(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_ds,
-                "sp_BC_Chi_Tiet_Nhap_Page",
+                "F9002_sp_Chi_Tiet_Nhap_Page",
                 p_dtmFrom.Date,
                 p_dtmTo.Date,
                 p_iPage_Number,
@@ -124,7 +124,7 @@ public class CWarehouseReport_Controller
         return v_objRes;
     }
 
-    public CWarehousePagedResult<CWarehouseDetailReport> sp_BC_Chi_Tiet_Xuat_Page(
+    public CWarehousePagedResult<CWarehouseDetailReport> F9002_sp_Chi_Tiet_Xuat_Page(
         DateTime p_dtmFrom,
         DateTime p_dtmTo,
         int p_iPage_Number,
@@ -140,7 +140,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataSet(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_ds,
-                "sp_BC_Chi_Tiet_Xuat_Page",
+                "F9002_sp_Chi_Tiet_Xuat_Page",
                 p_dtmFrom.Date,
                 p_dtmTo.Date,
                 p_iPage_Number,
@@ -165,7 +165,7 @@ public class CWarehouseReport_Controller
         return v_objRes;
     }
 
-    public List<CWarehouseInventoryReport> sp_BC_Xuat_Nhap_Ton(
+    public List<CWarehouseInventoryReport> F9002_sp_Xuat_Nhap_Ton(
         DateTime p_dtmFrom,
         DateTime p_dtmTo,
         string p_strCurrent_Login = "",
@@ -179,7 +179,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataTable(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_dt,
-                "sp_BC_Xuat_Nhap_Ton",
+                "F9002_sp_Xuat_Nhap_Ton",
                 p_dtmFrom.Date,
                 p_dtmTo.Date,
                 p_strCurrent_Login,
@@ -203,7 +203,7 @@ public class CWarehouseReport_Controller
         return v_arrRes;
     }
 
-    public CWarehousePagedResult<CWarehouseInventoryReport> sp_BC_Xuat_Nhap_Ton_Page(
+    public CWarehousePagedResult<CWarehouseInventoryReport> F9002_sp_Xuat_Nhap_Ton_Page(
         DateTime p_dtmFrom,
         DateTime p_dtmTo,
         int p_iPage_Number,
@@ -219,7 +219,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataSet(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_ds,
-                "sp_BC_Xuat_Nhap_Ton_Page",
+                "F9002_sp_Xuat_Nhap_Ton_Page",
                 p_dtmFrom.Date,
                 p_dtmTo.Date,
                 p_iPage_Number,
@@ -244,7 +244,7 @@ public class CWarehouseReport_Controller
         return v_objRes;
     }
 
-    public CWarehousePagedResult<CWarehouseInventoryReport> sp_BC_Ton_Kho_Hien_Tai_Page(
+    public CWarehousePagedResult<CWarehouseInventoryReport> F9001_sp_Ton_Kho_Hien_Tai_Page(
         int p_iPage_Number,
         int p_iPage_Size,
         string p_strCurrent_Login,
@@ -258,7 +258,7 @@ public class CWarehouseReport_Controller
             CSqlHelper.FillDataSet(
                 CConfig.TKS_Thuc_Tap_V11_Conn_String,
                 v_ds,
-                "sp_BC_Ton_Kho_Hien_Tai_Page",
+                "F9001_sp_Ton_Kho_Hien_Tai_Page",
                 p_iPage_Number,
                 p_iPage_Size,
                 p_strCurrent_Login,

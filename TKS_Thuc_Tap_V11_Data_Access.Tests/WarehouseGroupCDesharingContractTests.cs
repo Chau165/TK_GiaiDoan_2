@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
@@ -161,11 +161,11 @@ public sealed class WarehouseGroupCDesharingContractTests
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
-        var v_strOldProcedure = ExtractProcedure(v_strSql, "sp_BC_Chi_Tiet_Xuat");
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
+        var v_strOldProcedure = ExtractProcedure(v_strSql, "F9002_sp_Chi_Tiet_Xuat");
 
         Assert.DoesNotContain("@Is_Receipt", v_strOldProcedure, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("\"sp_BC_Chi_Tiet_Xuat\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("\"F9002_sp_Chi_Tiet_Xuat\"", v_strController, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -173,11 +173,11 @@ public sealed class WarehouseGroupCDesharingContractTests
     {
         var v_strSql = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_strController = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
-        var v_strProcedure = ExtractProcedure(v_strSql, "sp_BC_Xuat_Nhap_Ton");
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
+        var v_strProcedure = ExtractProcedure(v_strSql, "F9002_sp_Xuat_Nhap_Ton");
 
-        Assert.Contains("CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton", v_strProcedure, StringComparison.Ordinal);
-        Assert.Contains("\"sp_BC_Xuat_Nhap_Ton\"", v_strController, StringComparison.Ordinal);
+        Assert.Contains("CREATE OR ALTER PROCEDURE dbo.F9002_sp_Xuat_Nhap_Ton", v_strProcedure, StringComparison.Ordinal);
+        Assert.Contains("\"F9002_sp_Xuat_Nhap_Ton\"", v_strController, StringComparison.Ordinal);
     }
 
     [Fact]

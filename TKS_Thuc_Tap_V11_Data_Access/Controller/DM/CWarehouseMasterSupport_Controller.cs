@@ -1,6 +1,7 @@
+using TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
-namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+namespace TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 
 // Temporary owner until the company defines the shared Page Store naming rule.
 public class CWarehouseMasterSupport_Controller : CWarehouse_Controller_Base

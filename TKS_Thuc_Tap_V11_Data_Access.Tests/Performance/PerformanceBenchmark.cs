@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Data.SqlClient;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
@@ -256,10 +256,10 @@ public static class PerformanceBenchmark
             new WarehouseDocumentTestHarness().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)
                 .ContinueWith(v_task => v_task.Result.Items.Count));
         await AddMetricAsync(v_metrics, "DetailReportPaged", p_options, () =>
-            Task.FromResult(new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(
+            Task.FromResult(new CWarehouseReport_Controller().F9002_sp_Chi_Tiet_Nhap_Page(
                 new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count));
         await AddMetricAsync(v_metrics, "InventoryHistoricalReportPaged", p_options, () =>
-            Task.FromResult(new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(
+            Task.FromResult(new CWarehouseReport_Controller().F9002_sp_Xuat_Nhap_Ton_Page(
                 new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count));
 
         if (p_options.AllowFullLoad)
@@ -275,10 +275,10 @@ public static class PerformanceBenchmark
                 => new WarehouseDocumentTestHarness().List_Document_Details_Async(true, 1, p_options.LoginName)
                     .ContinueWith(v_task => v_task.Result.Count));
             await AddMetricAsync(v_metrics, "DetailReportFullLoad", p_options, () =>
-                Task.FromResult(new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap(
+                Task.FromResult(new CWarehouseReport_Controller().F9002_sp_Chi_Tiet_Nhap(
                     new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName).Count));
             await AddMetricAsync(v_metrics, "InventoryReportFullLoad", p_options, () =>
-                Task.FromResult(new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton(
+                Task.FromResult(new CWarehouseReport_Controller().F9002_sp_Xuat_Nhap_Ton(
                     new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), p_options.LoginName).Count));
         }
         else
@@ -313,11 +313,11 @@ public static class PerformanceBenchmark
                         v_iRows = (await new WarehouseDocumentTestHarness().List_Documents_Page_Async(true, 1, p_options.PageSize, "", p_options.LoginName)).Items.Count;
                         break;
                     case 2:
-                        v_iRows = new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(
+                        v_iRows = new CWarehouseReport_Controller().F9002_sp_Chi_Tiet_Nhap_Page(
                             new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count;
                         break;
                     default:
-                        v_iRows = new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(
+                        v_iRows = new CWarehouseReport_Controller().F9002_sp_Xuat_Nhap_Ton_Page(
                             new DateTime(2025, 1, 1), new DateTime(2026, 12, 31), 1, p_options.PageSize, p_options.LoginName).Items.Count;
                         break;
                 }

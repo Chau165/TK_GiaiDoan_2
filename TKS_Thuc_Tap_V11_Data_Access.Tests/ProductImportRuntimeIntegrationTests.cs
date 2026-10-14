@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;

@@ -1,4 +1,6 @@
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 
 namespace TKS_Thuc_Tap_V11_Benchmarks;
 
@@ -33,21 +35,21 @@ public sealed class WarehouseReadOperations
     public Task<int> DetailReportPagedAsync()
     {
         var v_objPage = new CWarehouseReport_Controller()
-            .sp_BC_Chi_Tiet_Nhap_Page(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName);
+            .F9002_sp_Chi_Tiet_Nhap_Page(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName);
         return Task.FromResult(v_objPage.Items.Count);
     }
 
     public Task<int> InventoryHistoricalReportPagedAsync()
     {
         var v_objPage = new CWarehouseReport_Controller()
-            .sp_BC_Xuat_Nhap_Ton_Page(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName);
+            .F9002_sp_Xuat_Nhap_Ton_Page(m_settings.ReportFromDate, m_settings.ReportToDate, 1, m_settings.PageSize, m_settings.LoginName);
         return Task.FromResult(v_objPage.Items.Count);
     }
 
     public Task<int> InventoryCurrentBalancePagedAsync()
     {
         var v_objPage = new CWarehouseReport_Controller()
-            .sp_BC_Ton_Kho_Hien_Tai_Page(1, m_settings.PageSize, m_settings.LoginName);
+            .F9001_sp_Ton_Kho_Hien_Tai_Page(1, m_settings.PageSize, m_settings.LoginName);
         return Task.FromResult(v_objPage.Items.Count);
     }
 

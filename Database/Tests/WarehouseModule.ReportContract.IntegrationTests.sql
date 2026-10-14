@@ -9,34 +9,34 @@ DECLARE @Expected TABLE
 
 INSERT INTO @Expected(Procedure_Name, Column_Ordinal, Column_Name)
 VALUES
-    (N'sp_BC_Chi_Tiet_Nhap', 1, N'Ngay'),
-    (N'sp_BC_Chi_Tiet_Nhap', 2, N'So_Phieu'),
-    (N'sp_BC_Chi_Tiet_Nhap', 3, N'Nha_Cung_Cap'),
-    (N'sp_BC_Chi_Tiet_Nhap', 4, N'Ma_San_Pham'),
-    (N'sp_BC_Chi_Tiet_Nhap', 5, N'Ten_San_Pham'),
-    (N'sp_BC_Chi_Tiet_Nhap', 6, N'So_Luong'),
-    (N'sp_BC_Chi_Tiet_Nhap', 7, N'Don_Gia'),
-    (N'sp_BC_Chi_Tiet_Nhap', 8, N'Tri_Gia'),
-    (N'sp_BC_Chi_Tiet_Xuat', 1, N'Ngay'),
-    (N'sp_BC_Chi_Tiet_Xuat', 2, N'So_Phieu'),
-    (N'sp_BC_Chi_Tiet_Xuat', 3, N'Nha_Cung_Cap'),
-    (N'sp_BC_Chi_Tiet_Xuat', 4, N'Ma_San_Pham'),
-    (N'sp_BC_Chi_Tiet_Xuat', 5, N'Ten_San_Pham'),
-    (N'sp_BC_Chi_Tiet_Xuat', 6, N'So_Luong'),
-    (N'sp_BC_Chi_Tiet_Xuat', 7, N'Don_Gia'),
-    (N'sp_BC_Chi_Tiet_Xuat', 8, N'Tri_Gia'),
-    (N'sp_BC_Xuat_Nhap_Ton', 1, N'Kho_ID'),
-    (N'sp_BC_Xuat_Nhap_Ton', 2, N'Ten_Kho'),
-    (N'sp_BC_Xuat_Nhap_Ton', 3, N'San_Pham_ID'),
-    (N'sp_BC_Xuat_Nhap_Ton', 4, N'Ma_San_Pham'),
-    (N'sp_BC_Xuat_Nhap_Ton', 5, N'Ten_San_Pham'),
-    (N'sp_BC_Xuat_Nhap_Ton', 6, N'SL_Dau_Ky'),
-    (N'sp_BC_Xuat_Nhap_Ton', 7, N'SL_Nhap'),
-    (N'sp_BC_Xuat_Nhap_Ton', 8, N'SL_Xuat'),
-    (N'sp_BC_Xuat_Nhap_Ton', 9, N'SL_Cuoi_Ky'),
-    (N'sp_BC_Xuat_Nhap_Ton', 10, N'SL_Ton_Thuc_Te'),
-    (N'sp_BC_Xuat_Nhap_Ton', 11, N'SL_Dang_Giu'),
-    (N'sp_BC_Xuat_Nhap_Ton', 12, N'SL_Kha_Dung');
+    (N'F9002_sp_Chi_Tiet_Nhap', 1, N'Ngay'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 2, N'So_Phieu'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 3, N'Nha_Cung_Cap'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 4, N'Ma_San_Pham'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 5, N'Ten_San_Pham'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 6, N'So_Luong'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 7, N'Don_Gia'),
+    (N'F9002_sp_Chi_Tiet_Nhap', 8, N'Tri_Gia'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 1, N'Ngay'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 2, N'So_Phieu'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 3, N'Nha_Cung_Cap'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 4, N'Ma_San_Pham'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 5, N'Ten_San_Pham'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 6, N'So_Luong'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 7, N'Don_Gia'),
+    (N'F9002_sp_Chi_Tiet_Xuat', 8, N'Tri_Gia'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 1, N'Kho_ID'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 2, N'Ten_Kho'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 3, N'San_Pham_ID'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 4, N'Ma_San_Pham'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 5, N'Ten_San_Pham'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 6, N'SL_Dau_Ky'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 7, N'SL_Nhap'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 8, N'SL_Xuat'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 9, N'SL_Cuoi_Ky'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 10, N'SL_Ton_Thuc_Te'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 11, N'SL_Dang_Giu'),
+    (N'F9002_sp_Xuat_Nhap_Ton', 12, N'SL_Kha_Dung');
 
 DECLARE @Actual TABLE
 (
@@ -46,18 +46,18 @@ DECLARE @Actual TABLE
 );
 
 INSERT INTO @Actual
-SELECT N'sp_BC_Chi_Tiet_Nhap', column_ordinal, name
-FROM sys.dm_exec_describe_first_result_set_for_object(OBJECT_ID(N'dbo.sp_BC_Chi_Tiet_Nhap'), NULL)
+SELECT N'F9002_sp_Chi_Tiet_Nhap', column_ordinal, name
+FROM sys.dm_exec_describe_first_result_set_for_object(OBJECT_ID(N'dbo.F9002_sp_Chi_Tiet_Nhap'), NULL)
 WHERE is_hidden = 0;
 
 INSERT INTO @Actual
-SELECT N'sp_BC_Chi_Tiet_Xuat', column_ordinal, name
-FROM sys.dm_exec_describe_first_result_set_for_object(OBJECT_ID(N'dbo.sp_BC_Chi_Tiet_Xuat'), NULL)
+SELECT N'F9002_sp_Chi_Tiet_Xuat', column_ordinal, name
+FROM sys.dm_exec_describe_first_result_set_for_object(OBJECT_ID(N'dbo.F9002_sp_Chi_Tiet_Xuat'), NULL)
 WHERE is_hidden = 0;
 
 INSERT INTO @Actual
-SELECT N'sp_BC_Xuat_Nhap_Ton', column_ordinal, name
-FROM sys.dm_exec_describe_first_result_set_for_object(OBJECT_ID(N'dbo.sp_BC_Xuat_Nhap_Ton'), NULL)
+SELECT N'F9002_sp_Xuat_Nhap_Ton', column_ordinal, name
+FROM sys.dm_exec_describe_first_result_set_for_object(OBJECT_ID(N'dbo.F9002_sp_Xuat_Nhap_Ton'), NULL)
 WHERE is_hidden = 0;
 
 IF EXISTS

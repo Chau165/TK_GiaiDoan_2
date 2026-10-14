@@ -216,7 +216,107 @@ public sealed class WarehouseInventoryMovementReliabilityIntegrationTests
             var v_Recovered = await ReadQueueStateAsync(v_Scope, v_dtmDay);
 
             Assert.Equal("COMPLETED", v_Recovered.Status);
-            Assert.Equal(1, v_Recovered.RetryCount);
+            Assert.Equal(0, v_Recovered.RetryCount);
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(v_Scope);
+        }
+    }
+
+    [Fact]
+    public async Task Expired_processing_claim_at_retry_limit_is_retried_instead_of_dead_lettered()
+    {
+        var v_Scope = await CreatePersistentScopeAsync();
+        var v_dtmDay = new DateTime(2099, 3, 18);
+
+        try
+        {
+            await SeedValidSnapshotAnchorAsync(v_Scope, new DateTime(2099, 3, 1));
+            await ApplyInvalidationAsync(v_Scope, v_dtmDay);
+            await ExecuteAsync(
+                "UPDATE dbo.InventoryMovement_RebuildQueue SET Status = N'PROCESSING', Claimed_Version = Requested_Version, Retry_Count = 2, LastAttemptAt = '2000-01-01' WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate;",
+                BigInt("@WarehouseId", v_Scope.WarehouseId), BigInt("@ProductId", v_Scope.ProductId), Date("@MovementDate", v_dtmDay));
+
+            await ProcessQueueAsync(p_iMaxRetryCount: 3, p_iRetryDelaySeconds: 0);
+
+            var v_Recovered = await ReadQueueStateAsync(v_Scope, v_dtmDay);
+            Assert.Equal("COMPLETED", v_Recovered.Status);
+            Assert.Equal(2, v_Recovered.RetryCount);
+            Assert.Equal(0, await CountAsync(v_Scope, v_dtmDay, "dbo.InventoryMovement_RebuildDeadLetter"));
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(v_Scope);
+        }
+    }
+
+    [Fact]
+    public async Task Legacy_failed_final_lease_expiration_is_recovered_by_a_later_worker()
+    {
+        var v_Scope = await CreatePersistentScopeAsync();
+        var v_dtmDay = new DateTime(2099, 3, 19);
+        const string v_LeaseExpiredError = "Worker claim lease expired before rebuild completion.";
+
+        try
+        {
+            await SeedValidSnapshotAnchorAsync(v_Scope, new DateTime(2099, 3, 1));
+            await ApplyInvalidationAsync(v_Scope, v_dtmDay);
+            await ExecuteAsync(
+                "UPDATE dbo.InventoryMovement_RebuildQueue SET Status = N'FAILED_FINAL', Claimed_Version = NULL, Retry_Count = 3, ProcessedAt = SYSUTCDATETIME(), NextRetryAt = NULL, LastError = @LeaseExpiredError WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate; INSERT dbo.InventoryMovement_RebuildDeadLetter (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError) SELECT ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate;",
+                Text("@LeaseExpiredError", v_LeaseExpiredError, 4000), BigInt("@WarehouseId", v_Scope.WarehouseId), BigInt("@ProductId", v_Scope.ProductId), Date("@MovementDate", v_dtmDay));
+
+            await ProcessQueueAsync(p_iMaxRetryCount: 3, p_iRetryDelaySeconds: 0);
+
+            var v_Recovered = await ReadQueueStateAsync(v_Scope, v_dtmDay);
+            Assert.Equal("COMPLETED", v_Recovered.Status);
+            Assert.Equal(0, v_Recovered.RetryCount);
+
+            await using var v_Connection = new SqlConnection(ConnectionString);
+            await v_Connection.OpenAsync();
+            var v_iUnresolvedDeadLetters = Convert.ToInt32(await ScalarAsync(
+                v_Connection,
+                null,
+                "SELECT COUNT(*) FROM dbo.InventoryMovement_RebuildDeadLetter WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate AND ResolvedAt IS NULL;",
+                BigInt("@WarehouseId", v_Scope.WarehouseId), BigInt("@ProductId", v_Scope.ProductId), Date("@MovementDate", v_dtmDay)));
+            Assert.Equal(0, v_iUnresolvedDeadLetters);
+        }
+        finally
+        {
+            await CleanupPersistentScopeAsync(v_Scope);
+        }
+    }
+
+    [Fact]
+    public async Task Worker_completes_every_queue_item_in_a_multi_item_batch()
+    {
+        var v_Scope = await CreatePersistentScopeAsync();
+        var v_dtmFirstDay = new DateTime(2099, 3, 21);
+        var v_dtmDays = new[]
+        {
+            v_dtmFirstDay,
+            v_dtmFirstDay.AddDays(1),
+            v_dtmFirstDay.AddDays(2)
+        };
+
+        try
+        {
+            await SeedValidSnapshotAnchorAsync(v_Scope, new DateTime(2099, 3, 1));
+            foreach (var v_dtmDay in v_dtmDays)
+            {
+                await ApplyInvalidationAsync(v_Scope, v_dtmDay);
+            }
+
+            await using var v_Connection = new SqlConnection(ConnectionString);
+            await v_Connection.OpenAsync();
+            await ExecuteStoredAsync(v_Connection, null, "dbo.sp_Inventory_Movement_Process_RebuildQueue",
+                Int("@Batch_Size", v_dtmDays.Length), Int("@Max_Retry_Count", 3), Int("@Base_Retry_Delay_Seconds", 0));
+
+            foreach (var v_dtmDay in v_dtmDays)
+            {
+                var v_Queue = await ReadQueueStateAsync(v_Connection, null, v_Scope, v_dtmDay);
+                Assert.Equal("COMPLETED", v_Queue.Status);
+            }
         }
         finally
         {

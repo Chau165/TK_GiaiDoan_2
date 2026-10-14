@@ -7,7 +7,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
@@ -376,19 +378,19 @@ internal static partial class Program
             case "DetailReportPaged":
             {
                 var page = new CWarehouseReport_Controller()
-                    .sp_BC_Chi_Tiet_Nhap_Page(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null);
+                    .F9002_sp_Chi_Tiet_Nhap_Page(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             case "InventoryHistoricalReportPaged":
             {
                 var page = new CWarehouseReport_Controller()
-                    .sp_BC_Xuat_Nhap_Ton_Page(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null);
+                    .F9002_sp_Xuat_Nhap_Ton_Page(ReportFrom, ReportTo, PageNumber, PageSize, ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             case "InventoryCurrentBalancePaged":
             {
                 var page = new CWarehouseReport_Controller()
-                    .sp_BC_Ton_Kho_Hien_Tai_Page(PageNumber, PageSize, ApplicationLogin, null);
+                    .F9001_sp_Ton_Kho_Hien_Tai_Page(PageNumber, PageSize, ApplicationLogin, null);
                 return new CallResult(page.Items.Count, page.Total_Count);
             }
             default:
@@ -404,11 +406,11 @@ internal static partial class Program
             new { MasterType = "SanPham", PageNumber, PageSize, SearchText = "" }),
         new("DocumentPaged", "CWarehouseDocumentSupport_Controller.sp_XNK_Document_Page", "dbo.sp_XNK_Document_Page",
             new { IsReceipt = true, PageNumber, PageSize, SearchText = "", Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("DetailReportPaged", "CWarehouseReport_Controller.sp_BC_Chi_Tiet_Nhap_Page", "dbo.sp_BC_Chi_Tiet_Nhap_Page",
+        new("DetailReportPaged", "CWarehouseReport_Controller.F9002_sp_Chi_Tiet_Nhap_Page", "dbo.F9002_sp_Chi_Tiet_Nhap_Page",
             new { From = ReportFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), To = ReportTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("InventoryHistoricalReportPaged", "CWarehouseReport_Controller.sp_BC_Xuat_Nhap_Ton_Page", "dbo.sp_BC_Xuat_Nhap_Ton_Page",
+        new("InventoryHistoricalReportPaged", "CWarehouseReport_Controller.F9002_sp_Xuat_Nhap_Ton_Page", "dbo.F9002_sp_Xuat_Nhap_Ton_Page",
             new { From = ReportFrom.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), To = ReportTo.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null }),
-        new("InventoryCurrentBalancePaged", "CWarehouseReport_Controller.sp_BC_Ton_Kho_Hien_Tai_Page", "dbo.sp_BC_Ton_Kho_Hien_Tai_Page",
+        new("InventoryCurrentBalancePaged", "CWarehouseReport_Controller.F9001_sp_Ton_Kho_Hien_Tai_Page", "dbo.F9001_sp_Ton_Kho_Hien_Tai_Page",
             new { PageNumber, PageSize, Login = ApplicationLogin, WarehouseId = (long?)null })
     ];
 
@@ -522,10 +524,10 @@ internal static partial class Program
             "benchmarks/lite/appsettings.Benchmark.json",
             "Database/WarehouseModule.Procedures.sql",
             "Database/WarehouseModule.Schema.sql",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseMasterSupport_Controller.cs",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseDocumentSupport_Controller.cs",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouseReport_Controller.cs",
-            "TKS_Thuc_Tap_V11_Data_Access/Controller/Warehouse/CWarehouse_Controller_Base.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/DM/CWarehouseMasterSupport_Controller.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/XNK/CWarehouseDocumentSupport_Controller.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/BC/CWarehouseReport_Controller.cs",
+            "TKS_Thuc_Tap_V11_Data_Access/Controller/Common/CWarehouse_Controller_Base.cs",
             "TKS_Thuc_Tap_V11_Data_Access/Entity/Warehouse/CWarehousePagedResult.cs"
         };
         var hashes = sourcePaths.ToDictionary(

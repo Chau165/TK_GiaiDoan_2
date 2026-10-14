@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 

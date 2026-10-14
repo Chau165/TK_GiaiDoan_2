@@ -64,7 +64,7 @@ BEGIN TRY
 
     /* Opening = 10; period receipt = 5; period issue = 4; closing = 11. */
     DECLARE @Inventory TABLE (Kho_ID BIGINT, San_Pham_ID BIGINT, Ma_San_Pham NVARCHAR(100), Ten_San_Pham NVARCHAR(255), SL_Dau_Ky DECIMAL(18,3), SL_Nhap DECIMAL(18,3), SL_Xuat DECIMAL(18,3), SL_Cuoi_Ky DECIMAL(18,3));
-    INSERT INTO @Inventory EXEC dbo.sp_BC_Xuat_Nhap_Ton @Tu_Ngay = '2026-02-01', @Den_Ngay = '2026-02-28';
+    INSERT INTO @Inventory EXEC dbo.F9002_sp_Xuat_Nhap_Ton @Tu_Ngay = '2026-02-01', @Den_Ngay = '2026-02-28';
     IF NOT EXISTS (SELECT 1 FROM @Inventory WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND SL_Dau_Ky = 10 AND SL_Nhap = 5 AND SL_Xuat = 4 AND SL_Cuoi_Ky = 11)
         THROW 52002, 'Inventory formula is incorrect.', 1;
 

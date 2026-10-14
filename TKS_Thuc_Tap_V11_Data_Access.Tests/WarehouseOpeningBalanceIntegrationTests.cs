@@ -122,7 +122,7 @@ public sealed class WarehouseOpeningBalanceIntegrationTests
         SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login, long warehouseId, long productId,
         DateTime p_dtmFrom, DateTime p_dtmTo)
     {
-        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton_Page", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "F9002_sp_Xuat_Nhap_Ton_Page", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
         await using var v_Reader = await v_Command.ExecuteReaderAsync();
         Assert.True(await v_Reader.ReadAsync());
         Assert.True(await v_Reader.NextResultAsync());
@@ -139,7 +139,7 @@ public sealed class WarehouseOpeningBalanceIntegrationTests
         SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login, long warehouseId, long productId,
         DateTime p_dtmFrom, DateTime p_dtmTo)
     {
-        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "sp_BC_Xuat_Nhap_Ton", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
+        await using var v_Command = ReportCommand(p_Connection, p_Transaction, "F9002_sp_Xuat_Nhap_Ton", p_Login, warehouseId, p_dtmFrom, p_dtmTo);
         await using var v_Reader = await v_Command.ExecuteReaderAsync();
         while (await v_Reader.ReadAsync())
         {

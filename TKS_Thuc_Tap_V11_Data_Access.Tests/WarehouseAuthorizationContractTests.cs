@@ -10,7 +10,7 @@ public sealed class WarehouseAuthorizationContractTests
         var v_Source = string.Concat(
             File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs")),
             File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs")),
-            File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocumentSupport_Controller.cs")));
+            File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs")));
 
         Assert.Contains("p_strCurrent_Login", v_Source);
         Assert.Contains("@Ma_Dang_Nhap", v_Source);

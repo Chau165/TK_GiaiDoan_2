@@ -154,7 +154,7 @@ public sealed class WarehouseMasterEntityDecompositionContractTests
     {
         string v_strListSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor");
         string v_strEditSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_3_Warehouse_Edit.razor");
-        string v_strPageSupport = ReadRepositoryFile("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMasterSupport_Controller.cs");
+        string v_strPageSupport = ReadRepositoryFile("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs");
 
         foreach (string v_strEntity in new[] { "CDM_Kho", "CDM_Don_Vi_Tinh", "CDM_Loai_San_Pham", "CDM_San_Pham", "CDM_NCC" })
         {

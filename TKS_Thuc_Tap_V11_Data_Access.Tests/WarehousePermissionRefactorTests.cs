@@ -1,7 +1,8 @@
 using System.Data;
 using System.Reflection;
 using System.Threading.Tasks;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
@@ -159,8 +160,9 @@ public sealed class WarehousePermissionRefactorTests
     public void Previous_permission_controller_is_retired()
     {
         var v_objAssembly = typeof(CWarehouseReport_Controller).Assembly;
-        Assert.Null(v_objAssembly.GetType(
-            "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehousePermission_Controller"));
+        Assert.DoesNotContain(
+            v_objAssembly.GetTypes(),
+            v_objType => v_objType.Name == "CWarehousePermission_Controller");
         var v_strControllerPath = Path.Combine(
             FindRepositoryRoot(),
             "TKS_Thuc_Tap_V11_Data_Access",
@@ -174,7 +176,7 @@ public sealed class WarehousePermissionRefactorTests
     public void Master_support_controller_does_not_route_kho_user_stores()
     {
         var v_strMasterSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMasterSupport_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs"));
 
         Assert.DoesNotContain("F2015_sp_sel_List_Kho_User", v_strMasterSource);
         Assert.DoesNotContain("sp_DM_Kho_User_Page", v_strMasterSource);

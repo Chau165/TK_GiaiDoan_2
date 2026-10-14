@@ -4064,7 +4064,7 @@ GO
 /* Warehouse authorization and report procedures are defined once in this
    canonical bundle. */
 
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Nhap
+CREATE OR ALTER PROCEDURE dbo.F9002_sp_Chi_Tiet_Nhap
     @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -4078,7 +4078,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Xuat
+CREATE OR ALTER PROCEDURE dbo.F9002_sp_Chi_Tiet_Xuat
     @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -4092,7 +4092,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Nhap_Page
+CREATE OR ALTER PROCEDURE dbo.F9002_sp_Chi_Tiet_Nhap_Page
     @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -4148,7 +4148,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Chi_Tiet_Xuat_Page
+CREATE OR ALTER PROCEDURE dbo.F9002_sp_Chi_Tiet_Xuat_Page
     @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -6431,7 +6431,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton
+CREATE OR ALTER PROCEDURE dbo.F9002_sp_Xuat_Nhap_Ton
     @Tu_Ngay DATE, @Den_Ngay DATE, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -6640,7 +6640,7 @@ GO
    materialized by sp_XNK_Document_Post in the same transaction as Post, so
    readers must not rebuild period aggregates simply to display On Hand,
    Reserved and Available. */
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Ton_Kho_Hien_Tai_Page
+CREATE OR ALTER PROCEDURE dbo.F9001_sp_Ton_Kho_Hien_Tai_Page
     @Page_Number INT,
     @Page_Size INT,
     @Ma_Dang_Nhap NVARCHAR(100),
@@ -6788,7 +6788,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE dbo.sp_BC_Xuat_Nhap_Ton_Page
+CREATE OR ALTER PROCEDURE dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay DATE, @Den_Ngay DATE, @Page_Number INT, @Page_Size INT, @Ma_Dang_Nhap NVARCHAR(100), @Kho_ID BIGINT = NULL
 AS
 BEGIN
@@ -7711,47 +7711,34 @@ BEGIN
     IF @Base_Retry_Delay_Seconds < 0 SET @Base_Retry_Delay_Seconds = 0;
     IF @Processing_Lease_Seconds < 1 SET @Processing_Lease_Seconds = 1;
 
-    /* A process may die after claiming a row.  Recover only claims older than
-       the lease; an active worker never has its claim stolen.  A crashed claim
-       consumes retry budget and can itself become a dead-letter. */
+    /* A process may die after claiming a row. Recover expired claims without
+       consuming the retry budget reserved for actual rebuild failures. */
     DECLARE @Recovery_At DATETIME2 = SYSUTCDATETIME();
+    DECLARE @Lease_Expired_Error NVARCHAR(4000) = N'Worker claim lease expired before rebuild completion.';
     BEGIN TRY
         BEGIN TRANSACTION;
         EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
 
         UPDATE dbo.InventoryMovement_RebuildQueue
-        SET Status = N'FAILED_FINAL',
-            Retry_Count = Retry_Count + 1,
-            ProcessedAt = @Recovery_At,
-            NextRetryAt = NULL,
-            LastError = N'Worker claim lease expired before rebuild completion.',
-            ErrorMessage = NULL
-        WHERE Status = N'PROCESSING'
-          AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At))
-          AND Retry_Count + 1 >= @Max_Retry_Count;
-
-        INSERT dbo.InventoryMovement_RebuildDeadLetter
-        (Queue_ID, Kho_ID, San_Pham_ID, From_Date, To_Date, Retry_Count, LastError)
-        SELECT q.ID, q.Kho_ID, q.San_Pham_ID, q.From_Date, q.To_Date, q.Retry_Count, q.LastError
-        FROM dbo.InventoryMovement_RebuildQueue q
-        WHERE q.Status = N'FAILED_FINAL'
-          AND q.LastError = N'Worker claim lease expired before rebuild completion.'
-          AND NOT EXISTS
-          (
-              SELECT 1
-              FROM dbo.InventoryMovement_RebuildDeadLetter dl WITH (UPDLOCK, HOLDLOCK)
-              WHERE dl.Queue_ID = q.ID
-          );
-
-        UPDATE dbo.InventoryMovement_RebuildQueue
         SET Status = N'RETRY_WAITING',
-            Retry_Count = Retry_Count + 1,
+            Retry_Count = CASE WHEN Status = N'FAILED_FINAL' THEN 0 ELSE Retry_Count END,
             Claimed_Version = NULL,
+            ProcessedAt = NULL,
             NextRetryAt = @Recovery_At,
-            LastError = N'Worker claim lease expired before rebuild completion.',
+            LastError = @Lease_Expired_Error,
             ErrorMessage = NULL
-        WHERE Status = N'PROCESSING'
-          AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At));
+        WHERE (Status = N'PROCESSING'
+               AND (LastAttemptAt IS NULL OR LastAttemptAt <= DATEADD(SECOND, -@Processing_Lease_Seconds, @Recovery_At)))
+           OR (Status = N'FAILED_FINAL' AND LastError = @Lease_Expired_Error);
+
+        UPDATE dl
+        SET ResolvedAt = @Recovery_At,
+            ResolutionNote = N'Reactivated after worker claim lease-expiration recovery.'
+        FROM dbo.InventoryMovement_RebuildDeadLetter dl
+        JOIN dbo.InventoryMovement_RebuildQueue q ON q.ID = dl.Queue_ID
+        WHERE dl.ResolvedAt IS NULL
+          AND q.Status = N'RETRY_WAITING'
+          AND q.LastError = @Lease_Expired_Error;
 
         COMMIT TRANSACTION;
     END TRY
@@ -7767,6 +7754,17 @@ BEGIN
     DECLARE @From_Date DATE;
     DECLARE @To_Date DATE;
     DECLARE @Claimed_Version INT;
+    DECLARE @Claimed TABLE
+    (
+        ID BIGINT NOT NULL,
+        Kho_ID BIGINT NOT NULL,
+        San_Pham_ID BIGINT NOT NULL,
+        From_Date DATE NOT NULL,
+        To_Date DATE NOT NULL,
+        Claimed_Version INT NOT NULL
+    );
+    DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
+    DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
 
     WHILE @Processed < @Batch_Size
     BEGIN
@@ -7790,18 +7788,9 @@ BEGIN
 
         BEGIN TRY
             BEGIN TRANSACTION;
-            DECLARE @Claimed TABLE
-            (
-                ID BIGINT NOT NULL,
-                Kho_ID BIGINT NOT NULL,
-                San_Pham_ID BIGINT NOT NULL,
-                From_Date DATE NOT NULL,
-                To_Date DATE NOT NULL,
-                Claimed_Version INT NOT NULL
-            );
-
-            DECLARE @GroupSet dbo.InventoryFenceGroupSetType;
-            DECLARE @ScopeSet dbo.InventoryFenceScopeSetType;
+            DELETE FROM @Claimed;
+            DELETE FROM @GroupSet;
+            DELETE FROM @ScopeSet;
             INSERT @GroupSet(Kho_ID) VALUES (@Candidate_Kho_ID);
             INSERT @ScopeSet(Kho_ID, San_Pham_ID) VALUES (@Candidate_Kho_ID, @Candidate_San_Pham_ID);
 
@@ -7839,6 +7828,7 @@ BEGIN
                 LastAttemptAt = SYSUTCDATETIME(),
                 NextRetryAt = NULL,
                 ProcessedAt = NULL,
+                LastError = NULL,
                 ErrorMessage = NULL
             OUTPUT inserted.ID,
                    inserted.Kho_ID,

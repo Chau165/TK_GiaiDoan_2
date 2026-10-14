@@ -1,4 +1,4 @@
-namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+namespace TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 public static class CWarehouseActionHistory_Recorder
 {
@@ -17,7 +17,7 @@ public static class CWarehouseActionHistory_Recorder
             }
             catch (Exception v_objFailureHandlerException)
             {
-                Utility.CLogger.Warning(
+                global::TKS_Thuc_Tap_V11_Data_Access.Utility.CLogger.Warning(
                     nameof(CWarehouseActionHistory_Recorder),
                     nameof(TryRecord),
                     v_objFailureHandlerException.ToString());

@@ -44,7 +44,7 @@ public sealed class WarehouseXnkSplitContractTests
             "TKS_Thuc_Tap_V11_Data_Access.Entity.XNK.CXNK_Xuat_Kho_Detail",
             "TKS_Thuc_Tap_V11_Data_Access.Controller.XNK.CXNK_Nhap_Kho_Controller",
             "TKS_Thuc_Tap_V11_Data_Access.Controller.XNK.CXNK_Xuat_Kho_Controller",
-            "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseDocumentSupport_Controller"
+            "TKS_Thuc_Tap_V11_Data_Access.Controller.XNK.CWarehouseDocumentSupport_Controller"
         })
         {
             Assert.NotNull(v_objAssembly.GetType(v_strType_Name));
@@ -164,7 +164,7 @@ public sealed class WarehouseXnkSplitContractTests
     public void Shared_page_and_post_stores_are_owned_by_the_temporary_support_controller()
     {
         Type v_objType = typeof(CUtility).Assembly.GetType(
-            "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseDocumentSupport_Controller")
+            "TKS_Thuc_Tap_V11_Data_Access.Controller.XNK.CWarehouseDocumentSupport_Controller")
             ?? throw new InvalidOperationException("Temporary XNK support controller was not found.");
         string[] v_arrMethods = v_objType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Select(v_objMethod => v_objMethod.Name)
@@ -173,7 +173,7 @@ public sealed class WarehouseXnkSplitContractTests
         Assert.Equal(["sp_XNK_Document_Page", "sp_XNK_Document_Post"], v_arrMethods);
 
         string v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocumentSupport_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs"));
         Assert.Contains("Page_From_Procedure<CWarehouseDocument>(\"sp_XNK_Document_Page\"", v_strSource, StringComparison.Ordinal);
         Assert.Contains("Execute_Procedure(\"sp_XNK_Document_Post\"", v_strSource, StringComparison.Ordinal);
         Assert.DoesNotContain("F3001_", v_strSource, StringComparison.Ordinal);
@@ -306,11 +306,9 @@ public sealed class WarehouseXnkSplitContractTests
     [Fact]
     public void Legacy_document_persistence_controller_is_retired()
     {
-        Assert.Null(typeof(CUtility).Assembly.GetType(
-            "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseDocument_Controller"));
-        string v_strSupport_Path = FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocumentSupport_Controller.cs");
-        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(v_strSupport_Path)!, "CWarehouseDocument_Controller.cs")));
+        Assert.DoesNotContain(
+            typeof(CUtility).Assembly.GetTypes(),
+            v_objType => v_objType.Name == "CWarehouseDocument_Controller");
     }
 
     private static string[] ExtractMethodBodies(string p_strSource, string p_strMethod_Name)

@@ -399,7 +399,7 @@ public sealed class WarehouseHistoricalGroupModeTests
         Assert.Contains("#ReportScopeProtected", v_Helper, StringComparison.Ordinal);
         Assert.Contains("51451", v_Helper, StringComparison.Ordinal);
 
-        var v_Page = ExtractProcedure(v_Procedures, "sp_BC_Xuat_Nhap_Ton_Page");
+        var v_Page = ExtractProcedure(v_Procedures, "F9002_sp_Xuat_Nhap_Ton_Page");
         Assert.Contains("@Current_Catalog_Scope_Count", v_Page, StringComparison.Ordinal);
         Assert.Contains("@Current_Catalog_Max_ID", v_Page, StringComparison.Ordinal);
         Assert.Contains("THROW 51324", v_Page, StringComparison.Ordinal);
@@ -556,7 +556,7 @@ public sealed class WarehouseHistoricalGroupModeTests
         DateTime p_dtmFrom,
         DateTime p_dtmTo)
     {
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton_Page", p_Connection)
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton_Page", p_Connection)
         {
             CommandType = CommandType.StoredProcedure,
             CommandTimeout = 120
@@ -590,7 +590,7 @@ public sealed class WarehouseHistoricalGroupModeTests
         DateTime p_dtmFrom,
         DateTime p_dtmTo)
     {
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton", p_Connection)
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton", p_Connection)
         {
             CommandType = CommandType.StoredProcedure,
             CommandTimeout = 120

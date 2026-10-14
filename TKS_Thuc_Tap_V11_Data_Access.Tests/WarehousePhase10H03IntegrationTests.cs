@@ -50,7 +50,7 @@ public sealed class WarehousePhase10H03IntegrationTests
             var v_Error = await Assert.ThrowsAsync<SqlException>(() => ExecuteStoredAsync(
                 v_ReportConnection,
                 null,
-                "dbo.sp_BC_Xuat_Nhap_Ton_Page",
+                "dbo.F9002_sp_Xuat_Nhap_Ton_Page",
                 Date("@Tu_Ngay", v_Fixture.BusinessDate),
                 Date("@Den_Ngay", v_Fixture.BusinessDate),
                 Int("@Page_Number", 1),
@@ -209,7 +209,7 @@ public sealed class WarehousePhase10H03IntegrationTests
     {
         await using var v_Connection = new SqlConnection(ConnectionString);
         await v_Connection.OpenAsync();
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton", v_Connection) { CommandType = CommandType.StoredProcedure, CommandTimeout = 10 };
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton", v_Connection) { CommandType = CommandType.StoredProcedure, CommandTimeout = 10 };
         v_Command.Parameters.Add(Date("@Tu_Ngay", p_Fixture.BusinessDate));
         v_Command.Parameters.Add(Date("@Den_Ngay", p_Fixture.BusinessDate));
         v_Command.Parameters.Add(Text("@Ma_Dang_Nhap", p_Fixture.Login, 100));

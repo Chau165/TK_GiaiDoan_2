@@ -1,6 +1,6 @@
 using Microsoft.Data.SqlClient;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK;
@@ -452,7 +452,7 @@ public sealed class CWarehouseTransactionImportStore : ITransactionImportStore
         do
         {
             p_objCancellationToken.ThrowIfCancellationRequested();
-            var v_objPage = m_objReportController.sp_BC_Ton_Kho_Hien_Tai_Page(
+            var v_objPage = m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(
                 v_iPage, v_iPageSize, p_strCurrent_Login);
             v_iTotal = v_objPage.Total_Count;
             v_arrBalances.AddRange(v_objPage.Items.Select(v_objBalance => new CTransactionImportInventoryBalance(

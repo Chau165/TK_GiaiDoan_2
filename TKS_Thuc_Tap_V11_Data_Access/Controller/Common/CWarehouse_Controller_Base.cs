@@ -4,7 +4,7 @@ using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
-namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
 
 public abstract class CWarehouse_Controller_Base
 {

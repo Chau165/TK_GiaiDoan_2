@@ -502,7 +502,7 @@ public sealed class WarehousePhase3H03H08M06IntegrationTests : IAsyncLifetime
 
     private static async Task<InventoryReportRow> ReadInventoryReportAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, Fixture p_Fixture, DateTime p_dtmFrom, DateTime p_dtmTo)
     {
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton_Page", p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton_Page", p_Connection, p_Transaction) { CommandType = CommandType.StoredProcedure };
         v_Command.Parameters.Add(Date("@Tu_Ngay", p_dtmFrom));
         v_Command.Parameters.Add(Date("@Den_Ngay", p_dtmTo));
         v_Command.Parameters.Add(new SqlParameter("@Page_Number", SqlDbType.Int) { Value = 1 });

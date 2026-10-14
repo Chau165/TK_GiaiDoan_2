@@ -259,9 +259,9 @@ INSERT @ApprovedProcedures(Object_Name) VALUES
     (N'dbo.F3001_sp_sel_List_Nhap_Kho_Detail'),
     (N'dbo.F3002_sp_sel_List_Xuat_Kho_Detail'),
     (N'dbo.sp_XNK_Document_Post'),
-    (N'dbo.sp_BC_Xuat_Nhap_Ton'),
-    (N'dbo.sp_BC_Xuat_Nhap_Ton_Page'),
-    (N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page'),
+    (N'dbo.F9002_sp_Xuat_Nhap_Ton'),
+    (N'dbo.F9002_sp_Xuat_Nhap_Ton_Page'),
+    (N'dbo.F9001_sp_Ton_Kho_Hien_Tai_Page'),
     (N'dbo.sp_DM_Kho_User_List_Allowed'),
     (N'dbo.F2015_sp_del_Kho_User');
 

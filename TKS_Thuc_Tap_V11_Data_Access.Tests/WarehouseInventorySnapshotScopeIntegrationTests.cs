@@ -135,7 +135,7 @@ public sealed class WarehouseInventorySnapshotScopeIntegrationTests
 
     private static async Task<PagedReport> ReadPagedAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login)
     {
-        await using var v_Command = new SqlCommand("sp_BC_Xuat_Nhap_Ton_Page", p_Connection, p_Transaction)
+        await using var v_Command = new SqlCommand("F9002_sp_Xuat_Nhap_Ton_Page", p_Connection, p_Transaction)
         {
             CommandType = CommandType.StoredProcedure
         };
@@ -152,7 +152,7 @@ public sealed class WarehouseInventorySnapshotScopeIntegrationTests
 
     private static async Task<List<ReportRow>> ReadNonPagedAsync(SqlConnection p_Connection, SqlTransaction p_Transaction, string p_Login)
     {
-        await using var v_Command = new SqlCommand("sp_BC_Xuat_Nhap_Ton", p_Connection, p_Transaction)
+        await using var v_Command = new SqlCommand("F9002_sp_Xuat_Nhap_Ton", p_Connection, p_Transaction)
         {
             CommandType = CommandType.StoredProcedure
         };

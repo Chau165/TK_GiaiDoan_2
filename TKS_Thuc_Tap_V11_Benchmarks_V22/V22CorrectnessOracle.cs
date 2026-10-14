@@ -29,9 +29,9 @@ internal static class V22CorrectnessOracle
             "MasterPaged" => (MasterSql, "dbo.sp_DM_Master_Page", "HIGH"),
             "LookupPaged" => (LookupSql, "dbo.sp_DM_Lookup_Page", "HIGH"),
             "DocumentPaged" => (DocumentSql, "dbo.sp_XNK_Document_Page", "MEDIUM"),
-            "DetailReportPaged" => (DetailSql, "dbo.sp_BC_Chi_Tiet_Nhap_Page", "MEDIUM"),
-            "InventoryHistoricalReportPaged" => (HistoricalSql, "dbo.sp_BC_Xuat_Nhap_Ton_Page", "MEDIUM"),
-            "InventoryCurrentBalancePaged" => (CurrentSql, "dbo.sp_BC_Ton_Kho_Hien_Tai_Page", "MEDIUM"),
+            "DetailReportPaged" => (DetailSql, "dbo.F9002_sp_Chi_Tiet_Nhap_Page", "MEDIUM"),
+            "InventoryHistoricalReportPaged" => (HistoricalSql, "dbo.F9002_sp_Xuat_Nhap_Ton_Page", "MEDIUM"),
+            "InventoryCurrentBalancePaged" => (CurrentSql, "dbo.F9001_sp_Ton_Kho_Hien_Tai_Page", "MEDIUM"),
             _ => throw new ArgumentOutOfRangeException(nameof(scenario), scenario, "Unknown correctness scenario.")
         };
 

@@ -99,7 +99,7 @@ WHERE IsValid = 1;
 SELECT 'FallbackLogRows=' + CONVERT(varchar(30), COUNT_BIG(*))
 FROM dbo.InventorySnapshot_ReportFallbackLog;
 SELECT 'ReportProcUsesSnapshot=' + CASE
-    WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Xuat_Nhap_Ton_Page')) LIKE N'%InventoryBalance_Snapshot_Daily%'
+    WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.F9002_sp_Xuat_Nhap_Ton_Page')) LIKE N'%InventoryBalance_Snapshot_Daily%'
     THEN '1' ELSE '0' END;
 "@
 

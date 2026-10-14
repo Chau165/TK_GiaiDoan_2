@@ -12,7 +12,9 @@ using BenchmarkDotNet.Toolchains.InProcess.NoEmit;
 using NBomber.CSharp;
 using NBomber.Contracts;
 using NBomber.Contracts.Stats;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Benchmarks_V22;
@@ -204,13 +206,13 @@ internal static class V22PerformanceRunner
         Task.FromResult(new CWarehouseDocumentSupport_Controller().sp_XNK_Document_Page(true, page, size, "", login, null).Items.Count);
 
     private static Task<int> ReadDetailsAsync(int page, int size, string login, DateTime from, DateTime to) =>
-        Task.FromResult(new CWarehouseReport_Controller().sp_BC_Chi_Tiet_Nhap_Page(from, to, page, size, login, null).Items.Count);
+        Task.FromResult(new CWarehouseReport_Controller().F9002_sp_Chi_Tiet_Nhap_Page(from, to, page, size, login, null).Items.Count);
 
     private static Task<int> ReadHistoricalInventoryAsync(int page, int size, string login, DateTime from, DateTime to) =>
-        Task.FromResult(new CWarehouseReport_Controller().sp_BC_Xuat_Nhap_Ton_Page(from, to, page, size, login, null).Items.Count);
+        Task.FromResult(new CWarehouseReport_Controller().F9002_sp_Xuat_Nhap_Ton_Page(from, to, page, size, login, null).Items.Count);
 
     private static Task<int> ReadCurrentInventoryAsync(int page, int size, string login) =>
-        Task.FromResult(new CWarehouseReport_Controller().sp_BC_Ton_Kho_Hien_Tai_Page(page, size, login, null).Items.Count);
+        Task.FromResult(new CWarehouseReport_Controller().F9001_sp_Ton_Kho_Hien_Tai_Page(page, size, login, null).Items.Count);
 
     private static Dictionary<string, string> ParseOptions(string[] args)
     {

@@ -532,7 +532,7 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
 
     private static async Task<List<long>> ReadNonPagedReportAsync(SqlConnection p_Connection, NewScopeReportFixture p_Fixture)
     {
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton", p_Connection) { CommandType = CommandType.StoredProcedure, CommandTimeout = 30 };
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton", p_Connection) { CommandType = CommandType.StoredProcedure, CommandTimeout = 30 };
         v_Command.Parameters.Add(Date("@Tu_Ngay", p_Fixture.BusinessDate));
         v_Command.Parameters.Add(Date("@Den_Ngay", p_Fixture.BusinessDate));
         v_Command.Parameters.Add(Text("@Ma_Dang_Nhap", p_Fixture.Login, 100));
@@ -544,7 +544,7 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
 
     private static async Task<(int TotalCount, List<long> Rows)> ReadCurrentReportAsync(SqlConnection p_Connection, NewScopeReportFixture p_Fixture)
     {
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Ton_Kho_Hien_Tai_Page", p_Connection)
+        await using var v_Command = new SqlCommand("dbo.F9001_sp_Ton_Kho_Hien_Tai_Page", p_Connection)
         {
             CommandType = CommandType.StoredProcedure,
             CommandTimeout = 30
@@ -563,7 +563,7 @@ public sealed class WarehousePhase10_1R01R02IntegrationTests
 
     private static async Task<(int TotalCount, List<long> Rows)> ReadPagedReportAsync(SqlConnection p_Connection, PagedNewScopeReportFixture p_Fixture)
     {
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton_Page", p_Connection)
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton_Page", p_Connection)
         {
             CommandType = CommandType.StoredProcedure,
             CommandTimeout = 30

@@ -14,15 +14,16 @@ public sealed class WarehouseMasterFinalizationContractTests
     {
         Assembly v_objDataAccessAssembly = typeof(CDM_Kho_Controller).Assembly;
 
-        Assert.Null(v_objDataAccessAssembly.GetType(
-            "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseMaster_Controller"));
+        Assert.DoesNotContain(
+            v_objDataAccessAssembly.GetTypes(),
+            v_objType => v_objType.Name == "CWarehouseMaster_Controller");
         string v_strDataAccessProject = FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "TKS_Thuc_Tap_V11_Data_Access.csproj");
         Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(v_strDataAccessProject)!,
             "Controller", "DM", "CWarehouseMaster_Controller.cs")));
 
         Type? v_objSupportType = v_objDataAccessAssembly.GetType(
-            "TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse.CWarehouseMasterSupport_Controller");
+            "TKS_Thuc_Tap_V11_Data_Access.Controller.DM.CWarehouseMasterSupport_Controller");
 
         Assert.NotNull(v_objSupportType);
         string[] v_arrPublicMethodNames = v_objSupportType!
@@ -36,7 +37,7 @@ public sealed class WarehouseMasterFinalizationContractTests
             v_arrPublicMethodNames);
 
         string v_strSupportSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMasterSupport_Controller.cs"));
+            "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs"));
         Assert.Contains("sp_DM_Master_Page", v_strSupportSource);
         Assert.Contains("sp_DM_Lookup_Page", v_strSupportSource);
     }

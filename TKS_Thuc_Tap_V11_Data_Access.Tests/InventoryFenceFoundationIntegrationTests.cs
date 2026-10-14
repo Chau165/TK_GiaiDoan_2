@@ -443,7 +443,7 @@ public sealed class InventoryFenceFoundationIntegrationTests : IAsyncLifetime
             "sp_XNK_Reservation_Rebuild",
             "sp_XNK_InventoryBalance_Rebuild",
             "sp_Inventory_Reconciliation_Run",
-            "sp_BC_Ton_Kho_Hien_Tai_Page"
+            "F9001_sp_Ton_Kho_Hien_Tai_Page"
         };
 
         foreach (var v_ProcedureName in v_arrMigratedWriterNames)
@@ -453,7 +453,7 @@ public sealed class InventoryFenceFoundationIntegrationTests : IAsyncLifetime
         }
 
         var v_HistoricalFence = ExtractProcedure(v_Source, "sp_Inventory_Report_Acquire_Scope_Fence");
-        var v_HistoricalReport = ExtractProcedure(v_Source, "sp_BC_Xuat_Nhap_Ton_Page");
+        var v_HistoricalReport = ExtractProcedure(v_Source, "F9002_sp_Xuat_Nhap_Ton_Page");
         Assert.Contains("IF @Fence_Mode = N'LEGACY'", v_HistoricalFence, StringComparison.Ordinal);
         Assert.Contains("sp_Inventory_Fence_Acquire_Root", v_HistoricalFence, StringComparison.Ordinal);
         Assert.Contains("sp_Inventory_Fence_Acquire_Group_Set", v_HistoricalFence, StringComparison.Ordinal);

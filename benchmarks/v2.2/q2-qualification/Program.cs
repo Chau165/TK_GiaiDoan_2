@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
-using TKS_Thuc_Tap_V11_Data_Access.Controller.Warehouse;
+using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -773,7 +773,7 @@ SELECT CONVERT(date,SYSDATETIME()) BusinessDate,
         var e=await CaptureAsync();
         await using var c=new SqlConnection(_cs);await c.OpenAsync();
         var procedures=await Rows(c,@"SELECT name,type_desc FROM sys.objects WHERE type IN('P','PC') AND name IN
- (N'F3001_sp_ins_Nhap_Kho_Header',N'F3001_sp_ins_Nhap_Kho_Detail',N'F3001_sp_del_Nhap_Kho_Header',N'F3001_sp_del_Nhap_Kho_Detail',N'F3001_sp_sel_List_Nhap_Kho_Detail',N'F3002_sp_ins_Xuat_Kho_Header',N'F3002_sp_ins_Xuat_Kho_Detail',N'F3002_sp_upd_Xuat_Kho_Detail',N'F3002_sp_del_Xuat_Kho_Header',N'F3002_sp_del_Xuat_Kho_Detail',N'F3002_sp_sel_List_Xuat_Kho_Detail',N'sp_DM_Kho_User_List_Allowed',N'sp_XNK_Document_Post',N'sp_XNK_Document_Page',N'sp_BC_Ton_Kho_Hien_Tai_Page',N'sp_BC_Xuat_Nhap_Ton_Page',N'sp_Inventory_Movement_Process_RebuildQueue') ORDER BY name;",_=>{});
+ (N'F3001_sp_ins_Nhap_Kho_Header',N'F3001_sp_ins_Nhap_Kho_Detail',N'F3001_sp_del_Nhap_Kho_Header',N'F3001_sp_del_Nhap_Kho_Detail',N'F3001_sp_sel_List_Nhap_Kho_Detail',N'F3002_sp_ins_Xuat_Kho_Header',N'F3002_sp_ins_Xuat_Kho_Detail',N'F3002_sp_upd_Xuat_Kho_Detail',N'F3002_sp_del_Xuat_Kho_Header',N'F3002_sp_del_Xuat_Kho_Detail',N'F3002_sp_sel_List_Xuat_Kho_Detail',N'sp_DM_Kho_User_List_Allowed',N'sp_XNK_Document_Post',N'sp_XNK_Document_Page',N'F9001_sp_Ton_Kho_Hien_Tai_Page',N'F9002_sp_Xuat_Nhap_Ton_Page',N'sp_Inventory_Movement_Process_RebuildQueue') ORDER BY name;",_=>{});
         var similar=await Rows(c,"SELECT name,type_desc FROM sys.objects WHERE type IN('P','PC') AND (name LIKE N'%Nhap_Kho_Header%' OR name LIKE N'%F2011%') ORDER BY name;",_=>{});
         var workerDefinition=Convert.ToString(await Scalar(c,"SELECT OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_Inventory_Movement_Process_RebuildQueue'))"),CultureInfo.InvariantCulture)??"";
         var workerDefinitionSha256=workerDefinition.Length==0?"":Convert.ToHexString(SHA256.HashData(Encoding.Unicode.GetBytes(workerDefinition)));
@@ -782,7 +782,7 @@ SELECT CONVERT(date,SYSDATETIME()) BusinessDate,
  (SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Nhap_Kho_Raw_Data d JOIN dbo.tbl_XNK_Nhap_Kho h ON h.Auto_ID=d.Nhap_Kho_ID WHERE h.So_Phieu_Nhap_Kho LIKE @prefix) ReceiptDetails,
  (SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho WHERE So_Phieu_Xuat_Kho LIKE @prefix) IssueHeaders,
  (SELECT COUNT_BIG(*) FROM dbo.tbl_XNK_Xuat_Kho_Raw_Data d JOIN dbo.tbl_XNK_Xuat_Kho h ON h.Auto_ID=d.Xuat_Kho_ID WHERE h.So_Phieu_Xuat_Kho LIKE @prefix) IssueDetails;",q=>Param(q,"@prefix",System.Data.SqlDbType.NVarChar,"WHB22B4-"+_runId+"-%",100));
-        string[] expectedNames={"F3001_sp_ins_Nhap_Kho_Header","F3001_sp_ins_Nhap_Kho_Detail","F3001_sp_del_Nhap_Kho_Header","F3001_sp_del_Nhap_Kho_Detail","F3001_sp_sel_List_Nhap_Kho_Detail","F3002_sp_ins_Xuat_Kho_Header","F3002_sp_ins_Xuat_Kho_Detail","F3002_sp_upd_Xuat_Kho_Detail","F3002_sp_del_Xuat_Kho_Header","F3002_sp_del_Xuat_Kho_Detail","F3002_sp_sel_List_Xuat_Kho_Detail","sp_DM_Kho_User_List_Allowed","sp_XNK_Document_Post","sp_XNK_Document_Page","sp_BC_Ton_Kho_Hien_Tai_Page","sp_BC_Xuat_Nhap_Ton_Page","sp_Inventory_Movement_Process_RebuildQueue"};
+        string[] expectedNames={"F3001_sp_ins_Nhap_Kho_Header","F3001_sp_ins_Nhap_Kho_Detail","F3001_sp_del_Nhap_Kho_Header","F3001_sp_del_Nhap_Kho_Detail","F3001_sp_sel_List_Nhap_Kho_Detail","F3002_sp_ins_Xuat_Kho_Header","F3002_sp_ins_Xuat_Kho_Detail","F3002_sp_upd_Xuat_Kho_Detail","F3002_sp_del_Xuat_Kho_Header","F3002_sp_del_Xuat_Kho_Detail","F3002_sp_sel_List_Xuat_Kho_Detail","sp_DM_Kho_User_List_Allowed","sp_XNK_Document_Post","sp_XNK_Document_Page","F9001_sp_Ton_Kho_Hien_Tai_Page","F9002_sp_Xuat_Nhap_Ton_Page","sp_Inventory_Movement_Process_RebuildQueue"};
         var found=procedures.Select(x=>Convert.ToString(x["name"],CultureInfo.InvariantCulture)??"").ToHashSet(StringComparer.OrdinalIgnoreCase);var missing=expectedNames.Where(x=>!found.Contains(x)).ToArray();
         var noRunDocuments=Convert.ToInt64(docs["ReceiptHeaders"])==0&&Convert.ToInt64(docs["ReceiptDetails"])==0&&Convert.ToInt64(docs["IssueHeaders"])==0&&Convert.ToInt64(docs["IssueDetails"])==0;
         var status=missing.Length>0?"BLOCKED_MISSING_REQUIRED_APPLICATION_STORED_PROCEDURES":!noRunDocuments?"BLOCKED_RUN_SCOPED_DOCUMENTS_ALREADY_EXIST":T(e.AppPath,"Status")!="PASS"?"BLOCKED_READ_ONLY_APPLICATION_PROBE":"PASS_CATALOG_AND_NO_RUN_DOCUMENTS";
@@ -1623,7 +1623,7 @@ SELECT CONVERT(date,SYSDATETIME()) BusinessDate,
     {
         await using var c=new SqlConnection(_cs);await c.OpenAsync();
         var rank=Convert.ToInt64(await Scalar(c,"SELECT COUNT_BIG(*) FROM dbo.InventoryBalance_Current WHERE Kho_ID=@w AND San_Pham_ID<@p;",q=>{Param(q,"@w",System.Data.SqlDbType.BigInt,Warehouse);Param(q,"@p",System.Data.SqlDbType.BigInt,Product);}));
-        const int size=50;var page=Reports.sp_BC_Ton_Kho_Hien_Tai_Page(checked((int)(rank/size)+1),size,Login,Warehouse);
+        const int size=50;var page=Reports.F9001_sp_Ton_Kho_Hien_Tai_Page(checked((int)(rank/size)+1),size,Login,Warehouse);
         var row=page.Items.SingleOrDefault(x=>x.Kho_ID==Warehouse&&x.San_Pham_ID==Product);
         Need(row is not null&&page.Total_Count>0&&row.SL_Ton_Thuc_Te==current&&row.SL_Cuoi_Ky==current&&row.SL_Dang_Giu==reserved&&row.SL_Kha_Dung==current-reserved,"Current report app path/oracle mismatch.");
         return new{Status="PASS",Mode="CURRENT",PageSize=size,TotalCount=page.Total_Count,Row=new{row!.Kho_ID,row.San_Pham_ID,row.SL_Ton_Thuc_Te,row.SL_Dang_Giu,row.SL_Kha_Dung}};
@@ -1640,7 +1640,7 @@ WHERE s.Kho_ID=@w AND s.First_Balance_Date<=@d
 AND EXISTS(SELECT 1 FROM dbo.Inventory_Balance_Daily b WHERE b.Kho_ID=s.Kho_ID AND b.San_Pham_ID=s.San_Pham_ID AND b.Balance_Date<=@d AND b.IsValid=1)
 AND (k.Ten_Kho<@warehouseName OR (k.Ten_Kho=@warehouseName AND p.Ma_San_Pham<@productCode));",
             q=>{Param(q,"@login",System.Data.SqlDbType.NVarChar,Login,100);Param(q,"@w",System.Data.SqlDbType.BigInt,Warehouse);Param(q,"@d",System.Data.SqlDbType.Date,date.Date);Param(q,"@warehouseName",System.Data.SqlDbType.NVarChar,target["Ten_Kho"],200);Param(q,"@productCode",System.Data.SqlDbType.NVarChar,target["Ma_San_Pham"],100);}));
-        const int size=50;var page=Reports.sp_BC_Xuat_Nhap_Ton_Page(date,date,checked((int)(rank/size)+1),size,Login,Warehouse);
+        const int size=50;var page=Reports.F9002_sp_Xuat_Nhap_Ton_Page(date,date,checked((int)(rank/size)+1),size,Login,Warehouse);
         var row=page.Items.SingleOrDefault(x=>x.Kho_ID==Warehouse&&x.San_Pham_ID==Product);
         Need(row is not null&&page.Total_Count>0&&row.SL_Nhap==received&&row.SL_Xuat==issued&&row.SL_Cuoi_Ky==closing&&row.SL_Dau_Ky+row.SL_Nhap-row.SL_Xuat==row.SL_Cuoi_Ky,"Historical report app path/oracle mismatch.");
         return new{Status="PASS",Mode="HISTORICAL",Date=date.Date,PageSize=size,TotalCount=page.Total_Count,Row=new{row!.Kho_ID,row.San_Pham_ID,row.SL_Dau_Ky,row.SL_Nhap,row.SL_Xuat,row.SL_Cuoi_Ky}};

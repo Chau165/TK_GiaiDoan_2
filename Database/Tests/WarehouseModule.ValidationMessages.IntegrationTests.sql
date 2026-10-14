@@ -152,7 +152,7 @@ BEGIN TRY
 
     /* Báo cáo: invalid date range. */
     BEGIN TRY
-        EXEC dbo.sp_BC_Xuat_Nhap_Ton @Tu_Ngay = '2026-08-18', @Den_Ngay = '2026-08-17';
+        EXEC dbo.F9002_sp_Xuat_Nhap_Ton @Tu_Ngay = '2026-08-18', @Den_Ngay = '2026-08-17';
         THROW 53026, 'Expected invalid report-date validation.', 1;
     END TRY
     BEGIN CATCH
@@ -161,7 +161,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_BC_Chi_Tiet_Nhap @Tu_Ngay = '2026-08-18', @Den_Ngay = '2026-08-17';
+        EXEC dbo.F9002_sp_Chi_Tiet_Nhap @Tu_Ngay = '2026-08-18', @Den_Ngay = '2026-08-17';
         THROW 53030, 'Expected invalid receipt-report date validation.', 1;
     END TRY
     BEGIN CATCH
@@ -170,7 +170,7 @@ BEGIN TRY
     END CATCH;
 
     BEGIN TRY
-        EXEC dbo.sp_BC_Chi_Tiet_Xuat @Tu_Ngay = '2026-08-18', @Den_Ngay = '2026-08-17';
+        EXEC dbo.F9002_sp_Chi_Tiet_Xuat @Tu_Ngay = '2026-08-18', @Den_Ngay = '2026-08-17';
         THROW 53032, 'Expected invalid issue-report date validation.', 1;
     END TRY
     BEGIN CATCH

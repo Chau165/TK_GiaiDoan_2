@@ -13,9 +13,9 @@ public static class V2Validation
         "sp_DM_Master_Page",
         "sp_DM_Lookup_Page",
         "sp_XNK_Document_Page",
-        "sp_BC_Chi_Tiet_Nhap_Page",
-        "sp_BC_Xuat_Nhap_Ton_Page",
-        "sp_BC_Ton_Kho_Hien_Tai_Page",
+        "F9002_sp_Chi_Tiet_Nhap_Page",
+        "F9002_sp_Xuat_Nhap_Ton_Page",
+        "F9001_sp_Ton_Kho_Hien_Tai_Page",
         "sp_Inventory_Report_Acquire_Scope_Fence",
         "sp_Inventory_Fence_Require_Context"
     };

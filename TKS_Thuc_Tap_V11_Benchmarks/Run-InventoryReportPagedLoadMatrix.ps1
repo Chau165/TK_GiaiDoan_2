@@ -69,7 +69,7 @@ function Invoke-TelemetrySample {
     $query = @"
 SET NOCOUNT ON;
 DECLARE @DbId INT = DB_ID(N'$databaseName');
-DECLARE @ProcId INT = OBJECT_ID(N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page');
+DECLARE @ProcId INT = OBJECT_ID(N'dbo.F9001_sp_Ton_Kho_Hien_Tai_Page');
 SELECT
     CONVERT(char(33), SYSUTCDATETIME(), 126) AS TimestampUtc,
     COALESCE((SELECT COUNT_BIG(*) FROM sys.dm_exec_requests r WHERE r.database_id = @DbId AND r.session_id <> @@SPID), 0) AS ActiveRequests,
@@ -215,10 +215,10 @@ try {
     $definitionVerification = @"
 SET NOCOUNT ON;
 SELECT 'Database=' + DB_NAME();
-SELECT 'ProcedureLength=' + CONVERT(varchar(30), LEN(OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page'))));
-SELECT 'UsesCurrentBalance=' + CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page')) LIKE N'%InventoryBalance_Current%' THEN '1' ELSE '0' END;
-SELECT 'UsesMovementAggregate=' + CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page')) LIKE N'%#MovementAggregate%' THEN '1' ELSE '0' END;
-SELECT 'UsesPagedFetch=' + CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Ton_Kho_Hien_Tai_Page')) LIKE N'%OFFSET (%' THEN '1' ELSE '0' END;
+SELECT 'ProcedureLength=' + CONVERT(varchar(30), LEN(OBJECT_DEFINITION(OBJECT_ID(N'dbo.F9001_sp_Ton_Kho_Hien_Tai_Page'))));
+SELECT 'UsesCurrentBalance=' + CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.F9001_sp_Ton_Kho_Hien_Tai_Page')) LIKE N'%InventoryBalance_Current%' THEN '1' ELSE '0' END;
+SELECT 'UsesMovementAggregate=' + CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.F9001_sp_Ton_Kho_Hien_Tai_Page')) LIKE N'%#MovementAggregate%' THEN '1' ELSE '0' END;
+SELECT 'UsesPagedFetch=' + CASE WHEN OBJECT_DEFINITION(OBJECT_ID(N'dbo.F9001_sp_Ton_Kho_Hien_Tai_Page')) LIKE N'%OFFSET (%' THEN '1' ELSE '0' END;
 SELECT 'AggregateInitialized=' + CONVERT(varchar(1), IsInitialized) FROM dbo.InventoryMovement_AggregateState WHERE State_ID = 1;
 "@
     @("GitRevision=$sourceRevision", "WarehouseModule.Procedures.sql SHA256=$sourceHash") | Set-Content -LiteralPath $sourceIdentityPath -Encoding UTF8
@@ -339,7 +339,7 @@ SELECT 'AggregateInitialized=' + CONVERT(varchar(1), IsInitialized) FROM dbo.Inv
 - Data and log directory: $databaseDirectoryPath
 - Data target: $RecordCount detail rows
 - Scope: `InventoryCurrentBalancePaged` only; no other NBomber scenarios are registered.
-- Read path: `sp_BC_Ton_Kho_Hien_Tai_Page` reads the materialized current balance; page size 10; PERF_USER is authorized for all benchmark warehouses.
+- Read path: `F9001_sp_Ton_Kho_Hien_Tai_Page` reads the materialized current balance; page size 10; PERF_USER is authorized for all benchmark warehouses.
 - NBomber duration: $DurationSeconds seconds for each worker level.
 
 ## Source and deployment verification
@@ -356,7 +356,7 @@ $matrixMarkdown
 
 ## Telemetry interpretation
 
-- SQL CPU/elapsed/logical reads are deltas from `sys.dm_exec_procedure_stats` for `sp_BC_Ton_Kho_Hien_Tai_Page` during each NBomber run.
+- SQL CPU/elapsed/logical reads are deltas from `sys.dm_exec_procedure_stats` for `F9001_sp_Ton_Kho_Hien_Tai_Page` during each NBomber run.
 - Memory grant and TempDB fields are peaks from 500 ms DMV samples. The TempDB values are server-wide because temporary tables are shared by SQL Server.
 - Wait deltas are server-wide `sys.dm_os_wait_stats` deltas taken around each run. They may include unrelated local SQL activity; active request and memory-grant samples are restricted to the benchmark database.
 

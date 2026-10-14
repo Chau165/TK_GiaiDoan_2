@@ -4,7 +4,7 @@
    RED before deployment:
    - dbo.Inventory_Balance_Daily and its scope/state tables do not exist.
    - dbo.sp_Inventory_Balance_Daily_Rebuild does not exist.
-   - dbo.sp_BC_Xuat_Nhap_Ton_Page still reads Inventory_Movement_Daily and builds #MovementAggregate.
+   - dbo.F9002_sp_Xuat_Nhap_Ton_Page still reads Inventory_Movement_Daily and builds #MovementAggregate.
 
    Run after WarehouseModule.Schema.sql and WarehouseModule.Procedures.sql:
      sqlcmd -S localhost -E -C -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\Tests\WarehouseInventoryBalanceDaily.IntegrationTests.sql
@@ -157,7 +157,7 @@ BEGIN TRY
     /* 4. Permission scope is still enforced by the report contract. */
     SET @ErrorNumber = NULL;
     BEGIN TRY
-        EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+        EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
             @Tu_Ngay = '2099-02-01', @Den_Ngay = '2099-02-28',
             @Page_Number = 1, @Page_Size = 10,
             @Ma_Dang_Nhap = @UnauthorizedLogin, @Kho_ID = @WarehouseId;
@@ -168,14 +168,14 @@ BEGIN TRY
     IF @ErrorNumber <> 51054
         THROW 52510, N'Report did not reject an explicit warehouse outside the user permission scope.', 1;
 
-    EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+    EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
         @Tu_Ngay = '2099-02-01', @Den_Ngay = '2099-02-28',
         @Page_Number = 1, @Page_Size = 10,
         @Ma_Dang_Nhap = @Login, @Kho_ID = @WarehouseId;
 
     /* 5. The report must only read materialized balance data; no movement scan,
        SUM/GROUP BY or #MovementAggregate may return to the request path. */
-    DECLARE @PageDefinition NVARCHAR(MAX) = OBJECT_DEFINITION(OBJECT_ID(N'dbo.sp_BC_Xuat_Nhap_Ton_Page'));
+    DECLARE @PageDefinition NVARCHAR(MAX) = OBJECT_DEFINITION(OBJECT_ID(N'dbo.F9002_sp_Xuat_Nhap_Ton_Page'));
     IF CHARINDEX(N'Inventory_Balance_Daily', @PageDefinition) = 0
        OR CHARINDEX(N'Inventory_Movement_Daily', @PageDefinition) > 0
        OR CHARINDEX(N'#MovementAggregate', @PageDefinition) > 0

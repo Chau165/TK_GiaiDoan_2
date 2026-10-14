@@ -41,13 +41,13 @@ GRANT EXECUTE ON OBJECT::dbo.F3002_sp_sel_List_Xuat_Kho TO [Warehouse_Applicatio
 GRANT EXECUTE ON OBJECT::dbo.F3001_sp_sel_List_Nhap_Kho_Detail TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.F3002_sp_sel_List_Xuat_Kho_Detail TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_XNK_Document_Page TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Chi_Tiet_Nhap TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Chi_Tiet_Xuat TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Chi_Tiet_Nhap_Page TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Chi_Tiet_Xuat_Page TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Xuat_Nhap_Ton TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Xuat_Nhap_Ton_Page TO [Warehouse_Application];
-GRANT EXECUTE ON OBJECT::dbo.sp_BC_Ton_Kho_Hien_Tai_Page TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9002_sp_Chi_Tiet_Nhap TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9002_sp_Chi_Tiet_Xuat TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9002_sp_Chi_Tiet_Nhap_Page TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9002_sp_Chi_Tiet_Xuat_Page TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9002_sp_Xuat_Nhap_Ton TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9002_sp_Xuat_Nhap_Ton_Page TO [Warehouse_Application];
+GRANT EXECUTE ON OBJECT::dbo.F9001_sp_Ton_Kho_Hien_Tai_Page TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.sp_DM_Kho_User_List_Allowed TO [Warehouse_Application];
 GRANT EXECUTE ON OBJECT::dbo.F2015_sp_del_Kho_User TO [Warehouse_Application];
 GO

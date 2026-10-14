@@ -1049,7 +1049,7 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
     {
         await using var v_Connection = OpenConnection($"L02-report-read-{p_Fixture.Tag}");
         await v_Connection.OpenAsync();
-        await using var v_Command = new SqlCommand("dbo.sp_BC_Xuat_Nhap_Ton_Page", v_Connection)
+        await using var v_Command = new SqlCommand("dbo.F9002_sp_Xuat_Nhap_Ton_Page", v_Connection)
         {
             CommandType = CommandType.StoredProcedure
         };

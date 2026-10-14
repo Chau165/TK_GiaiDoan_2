@@ -86,7 +86,7 @@ public sealed class ToolBenchmarkHarnessTests
 
         Assert.Contains("InventoryCurrentBalancePaged", v_Runner, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("TKS_NBOMBER_SCENARIOS = 'InventoryReportPaged'", v_Runner, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("sp_BC_Ton_Kho_Hien_Tai_Page", v_Runner, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("F9001_sp_Ton_Kho_Hien_Tai_Page", v_Runner, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

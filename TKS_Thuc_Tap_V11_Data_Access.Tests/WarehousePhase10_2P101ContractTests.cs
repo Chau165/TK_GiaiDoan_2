@@ -10,7 +10,7 @@ public sealed class WarehousePhase10_2P101ContractTests
     {
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
         var v_Schema = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Schema.sql"));
-        var v_iStart = v_Procedures.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_BC_Ton_Kho_Hien_Tai_Page", StringComparison.Ordinal);
+        var v_iStart = v_Procedures.IndexOf("CREATE OR ALTER PROCEDURE dbo.F9001_sp_Ton_Kho_Hien_Tai_Page", StringComparison.Ordinal);
         var v_iEnd = v_Procedures.IndexOf("\nGO", v_iStart, StringComparison.Ordinal);
 
         Assert.True(v_iStart >= 0 && v_iEnd > v_iStart, "Current report procedure was not found.");

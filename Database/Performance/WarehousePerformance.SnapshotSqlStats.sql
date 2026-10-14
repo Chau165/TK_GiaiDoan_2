@@ -3,7 +3,7 @@ SET NOCOUNT ON;
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
 
-EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay = '$(FromDate)',
     @Den_Ngay = '$(ToDate)',
     @Page_Number = 1,

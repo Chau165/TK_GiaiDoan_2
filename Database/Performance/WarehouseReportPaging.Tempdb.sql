@@ -26,7 +26,7 @@ SELECT @UserBefore = user_objects_alloc_page_count,
        @InternalBefore = internal_objects_alloc_page_count
 FROM sys.dm_db_session_space_usage
 WHERE session_id = @@SPID;
-EXEC dbo.sp_BC_Chi_Tiet_Nhap_Page
+EXEC dbo.F9002_sp_Chi_Tiet_Nhap_Page
     @Tu_Ngay = '2025-01-01', @Den_Ngay = '2026-12-31',
     @Page_Number = 1, @Page_Size = 10, @Ma_Dang_Nhap = N'PERF_USER';
 SELECT N'AFTER_DETAIL_RECEIPT_TEMPDB' AS Metric,
@@ -52,7 +52,7 @@ SELECT @UserBefore = user_objects_alloc_page_count,
        @InternalBefore = internal_objects_alloc_page_count
 FROM sys.dm_db_session_space_usage
 WHERE session_id = @@SPID;
-EXEC dbo.sp_BC_Xuat_Nhap_Ton_Page
+EXEC dbo.F9002_sp_Xuat_Nhap_Ton_Page
     @Tu_Ngay = '2025-01-01', @Den_Ngay = '2026-12-31',
     @Page_Number = 1, @Page_Size = 10, @Ma_Dang_Nhap = N'PERF_USER';
 SELECT N'AFTER_INVENTORY_TEMPDB' AS Metric,

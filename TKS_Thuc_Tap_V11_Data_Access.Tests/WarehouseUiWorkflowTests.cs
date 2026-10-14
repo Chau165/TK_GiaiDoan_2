@@ -104,10 +104,10 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_lists_use_server_side_ten_record_paging()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
-        var v_MasterController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseMasterSupport_Controller.cs"));
-        var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocumentSupport_Controller.cs"));
-        var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
-        var v_ControllerBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouse_Controller_Base.cs"));
+        var v_MasterController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs"));
+        var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs"));
+        var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
+        var v_ControllerBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Common", "CWarehouse_Controller_Base.cs"));
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
         Assert.Contains("OnRead=\"Read_Master_Async\"", v_List);
@@ -118,12 +118,12 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("List_Master_Page_Async", v_MasterController);
         Assert.Contains("List_Lookup_Page_Async", v_MasterController);
         Assert.Contains("sp_XNK_Document_Page", v_DocumentController);
-        Assert.Contains("sp_BC_Chi_Tiet_Nhap_Page", v_ReportController);
-        Assert.Contains("sp_BC_Ton_Kho_Hien_Tai_Page", v_ReportController);
+        Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page", v_ReportController);
+        Assert.Contains("F9001_sp_Ton_Kho_Hien_Tai_Page", v_ReportController);
         Assert.Contains("Page_From_Procedure", v_ControllerBase);
         Assert.Contains("sp_DM_Master_Page", v_Procedures);
         Assert.Contains("sp_XNK_Document_Page", v_Procedures);
-        Assert.Contains("sp_BC_Chi_Tiet_Nhap_Page", v_Procedures);
+        Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page", v_Procedures);
         Assert.Contains("OFFSET (@Page_Number - 1) * @Page_Size ROWS", v_Procedures);
     }
 
@@ -174,7 +174,7 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_all_pages_read_supports_zero_page_size_without_paging()
     {
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        var v_iProcStart = v_Procedures.IndexOf("CREATE OR ALTER PROCEDURE dbo.sp_BC_Ton_Kho_Hien_Tai_Page", StringComparison.Ordinal);
+        var v_iProcStart = v_Procedures.IndexOf("CREATE OR ALTER PROCEDURE dbo.F9001_sp_Ton_Kho_Hien_Tai_Page", StringComparison.Ordinal);
         var v_iProcEnd = v_Procedures.IndexOf("\nGO", v_iProcStart, StringComparison.Ordinal);
 
         Assert.True(v_iProcStart >= 0, "Current inventory paging procedure was not found.");
@@ -270,8 +270,8 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("<option value=\"Receipt\">Chi tiết hàng nhập</option>", v_List);
         Assert.Contains("<option value=\"Issue\">Chi tiết hàng xuất</option>", v_List);
         Assert.Contains("@key=\"m_strReport_Type\"", v_List);
-        Assert.Contains("sp_BC_Chi_Tiet_Nhap_Page", v_List);
-        Assert.Contains("sp_BC_Chi_Tiet_Xuat_Page", v_List);
+        Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page", v_List);
+        Assert.Contains("F9002_sp_Chi_Tiet_Xuat_Page", v_List);
     }
 
     [Fact]
@@ -323,16 +323,16 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_reports_filter_by_a_user_authorized_warehouse()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
-        var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseReport_Controller.cs"));
+        var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
         Assert.Contains("<label class=\"form-label\">Kho</label>", v_List);
         Assert.Contains("m_iReport_Warehouse_ID", v_List);
         Assert.Contains("<option value=\"\">Tất cả kho</option>", v_List);
-        Assert.Contains("sp_BC_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
-        Assert.Contains("sp_BC_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
-        Assert.Contains("sp_BC_Ton_Kho_Hien_Tai_Page(", v_List);
-        Assert.Contains("sp_BC_Xuat_Nhap_Ton_Page(", v_List);
+        Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
+        Assert.Contains("F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
+        Assert.Contains("F9001_sp_Ton_Kho_Hien_Tai_Page(", v_List);
+        Assert.Contains("F9002_sp_Xuat_Nhap_Ton_Page(", v_List);
         Assert.Contains("long? p_iWarehouse_ID = null", v_ReportController);
         Assert.Contains("CUtility.Map_Row_To_Entity<CWarehouseDetailReport>(v_row)", v_ReportController);
         Assert.Contains("CUtility.Map_Row_To_Entity<CWarehouseInventoryReport>(v_row)", v_ReportController);
@@ -341,12 +341,12 @@ public sealed class WarehouseUiWorkflowTests
 
         foreach (var v_Procedure in new[]
         {
-            "sp_BC_Chi_Tiet_Nhap",
-            "sp_BC_Chi_Tiet_Xuat",
-            "sp_BC_Chi_Tiet_Nhap_Page",
-            "sp_BC_Chi_Tiet_Xuat_Page",
-            "sp_BC_Xuat_Nhap_Ton",
-            "sp_BC_Xuat_Nhap_Ton_Page"
+            "F9002_sp_Chi_Tiet_Nhap",
+            "F9002_sp_Chi_Tiet_Xuat",
+            "F9002_sp_Chi_Tiet_Nhap_Page",
+            "F9002_sp_Chi_Tiet_Xuat_Page",
+            "F9002_sp_Xuat_Nhap_Ton",
+            "F9002_sp_Xuat_Nhap_Ton_Page"
         })
         {
             var v_iProcedureStart = v_Procedures.IndexOf($"CREATE OR ALTER PROCEDURE dbo.{v_Procedure}", StringComparison.Ordinal);
@@ -363,7 +363,7 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_document_grids_filter_by_a_user_authorized_warehouse()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
-        var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse", "CWarehouseDocumentSupport_Controller.cs"));
+        var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs"));
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
         Assert.Contains("m_iDocument_Warehouse_ID", v_List);
@@ -392,7 +392,6 @@ public sealed class WarehouseUiWorkflowTests
     [Fact]
     public void Warehouse_data_access_uses_stored_procedures_and_audit_arguments()
     {
-        var v_ControllerDirectory = FindRepositoryDirectory("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Warehouse");
         var v_Master = string.Concat(new[]
         {
             "CDM_Kho_Controller.cs",
@@ -402,11 +401,11 @@ public sealed class WarehouseUiWorkflowTests
             "CDM_NCC_Controller.cs"
         }.Select(v_strFile => File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", v_strFile))));
-        var v_Document = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseDocumentSupport_Controller.cs")) +
+        var v_Document = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs")) +
             File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs")) +
             File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
-        var v_Report = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouseReport_Controller.cs"));
-        var v_BaseController = File.ReadAllText(Path.Combine(v_ControllerDirectory, "CWarehouse_Controller_Base.cs"));
+        var v_Report = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
+        var v_BaseController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "Common", "CWarehouse_Controller_Base.cs"));
         var v_Source = v_Master + v_Document + v_Report + v_BaseController;
 
         Assert.DoesNotContain("SELECT ", v_Source, StringComparison.OrdinalIgnoreCase);
