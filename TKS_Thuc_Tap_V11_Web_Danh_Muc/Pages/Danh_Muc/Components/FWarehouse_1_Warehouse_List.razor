@@ -202,7 +202,49 @@
 
         @if (m_strSection == "Report")
         {
-            <div class="row g-3 align-items-end"><div class="col-md-3"><label class="form-label">Báo cáo</label><select class="form-select" @bind="m_strReport_Type"><option value="Receipt">Chi tiết hàng nhập</option><option value="Issue">Chi tiết hàng xuất</option><option value="Inventory">Xuất nhập tồn theo kỳ</option><option value="InventoryCurrent">Tồn kho hiện tại</option></select></div><div class="col-md-3"><label class="form-label">Kho</label><select class="form-select" @bind="m_iReport_Warehouse_ID" @bind:after="Load_Report_Async"><option value="">Tất cả kho</option>@foreach (var v_objWarehouse in m_arrWarehouse){<option value="@v_objWarehouse.Auto_ID">@v_objWarehouse.Name</option>}</select></div>@if (!Is_Current_Inventory_Report){<div class="col-md-2"><label class="form-label">Từ ngày</label><TelerikDatePicker @bind-Value="m_dtmFrom" Format="@CConfig.Date_Format_String" /></div><div class="col-md-2"><label class="form-label">Đến ngày</label><TelerikDatePicker @bind-Value="m_dtmTo" Format="@CConfig.Date_Format_String" /></div>}else{<div class="col-md-4"><div class="form-text">Đọc số dư đã Post tại thời điểm hiện tại; không tính lại nhập/xuất theo kỳ.</div></div>}<div class="col-md-2"><button class="btn btn-primary" @onclick="Load_Report_Async">Xem báo cáo</button></div></div>
+            <div class="row g-3 align-items-end">
+                @if (!Is_Current_Inventory_Report)
+                {
+                    <div class="col-md-3">
+                        <label class="form-label">Báo cáo</label>
+                        <select class="form-select" @bind="m_strReport_Type">
+                            <option value="Receipt">Chi tiết hàng nhập</option>
+                            <option value="Issue">Chi tiết hàng xuất</option>
+                            <option value="Inventory">Xuất nhập tồn theo kỳ</option>
+                        </select>
+                    </div>
+                }
+                <div class="col-md-3">
+                    <label class="form-label">Kho</label>
+                    <select class="form-select" @bind="m_iReport_Warehouse_ID" @bind:after="Load_Report_Async">
+                        <option value="">Tất cả kho</option>
+                        @foreach (var v_objWarehouse in m_arrWarehouse)
+                        {
+                            <option value="@v_objWarehouse.Auto_ID">@v_objWarehouse.Name</option>
+                        }
+                    </select>
+                </div>
+                @if (!Is_Current_Inventory_Report)
+                {
+                    <div class="col-md-2">
+                        <label class="form-label">Từ ngày</label>
+                        <TelerikDatePicker @bind-Value="m_dtmFrom" Format="@CConfig.Date_Format_String" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Đến ngày</label>
+                        <TelerikDatePicker @bind-Value="m_dtmTo" Format="@CConfig.Date_Format_String" />
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-4">
+                        <div class="form-text">Đọc số dư đã Post tại thời điểm hiện tại; không tính lại nhập/xuất theo kỳ.</div>
+                    </div>
+                }
+                <div class="col-md-2">
+                    <button class="btn btn-primary" @onclick="Load_Report_Async">Xem báo cáo</button>
+                </div>
+            </div>
             @if (m_strReport_Type is "Inventory" or "InventoryCurrent")
             {
                 <TelerikGrid TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory">
@@ -531,11 +573,25 @@
         m_arrUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
             .Select(v_objUnit => new CWarehouseLookup { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh })
             .ToList();
+        var v_dicUnitNamesByID = m_arrUnit.ToDictionary(v_objUnit => v_objUnit.Auto_ID, v_objUnit => v_objUnit.Name);
         m_arrCategory = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup()
             .Select(v_objCategory => new CWarehouseLookup { Auto_ID = v_objCategory.Auto_ID, Code = v_objCategory.Ma_LSP, Name = v_objCategory.Ten_LSP })
             .ToList();
-        m_arrProduct = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham_Lookup()
-            .Select(v_objProduct => new CWarehouseLookup { Auto_ID = v_objProduct.Auto_ID, Code = v_objProduct.Ma_San_Pham, Name = v_objProduct.Ten_San_Pham })
+        m_arrProduct = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
+            .Select(v_objProduct =>
+            {
+                v_dicUnitNamesByID.TryGetValue(v_objProduct.Don_Vi_Tinh_ID, out var v_strUnitName);
+                var v_strDisplayName = string.IsNullOrWhiteSpace(v_strUnitName)
+                    ? v_objProduct.Ten_San_Pham
+                    : $"{v_objProduct.Ten_San_Pham} ({v_strUnitName})";
+
+                return new CWarehouseLookup
+                {
+                    Auto_ID = v_objProduct.Auto_ID,
+                    Code = v_objProduct.Ma_San_Pham,
+                    Name = v_strDisplayName
+                };
+            })
             .ToList();
         m_arrSupplier = new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup()
             .Select(v_objSupplier => new CWarehouseLookup { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC })

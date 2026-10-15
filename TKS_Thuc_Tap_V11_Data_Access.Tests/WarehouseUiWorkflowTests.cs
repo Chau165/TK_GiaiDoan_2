@@ -11,6 +11,24 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 public sealed class WarehouseUiWorkflowTests
 {
     [Fact]
+    public void Warehouse_document_product_dropdown_shows_master_unit_next_to_name()
+    {
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_Edit = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
+
+        Assert.Contains("Don_Vi_Tinh_ID", v_List);
+        Assert.Contains("v_dicUnitNamesByID.TryGetValue", v_List);
+        Assert.Contains("string.IsNullOrWhiteSpace(v_strUnitName)", v_List);
+        Assert.Contains("({v_strUnitName})", v_List);
+        Assert.Contains("TextField=\"@nameof(CWarehouseLookup.Name)\"", v_Edit);
+        Assert.Contains("F2018_sp_sel_List_San_Pham()", v_List);
+        Assert.DoesNotContain("F2018_sp_sel_List_San_Pham_Lookup()", v_List);
+        Assert.Contains(
+            "SELECT Auto_ID, Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu FROM dbo.tbl_DM_San_Pham",
+            File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql")));
+    }
+
+    [Fact]
     public void Warehouse_page_only_renders_editors_when_the_user_starts_an_editing_action()
     {
         var v_Source = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));

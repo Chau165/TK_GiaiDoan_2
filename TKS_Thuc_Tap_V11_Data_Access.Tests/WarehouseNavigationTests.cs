@@ -51,6 +51,26 @@ public sealed class WarehouseNavigationTests
     }
 
     [Fact]
+    public void Current_inventory_has_no_report_selector_or_duplicate_report_option()
+    {
+        var v_InventoryPage = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Ton_Kho.razor"));
+        var v_Component = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+        var v_ReportSelectorIndex = v_Component.IndexOf(
+            "<label class=\"form-label\">Báo cáo</label>", StringComparison.Ordinal);
+        var v_InventoryGuardIndex = v_Component.LastIndexOf(
+            "@if (!Is_Current_Inventory_Report)", v_ReportSelectorIndex, StringComparison.Ordinal);
+
+        Assert.Contains("m_strInitial_Report_Type=\"InventoryCurrent\"", v_InventoryPage);
+        Assert.True(v_InventoryGuardIndex >= 0, "The report selector must be hidden for current inventory.");
+        Assert.DoesNotContain("<option value=\"InventoryCurrent\">Tồn kho hiện tại</option>", v_Component);
+        Assert.Contains("<option value=\"Receipt\">Chi tiết hàng nhập</option>", v_Component);
+        Assert.Contains("<option value=\"Issue\">Chi tiết hàng xuất</option>", v_Component);
+        Assert.Contains("<option value=\"Inventory\">Xuất nhập tồn theo kỳ</option>", v_Component);
+    }
+
+    [Fact]
     public void Warehouse_menu_exposes_master_and_operations_as_separate_items()
     {
         var v_Menu = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Menu.sql"));

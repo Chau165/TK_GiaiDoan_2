@@ -149,10 +149,32 @@ public sealed class ImportStructureDetectionTests
             v_objDiagnostic.SourceColumn == "Trạng thái" && v_objDiagnostic.SourceValue == "Tạm ngưng" &&
             v_objDiagnostic.Policy == "SOURCE_FIELD_IGNORED" && v_objDiagnostic.Status == "IGNORED");
         Assert.Contains(v_objWarehousePreview.Field_Policy_Diagnostics, v_objDiagnostic =>
-            v_objDiagnostic.SourceColumn == "Mã kho" && v_objDiagnostic.Status == "MAPPED_AND_MATCHED");
+            v_objDiagnostic.SourceColumn == "Mã kho" &&
+            v_objDiagnostic.Policy == "SOURCE_FIELD_IGNORED" &&
+            v_objDiagnostic.Status == "IGNORED");
         Assert.Contains(v_objWarehousePreview.Field_Policy_Diagnostics, v_objDiagnostic =>
             v_objDiagnostic.SourceColumn == "Người phụ trách" && v_objDiagnostic.SourceValue == "Nguyễn Quốc Minh" &&
             v_objDiagnostic.Policy == "SOURCE_FIELD_IGNORED");
+    }
+
+    [Fact]
+    public async Task Warehouse_master_import_uses_name_and_ignores_customer_warehouse_code()
+    {
+        using var v_objStream = CreateWorkbook(
+            "DS kho",
+            new[] { "STT", "Mã kho", "Tên kho / bãi", "Ghi chú" },
+            new[] { "1", "KHO-LT-01", "Kho Long Thành", "" });
+
+        var v_objWorksheet = await new CWarehouse_Xlsx_Reader().ReadAsync(v_objStream);
+        var v_objPreview = CWarehouseImportValidator.Preview(v_objWorksheet, Array.Empty<CDM_Kho>());
+
+        Assert.True(v_objPreview.Can_Confirm, string.Join("; ", v_objPreview.Errors.Select(v_objError => v_objError.Message)));
+        Assert.Equal("Kho Long Thành", Assert.Single(v_objPreview.Rows).Ten_Kho);
+        Assert.Contains("Mã kho", v_objPreview.Ignored_Columns);
+        Assert.Contains(v_objPreview.Field_Policy_Diagnostics, v_objDiagnostic =>
+            v_objDiagnostic.SourceColumn == "Mã kho" &&
+            v_objDiagnostic.Policy == "SOURCE_FIELD_IGNORED" &&
+            v_objDiagnostic.Status == "IGNORED");
     }
 
     [Fact]

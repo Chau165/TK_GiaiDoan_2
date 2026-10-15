@@ -23,7 +23,8 @@
         { "sourceValue": "KHO-HCM-01", "targetValue": "Kho Bình Tân" },
         { "sourceValue": "KHO-HCM-02", "targetValue": "Kho Cát Lái" },
         { "sourceValue": "KHO-BD-01", "targetValue": "Kho Dĩ An" },
-        { "sourceValue": "KHO-DN-01", "targetValue": "Kho Đà Nẵng" }
+        { "sourceValue": "KHO-DN-01", "targetValue": "Kho Đà Nẵng" },
+        { "sourceValue": "KHO-LT-01", "targetValue": "Kho Long Thành" }
       ]
     }
   ],
@@ -77,7 +78,7 @@
         "nameHints": ["Kho", "Warehouse", "DS kho"],
         "fields": [
           { "field": "WarehouseName", "required": true, "aliases": ["Ten_Kho", "Tên kho", "Tên kho / bãi"] },
-          { "field": "WarehouseCode", "required": false, "aliases": ["Mã kho"], "referenceMap": "Warehouse", "referenceEntityType": "Warehouse", "mapToField": "WarehouseName", "policyReason": "Only an exact configured customer-code mapping that agrees with the supplied warehouse name is accepted; the code is not persisted." },
+          { "field": "WarehouseCode", "required": false, "aliases": ["Mã kho"], "policy": "IgnoreSourceOnly", "policyReason": "Warehouse entity has no warehouse-code field; import uses WarehouseName as the warehouse identity." },
           { "field": "WarehouseStatus", "required": false, "aliases": ["Trạng thái"], "policy": "IgnoreSourceOnly", "policyReason": "Current Warehouse has no active/status field." },
           { "field": "WarehouseRegion", "required": false, "aliases": ["Khu vực"], "policy": "IgnoreSourceOnly", "policyReason": "Warehouse region is physical-site/routing context not represented by the current Warehouse domain." },
           { "field": "WarehouseAddress", "required": false, "aliases": ["Địa chỉ"], "policy": "IgnoreSourceOnly", "policyReason": "Warehouse address identifies a physical site but is not represented by the current Warehouse domain." },
