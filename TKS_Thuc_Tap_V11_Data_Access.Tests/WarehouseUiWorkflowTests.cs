@@ -175,6 +175,40 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_master_excel_export_uses_single_sheet_exporter_for_all_master_types()
+    {
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains("@Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null, Export_Master_Excel_Async)", v_List);
+        Assert.Contains("private async Task Export_Master_Excel_Async()", v_List);
+        Assert.Contains("CWarehouseMasterExcelExporter.CreateWorkbook", v_List);
+        Assert.Contains("Load_Master_Source()", v_List);
+        Assert.Contains("PageSize = 0", v_List);
+        Assert.Contains("FilterDescriptors", v_List);
+        Assert.Contains("SortDescriptors", v_List);
+    }
+
+    [Fact]
+    public void Warehouse_document_excel_export_includes_detail_rows_and_formats_document_datetime()
+    {
+        var v_FBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_iExportStart = v_List.IndexOf("private async Task Export_Document_Excel_Async()", StringComparison.Ordinal);
+
+        Assert.True(v_iExportStart >= 0, "Document Excel export must use a detail-aware export handler.");
+        var v_ExportMethod = v_List[v_iExportStart..];
+        var v_iNextMethod = v_ExportMethod.IndexOf("\n    private ", StringComparison.Ordinal);
+        if (v_iNextMethod >= 0)
+            v_ExportMethod = v_ExportMethod[..v_iNextMethod];
+
+        Assert.Contains("Export_Document_Excel_Async", v_List);
+        Assert.Contains("Export_Excel(p_objGrid, p_objCustom_Excel_Export)", v_FBase);
+        Assert.Contains("F3001_sp_sel_List_Nhap_Kho_Detail", v_ExportMethod);
+        Assert.Contains("F3002_sp_sel_List_Xuat_Kho_Detail", v_ExportMethod);
+        Assert.Contains("CWarehouseDocumentExcelExporter", v_ExportMethod);
+    }
+
+    [Fact]
     public void Warehouse_excel_export_registers_telerik_document_processing_license_in_root_app()
     {
         var v_Project = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web", "TKS_Thuc_Tap_V11_Web.csproj"));

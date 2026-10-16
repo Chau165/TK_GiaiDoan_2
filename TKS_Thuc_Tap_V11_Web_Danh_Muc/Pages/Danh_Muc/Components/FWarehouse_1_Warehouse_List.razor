@@ -47,7 +47,7 @@
                     }
                     else
                     {
-                        @Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null)
+                        @Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null, Export_Master_Excel_Async)
                     }
                 </div>
             </div>
@@ -156,7 +156,7 @@
                     </div>
                 </div>
                 <div class="d-flex gap-2">
-                    @Layout_Tool_Button(m_grdDocument, Can_Import_Document ? Document_Import_Tool_Item : null)
+                    @Layout_Tool_Button(m_grdDocument, Can_Import_Document ? Document_Import_Tool_Item : null, Export_Document_Excel_Async)
                     @if (r_objChuc_Nang.Is_Have_Add_Permission)
                     {
                         <button class="btn btn-primary" @onclick="New_Document">Tạo phiếu mới</button>
@@ -1361,39 +1361,155 @@
         catch (Exception ex) { Set_Error(ex); }
     }
 
+    private async Task Export_Document_Excel_Async()
+    {
+        var v_dtmStart = DateTime.Now;
+        await Task.Delay(1);
+        r_objLayout.Start_Loading();
+        r_strError = "";
+        long v_iQueue_ID = 0;
+
+        try
+        {
+            v_iQueue_ID = Process_Queue("Export Warehouse Documents Excel");
+            var v_arrDocuments = Is_Receipt
+                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
+                    .Select(To_Warehouse_Document).ToList()
+                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
+                    .Select(To_Warehouse_Document).ToList();
+            var v_arrRows = CWarehouseDocumentExcelExporter.BuildRows(v_arrDocuments, Get_Document_Details);
+            var v_arrWorkbook = CWarehouseDocumentExcelExporter.CreateWorkbook(v_arrRows, Is_Receipt);
+            var v_strFile_Name = "Warehouse_Document_Export_" + DateTime.Now.ToString("ddMMyyHHmmss") + ".xlsx";
+
+            using (var v_objStream = new MemoryStream(v_arrWorkbook))
+            using (var v_objStreamReference = new DotNetStreamReference(stream: v_objStream))
+                await g_jsRuntime.InvokeVoidAsync("downloadFileFromStream", v_strFile_Name, v_objStreamReference);
+
+            var v_objAccessLogController = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang_Controller();
+            var v_objAccessLog = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang
+            {
+                Ma_Chuc_Nang = r_strActive_Function_Code,
+                Ma_Dang_Nhap = r_strActive_User_Name,
+                Ten_Chuc_Nang = r_objChuc_Nang.Ten_Chuc_Nang
+            };
+            var v_strFunctionName = Get_Language_Data_Field(v_objAccessLog.Ma_Chuc_Nang);
+            if (v_strFunctionName == v_objAccessLog.Ma_Chuc_Nang)
+                v_strFunctionName = v_objAccessLog.Ten_Chuc_Nang;
+            v_objAccessLog.Ten_Chuc_Nang = v_strFunctionName + " - " + Get_Language_Data_Field("Export Excel");
+            v_objAccessLogController.FQ_424_NKTCCN_sp_ins_Insert(v_objAccessLog);
+
+            IReadOnlyCollection<CWarehouseDocumentDetail> Get_Document_Details(long p_iDocument_ID)
+            {
+                return Is_Receipt
+                    ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_iDocument_ID, r_strActive_User_Name)
+                        .Select(To_Warehouse_Detail).ToList()
+                    : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_iDocument_ID, r_strActive_User_Name)
+                        .Select(To_Warehouse_Detail).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Set_Error(ex);
+        }
+        finally
+        {
+            End_Queue(v_iQueue_ID);
+        }
+
+        r_objLayout.Stop_Loading();
+        var v_tsElapsed = DateTime.Now - v_dtmStart;
+        await g_jsRuntime.InvokeVoidAsync("Set_Speed_Label", v_tsElapsed.TotalSeconds.ToString("###,###0.##") + "s");
+    }
+
+    private async Task Export_Master_Excel_Async()
+    {
+        var v_dtmStart = DateTime.Now;
+        await Task.Delay(1);
+        r_objLayout.Start_Loading();
+        r_strError = "";
+        long v_iQueue_ID = 0;
+
+        try
+        {
+            v_iQueue_ID = Process_Queue("Export Warehouse Master Excel");
+            var v_objGridState = m_grdMaster.GetState();
+            var v_objRequest = new DataSourceRequest
+            {
+                Page = 1,
+                Skip = 0,
+                PageSize = 0,
+                Filters = v_objGridState.FilterDescriptors.ToList(),
+                Sorts = v_objGridState.SortDescriptors.ToList()
+            };
+            var v_arrMasters = CGrid_DataSource_Utility.Apply(Load_Master_Source(), v_objRequest).Items;
+            var v_arrColumns = new List<CWarehouseMasterExcelColumn>();
+            foreach (var v_objColumnState in v_objGridState.ColumnStates)
+            {
+                if (string.IsNullOrWhiteSpace(v_objColumnState.Field))
+                    continue;
+
+                var v_objColumnProperty = v_objColumnState.GetType()
+                    .GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    .FirstOrDefault(v_objProperty => v_objProperty.Name == "Column");
+                var v_objColumn = v_objColumnProperty?.GetValue(v_objColumnState) as Telerik.Blazor.Common.Columns.IColumn;
+                if (v_objColumn == null)
+                    continue;
+
+                var v_objVisibleProperty = v_objColumnState.GetType()
+                    .GetProperty("Visible", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                if (v_objVisibleProperty?.GetValue(v_objColumnState) is bool v_bVisible && !v_bVisible)
+                    continue;
+
+                var v_strTitle = Get_Language_Data_Field(v_objColumnState.Field);
+                if (v_strTitle == v_objColumnState.Field)
+                    v_strTitle = v_objColumn.Title;
+
+                v_arrColumns.Add(new CWarehouseMasterExcelColumn(
+                    v_objColumnState.Field,
+                    v_strTitle,
+                    v_objColumn.Width ?? "126px"));
+            }
+
+            var v_arrWorkbook = CWarehouseMasterExcelExporter.CreateWorkbook(v_arrMasters, v_arrColumns, m_strMaster_Type);
+            var v_strFile_Name = "Warehouse_Master_" + m_strMaster_Type + "_Export_" + DateTime.Now.ToString("ddMMyyHHmmss") + ".xlsx";
+            using (var v_objStream = new MemoryStream(v_arrWorkbook))
+            using (var v_objStreamReference = new DotNetStreamReference(stream: v_objStream))
+                await g_jsRuntime.InvokeVoidAsync("downloadFileFromStream", v_strFile_Name, v_objStreamReference);
+
+            var v_objAccessLogController = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang_Controller();
+            var v_objAccessLog = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang
+            {
+                Ma_Chuc_Nang = r_strActive_Function_Code,
+                Ma_Dang_Nhap = r_strActive_User_Name,
+                Ten_Chuc_Nang = r_objChuc_Nang.Ten_Chuc_Nang
+            };
+            var v_strFunctionName = Get_Language_Data_Field(v_objAccessLog.Ma_Chuc_Nang);
+            if (v_strFunctionName == v_objAccessLog.Ma_Chuc_Nang)
+                v_strFunctionName = v_objAccessLog.Ten_Chuc_Nang;
+            v_objAccessLog.Ten_Chuc_Nang = v_strFunctionName + " - " + Get_Language_Data_Field("Export Excel");
+            v_objAccessLogController.FQ_424_NKTCCN_sp_ins_Insert(v_objAccessLog);
+        }
+        catch (Exception ex)
+        {
+            Set_Error(ex);
+        }
+        finally
+        {
+            End_Queue(v_iQueue_ID);
+        }
+
+        r_objLayout.Stop_Loading();
+        var v_tsElapsed = DateTime.Now - v_dtmStart;
+        await g_jsRuntime.InvokeVoidAsync("Set_Speed_Label", v_tsElapsed.TotalSeconds.ToString("###,###0.##") + "s");
+    }
+
     private async Task Read_Master_Async(GridReadEventArgs args)
     {
         try
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export))
             {
-                List<CWarehouseMaster> v_arrSource = m_strMaster_Type switch
-                {
-                    "Kho" => new CDM_Kho_Controller().F2009_sp_sel_List_Kho()
-                        .Select(v_objWarehouse => new CWarehouseMaster { Auto_ID = v_objWarehouse.Auto_ID, Name = v_objWarehouse.Ten_Kho, Ghi_Chu = v_objWarehouse.Ghi_Chu })
-                        .ToList(),
-                    "DonViTinh" => new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh()
-                        .Select(v_objUnit => new CWarehouseMaster { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh, Ghi_Chu = v_objUnit.Ghi_Chu })
-                        .ToList(),
-                    "LoaiSanPham" => new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham()
-                        .Select(v_objCategory => new CWarehouseMaster { Auto_ID = v_objCategory.Auto_ID, Code = v_objCategory.Ma_LSP, Name = v_objCategory.Ten_LSP, Ghi_Chu = v_objCategory.Ghi_Chu })
-                        .ToList(),
-                    "SanPham" => new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
-                        .Select(v_objProduct => new CWarehouseMaster
-                        {
-                            Auto_ID = v_objProduct.Auto_ID,
-                            Code = v_objProduct.Ma_San_Pham,
-                            Name = v_objProduct.Ten_San_Pham,
-                            Related_ID = v_objProduct.Loai_San_Pham_ID,
-                            Related_ID_2 = v_objProduct.Don_Vi_Tinh_ID,
-                            Ghi_Chu = v_objProduct.Ghi_Chu
-                        })
-                        .ToList(),
-                    "NCC" => new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
-                        .Select(v_objSupplier => new CWarehouseMaster { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC, Ghi_Chu = v_objSupplier.Ghi_Chu })
-                        .ToList(),
-                    _ => throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type))
-                };
+                List<CWarehouseMaster> v_arrSource = Load_Master_Source();
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items;
                 args.Total = v_objReadResult.Total_Count;
@@ -1412,6 +1528,37 @@
             args.Data = new List<CWarehouseMaster>();
             args.Total = 0;
         }
+    }
+
+    private List<CWarehouseMaster> Load_Master_Source()
+    {
+        return m_strMaster_Type switch
+        {
+            "Kho" => new CDM_Kho_Controller().F2009_sp_sel_List_Kho()
+                .Select(v_objWarehouse => new CWarehouseMaster { Auto_ID = v_objWarehouse.Auto_ID, Name = v_objWarehouse.Ten_Kho, Ghi_Chu = v_objWarehouse.Ghi_Chu })
+                .ToList(),
+            "DonViTinh" => new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh()
+                .Select(v_objUnit => new CWarehouseMaster { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh, Ghi_Chu = v_objUnit.Ghi_Chu })
+                .ToList(),
+            "LoaiSanPham" => new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham()
+                .Select(v_objCategory => new CWarehouseMaster { Auto_ID = v_objCategory.Auto_ID, Code = v_objCategory.Ma_LSP, Name = v_objCategory.Ten_LSP, Ghi_Chu = v_objCategory.Ghi_Chu })
+                .ToList(),
+            "SanPham" => new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
+                .Select(v_objProduct => new CWarehouseMaster
+                {
+                    Auto_ID = v_objProduct.Auto_ID,
+                    Code = v_objProduct.Ma_San_Pham,
+                    Name = v_objProduct.Ten_San_Pham,
+                    Related_ID = v_objProduct.Loai_San_Pham_ID,
+                    Related_ID_2 = v_objProduct.Don_Vi_Tinh_ID,
+                    Ghi_Chu = v_objProduct.Ghi_Chu
+                })
+                .ToList(),
+            "NCC" => new CDM_NCC_Controller().F2019_sp_sel_List_NCC()
+                .Select(v_objSupplier => new CWarehouseMaster { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC, Ghi_Chu = v_objSupplier.Ghi_Chu })
+                .ToList(),
+            _ => throw new ArgumentException("Loại danh mục không hợp lệ.", nameof(m_strMaster_Type))
+        };
     }
 
     private async Task Read_Kho_User_Async(GridReadEventArgs args)

@@ -1015,8 +1015,14 @@
         await g_jsRuntime.InvokeVoidAsync("Set_Speed_Label", v_ts.TotalSeconds.ToString("###,###0.##") + "s");
     }
 
-    public async Task Export_Excel<T>(TelerikGrid<T> p_grdGrid)
+    public async Task Export_Excel<T>(TelerikGrid<T> p_grdGrid, Func<Task> p_objCustom_Excel_Export = null)
     {
+        if (p_objCustom_Excel_Export is not null)
+        {
+            await p_objCustom_Excel_Export();
+            return;
+        }
+
         if (p_grdGrid.OnRead.HasDelegate)
             await Export_Excel_Telerik_Default(p_grdGrid);
         else
@@ -1832,7 +1838,7 @@
         return ColumnTemplate;
     }
 
-    public RenderFragment Layout_Tool_Button<T>(TelerikGrid<T> p_objGrid, RenderFragment? p_objAdditional_Tool_Item = null)
+    public RenderFragment Layout_Tool_Button<T>(TelerikGrid<T> p_objGrid, RenderFragment? p_objAdditional_Tool_Item = null, Func<Task> p_objCustom_Excel_Export = null)
     {
         RenderFragment ColumnTemplate = __builder =>
          {
@@ -1848,7 +1854,7 @@
                     }
                     @if (r_objChuc_Nang.Is_Have_Export_Permission == true)
                     {
-                        <button class="dropdown-item" type="button" @onclick="@(()=> Export_Excel(p_objGrid))"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Export Excel")</button>
+                        <button class="dropdown-item" type="button" @onclick="@(()=> Export_Excel(p_objGrid, p_objCustom_Excel_Export))"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Export Excel")</button>
                         <button class="dropdown-item" type="button" @onclick="@(()=> Export_CSV(p_objGrid))"><i class="ri-booklet-fill align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Export CSV")</button>
                         <div class="dropdown-divider"></div>
                     }
