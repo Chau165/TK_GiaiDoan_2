@@ -7278,23 +7278,70 @@ BEGIN
             ORDER BY s.Snapshot_Date DESC;
 
             IF @Anchor_Date IS NULL
-                THROW 51232, N'Balance Daily chưa được bootstrap: không có Daily prefix hoặc Snapshot hợp lệ làm anchor.', 1;
+            BEGIN
+                /* A scope with no recorded state or posted movement before this
+                   date is new and starts at zero. Existing history without a
+                   usable anchor still fails closed instead of inventing stock. */
+                IF EXISTS
+                (
+                    SELECT 1
+                    FROM
+                    (
+                        SELECT b.Balance_Date AS History_Date
+                        FROM dbo.Inventory_Balance_Daily b
+                        WHERE b.Kho_ID = @Kho_ID
+                          AND b.San_Pham_ID = @San_Pham_ID
+                          AND b.Balance_Date < @From_Date
+                        UNION ALL
+                        SELECT s.Snapshot_Date
+                        FROM dbo.InventoryBalance_Snapshot_Daily s
+                        WHERE s.Kho_ID = @Kho_ID
+                          AND s.San_Pham_ID = @San_Pham_ID
+                          AND s.Snapshot_Date < @From_Date
+                        UNION ALL
+                        SELECT d.Movement_Date
+                        FROM dbo.Inventory_Movement_Daily d
+                        WHERE d.Kho_ID = @Kho_ID
+                          AND d.San_Pham_ID = @San_Pham_ID
+                          AND d.Movement_Date < @From_Date
+                        UNION ALL
+                        SELECT h.Ngay_Nhap_Kho
+                        FROM dbo.tbl_XNK_Nhap_Kho h
+                        JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID
+                        WHERE h.Is_Posted = 1
+                          AND h.Kho_ID = @Kho_ID
+                          AND d.San_Pham_ID = @San_Pham_ID
+                          AND h.Ngay_Nhap_Kho < @From_Date
+                        UNION ALL
+                        SELECT h.Ngay_Xuat_Kho
+                        FROM dbo.tbl_XNK_Xuat_Kho h
+                        JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID
+                        WHERE h.Is_Posted = 1
+                          AND h.Kho_ID = @Kho_ID
+                          AND d.San_Pham_ID = @San_Pham_ID
+                          AND h.Ngay_Xuat_Kho < @From_Date
+                    ) priorHistory
+                )
+                    THROW 51232, N'Balance Daily chưa được bootstrap: không có Daily prefix hoặc Snapshot hợp lệ làm anchor.', 1;
+            END
+            ELSE
+            BEGIN
+                /* Snapshot stores closing only. Reconstruct cumulative totals at the
+                   anchor, then bridge every valid movement strictly between anchor
+                   and @From_Date before the first rebuilt day is calculated. */
+                SELECT @Anchor_Cumulative_Received = COALESCE(SUM(d.Total_Receipt), 0),
+                       @Anchor_Cumulative_Issued = COALESCE(SUM(d.Total_Issue), 0)
+                FROM dbo.Inventory_Movement_Daily d
+                WHERE d.Kho_ID = @Kho_ID
+                  AND d.San_Pham_ID = @San_Pham_ID
+                  AND d.Movement_Date <= @Anchor_Date
+                  AND d.IsValid = 1;
 
-            /* Snapshot stores closing only. Reconstruct cumulative totals at the
-               anchor, then bridge every valid movement strictly between anchor
-               and @From_Date before the first rebuilt day is calculated. */
-            SELECT @Anchor_Cumulative_Received = COALESCE(SUM(d.Total_Receipt), 0),
-                   @Anchor_Cumulative_Issued = COALESCE(SUM(d.Total_Issue), 0)
-            FROM dbo.Inventory_Movement_Daily d
-            WHERE d.Kho_ID = @Kho_ID
-              AND d.San_Pham_ID = @San_Pham_ID
-              AND d.Movement_Date <= @Anchor_Date
-              AND d.IsValid = 1;
-
-            SET @Base_Balance_Date = @Anchor_Date;
-            SET @Base_Closing = @Anchor_Closing;
-            SET @Base_Cumulative_Received = @Anchor_Cumulative_Received;
-            SET @Base_Cumulative_Issued = @Anchor_Cumulative_Issued;
+                SET @Base_Balance_Date = @Anchor_Date;
+                SET @Base_Closing = @Anchor_Closing;
+                SET @Base_Cumulative_Received = @Anchor_Cumulative_Received;
+                SET @Base_Cumulative_Issued = @Anchor_Cumulative_Issued;
+            END
         END
 
         DECLARE @Bridge_Received DECIMAL(18,3) = 0;

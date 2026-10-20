@@ -478,6 +478,52 @@ public sealed class WarehouseInventoryC01C02IntegrationTests
     }
 
     [Fact]
+    public async Task First_posted_movement_scope_rebuilds_from_zero_without_anchor()
+    {
+        var v_Fixture = await CreateFixtureAsync();
+        var v_dtmMovementDate = new DateTime(2026, 1, 10);
+        try
+        {
+            Assert.Equal(0, await IntScalarAsync(
+                v_Fixture.ConnectionString,
+                null,
+                "SELECT COUNT(*) FROM dbo.InventoryBalance_Snapshot_Daily WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId;",
+                BigInt("@WarehouseId", v_Fixture.WarehouseId),
+                BigInt("@ProductId", v_Fixture.ProductId)));
+
+            await CreateAndPostReceiptAsync(v_Fixture, v_dtmMovementDate, 10m, "first-scope-no-anchor");
+            await ExecuteStoredAsync(
+                v_Fixture.ConnectionString,
+                null,
+                "dbo.sp_Inventory_Movement_Process_RebuildQueue",
+                new SqlParameter("@Batch_Size", SqlDbType.Int) { Value = 100 });
+
+            Assert.Equal(1, await IntScalarAsync(
+                v_Fixture.ConnectionString,
+                null,
+                "SELECT COUNT(*) FROM dbo.InventoryMovement_RebuildQueue WHERE Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND From_Date = @MovementDate AND Status = N'COMPLETED';",
+                BigInt("@WarehouseId", v_Fixture.WarehouseId),
+                BigInt("@ProductId", v_Fixture.ProductId),
+                Date("@MovementDate", v_dtmMovementDate)));
+            Assert.Equal(10m, await DecimalScalarAsync(
+                v_Fixture.ConnectionString,
+                null,
+                "SELECT ClosingQuantity FROM dbo.Inventory_Balance_Daily WHERE Balance_Date = @MovementDate AND Kho_ID = @WarehouseId AND San_Pham_ID = @ProductId AND IsValid = 1;",
+                Date("@MovementDate", v_dtmMovementDate),
+                BigInt("@WarehouseId", v_Fixture.WarehouseId),
+                BigInt("@ProductId", v_Fixture.ProductId)));
+
+            var v_Report = await ReadPeriodReportQuantityAsync(v_Fixture, v_dtmMovementDate);
+            Assert.Equal(10m, v_Report.Received);
+            Assert.Equal(10m, v_Report.Closing);
+        }
+        finally
+        {
+            await CleanupFixtureAsync(v_Fixture);
+        }
+    }
+
+    [Fact]
     public async Task Three_decimal_quantity_survives_inventory_projections_and_period_report()
     {
         var v_Fixture = await CreateFixtureAsync();
