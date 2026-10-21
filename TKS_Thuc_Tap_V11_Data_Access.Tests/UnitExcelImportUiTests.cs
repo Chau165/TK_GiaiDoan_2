@@ -21,14 +21,12 @@ public sealed class UnitExcelImportUiTests
         Assert.Contains("<FWarehouse_Unit_List />", v_strRoute);
         Assert.DoesNotContain("FWarehouse_Unit_Import", v_strLegacyParent);
         Assert.Contains("@inherits FBase", v_strSource);
-        Assert.Contains("@if (r_objChuc_Nang.Is_Have_Add_Permission)", v_strSource);
-        Assert.Contains("@onclick=\"Open_Unit_Import_Excel\"", v_strSource);
-        Assert.Contains("ri-upload-fill", v_strSource);
-        Assert.Contains("@Get_Language_Data_Field(\"Import\")", v_strSource);
-        Assert.Contains("@Layout_Tool_Button(grdData)", v_strSource);
+        Assert.Contains("if (r_objChuc_Nang.Is_Have_Add_Permission == true)", v_strBase);
+        Assert.Contains("@Layout_Default_Filter(grdData, \"Don_Vi_Tinh_Import_Template.xlsx\")", v_strSource);
+        Assert.DoesNotContain("Open_Unit_Import_Excel", v_strSource);
+        Assert.DoesNotContain("@Layout_Tool_Button(grdData)", v_strSource);
         Assert.DoesNotContain("Unit_Import_Tool_Item", v_strSource);
         Assert.DoesNotContain("Danh sách đơn vị tính", v_strSource);
-        Assert.Contains("Open_Import_Excel(\"Don_Vi_Tinh_Import_Template.xlsx\")", v_strSource);
         Assert.Contains("<FCommon_Import_Excel", v_strSource);
         Assert.Contains("Localize=\"@Get_Language_Data_Field\"", v_strSource);
         Assert.Contains("OnClose=\"@Close_Import_Excel\"", v_strSource);
@@ -49,9 +47,12 @@ public sealed class UnitExcelImportUiTests
         var v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Unit_List.razor"));
 
-        Assert.Contains("List_Range_Value_To_End(0, \"A2\", \"B\")", v_strSource);
-        Assert.Contains("Ten_Don_Vi_Tinh = v_strName", v_strSource);
-        Assert.Contains("Ghi_Chu = v_strNote", v_strSource);
+        Assert.Contains("Read_Profiled_Import_Sheet(\"Unit\")", v_strSource);
+        Assert.Contains("CImportLegacyWorksheetAdapter.ToUnit", v_strSource);
+        Assert.Contains("CUnitImportValidator.Preview", v_strSource);
+        Assert.Contains("Ten_Don_Vi_Tinh = v_objRow.Ten_Don_Vi_Tinh", v_strSource);
+        Assert.Contains("Ghi_Chu = v_objRow.Ghi_Chu", v_strSource);
+        Assert.DoesNotContain("List_Range_Value_To_End", v_strSource);
         Assert.Contains("v_objCtrData.F2016_sp_ins_Don_Vi_Tinh", v_strSource);
         Assert.Contains("v_trans.Commit()", v_strSource);
         Assert.Contains("v_trans.Rollback()", v_strSource);
@@ -104,7 +105,8 @@ public sealed class UnitExcelImportUiTests
 
         Assert.Contains("<TelerikGrid Data=\"@v_arrData\"", v_strList);
         Assert.DoesNotContain("OnRead=", v_strList);
-        Assert.Contains("@Layout_Tool_Button(grdData", v_strList);
+        Assert.Contains("@Layout_Default_Filter(grdData, \"Don_Vi_Tinh_Import_Template.xlsx\")", v_strList);
+        Assert.DoesNotContain("@Layout_Tool_Button(grdData", v_strList);
         Assert.Contains("<GridExcelExport FileName=\"Don_Vi_Tinh_Export\" AllPages=\"true\" OnBeforeExport=\"@Prepare_Excel_Export\" />", v_strList);
         Assert.Contains("<GridCsvExport FileName=\"Don_Vi_Tinh_Export\" AllPages=\"true\" />", v_strList);
         Assert.Contains("if (p_grdGrid.OnRead.HasDelegate)", v_strBase);

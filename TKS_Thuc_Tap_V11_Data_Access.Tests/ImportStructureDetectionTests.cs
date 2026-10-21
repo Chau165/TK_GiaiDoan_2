@@ -43,6 +43,98 @@ public sealed class ImportStructureDetectionTests
             v_objColumn.Header == "Barcode" && v_objColumn.Disposition == EImportColumnDisposition.Ignored);
     }
 
+    [Theory]
+    [InlineData("02_Don_vi_tinh_KH.xlsx", "Unit")]
+    [InlineData("03_Loai_san_pham_KH.xlsx", "Category")]
+    [InlineData("04_San_pham_KH.xlsx", "Product")]
+    [InlineData("05_Nha_cung_cap_KH.xlsx", "Supplier")]
+    [InlineData("01_Danh_muc_Kho_KH.xlsx", "Warehouse")]
+    public async Task CExcel_profile_detection_matches_profiled_reader_without_reopening_file(
+        string p_strFixtureName,
+        string p_strProfileCode)
+    {
+        var v_strPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "CustomerImport", p_strFixtureName);
+        var v_objController = new CExcel_Controller(new FileInfo(v_strPath));
+        CImportDetectedSheet v_objActual;
+        try
+        {
+            v_objActual = v_objController.Read_Profiled_Import_Sheet(p_strProfileCode);
+        }
+        finally
+        {
+            v_objController.Close();
+        }
+
+        await using var v_objStream = File.OpenRead(v_strPath);
+        var v_objExpected = await new CProfiledWorkbook_Xlsx_Reader()
+            .ReadSingleSheetAsync(v_objStream, p_strProfileCode);
+
+        Assert.Equal(v_objExpected.Name, v_objActual.Name);
+        Assert.Equal(v_objExpected.HeaderRowNumber, v_objActual.HeaderRowNumber);
+        Assert.Equal(v_objExpected.Columns, v_objActual.Columns);
+        Assert.Equal(v_objExpected.DataRows.Count, v_objActual.DataRows.Count);
+        for (var v_iRow = 0; v_iRow < v_objExpected.DataRows.Count; v_iRow++)
+        {
+            var v_objExpectedRow = v_objExpected.DataRows[v_iRow];
+            var v_objActualRow = v_objActual.DataRows[v_iRow];
+            Assert.Equal(v_objExpectedRow.RowNumber, v_objActualRow.RowNumber);
+            Assert.Equal(v_objExpectedRow.IsHidden, v_objActualRow.IsHidden);
+            Assert.Equal(
+                v_objExpectedRow.Values.OrderBy(v_objItem => v_objItem.Key)
+                    .Select(v_objItem => new KeyValuePair<string, string?>(
+                        v_objItem.Key,
+                        Convert.ToString(v_objItem.Value, System.Globalization.CultureInfo.InvariantCulture) ?? "")),
+                v_objActualRow.Values.OrderBy(v_objItem => v_objItem.Key)
+                    .Select(v_objItem => new KeyValuePair<string, string?>(
+                        v_objItem.Key,
+                        Convert.ToString(v_objItem.Value, System.Globalization.CultureInfo.InvariantCulture) ?? "")));
+            Assert.Equal(v_objExpectedRow.FormulaFields.OrderBy(v_strItem => v_strItem),
+                v_objActualRow.FormulaFields.OrderBy(v_strItem => v_strItem));
+            Assert.Equal(v_objExpectedRow.Formulas.OrderBy(v_objItem => v_objItem.Key),
+                v_objActualRow.Formulas.OrderBy(v_objItem => v_objItem.Key));
+            Assert.Equal(v_objExpectedRow.NumberFormats.OrderBy(v_objItem => v_objItem.Key),
+                v_objActualRow.NumberFormats.OrderBy(v_objItem => v_objItem.Key));
+        }
+        Assert.Equal(v_objExpected.CapabilityIssues, v_objActual.CapabilityIssues);
+        Assert.Equal(v_objExpected.PolicyDiagnostics, v_objActual.PolicyDiagnostics);
+    }
+
+    [Fact]
+    public void CExcel_profile_detection_preserves_absolute_row_number_when_a_blank_row_is_present()
+    {
+        var v_strPath = Path.Combine(Path.GetTempPath(), $"product-import-{Guid.NewGuid():N}.xlsx");
+        using (var v_objWorkbook = new XLWorkbook())
+        {
+            var v_objSheet = v_objWorkbook.Worksheets.Add("Products");
+            v_objSheet.Cell(2, 1).Value = "Mã VT";
+            v_objSheet.Cell(2, 2).Value = "Tên hàng";
+            v_objSheet.Cell(2, 3).Value = "Nhóm hàng";
+            v_objSheet.Cell(2, 4).Value = "Đơn vị tính";
+            v_objSheet.Cell(2, 5).Value = "Ghi chú";
+            v_objSheet.Cell(4, 1).Value = "SP-04";
+            v_objSheet.Cell(4, 2).Value = "Sản phẩm dòng 4";
+            v_objSheet.Cell(4, 3).Value = "CAT-01";
+            v_objSheet.Cell(4, 4).Value = "Cái";
+            v_objWorkbook.SaveAs(v_strPath);
+        }
+
+        var v_objController = new CExcel_Controller(new FileInfo(v_strPath));
+        try
+        {
+            var v_objSheet = v_objController.Read_Profiled_Import_Sheet("Product");
+            var v_objRow = Assert.Single(v_objSheet.DataRows, v_objItem =>
+                Convert.ToString(v_objItem.Values.GetValueOrDefault("ProductCode")) == "SP-04");
+
+            Assert.Equal(4, v_objRow.RowNumber);
+            Assert.Equal("Sản phẩm dòng 4", v_objRow.Values["ProductName"]);
+        }
+        finally
+        {
+            v_objController.Close();
+            File.Delete(v_strPath);
+        }
+    }
+
     [Fact]
     public async Task Unit_fixture_uses_exact_code_mapping_and_audited_safe_ignores()
     {

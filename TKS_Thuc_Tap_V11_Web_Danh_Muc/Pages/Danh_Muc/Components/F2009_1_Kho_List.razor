@@ -1,22 +1,10 @@
 @inherits FBase
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
+@Layout_Default_Filter(grdData, "Kho_Import_Template.xlsx")
 
 <div class="row" style="padding-top: 10px;">
     <div class="col-lg-12">
         @((MarkupString)r_strError)
-
-        <div class="d-flex flex-wrap justify-content-end gap-2 mb-3">
-            @if (r_objChuc_Nang.Is_Have_Add_Permission)
-            {
-                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="@(() => Open_Kho_Edit(0))">
-                    <i class="ri-add-circle-fill align-bottom me-1"></i>@Get_Language_Data_Field("Thêm")
-                </button>
-                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="Open_Kho_Import_Excel">
-                    <i class="ri-upload-fill align-bottom me-1"></i>@Get_Language_Data_Field("Import")
-                </button>
-            }
-            @Layout_Tool_Button(grdData)
-        </div>
 
         <TelerikGrid Data="@v_arrData" Height="calc(100vh - 190px)" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" @ref="@grdData">
             <GridExport>
@@ -90,7 +78,7 @@
     protected override void Load_Data()
     {
         Format_Grid(grdData);
-        v_arrData = new CDM_Kho_Controller().F2009_sp_sel_List_Kho();
+        v_arrData = new CDM_Kho_Controller().F2009_sp_sel_List_Kho_By_Created(r_objFilter.Date_From, r_objFilter.Date_To);
     }
 
     protected override void Delete_Data_Entry(long p_iAuto_ID)
@@ -114,16 +102,13 @@
         var v_sbError = new StringBuilder();
         var v_sbHistoryWarning = new StringBuilder();
         var v_sbSkipped = new StringBuilder();
-        DataTable? v_dt = null;
         var v_iSkipped = 0;
         var v_iFailed = 0;
 
         try
         {
-            v_dt = v_objCtrlExcel.List_Range_Value_To_End("Kho", "A2", "B");
-            CWarehouse_Xlsx_Worksheet v_objWorksheet;
-            using (var v_objStream = File.OpenRead(r_objImport_Excel.Path_File))
-                v_objWorksheet = new CWarehouse_Xlsx_Reader().ReadAsync(v_objStream).GetAwaiter().GetResult();
+            var v_objWorksheet = CImportLegacyWorksheetAdapter.ToWarehouse(
+                v_objCtrlExcel.Read_Profiled_Import_Sheet("Warehouse"));
 
             var v_objValidation = CWarehouseImportValidator.Preview(
                 v_objWorksheet,
@@ -159,21 +144,10 @@
                     continue;
                 }
 
-                var v_iDataRowIndex = v_objRow.Row_Number - 2;
-                if (v_iDataRowIndex < 0 || v_iDataRowIndex >= v_dt.Rows.Count)
-                {
-                    v_iFailed++;
-                    v_sbError.AppendLine(string.Format(
-                        Get_Language_Data_Field("Dòng {0}: Không đọc được dữ liệu tương ứng từ Excel."),
-                        v_objRow.Row_Number));
-                    continue;
-                }
-
-                var v_objExcelRow = v_dt.Rows[v_iDataRowIndex];
                 var v_objData = new CDM_Kho
                 {
-                    Ten_Kho = CUtility.Convert_To_String(v_objExcelRow[0]).Trim(),
-                    Ghi_Chu = CUtility.Convert_To_String(v_objExcelRow[1]).Trim()
+                    Ten_Kho = v_objRow.Ten_Kho,
+                    Ghi_Chu = v_objRow.Ghi_Chu
                 };
 
                 try
@@ -252,18 +226,6 @@
                 Get_Language_Data_Field("Thông báo Import Excel"),
                 CCommonFunction.Set_Error_MessageBox(Get_Language_Data_Field(p_objException.Message)));
         }
-        finally
-        {
-            v_dt?.Dispose();
-        }
-    }
-
-    private void Open_Kho_Import_Excel()
-    {
-        if (!r_objChuc_Nang.Is_Have_Add_Permission)
-            return;
-
-        Open_Import_Excel("Kho_Import_Template.xlsx");
     }
 
     private void Open_Kho_Edit(long p_iAuto_ID)

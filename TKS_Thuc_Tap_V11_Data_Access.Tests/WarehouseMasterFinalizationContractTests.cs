@@ -142,7 +142,7 @@ public sealed class WarehouseMasterFinalizationContractTests
     }
 
     [Fact]
-    public void Audit_values_keep_the_existing_insert_and_update_assignment_contract()
+    public void Audit_helpers_initialize_insert_metadata_and_preserve_creator_metadata_on_update()
     {
         Type[] v_arrControllerTypes =
         [
@@ -152,9 +152,12 @@ public sealed class WarehouseMasterFinalizationContractTests
 
         foreach (Type v_objControllerType in v_arrControllerTypes)
         {
-            MethodInfo? v_objAuditMethod = v_objControllerType.GetMethod(
-                "Set_Audit_Fields", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(v_objAuditMethod);
+            MethodInfo? v_objInsertAuditMethod = v_objControllerType.GetMethod(
+                "Set_Insert_Audit_Fields", BindingFlags.Static | BindingFlags.NonPublic);
+            MethodInfo? v_objUpdateAuditMethod = v_objControllerType.GetMethod(
+                "Set_Update_Audit_Fields", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.NotNull(v_objInsertAuditMethod);
+            Assert.NotNull(v_objUpdateAuditMethod);
 
             foreach (long v_iAuto_ID in new[] { 0L, 17L })
             {
@@ -164,19 +167,104 @@ public sealed class WarehouseMasterFinalizationContractTests
                 Assert.NotNull(v_objEntityType);
                 object v_objData = Activator.CreateInstance(v_objEntityType!)!;
                 v_objEntityType!.GetProperty("Auto_ID")!.SetValue(v_objData, v_iAuto_ID);
-                v_objEntityType.GetProperty("Created_By")!.SetValue(v_objData, "original creator");
-                v_objEntityType.GetProperty("Created_By_Function")!.SetValue(v_objData, "original function");
-                v_objEntityType.GetProperty("Last_Updated_By")!.SetValue(v_objData, "original updater");
-                v_objEntityType.GetProperty("Last_Updated_By_Function")!.SetValue(v_objData, "original update function");
+                v_objEntityType.GetProperty("Created_By")!.SetValue(v_objData, "stale creator");
+                v_objEntityType.GetProperty("Created_By_Function")!.SetValue(v_objData, "stale function");
+                v_objEntityType.GetProperty("Last_Updated_By")!.SetValue(v_objData, "old updater");
+                v_objEntityType.GetProperty("Last_Updated_By_Function")!.SetValue(v_objData, "old update function");
 
-                v_objAuditMethod!.Invoke(null, new object[] { v_objData, "current user", "current function" });
+                v_objInsertAuditMethod!.Invoke(null, new object[] { v_objData, "creator A", "function A" });
+                v_objUpdateAuditMethod!.Invoke(null, new object[] { v_objData, "updater B", "function B" });
 
                 Assert.Equal(v_iAuto_ID, v_objEntityType.GetProperty("Auto_ID")!.GetValue(v_objData));
-                Assert.Equal("current user", v_objEntityType.GetProperty("Created_By")!.GetValue(v_objData));
-                Assert.Equal("current function", v_objEntityType.GetProperty("Created_By_Function")!.GetValue(v_objData));
-                Assert.Equal("current user", v_objEntityType.GetProperty("Last_Updated_By")!.GetValue(v_objData));
-                Assert.Equal("current function", v_objEntityType.GetProperty("Last_Updated_By_Function")!.GetValue(v_objData));
+                Assert.Equal("creator A", v_objEntityType.GetProperty("Created_By")!.GetValue(v_objData));
+                Assert.Equal("function A", v_objEntityType.GetProperty("Created_By_Function")!.GetValue(v_objData));
+                Assert.Equal("updater B", v_objEntityType.GetProperty("Last_Updated_By")!.GetValue(v_objData));
+                Assert.Equal("function B", v_objEntityType.GetProperty("Last_Updated_By_Function")!.GetValue(v_objData));
             }
+        }
+    }
+
+    [Fact]
+    public void Master_update_calls_refresh_cache_only_after_sql_and_cache_preserves_creator_fields()
+    {
+        (string Code, string Controller, string Edit, string Cache)[] v_arrModules =
+        [
+            ("2009", "CDM_Kho_Controller.cs", "F2009_3_Kho_Edit.razor", "CCache_Kho.cs"),
+            ("2016", "CDM_Don_Vi_Tinh_Controller.cs", "FWarehouse_Unit_Edit.razor", "CCache_Don_Vi_Tinh.cs"),
+            ("2017", "CDM_Loai_San_Pham_Controller.cs", "F2017_3_Loai_San_Pham_Edit.razor", "CCache_Loai_San_Pham.cs"),
+            ("2018", "CDM_San_Pham_Controller.cs", "F2018_3_San_Pham_Edit.razor", "CCache_San_Pham.cs"),
+            ("2019", "CDM_NCC_Controller.cs", "F2019_3_Nha_Cung_Cap_Edit.razor", "CCache_NCC.cs")
+        ];
+
+        foreach (var v_objModule in v_arrModules)
+        {
+            string v_strController = File.ReadAllText(FindRepositoryPath(
+                "TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", v_objModule.Controller));
+            string v_strEdit = File.ReadAllText(FindRepositoryPath(
+                "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_objModule.Edit));
+            string v_strCache = File.ReadAllText(FindRepositoryPath(
+                "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Cache", v_objModule.Cache));
+
+            Assert.Equal(2, CountOccurrences(v_strController, "Set_Insert_Audit_Fields(p_objData,"));
+            Assert.Contains("Set_Update_Audit_Fields(p_objData,", v_strController);
+            Assert.Contains("p_objData.Created_By = v_objOldData.Created_By", v_strCache);
+            Assert.Contains("p_objData.Created_By_Function = v_objOldData.Created_By_Function", v_strCache);
+
+            int v_iUpdateCall = v_strEdit.IndexOf($"{v_objModule.Code}_sp_upd_", StringComparison.Ordinal);
+            int v_iCacheRefresh = v_strEdit.IndexOf("CCache_", v_iUpdateCall, StringComparison.Ordinal);
+            Assert.True(v_iUpdateCall >= 0 && v_iCacheRefresh > v_iUpdateCall,
+                $"Module {v_objModule.Code} must update SQL before refreshing cache.");
+        }
+    }
+
+    [Fact]
+    public void Unit_cache_update_preserves_creator_metadata_and_replaces_the_business_key()
+    {
+        long v_iAuto_ID = Random.Shared.NextInt64(8_000_000_000L, 9_000_000_000L);
+        var v_dtmCreated = new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var v_objOriginal = new TKS_Thuc_Tap_V11_Data_Access.Entity.DM.CDM_Don_Vi_Tinh
+        {
+            Auto_ID = v_iAuto_ID,
+            Ten_Don_Vi_Tinh = "audit-cache-old-" + v_iAuto_ID,
+            Created = v_dtmCreated,
+            Created_By = "creator A",
+            Created_By_Function = "function A"
+        };
+        var v_objUpdated = new TKS_Thuc_Tap_V11_Data_Access.Entity.DM.CDM_Don_Vi_Tinh
+        {
+            Auto_ID = v_iAuto_ID,
+            Ten_Don_Vi_Tinh = "audit-cache-new-" + v_iAuto_ID,
+            Ghi_Chu = "edited",
+            Created = null,
+            Created_By = "updater B",
+            Created_By_Function = "function B",
+            Last_Updated_By = "updater B",
+            Last_Updated_By_Function = "function B"
+        };
+
+        try
+        {
+            TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh.Delete_Data(v_iAuto_ID);
+            TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh.Add_Data(v_objOriginal);
+            TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh.Update_Data(v_objUpdated);
+
+            var v_objCached = TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh.Get_Data_By_ID(v_iAuto_ID);
+            Assert.NotNull(v_objCached);
+            Assert.Equal(v_iAuto_ID, v_objCached!.Auto_ID);
+            Assert.Equal(v_dtmCreated, v_objCached.Created);
+            Assert.Equal("creator A", v_objCached.Created_By);
+            Assert.Equal("function A", v_objCached.Created_By_Function);
+            Assert.Equal("updater B", v_objCached.Last_Updated_By);
+            Assert.Equal("function B", v_objCached.Last_Updated_By_Function);
+            Assert.Equal("edited", v_objCached.Ghi_Chu);
+            Assert.Null(TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh
+                .Get_Data_By_Ten_Don_Vi_Tinh(v_objOriginal.Ten_Don_Vi_Tinh));
+            Assert.Same(v_objCached, TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh
+                .Get_Data_By_Ten_Don_Vi_Tinh(v_objUpdated.Ten_Don_Vi_Tinh));
+        }
+        finally
+        {
+            TKS_Thuc_Tap_V11_Data_Access.Controller.Cache.CCache_Don_Vi_Tinh.Delete_Data(v_iAuto_ID);
         }
     }
 

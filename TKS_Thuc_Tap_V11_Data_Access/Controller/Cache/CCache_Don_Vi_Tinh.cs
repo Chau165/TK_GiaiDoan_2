@@ -46,6 +46,11 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
             if (p_objData == null || g_dicData_ID.ContainsKey(p_objData.Auto_ID) == false || p_objData.Auto_ID == 0)
                 return;
 
+            CDM_Don_Vi_Tinh v_objOldData = g_dicData_ID[p_objData.Auto_ID];
+            p_objData.Created = v_objOldData.Created;
+            p_objData.Created_By = v_objOldData.Created_By;
+            p_objData.Created_By_Function = v_objOldData.Created_By_Function;
+
             Delete_Data(p_objData.Auto_ID);
             Add_Data(p_objData);
         }

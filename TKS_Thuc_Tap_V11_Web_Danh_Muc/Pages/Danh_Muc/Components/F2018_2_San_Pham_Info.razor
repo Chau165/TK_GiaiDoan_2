@@ -28,6 +28,7 @@
                         <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Ghi chú")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Ghi_Chu, false)</span></div>
                     </div>
                     <div class="col-lg-4">
+                        <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Ngày giờ tạo")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created, false)</span></div>
                         <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Người tạo")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By, false)</span></div>
                         <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Chức năng tạo")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By_Function, false)</span></div>
                     </div>
@@ -61,8 +62,7 @@
     protected override void Load_Data()
     {
         m_objData = new CDM_San_Pham_Controller()
-            .F2018_sp_sel_List_San_Pham()
-            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == r_iAuto_ID)
+            .F2018_sp_sel_Get_By_ID(r_iAuto_ID)
             ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy sản phẩm cần xem."));
 
         m_objCategory = new CDM_Loai_San_Pham_Controller()
