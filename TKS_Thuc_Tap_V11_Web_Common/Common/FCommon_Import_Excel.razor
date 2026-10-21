@@ -3,9 +3,9 @@
         <EditForm Model="@r_objImport_Excel">
             <div class="modal-content">
                 <div class="modal-header bg-light">
-                    <h5 class="modal-title" id="myLargeModalLabel">Import Excel</h5>
+                    <h5 class="modal-title" id="myLargeModalLabel">@Localize("Import Excel")</h5>
 
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick="@(()=> Modal_Cancel())">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label='@Localize("Close")' @onclick="@(()=> Modal_Cancel())">
                     </button>
                 </div>
                 <div class="modal-body">
@@ -20,14 +20,14 @@
                     @if (m_bIs_Hide_Template_Excel == false)
                     {
                         <div>
-                            <a href="@r_objImport_Excel.URL_File_Template" download>Download template</a>
+                            <a href="@r_objImport_Excel.URL_File_Template" download>@Localize("Download template")</a>
                         </div>
                     }
 
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="@Import_Excel">Import Excel</button>
+                    <button type="button" class="btn btn-secondary" @onclick="@Import_Excel">@Localize("Import Excel")</button>
                 </div>
             </div>
         </EditForm>
@@ -40,6 +40,9 @@
 
     [Parameter]
     public bool m_bIs_Hide_Template_Excel { get; set; }
+
+    [Parameter]
+    public Func<string, string> Localize { get; set; } = static p_strText => p_strText;
 
     [Parameter]
     public EventCallback<CImport_Excel> OnClose { get; set; }
@@ -108,7 +111,7 @@
         }
         catch (Exception ex)
         {
-            r_strError = CCommonFunction.Set_Error_MessageBox(ex.Message);
+            r_strError = CCommonFunction.Set_Error_MessageBox(Localize(ex.Message));
         }
     }
 

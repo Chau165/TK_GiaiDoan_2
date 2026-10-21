@@ -47,20 +47,21 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
-    public void Warehouse_page_uses_the_company_list_info_edit_component_pattern()
+    public void Warehouse_page_routes_to_dedicated_company_style_master_components()
     {
         var v_Page = File.ReadAllText(FindWarehousePage());
-        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("F2009_1_Kho_List.razor"));
 
-        Assert.Contains("<FWarehouse_1_Warehouse_List m_strSection=\"Master\" m_strInitial_Master_Type=\"Kho\" m_bMaster_Type_Only=\"true\" />", v_Page);
+        Assert.Contains("<F2009_1_Kho_List />", v_Page);
+        Assert.DoesNotContain("FWarehouse_1_Warehouse_List", v_Page);
         Assert.Contains("@inherits FBase", v_List);
-        Assert.Contains("FWarehouse_2_Warehouse_Info", v_List);
-        Assert.Contains("FWarehouse_3_Warehouse_Edit", v_List);
+        Assert.Contains("F2009_2_Kho_Info", v_List);
+        Assert.Contains("F2009_3_Kho_Edit", v_List);
         Assert.Contains("<TelerikGrid", v_List);
         Assert.Contains("Is_Have_Add_Permission", v_List);
         Assert.Contains("Is_Have_Edit_Permission", v_List);
         Assert.Contains("Is_Have_Delete_Permission", v_List);
-        Assert.Contains("Is_Have_Export_Permission", v_List);
+        Assert.Contains("Layout_Tool_Button(grdData)", v_List);
     }
 
     [Fact]
@@ -80,6 +81,70 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("Delete_Master_Async((context as CWarehouseMaster).Auto_ID)", v_List);
         Assert.DoesNotContain("Toggle_Master_Actions", v_List);
         Assert.DoesNotContain("m_lngMasterAction_ID", v_List);
+    }
+
+    [Fact]
+    public void Warehouse_master_forms_follow_the_localized_owner_layout()
+    {
+        var v_Edit = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
+        var v_Info = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Master_Info.razor"));
+
+        Assert.Contains("m_strEditor_Type == \"Master\" ? \"\" : \"card border mt-3\"", v_Edit);
+        Assert.Contains("@Get_Language_Data_Field(\"Tên\")", v_Edit);
+        Assert.Contains("col-lg-6", v_Edit);
+        Assert.Contains("Get_Language_Data_Field(\"Thông tin\")", v_Info);
+        Assert.Contains("Get_Language_Data_Field(\"Lịch sử xử lý\")", v_Info);
+        Assert.Contains("col-lg-4", v_Info);
+    }
+
+    [Fact]
+    public void Warehouse_master_crud_uses_queue_loading_and_protected_delete_confirmation()
+    {
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_iSaveStart = v_List.IndexOf("private async Task Save_Master_Operation_Async", StringComparison.Ordinal);
+        var v_iDeleteStart = v_List.IndexOf("private async Task Delete_Master_Async", StringComparison.Ordinal);
+        var v_iNextDelete = v_List.IndexOf("private async Task Delete_Kho_User_Async", v_iDeleteStart, StringComparison.Ordinal);
+
+        Assert.True(v_iSaveStart >= 0 && v_iDeleteStart > v_iSaveStart && v_iNextDelete > v_iDeleteStart);
+        var v_SaveMethod = v_List[v_iSaveStart..v_iDeleteStart];
+        var v_DeleteMethod = v_List[v_iDeleteStart..v_iNextDelete];
+        Assert.Contains("r_objLayout.Start_Loading()", v_SaveMethod);
+        Assert.Contains("Process_Queue", v_SaveMethod);
+        Assert.Contains("End_Queue", v_SaveMethod);
+        Assert.Contains("Is_Have_Delete_Permission", v_DeleteMethod);
+        Assert.Contains("confirm", v_DeleteMethod);
+    }
+
+    [Fact]
+    public void Warehouse_master_import_refreshes_lookup_projections_and_grid_after_commit()
+    {
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_ImportCallbacks = new[]
+        {
+            "On_Product_Import_Completed",
+            "On_Category_Import_Completed",
+            "On_Supplier_Import_Completed",
+            "On_Warehouse_Import_Completed"
+        };
+
+        foreach (var v_strCallback in v_ImportCallbacks)
+        {
+            Assert.Matches(
+                $"private Task {v_strCallback}\\(int p_iRowCount\\)\\s*=>\\s*Complete_Master_Import_Async",
+                v_List);
+        }
+
+        var v_iRefreshStart = v_List.IndexOf("private async Task Complete_Master_Import_Async", StringComparison.Ordinal);
+        var v_iNextMethod = v_List.IndexOf("\n    private ", v_iRefreshStart + 1, StringComparison.Ordinal);
+        Assert.True(v_iRefreshStart >= 0 && v_iNextMethod > v_iRefreshStart);
+        var v_RefreshMethod = v_List[v_iRefreshStart..v_iNextMethod];
+
+        Assert.Contains("await Load_Lookups_Async();", v_RefreshMethod);
+        Assert.Contains("m_grdMaster.Rebind();", v_RefreshMethod);
+        Assert.Contains("r_objLayout.Start_Loading();", v_RefreshMethod);
+        Assert.Contains("r_objLayout.Stop_Loading();", v_RefreshMethod);
+        Assert.Contains("Set_Error(new InvalidOperationException(", v_RefreshMethod);
+        Assert.Contains("string.Format(Get_Language_Data_Field(\"Đã nhập thành công {0} dòng, nhưng không thể làm mới lookup", v_RefreshMethod);
     }
 
     [Fact]

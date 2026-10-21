@@ -1,0 +1,287 @@
+@inherits FBase
+@using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
+
+<div class="row" style="padding-top: 10px;">
+    <div class="col-lg-12">
+        @((MarkupString)r_strError)
+
+        <div class="d-flex flex-wrap justify-content-end gap-2 mb-3">
+            @if (r_objChuc_Nang.Is_Have_Add_Permission)
+            {
+                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="@(() => Open_Kho_Edit(0))">
+                    <i class="ri-add-circle-fill align-bottom me-1"></i>@Get_Language_Data_Field("Thêm")
+                </button>
+                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="Open_Kho_Import_Excel">
+                    <i class="ri-upload-fill align-bottom me-1"></i>@Get_Language_Data_Field("Import")
+                </button>
+            }
+            @Layout_Tool_Button(grdData)
+        </div>
+
+        <TelerikGrid Data="@v_arrData" Height="calc(100vh - 190px)" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" @ref="@grdData">
+            <GridExport>
+                <GridExcelExport FileName="Kho_Export" AllPages="true" OnBeforeExport="@Prepare_Excel_Export" />
+                <GridCsvExport FileName="Kho_Export" AllPages="true" />
+            </GridExport>
+            <GridColumns>
+                <GridCheckboxColumn SelectAll="true" CheckBoxOnlySelection="true" Width="30px" />
+                <GridColumn Width="70px">
+                    <Template>
+                        <button class="btn btn-link" title='@Get_Language_Data_Field("Xem")' @onclick="@(() => Open_Info((context as CDM_Kho).Auto_ID))">
+                            <i class="mdi mdi-eye" style="color: purple;"></i>
+                        </button>
+                        @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
+                        {
+                            <button class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false" title='@Get_Language_Data_Field("Thao tác")'>
+                                <i class="mdi mdi-cog-outline" style="color: purple;"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                @if (r_objChuc_Nang.Is_Have_Edit_Permission)
+                                {
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Open_Kho_Edit((context as CDM_Kho).Auto_ID))"><i class="ri-edit-2-line align-bottom me-1"></i>@Get_Language_Data_Field("Hiệu chỉnh")</button></li>
+                                }
+                                @if (r_objChuc_Nang.Is_Have_Delete_Permission)
+                                {
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Kho_Async((context as CDM_Kho).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>@Get_Language_Data_Field("Xóa")</button></li>
+                                }
+                            </ul>
+                        }
+                    </Template>
+                </GridColumn>
+                @if (CCache_Grid_UI_Global.List_Data_By_Code(r_strActive_Function_Code, "grdData").Count > 0)
+                {
+                    <FCommon_General_Col_Grid m_strFCode="@r_strActive_Function_Code" m_strTen_Grid="grdData" />
+                }
+                else
+                {
+                    <GridColumn Field="Ten_Kho" Title='@Get_Language_Data_Field("Tên kho")' Width="240px" />
+                    <GridColumn Field="Ghi_Chu" Title='@Get_Language_Data_Field("Ghi chú")' />
+                }
+            </GridColumns>
+        </TelerikGrid>
+    </div>
+</div>
+
+@if (r_bIs_Show_Info)
+{
+    <F2009_2_Kho_Info r_iAuto_ID="@r_iAuto_ID" OnClose="@Close_Info" />
+}
+@if (r_bIs_Show_Help_Guide)
+{
+    <FCommon_Help_Guide m_strFCode="@r_strActive_Function_Code" OnClose="@Close_Helpguide" />
+}
+@if (r_bIs_Show_Edit)
+{
+    <F2009_3_Kho_Edit r_iAuto_ID="@r_iAuto_ID" OnClose="@Close_Edit" />
+}
+@if (r_bIs_Show_Import_Excel)
+{
+    <FCommon_Import_Excel r_objImport_Excel="@r_objImport_Excel" OnClose="@Close_Import_Excel" Localize="@Get_Language_Data_Field" />
+}
+@if (r_bIs_Show_Message_Info)
+{
+    <FCommon_Message_Info r_strMessage_Header="@r_strMessage_Header" r_strMessage_Info="@r_strMessage_Info" OnClose="@Close_Message_Info" />
+}
+
+@code {
+    private List<CDM_Kho> v_arrData = new();
+    private TelerikGrid<CDM_Kho> grdData = new();
+
+    protected override void Load_Data()
+    {
+        Format_Grid(grdData);
+        v_arrData = new CDM_Kho_Controller().F2009_sp_sel_List_Kho();
+    }
+
+    protected override void Delete_Data_Entry(long p_iAuto_ID)
+    {
+        var v_objData = v_arrData.FirstOrDefault(v_objItem => v_objItem.Auto_ID == p_iAuto_ID)
+            ?? CCache_Kho.Get_Data_By_ID(p_iAuto_ID);
+        if (v_objData is null)
+            throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy kho cần xóa."));
+
+        r_strDelete_Key = v_objData.Ten_Kho;
+        new CDM_Kho_Controller().F2009_sp_del_Kho(
+            p_iAuto_ID,
+            r_strActive_User_Name,
+            r_strActive_Function_Code);
+        CCache_Kho.Delete_Data(p_iAuto_ID);
+    }
+
+    protected override void Import_Excel_Entry(CExcel_Controller v_objCtrlExcel, ref int p_iCount_Success, ref int p_iCount_Error)
+    {
+        var v_objCtrData = new CDM_Kho_Controller();
+        var v_sbError = new StringBuilder();
+        var v_sbHistoryWarning = new StringBuilder();
+        var v_sbSkipped = new StringBuilder();
+        DataTable? v_dt = null;
+        var v_iSkipped = 0;
+        var v_iFailed = 0;
+
+        try
+        {
+            v_dt = v_objCtrlExcel.List_Range_Value_To_End("Kho", "A2", "B");
+            CWarehouse_Xlsx_Worksheet v_objWorksheet;
+            using (var v_objStream = File.OpenRead(r_objImport_Excel.Path_File))
+                v_objWorksheet = new CWarehouse_Xlsx_Reader().ReadAsync(v_objStream).GetAwaiter().GetResult();
+
+            var v_objValidation = CWarehouseImportValidator.Preview(
+                v_objWorksheet,
+                v_objCtrData.F2009_sp_sel_List_Kho());
+            var v_arrFileErrors = v_objValidation.Errors.Where(v_objError => v_objError.Row_Number <= 1).ToArray();
+            if (v_arrFileErrors.Length > 0 || v_objValidation.Unsupported_Columns.Count > 0 || v_objValidation.Unsupported_Capabilities.Count > 0)
+            {
+                var v_arrMessages = v_arrFileErrors.Select(v_objError => v_objError.Message)
+                    .Concat(v_objValidation.Unsupported_Columns.Select(v_strColumn => $"Cột không được hỗ trợ: {v_strColumn}."))
+                    .Concat(v_objValidation.Unsupported_Capabilities.Select(v_objIssue => v_objIssue.Message));
+                throw new InvalidDataException(string.Join(Environment.NewLine, v_arrMessages));
+            }
+
+            if (v_objValidation.Rows.Count == 0)
+                throw new InvalidDataException(Get_Language_Data_Field("File không có dòng dữ liệu kho."));
+
+            foreach (var v_objRow in v_objValidation.Rows)
+            {
+                if (v_objRow.Is_Skipped)
+                {
+                    v_iSkipped++;
+                    v_sbSkipped.AppendLine(string.Format(
+                        Get_Language_Data_Field("Dòng {0} đã có dữ liệu giống hệt trong hệ thống; đã bỏ qua."),
+                        v_objRow.Row_Number));
+                    continue;
+                }
+
+                if (!v_objRow.Is_Valid)
+                {
+                    v_iFailed++;
+                    foreach (var v_objError in v_objRow.Errors)
+                        v_sbError.AppendLine(Get_Language_Data_Field(v_objError.Message));
+                    continue;
+                }
+
+                var v_iDataRowIndex = v_objRow.Row_Number - 2;
+                if (v_iDataRowIndex < 0 || v_iDataRowIndex >= v_dt.Rows.Count)
+                {
+                    v_iFailed++;
+                    v_sbError.AppendLine(string.Format(
+                        Get_Language_Data_Field("Dòng {0}: Không đọc được dữ liệu tương ứng từ Excel."),
+                        v_objRow.Row_Number));
+                    continue;
+                }
+
+                var v_objExcelRow = v_dt.Rows[v_iDataRowIndex];
+                var v_objData = new CDM_Kho
+                {
+                    Ten_Kho = CUtility.Convert_To_String(v_objExcelRow[0]).Trim(),
+                    Ghi_Chu = CUtility.Convert_To_String(v_objExcelRow[1]).Trim()
+                };
+
+                try
+                {
+                    using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
+                    {
+                        v_conn.Open();
+                        using (SqlTransaction v_trans = v_conn.BeginTransaction())
+                        {
+                            try
+                            {
+                                v_objData.Auto_ID = v_objCtrData.F2009_sp_ins_Kho(
+                                    v_conn,
+                                    v_trans,
+                                    v_objData,
+                                    r_strActive_User_Name,
+                                    r_strActive_Function_Code);
+                                v_trans.Commit();
+                            }
+                            catch
+                            {
+                                try { v_trans.Rollback(); } catch { }
+                                throw;
+                            }
+                        }
+                    }
+
+                    CCache_Kho.Add_Data(v_objData);
+                    p_iCount_Success++;
+                    try
+                    {
+                        CCommon_Controller.FCommon_Insert_Action_History(
+                            v_objData.Auto_ID,
+                            Get_Language_Data_Field("Import Excel - Thêm Mới"),
+                            "Web",
+                            r_strActive_User_Name,
+                            r_strActive_Function_Code,
+                            r_objChuc_Nang.Ten_Chuc_Nang,
+                            "Key: " + v_objData.Ten_Kho);
+                    }
+                    catch (Exception p_objException)
+                    {
+                        v_sbHistoryWarning.AppendLine(string.Format(
+                            Get_Language_Data_Field("Dòng {0} đã được nhập nhưng không ghi được lịch sử xử lý: {1}"),
+                            v_objRow.Row_Number,
+                            p_objException.Message));
+                    }
+                }
+                catch (Exception p_objException)
+                {
+                    v_iFailed++;
+                    v_sbError.AppendLine(string.Format(
+                        Get_Language_Data_Field("Dòng {0} có lỗi: {1}"),
+                        v_objRow.Row_Number,
+                        p_objException.Message));
+                }
+            }
+
+            p_iCount_Error = v_iFailed + v_iSkipped;
+            var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
+                Get_Language_Data_Field("Thêm mới {0} dòng thành công."),
+                p_iCount_Success));
+            if (v_sbError.Length > 0)
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbError.ToString());
+            if (v_sbSkipped.Length > 0)
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbSkipped.ToString());
+            if (v_sbHistoryWarning.Length > 0)
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbHistoryWarning.ToString());
+
+            Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
+        }
+        catch (Exception p_objException)
+        {
+            p_iCount_Error = Math.Max(p_iCount_Error, 1);
+            Open_Message_Info(
+                Get_Language_Data_Field("Thông báo Import Excel"),
+                CCommonFunction.Set_Error_MessageBox(Get_Language_Data_Field(p_objException.Message)));
+        }
+        finally
+        {
+            v_dt?.Dispose();
+        }
+    }
+
+    private void Open_Kho_Import_Excel()
+    {
+        if (!r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+
+        Open_Import_Excel("Kho_Import_Template.xlsx");
+    }
+
+    private void Open_Kho_Edit(long p_iAuto_ID)
+    {
+        var v_blCanEdit = p_iAuto_ID == 0
+            ? r_objChuc_Nang.Is_Have_Add_Permission
+            : r_objChuc_Nang.Is_Have_Edit_Permission;
+        if (!v_blCanEdit)
+            return;
+
+        Open_Edit(p_iAuto_ID);
+    }
+
+    private Task Delete_Kho_Async(long p_iAuto_ID)
+    {
+        if (!r_objChuc_Nang.Is_Have_Delete_Permission)
+            return Task.CompletedTask;
+
+        return Delete_Data(p_iAuto_ID);
+    }
+}

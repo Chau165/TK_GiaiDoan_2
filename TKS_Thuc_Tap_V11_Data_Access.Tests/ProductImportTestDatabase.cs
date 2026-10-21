@@ -10,7 +10,7 @@ internal static class ProductImportTestDatabase
     internal static string ValidateConnectionString(string p_strConnectionString)
     {
         if (string.IsNullOrWhiteSpace(p_strConnectionString))
-            throw new InvalidOperationException("Product import integration tests require TKS_INTEGRATION_CONNECTION_STRING.");
+            throw new InvalidOperationException("Integration tests require TKS_INTEGRATION_CONNECTION_STRING.");
 
         var v_objBuilder = new SqlConnectionStringBuilder(p_strConnectionString);
         if (!string.Equals(v_objBuilder.DataSource, m_strExpectedServer, StringComparison.OrdinalIgnoreCase) ||

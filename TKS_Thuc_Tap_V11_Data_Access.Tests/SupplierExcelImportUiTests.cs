@@ -6,15 +6,19 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 public sealed class SupplierExcelImportUiTests
 {
     [Fact]
-    public void Supplier_import_action_is_scoped_to_Add_and_refreshes_once_after_success()
+    public void Supplier_route_uses_FBase_import_instead_of_legacy_preview_confirm_import()
     {
-        var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+        var v_strRoute = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Nha_Cung_Cap.razor"));
+        var v_strList = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2019_1_Nha_Cung_Cap_List.razor"));
 
-        Assert.Contains("m_strMaster_Type != \"NCC\" || !r_objChuc_Nang.Is_Have_Add_Permission", v_strSource);
-        Assert.Contains("<FWarehouse_Supplier_Import", v_strSource);
-        Assert.Contains("On_Supplier_Import_Completed", v_strSource);
-        Assert.Contains("\"Supplier Excel Import\"", v_strSource);
+        Assert.Contains("<F2019_1_Nha_Cung_Cap_List />", v_strRoute);
+        Assert.Contains("@if (r_objChuc_Nang.Is_Have_Add_Permission)", v_strList);
+        Assert.Contains("Open_Import_Excel(\"Nha_Cung_Cap_Import_Template.xlsx\")", v_strList);
+        Assert.Contains("FCommon_Import_Excel", v_strList);
+        Assert.Contains("protected override void Import_Excel_Entry", v_strList);
+        Assert.DoesNotContain("<FWarehouse_Supplier_Import", v_strList);
     }
 
     [Fact]
@@ -37,12 +41,14 @@ public sealed class SupplierExcelImportUiTests
     {
         var v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Supplier_Import.razor"));
+        var v_strShell = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Import_Preview_Shell.razor"));
 
+        Assert.Contains("<FWarehouse_Import_Preview_Shell", v_strSource);
         Assert.Contains("Nha_Cung_Cap_Import_Template.xlsx", v_strSource);
-        Assert.Contains("Xem trước", v_strSource);
         Assert.Contains("PreviewValid", v_strSource);
         Assert.Contains("PreviewInvalid", v_strSource);
-        Assert.Contains("disabled=\"@(!Can_Confirm)\"", v_strSource);
+        Assert.Contains("disabled=\"@(!CanConfirm)\"", v_strShell);
         Assert.Contains("Confirm_Async", v_strSource);
     }
 

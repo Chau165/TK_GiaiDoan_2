@@ -1,0 +1,353 @@
+@inherits FBase
+@using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
+
+<div class="row" style="padding-top: 10px;">
+    <div class="col-lg-12">
+        @((MarkupString)r_strError)
+
+        <div class="d-flex flex-wrap justify-content-end gap-2 mb-3">
+            @if (r_objChuc_Nang.Is_Have_Add_Permission)
+            {
+                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="@(() => Open_Product_Edit(0))">
+                    <i class="ri-add-circle-fill align-bottom me-1"></i>@Get_Language_Data_Field("Thêm")
+                </button>
+                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="Open_Product_Import_Excel">
+                    <i class="ri-upload-fill align-bottom me-1"></i>@Get_Language_Data_Field("Import")
+                </button>
+            }
+            @Layout_Tool_Button(grdData)
+        </div>
+
+        <TelerikGrid Data="@v_arrData" Height="calc(100vh - 190px)" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" @ref="@grdData">
+            <GridExport>
+                <GridExcelExport FileName="San_Pham_Export" AllPages="true" OnBeforeExport="@Prepare_Excel_Export" />
+                <GridCsvExport FileName="San_Pham_Export" AllPages="true" />
+            </GridExport>
+            <GridColumns>
+                <GridCheckboxColumn SelectAll="true" CheckBoxOnlySelection="true" Width="30px" />
+                <GridColumn Width="70px">
+                    <Template>
+                        <button class="btn btn-link" title='@Get_Language_Data_Field("Xem")' @onclick="@(() => Open_Info((context as CProductGridRow).Auto_ID))">
+                            <i class="mdi mdi-eye" style="color: purple;"></i>
+                        </button>
+                        @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
+                        {
+                            <button class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false" title='@Get_Language_Data_Field("Thao tác")'>
+                                <i class="mdi mdi-cog-outline" style="color: purple;"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                @if (r_objChuc_Nang.Is_Have_Edit_Permission)
+                                {
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Open_Product_Edit((context as CProductGridRow).Auto_ID))"><i class="ri-edit-2-line align-bottom me-1"></i>@Get_Language_Data_Field("Hiệu chỉnh")</button></li>
+                                }
+                                @if (r_objChuc_Nang.Is_Have_Delete_Permission)
+                                {
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Product_Async((context as CProductGridRow).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>@Get_Language_Data_Field("Xóa")</button></li>
+                                }
+                            </ul>
+                        }
+                    </Template>
+                </GridColumn>
+                @if (CCache_Grid_UI_Global.List_Data_By_Code(r_strActive_Function_Code, "grdData").Count > 0)
+                {
+                    <FCommon_General_Col_Grid m_strFCode="@r_strActive_Function_Code" m_strTen_Grid="grdData" />
+                }
+                else
+                {
+                    <GridColumn Field="Ma_San_Pham" Title='@Get_Language_Data_Field("Mã sản phẩm")' Width="160px" />
+                    <GridColumn Field="Ten_San_Pham" Title='@Get_Language_Data_Field("Tên sản phẩm")' Width="240px" />
+                    <GridColumn Field="Ten_LSP" Title='@Get_Language_Data_Field("Loại sản phẩm")' Width="200px" />
+                    <GridColumn Field="Ten_Don_Vi_Tinh" Title='@Get_Language_Data_Field("Đơn vị tính")' Width="160px" />
+                    <GridColumn Field="Ghi_Chu" Title='@Get_Language_Data_Field("Ghi chú")' />
+                }
+            </GridColumns>
+        </TelerikGrid>
+    </div>
+</div>
+
+@if (r_bIs_Show_Info)
+{
+    <F2018_2_San_Pham_Info r_iAuto_ID="@r_iAuto_ID" OnClose="@Close_Info" />
+}
+@if (r_bIs_Show_Help_Guide)
+{
+    <FCommon_Help_Guide m_strFCode="@r_strActive_Function_Code" OnClose="@Close_Helpguide" />
+}
+@if (r_bIs_Show_Edit)
+{
+    <F2018_3_San_Pham_Edit r_iAuto_ID="@r_iAuto_ID" OnClose="@Close_Edit" />
+}
+@if (r_bIs_Show_Import_Excel)
+{
+    <FCommon_Import_Excel r_objImport_Excel="@r_objImport_Excel" OnClose="@Close_Import_Excel" Localize="@Get_Language_Data_Field" />
+}
+@if (r_bIs_Show_Message_Info)
+{
+    <FCommon_Message_Info r_strMessage_Header="@r_strMessage_Header" r_strMessage_Info="@r_strMessage_Info" OnClose="@Close_Message_Info" />
+}
+
+@code {
+    private List<CProductGridRow> v_arrData = new();
+    private TelerikGrid<CProductGridRow> grdData = new();
+
+    protected override void Load_Data()
+    {
+        Format_Grid(grdData);
+
+        var v_arrProducts = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham();
+        var v_dicCategories = new CDM_Loai_San_Pham_Controller()
+            .F2017_sp_sel_List_Loai_San_Pham_Lookup()
+            .ToDictionary(v_objItem => v_objItem.Auto_ID);
+        var v_dicUnits = new CDM_Don_Vi_Tinh_Controller()
+            .F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
+            .ToDictionary(v_objItem => v_objItem.Auto_ID);
+
+        v_arrData = v_arrProducts.Select(v_objItem => new CProductGridRow
+        {
+            Auto_ID = v_objItem.Auto_ID,
+            Code = v_objItem.Ma_San_Pham,
+            Name = v_objItem.Ten_San_Pham,
+            Related_ID = v_objItem.Loai_San_Pham_ID,
+            Related_ID_2 = v_objItem.Don_Vi_Tinh_ID,
+            Ma_San_Pham = v_objItem.Ma_San_Pham,
+            Ten_San_Pham = v_objItem.Ten_San_Pham,
+            Loai_San_Pham_ID = v_objItem.Loai_San_Pham_ID,
+            Don_Vi_Tinh_ID = v_objItem.Don_Vi_Tinh_ID,
+            Ma_LSP = v_dicCategories.TryGetValue(v_objItem.Loai_San_Pham_ID, out var v_objCategory) ? v_objCategory.Ma_LSP : "",
+            Ten_LSP = v_dicCategories.TryGetValue(v_objItem.Loai_San_Pham_ID, out v_objCategory) ? v_objCategory.Ten_LSP : "",
+            Ten_Don_Vi_Tinh = v_dicUnits.TryGetValue(v_objItem.Don_Vi_Tinh_ID, out var v_objUnit) ? v_objUnit.Ten_Don_Vi_Tinh : "",
+            Ghi_Chu = v_objItem.Ghi_Chu,
+            Created = v_objItem.Created,
+            Created_By = v_objItem.Created_By,
+            Created_By_Function = v_objItem.Created_By_Function,
+            Last_Updated = v_objItem.Last_Updated,
+            Last_Updated_By = v_objItem.Last_Updated_By,
+            Last_Updated_By_Function = v_objItem.Last_Updated_By_Function
+        }).ToList();
+    }
+
+    protected override void Delete_Data_Entry(long p_iAuto_ID)
+    {
+        var v_objData = new CDM_San_Pham_Controller()
+            .F2018_sp_sel_List_San_Pham()
+            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == p_iAuto_ID)
+            ?? CCache_San_Pham.Get_Data_By_ID(p_iAuto_ID)
+            ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy sản phẩm cần xóa."));
+
+        r_strDelete_Key = v_objData.Ma_San_Pham;
+        new CDM_San_Pham_Controller().F2018_sp_del_San_Pham(
+            p_iAuto_ID,
+            r_strActive_User_Name,
+            r_strActive_Function_Code);
+        CCache_San_Pham.Delete_Data(p_iAuto_ID);
+    }
+
+    protected override void Import_Excel_Entry(CExcel_Controller v_objCtrlExcel, ref int p_iCount_Success, ref int p_iCount_Error)
+    {
+        var v_objProductController = new CDM_San_Pham_Controller();
+        var v_arrCategories = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup();
+        var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup();
+        var v_arrExistingProducts = v_objProductController.F2018_sp_sel_List_San_Pham();
+        var v_sbErrors = new StringBuilder();
+        var v_sbSkipped = new StringBuilder();
+        var v_sbHistoryWarnings = new StringBuilder();
+        DataTable? v_dt = null;
+        var v_iFailed = 0;
+        var v_iSkipped = 0;
+
+        try
+        {
+            v_dt = v_objCtrlExcel.List_Range_Value_To_End("SanPham", "A2", "E");
+            CProduct_Xlsx_Worksheet v_objWorksheet;
+            using (var v_objStream = File.OpenRead(r_objImport_Excel.Path_File))
+                v_objWorksheet = new CProduct_Xlsx_Reader().ReadAsync(v_objStream).GetAwaiter().GetResult();
+
+            var v_objValidation = CProductImportValidator.Preview(
+                v_objWorksheet,
+                v_arrCategories,
+                v_arrUnits,
+                v_arrExistingProducts);
+
+            var v_arrFileErrors = v_objValidation.Errors.Where(v_objError => v_objError.Row_Number <= 1).ToArray();
+            if (v_arrFileErrors.Length > 0 || v_objValidation.Unsupported_Columns.Count > 0 || v_objValidation.Unsupported_Capabilities.Count > 0)
+            {
+                var v_arrMessages = v_arrFileErrors.Select(v_objError => v_objError.Message)
+                    .Concat(v_objValidation.Unsupported_Columns.Select(v_strColumn => $"Cột không được hỗ trợ: {v_strColumn}."))
+                    .Concat(v_objValidation.Unsupported_Capabilities.Select(v_objIssue => v_objIssue.Message));
+                throw new InvalidDataException(string.Join(Environment.NewLine, v_arrMessages));
+            }
+
+            if (v_objValidation.Rows.Count == 0)
+                throw new InvalidDataException(Get_Language_Data_Field("File không có dòng dữ liệu sản phẩm."));
+
+            foreach (var v_objRow in v_objValidation.Rows)
+            {
+                if (v_objRow.Is_Skipped)
+                {
+                    v_iSkipped++;
+                    v_sbSkipped.AppendLine(string.Format(
+                        Get_Language_Data_Field("Dòng {0} đã có dữ liệu giống hệt; đã bỏ qua."),
+                        v_objRow.Row_Number));
+                    continue;
+                }
+
+                if (!v_objRow.Is_Valid)
+                {
+                    v_iFailed++;
+                    foreach (var v_objError in v_objRow.Errors)
+                        v_sbErrors.AppendLine(Get_Language_Data_Field(v_objError.Message));
+                    continue;
+                }
+
+                var v_iDataRowIndex = v_objRow.Row_Number - 2;
+                if (v_iDataRowIndex < 0 || v_iDataRowIndex >= v_dt.Rows.Count)
+                {
+                    v_iFailed++;
+                    v_sbErrors.AppendLine(string.Format(
+                        Get_Language_Data_Field("Dòng {0}: Không đọc được dữ liệu tương ứng từ Excel."),
+                        v_objRow.Row_Number));
+                    continue;
+                }
+
+                var v_objExcelRow = v_dt.Rows[v_iDataRowIndex];
+                var v_objData = new CDM_San_Pham
+                {
+                    Ma_San_Pham = CUtility.Convert_To_String(v_objExcelRow[0]).Trim(),
+                    Ten_San_Pham = CUtility.Convert_To_String(v_objExcelRow[1]).Trim(),
+                    Loai_San_Pham_ID = v_objRow.Loai_San_Pham_ID,
+                    Don_Vi_Tinh_ID = v_objRow.Don_Vi_Tinh_ID,
+                    Ghi_Chu = CUtility.Convert_To_String(v_objExcelRow[4]).Trim()
+                };
+
+                try
+                {
+                    using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
+                    {
+                        v_conn.Open();
+                        using (SqlTransaction v_trans = v_conn.BeginTransaction())
+                        {
+                            try
+                            {
+                                v_objData.Auto_ID = v_objProductController.F2018_sp_ins_San_Pham(
+                                    v_conn,
+                                    v_trans,
+                                    v_objData,
+                                    r_strActive_User_Name,
+                                    r_strActive_Function_Code);
+                                v_trans.Commit();
+                            }
+                            catch
+                            {
+                                try { v_trans.Rollback(); } catch { }
+                                throw;
+                            }
+                        }
+                    }
+
+                    CCache_San_Pham.Add_Data(v_objData);
+                    p_iCount_Success++;
+                    try
+                    {
+                        CCommon_Controller.FCommon_Insert_Action_History(
+                            v_objData.Auto_ID,
+                            Get_Language_Data_Field("Import Excel - Thêm Mới"),
+                            "Web",
+                            r_strActive_User_Name,
+                            r_strActive_Function_Code,
+                            r_objChuc_Nang.Ten_Chuc_Nang,
+                            "Key: " + v_objData.Ma_San_Pham);
+                    }
+                    catch (Exception p_objException)
+                    {
+                        v_sbHistoryWarnings.AppendLine(string.Format(
+                            Get_Language_Data_Field("Dòng {0} đã được nhập nhưng không ghi được lịch sử xử lý: {1}"),
+                            v_objRow.Row_Number,
+                            p_objException.Message));
+                    }
+                }
+                catch (Exception p_objException)
+                {
+                    v_iFailed++;
+                    v_sbErrors.AppendLine(string.Format(
+                        Get_Language_Data_Field("Dòng {0} có lỗi: {1}"),
+                        v_objRow.Row_Number,
+                        p_objException.Message));
+                }
+            }
+
+            p_iCount_Error = v_iFailed + v_iSkipped;
+            var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
+                Get_Language_Data_Field("Thêm mới {0} dòng thành công."),
+                p_iCount_Success));
+            if (v_sbErrors.Length > 0)
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbErrors.ToString());
+            if (v_sbSkipped.Length > 0)
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbSkipped.ToString());
+            if (v_sbHistoryWarnings.Length > 0)
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbHistoryWarnings.ToString());
+
+            Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
+        }
+        catch (Exception p_objException)
+        {
+            p_iCount_Error = Math.Max(p_iCount_Error, 1);
+            Open_Message_Info(
+                Get_Language_Data_Field("Thông báo Import Excel"),
+                CCommonFunction.Set_Error_MessageBox(Get_Language_Data_Field(p_objException.Message)));
+        }
+        finally
+        {
+            v_dt?.Dispose();
+        }
+    }
+
+    private void Open_Product_Import_Excel()
+    {
+        if (!r_objChuc_Nang.Is_Have_Add_Permission)
+            return;
+
+        Open_Import_Excel("San_Pham_Import_Template.xlsx");
+    }
+
+    private void Open_Product_Edit(long p_iAuto_ID)
+    {
+        var v_blCanEdit = p_iAuto_ID == 0
+            ? r_objChuc_Nang.Is_Have_Add_Permission
+            : r_objChuc_Nang.Is_Have_Edit_Permission;
+        if (!v_blCanEdit)
+            return;
+
+        Open_Edit(p_iAuto_ID);
+    }
+
+    private Task Delete_Product_Async(long p_iAuto_ID)
+    {
+        if (!r_objChuc_Nang.Is_Have_Delete_Permission)
+            return Task.CompletedTask;
+
+        return Delete_Data(p_iAuto_ID);
+    }
+
+    private sealed class CProductGridRow
+    {
+        public long Auto_ID { get; init; }
+        public string Code { get; init; } = "";
+        public string Name { get; init; } = "";
+        public long Related_ID { get; init; }
+        public long Related_ID_2 { get; init; }
+        public string Ma_San_Pham { get; init; } = "";
+        public string Ten_San_Pham { get; init; } = "";
+        public long Loai_San_Pham_ID { get; init; }
+        public long Don_Vi_Tinh_ID { get; init; }
+        public string Ma_LSP { get; init; } = "";
+        public string Ten_LSP { get; init; } = "";
+        public string Ten_Don_Vi_Tinh { get; init; } = "";
+        public string Ghi_Chu { get; init; } = "";
+        public DateTime? Created { get; init; }
+        public string Created_By { get; init; } = "";
+        public string Created_By_Function { get; init; } = "";
+        public DateTime? Last_Updated { get; init; }
+        public string Last_Updated_By { get; init; } = "";
+        public string Last_Updated_By_Function { get; init; } = "";
+    }
+}

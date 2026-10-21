@@ -24,16 +24,22 @@ public sealed class ProductExcelImportUiTests
     }
 
     [Fact]
-    public void Product_import_action_is_scoped_to_product_add_permission_and_refreshes_once_after_success()
+    public void Product_route_uses_FBase_import_and_keeps_product_lookup_validation()
     {
-        var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+        var v_strRoute = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_San_Pham.razor"));
+        var v_strList = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2018_1_San_Pham_List.razor"));
 
-        Assert.Contains("m_strMaster_Type != \"SanPham\" || !r_objChuc_Nang.Is_Have_Add_Permission", v_strSource);
-        Assert.Contains("On_Product_Import_Completed", v_strSource);
-        Assert.Contains("m_grdMaster.Rebind();", v_strSource);
-        Assert.Contains("\"Product Excel Import\"", v_strSource);
-        Assert.Contains("Rows: {p_iRowCount}", v_strSource);
+        Assert.Contains("<F2018_1_San_Pham_List />", v_strRoute);
+        Assert.Contains("@if (r_objChuc_Nang.Is_Have_Add_Permission)", v_strList);
+        Assert.Contains("Open_Import_Excel(\"San_Pham_Import_Template.xlsx\")", v_strList);
+        Assert.Contains("FCommon_Import_Excel", v_strList);
+        Assert.Contains("CProductImportValidator.Preview", v_strList);
+        Assert.Contains("F2017_sp_sel_List_Loai_San_Pham_Lookup", v_strList);
+        Assert.Contains("F2016_sp_sel_List_Don_Vi_Tinh_Lookup", v_strList);
+        Assert.Contains("protected override void Import_Excel_Entry", v_strList);
+        Assert.DoesNotContain("<FWarehouse_Product_Import", v_strList);
     }
 
     [Fact]
@@ -57,11 +63,15 @@ public sealed class ProductExcelImportUiTests
     {
         var v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Product_Import.razor"));
+        var v_strShell = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Import_Preview_Shell.razor"));
 
+        Assert.Contains("<FWarehouse_Import_Preview_Shell", v_strSource);
         Assert.Contains("PreviewValid", v_strSource);
         Assert.Contains("PreviewInvalid", v_strSource);
         Assert.Contains("Importing", v_strSource);
-        Assert.Contains("disabled=\"@(!Can_Confirm)\"", v_strSource);
+        Assert.Contains("Can_Confirm", v_strSource);
+        Assert.Contains("disabled=\"@(!CanConfirm)\"", v_strShell);
     }
 
     [Fact]

@@ -12,7 +12,8 @@ public sealed class WarehouseNavigationTests
         var v_Component = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("<FWarehouse_1_Warehouse_List m_strSection=\"Master\" m_strInitial_Master_Type=\"Kho\" m_bMaster_Type_Only=\"true\" />", v_Page);
+        Assert.Contains("<F2009_1_Kho_List />", v_Page);
+        Assert.DoesNotContain("FWarehouse_1_Warehouse_List", v_Page);
         Assert.Contains("[Parameter] public string m_strSection", v_Component);
         Assert.Contains("[Parameter] public string m_strInitial_Master_Type", v_Component);
         Assert.Contains("[Parameter] public bool m_bMaster_Type_Only", v_Component);
@@ -22,18 +23,29 @@ public sealed class WarehouseNavigationTests
     }
 
     [Theory]
-    [InlineData("Warehouse_Don_Vi_Tinh.razor", "/Kho/Don_Vi_Tinh", "DonViTinh")]
-    [InlineData("Warehouse_Loai_San_Pham.razor", "/Kho/Loai_San_Pham", "LoaiSanPham")]
-    [InlineData("Warehouse_San_Pham.razor", "/Kho/San_Pham", "SanPham")]
-    [InlineData("Warehouse_Nha_Cung_Cap.razor", "/Kho/Nha_Cung_Cap", "NCC")]
-    public void Warehouse_master_data_has_dedicated_routes(string p_FileName, string p_Route, string p_MasterType)
+    [InlineData("Warehouse_Loai_San_Pham.razor", "/Kho/Loai_San_Pham", "F2017_1_Loai_San_Pham_List")]
+    [InlineData("Warehouse_San_Pham.razor", "/Kho/San_Pham", "F2018_1_San_Pham_List")]
+    [InlineData("Warehouse_Nha_Cung_Cap.razor", "/Kho/Nha_Cung_Cap", "F2019_1_Nha_Cung_Cap_List")]
+    [InlineData("Warehouse.razor", "/Kho/Quan_Ly", "F2009_1_Kho_List")]
+    public void Warehouse_master_data_routes_use_dedicated_FBase_lists(string p_FileName, string p_Route, string p_ListComponent)
     {
         var v_Page = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", p_FileName));
 
         Assert.Contains($"@page \"{p_Route}\"", v_Page);
-        Assert.Contains($"m_strInitial_Master_Type=\"{p_MasterType}\"", v_Page);
-        Assert.Contains("m_bMaster_Type_Only=\"true\"", v_Page);
+        Assert.Contains($"<{p_ListComponent} />", v_Page);
+        Assert.DoesNotContain("FWarehouse_1_Warehouse_List", v_Page);
+    }
+
+    [Fact]
+    public void Unit_master_route_uses_its_dedicated_FBase_list()
+    {
+        var v_Page = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Don_Vi_Tinh.razor"));
+
+        Assert.Contains("@page \"/Kho/Don_Vi_Tinh\"", v_Page);
+        Assert.Contains("<FWarehouse_Unit_List />", v_Page);
+        Assert.DoesNotContain("FWarehouse_1_Warehouse_List", v_Page);
     }
 
     [Theory]
@@ -103,7 +115,8 @@ public sealed class WarehouseNavigationTests
         Assert.Contains("m_bMaster_Type_Only=\"true\"", v_Page);
         Assert.Contains("m_bWarehouse_Permission_Only=\"true\"", v_Page);
         Assert.Contains("[Parameter] public bool m_bWarehouse_Permission_Only", v_Component);
-        Assert.Contains("m_strMaster_Type = m_bWarehouse_Permission_Only", v_Component);
+        Assert.Contains("if (m_bWarehouse_Permission_Only)", v_Component);
+        Assert.Contains("m_strMaster_Type = \"KhoUser\"", v_Component);
     }
 
     private static string FindRepositoryPath(params string[] p_arrParts)

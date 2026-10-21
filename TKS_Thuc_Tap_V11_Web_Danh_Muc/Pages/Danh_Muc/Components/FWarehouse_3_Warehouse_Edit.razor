@@ -1,33 +1,25 @@
 @inherits FBase
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 
-<div class="card border mt-3">
-    <div class="card-body">
+<div class="@(m_strEditor_Type == "Master" ? "" : "card border mt-3")">
+    <div class="@(m_strEditor_Type == "Master" ? "" : "card-body")">
         @if (m_strEditor_Type == "Master")
         {
             @if (m_strMaster_Type == "KhoUser")
             {
                 <EditForm Model="@m_objPermission" OnValidSubmit="Save_Permission_Async">
                     <DataAnnotationsValidator />
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-4"><label class="form-label">Mã đăng nhập / user</label><TelerikDropDownList Data="@m_arrUser" TItem="CWarehouseLookup" TValue="string" Value="@m_objPermission.Login_Name" ValueChanged="@On_Login_Name_Changed" ValueExpression="@(() => m_objPermission.Login_Name)" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn user --" /></div>
-                        <div class="col-md-4"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrAvailableWarehouse" @bind-Value="m_objPermission.Warehouse_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã đăng nhập / user")</label><TelerikDropDownList Data="@m_arrUser" TItem="CWarehouseLookup" TValue="string" Value="@m_objPermission.Login_Name" ValueChanged="@On_Login_Name_Changed" ValueExpression="@(() => m_objPermission.Login_Name)" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn user --")' /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Kho")</label><TelerikDropDownList Data="@m_arrAvailableWarehouse" @bind-Value="m_objPermission.Warehouse_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn kho --")' /></div>
                         @if (m_arrAvailableWarehouse.Count == 0 && !string.IsNullOrWhiteSpace(m_objPermission.Login_Name))
                         {
-                            <div class="col-12"><div class="form-text text-warning">User này đã được gắn tất cả kho.</div></div>
+                            <div class="col-12"><div class="form-text text-warning">@Get_Language_Data_Field("User này đã được gắn tất cả kho.")</div></div>
                         }
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                @if (m_objPermission.Permission_ID == 0)
-                                {
-                                    <text>Thêm</text>
-                                }
-                                else
-                                {
-                                    <text>Lưu</text>
-                                }
-                            </button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objPermission.Permission_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
                         </div>
                     </div>
                 </EditForm>
@@ -36,12 +28,13 @@
             {
                 <EditForm Model="@m_objKho" OnValidSubmit="Save_Kho_Async">
                     <DataAnnotationsValidator />
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objKho.Ten_Kho" /></div>
-                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objKho.Ghi_Chu" /></div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objKho.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objKho.Ten_Kho" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objKho.Ghi_Chu" /></div>
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objKho.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
                         </div>
                     </div>
                 </EditForm>
@@ -50,12 +43,13 @@
             {
                 <EditForm Model="@m_objDon_Vi_Tinh" OnValidSubmit="Save_Don_Vi_Tinh_Async">
                     <DataAnnotationsValidator />
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ten_Don_Vi_Tinh" /></div>
-                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ghi_Chu" /></div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objDon_Vi_Tinh.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ten_Don_Vi_Tinh" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ghi_Chu" /></div>
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objDon_Vi_Tinh.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
                         </div>
                     </div>
                 </EditForm>
@@ -64,13 +58,14 @@
             {
                 <EditForm Model="@m_objLoai_San_Pham" OnValidSubmit="Save_Loai_San_Pham_Async">
                     <DataAnnotationsValidator />
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ma_LSP" /></div>
-                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ten_LSP" /></div>
-                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ghi_Chu" /></div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objLoai_San_Pham.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã")</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ma_LSP" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ten_LSP" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ghi_Chu" /></div>
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objLoai_San_Pham.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
                         </div>
                     </div>
                 </EditForm>
@@ -79,15 +74,16 @@
             {
                 <EditForm Model="@m_objSan_Pham" OnValidSubmit="Save_San_Pham_Async">
                     <DataAnnotationsValidator />
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ma_San_Pham" /></div>
-                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ten_San_Pham" /></div>
-                        <div class="col-md-3"><label class="form-label">Loại sản phẩm</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objSan_Pham.Loai_San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn loại --" /></div>
-                        <div class="col-md-3"><label class="form-label">Đơn vị tính</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objSan_Pham.Don_Vi_Tinh_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn đơn vị --" /></div>
-                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ghi_Chu" /></div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objSan_Pham.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã")</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ma_San_Pham" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ten_San_Pham" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Loại sản phẩm")</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objSan_Pham.Loai_San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn loại --")' /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Đơn vị tính")</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objSan_Pham.Don_Vi_Tinh_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn đơn vị --")' /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ghi_Chu" /></div>
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objSan_Pham.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
                         </div>
                     </div>
                 </EditForm>
@@ -96,13 +92,14 @@
             {
                 <EditForm Model="@m_objNCC" OnValidSubmit="Save_NCC_Async">
                     <DataAnnotationsValidator />
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3"><label class="form-label">Mã</label><InputText class="form-control" @bind-Value="m_objNCC.Ma_NCC" /></div>
-                        <div class="col-md-4"><label class="form-label">Tên</label><InputText class="form-control" @bind-Value="m_objNCC.Ten_NCC" /></div>
-                        <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objNCC.Ghi_Chu" /></div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objNCC.Auto_ID == 0 ? "Thêm" : "Lưu")</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã")</label><InputText class="form-control" @bind-Value="m_objNCC.Ma_NCC" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objNCC.Ten_NCC" /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objNCC.Ghi_Chu" /></div>
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objNCC.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
                         </div>
                     </div>
                 </EditForm>

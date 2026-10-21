@@ -3,11 +3,11 @@
 @if (SourceOnlyDiagnostics.Count > 0)
 {
     <div class="alert alert-info py-2" role="status">
-        <strong>Không lưu vào WMS (@SourceOnlyDiagnostics.Count trường):</strong>
+        <strong>@string.Format(Localize("Không lưu vào WMS ({0} trường):"), SourceOnlyDiagnostics.Count)</strong>
         <ul class="mb-0">
             @foreach (var v_objDiagnostic in SourceOnlyDiagnostics)
             {
-                <li><code>SOURCE_FIELD_IGNORED</code> — Dòng @v_objDiagnostic.RowNumber, @v_objDiagnostic.SourceColumn (@v_objDiagnostic.SourceValue): @v_objDiagnostic.Reason</li>
+                <li><code>SOURCE_FIELD_IGNORED</code> — @Localize("Dòng") @v_objDiagnostic.RowNumber, @Localize(v_objDiagnostic.SourceColumn) (@v_objDiagnostic.SourceValue): @Localize(v_objDiagnostic.Reason)</li>
             }
         </ul>
     </div>
@@ -15,6 +15,7 @@
 
 @code {
     [Parameter] public IReadOnlyList<CImportFieldPolicyDiagnostic> Diagnostics { get; set; } = Array.Empty<CImportFieldPolicyDiagnostic>();
+    [Parameter] public Func<string, string> Localize { get; set; } = static p_strText => p_strText;
 
     private IReadOnlyList<CImportFieldPolicyDiagnostic> SourceOnlyDiagnostics => Diagnostics
         .Where(v_objDiagnostic => v_objDiagnostic.Policy == "SOURCE_FIELD_IGNORED" && v_objDiagnostic.Status == "IGNORED")

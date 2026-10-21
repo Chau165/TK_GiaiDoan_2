@@ -28,18 +28,18 @@
             <div class="d-flex justify-content-between align-items-end gap-3">
                 @if (!m_bMaster_Type_Only && !m_bWarehouse_Permission_Only)
                 {
-                    <div style="min-width: 280px;"><label class="form-label">Loại danh mục</label><select class="form-select" @bind="m_strMaster_Type" @bind:after="Load_Master_Async">
-                        <option value="DonViTinh">Đơn vị tính</option>
-                        <option value="LoaiSanPham">Loại sản phẩm</option>
-                        <option value="SanPham">Sản phẩm</option>
-                        <option value="NCC">Nhà cung cấp</option>
-                        <option value="Kho">Kho</option>
+                    <div style="min-width: 280px;"><label class="form-label">@Get_Language_Data_Field("Loại danh mục")</label><select class="form-select" @bind="m_strMaster_Type" @bind:after="Load_Master_Async">
+                        <option value="DonViTinh">@Get_Language_Data_Field("Đơn vị tính")</option>
+                        <option value="LoaiSanPham">@Get_Language_Data_Field("Loại sản phẩm")</option>
+                        <option value="SanPham">@Get_Language_Data_Field("Sản phẩm")</option>
+                        <option value="NCC">@Get_Language_Data_Field("Nhà cung cấp")</option>
+                        <option value="Kho">@Get_Language_Data_Field("Kho")</option>
                     </select></div>
                 }
                 <div class="d-flex gap-2 ms-auto">
                     @if (r_objChuc_Nang.Is_Have_Add_Permission)
                     {
-                        <button type="button" class="btn btn-primary" @onclick="New_Master">Thêm</button>
+                        <button type="button" class="btn btn-primary" @onclick="New_Master">@Get_Language_Data_Field("Thêm")</button>
                     }
                     @if (m_strMaster_Type == "KhoUser")
                     {
@@ -51,7 +51,7 @@
                     }
                 </div>
             </div>
-            <h5 class="mt-3">Danh sách @Master_Type_Title</h5>
+            <h5 class="mt-3">@Get_Language_Data_Field("Danh sách") @Master_Type_Title</h5>
             @if (m_strMaster_Type == "KhoUser")
             {
                 <TelerikGrid TItem="CWarehousePermission" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Kho_User_Async" @ref="m_grdPermission">
@@ -59,7 +59,7 @@
                     <GridColumns>
                         <GridColumn Width="70px">
                             <Template>
-                                <button type="button" class="btn btn-link" title="Xem" @onclick="@(() => Open_Kho_User_Info((context as CWarehousePermission)))">
+                                <button type="button" class="btn btn-link" title='@Get_Language_Data_Field("Xem")' @onclick="@(() => Open_Kho_User_Info((context as CWarehousePermission)))">
                                     <i class="mdi mdi-eye" style="color: purple;"></i>
                                 </button>
                                 @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
@@ -70,17 +70,17 @@
                                     <ul class="dropdown-menu">
                                         @if (r_objChuc_Nang.Is_Have_Edit_Permission)
                                         {
-                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Kho_User((context as CWarehousePermission)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; Hiệu chỉnh</button></li>
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Kho_User((context as CWarehousePermission)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Hiệu chỉnh")</button></li>
                                         }
                                         @if (r_objChuc_Nang.Is_Have_Delete_Permission)
                                         {
-                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Kho_User_Async((context as CWarehousePermission).Permission_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; Xóa</button></li>
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Kho_User_Async((context as CWarehousePermission).Permission_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Xóa")</button></li>
                                         }
                                     </ul>
                                 }
                             </Template>
                         </GridColumn>
-                        <GridColumn Field="Login_Name" Title="Mã đăng nhập" Width="180px" ShowFilterCellButtons="false" /><GridColumn Field="User_Name" Title="Họ tên" Width="240px" ShowFilterCellButtons="false" /><GridColumn Field="Warehouse_Name" Title="Tên kho" ShowFilterCellButtons="false" />
+                        <GridColumn Field="Login_Name" Title='@Get_Language_Data_Field("Mã đăng nhập")' Width="180px" ShowFilterCellButtons="false" /><GridColumn Field="User_Name" Title='@Get_Language_Data_Field("Họ tên")' Width="240px" ShowFilterCellButtons="false" /><GridColumn Field="Warehouse_Name" Title='@Get_Language_Data_Field("Tên kho")' ShowFilterCellButtons="false" />
                     </GridColumns>
                 </TelerikGrid>
             }
@@ -91,7 +91,7 @@
                     <GridColumns>
                         <GridColumn Width="70px">
                             <Template>
-                                <button type="button" class="btn btn-link" title="Xem" @onclick="@(() => Open_Master_Info((context as CWarehouseMaster)))">
+                                <button type="button" class="btn btn-link" title='@Get_Language_Data_Field("Xem")' @onclick="@(() => Open_Master_Info((context as CWarehouseMaster)))">
                                     <i class="mdi mdi-eye" style="color: purple;"></i>
                                 </button>
                                 @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
@@ -102,11 +102,11 @@
                                     <ul class="dropdown-menu">
                                         @if (r_objChuc_Nang.Is_Have_Edit_Permission)
                                         {
-                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Master((context as CWarehouseMaster)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; Hiệu chỉnh</button></li>
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Master((context as CWarehouseMaster)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Hiệu chỉnh")</button></li>
                                         }
                                         @if (r_objChuc_Nang.Is_Have_Delete_Permission)
                                         {
-                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Master_Async((context as CWarehouseMaster).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; Xóa</button></li>
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Master_Async((context as CWarehouseMaster).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Xóa")</button></li>
                                         }
                                     </ul>
                                 }
@@ -118,7 +118,7 @@
                         }
                         else
                         {
-                            <GridColumn Field="Code" Title="Mã" Width="140px" /><GridColumn Field="Name" Title="Tên / đăng nhập" Width="240px" /><GridColumn Field="Ghi_Chu" Title="Ghi chú" /><GridColumn Field="Related_ID" Title="Liên kết" Width="100px" />
+                            <GridColumn Field="Code" Title='@Get_Language_Data_Field("Mã")' Width="140px" /><GridColumn Field="Name" Title='@Get_Language_Data_Field("Tên / đăng nhập")' Width="240px" /><GridColumn Field="Ghi_Chu" Title='@Get_Language_Data_Field("Ghi chú")' /><GridColumn Field="Related_ID" Title='@Get_Language_Data_Field("Liên kết")' Width="100px" />
                         }
                     </GridColumns>
                 </TelerikGrid>
@@ -324,23 +324,19 @@
 
 @if (m_bShow_Product_Import)
 {
-    <FWarehouse_Product_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Product_Import" OnCompleted="On_Product_Import_Completed" />
-}
-@if (m_bShow_Unit_Import)
-{
-    <FWarehouse_Unit_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Unit_Import" OnCompleted="On_Unit_Import_Completed" />
+    <FWarehouse_Product_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Product_Import" OnCompleted="On_Product_Import_Completed" />
 }
 @if (m_bShow_Category_Import)
 {
-    <FWarehouse_Category_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Category_Import" OnCompleted="On_Category_Import_Completed" />
+    <FWarehouse_Category_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Category_Import" OnCompleted="On_Category_Import_Completed" />
 }
 @if (m_bShow_Supplier_Import)
 {
-    <FWarehouse_Supplier_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Supplier_Import" OnCompleted="On_Supplier_Import_Completed" />
+    <FWarehouse_Supplier_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Supplier_Import" OnCompleted="On_Supplier_Import_Completed" />
 }
 @if (m_bShow_Warehouse_Import)
 {
-    <FWarehouse_Kho_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Warehouse_Import" OnCompleted="On_Warehouse_Import_Completed" />
+    <FWarehouse_Kho_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Warehouse_Import" OnCompleted="On_Warehouse_Import_Completed" />
 }
 @if (m_bShow_Document_Import)
 {
@@ -363,7 +359,6 @@
     private string m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private bool m_bRouteParametersApplied;
     private bool m_bShow_Product_Import;
-    private bool m_bShow_Unit_Import;
     private bool m_bShow_Category_Import;
     private bool m_bShow_Supplier_Import;
     private bool m_bShow_Warehouse_Import;
@@ -426,25 +421,25 @@
             switch (m_strMaster_Type)
             {
                 case "DonViTinh":
-                    return "Đơn vị tính";
+                    return Get_Language_Data_Field("Đơn vị tính");
 
                 case "LoaiSanPham":
-                    return "Loại sản phẩm";
+                    return Get_Language_Data_Field("Loại sản phẩm");
 
                 case "SanPham":
-                    return "Sản phẩm";
+                    return Get_Language_Data_Field("Sản phẩm");
 
                 case "NCC":
-                    return "Nhà cung cấp";
+                    return Get_Language_Data_Field("Nhà cung cấp");
 
                 case "Kho":
-                    return "Kho";
+                    return Get_Language_Data_Field("Kho");
 
                 case "KhoUser":
-                    return "Phân quyền kho - user";
+                    return Get_Language_Data_Field("Phân quyền kho - user");
 
                 default:
-                    return "Danh mục";
+                    return Get_Language_Data_Field("Danh mục");
             }
         }
     }
@@ -570,9 +565,7 @@
 
     private async Task Load_Lookups_Async()
     {
-        m_arrUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
-            .Select(v_objUnit => new CWarehouseLookup { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh })
-            .ToList();
+        Load_Unit_Lookup();
         var v_dicUnitNamesByID = m_arrUnit.ToDictionary(v_objUnit => v_objUnit.Auto_ID, v_objUnit => v_objUnit.Name);
         m_arrCategory = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup()
             .Select(v_objCategory => new CWarehouseLookup { Auto_ID = v_objCategory.Auto_ID, Code = v_objCategory.Ma_LSP, Name = v_objCategory.Ten_LSP })
@@ -604,6 +597,30 @@
         m_arrWarehouseUser = m_objPermissionController.F2015_sp_sel_List_Kho_User()
             .Select(To_Permission_UI_Projection)
             .ToList();
+    }
+
+    private void Load_Unit_Lookup()
+    {
+        m_arrUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
+            .Select(v_objUnit => new CWarehouseLookup { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh })
+            .ToList();
+    }
+
+    private bool Try_Refresh_Product_Unit_Lookup()
+    {
+        if (m_strMaster_Type != "SanPham")
+            return true;
+
+        try
+        {
+            Load_Unit_Lookup();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Set_Error(ex);
+            return false;
+        }
     }
 
     private async Task Load_Master_Async()
@@ -727,30 +744,42 @@
         if (p_bIsAdd && !r_objChuc_Nang.Is_Have_Add_Permission || !p_bIsAdd && !r_objChuc_Nang.Is_Have_Edit_Permission)
             return;
 
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
         try
         {
+            v_iQueue_ID = Process_Queue("Warehouse Master Save - " + p_strMaster_Type);
             p_actSave();
             Try_Record_Action_History(p_fncGetAuto_ID(), p_bIsAdd ? "Thêm mới" : "Hiệu chỉnh", "Warehouse " + p_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
-            Set_Success("Đã lưu danh mục.");
+            Set_Success(Get_Language_Data_Field("Đã lưu danh mục."));
         }
         catch (Exception ex)
         {
             Set_Error(ex);
         }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+                End_Queue(v_iQueue_ID);
+            r_objLayout.Stop_Loading();
+        }
     }
 
     private async Task Save_Kho_User_Async(CWarehousePermission p_objData)
     {
+        var v_iPermission_ID = p_objData.Permission_ID;
+        if (v_iPermission_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iPermission_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
+            return;
+
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
         try
         {
-            var v_iPermission_ID = p_objData.Permission_ID;
-            if (v_iPermission_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iPermission_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
+            v_iQueue_ID = Process_Queue("Warehouse Master Save - KhoUser");
             CDM_Kho_User v_objKhoUser = To_Kho_User_Entity(p_objData);
             if (v_iPermission_ID == 0)
             {
@@ -780,16 +809,25 @@
             Try_Record_Action_History(p_objData.Permission_ID, v_strAction, "Warehouse " + m_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
-            Set_Success("Đã lưu danh mục.");
+            Set_Success(Get_Language_Data_Field("Đã lưu danh mục."));
         }
         catch (Exception ex)
         {
             Set_Error(ex);
         }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+                End_Queue(v_iQueue_ID);
+            r_objLayout.Stop_Loading();
+        }
     }
 
     private void New_Master()
     {
+        if (!Try_Refresh_Product_Unit_Lookup())
+            return;
+
         m_objMaster = new();
         m_objKho = new();
         m_objDon_Vi_Tinh = new();
@@ -805,16 +843,15 @@
     private bool Can_Import_Selected_Master =>
         m_strSection == "Master" &&
         r_objChuc_Nang.Is_Have_Add_Permission &&
-        m_strMaster_Type is "SanPham" or "DonViTinh" or "LoaiSanPham" or "NCC" or "Kho";
+        m_strMaster_Type is "SanPham" or "LoaiSanPham" or "NCC" or "Kho";
 
-    private RenderFragment Master_Import_Tool_Item => @<button type="button" class="dropdown-item" @onclick="Open_Selected_Master_Import"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; Nhập Excel</button>;
+    private RenderFragment Master_Import_Tool_Item => @<button type="button" class="dropdown-item" @onclick="Open_Selected_Master_Import"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Nhập Excel")</button>;
 
     private void Open_Selected_Master_Import()
     {
         switch (m_strMaster_Type)
         {
             case "SanPham": Open_Product_Import(); break;
-            case "DonViTinh": Open_Unit_Import(); break;
             case "LoaiSanPham": Open_Category_Import(); break;
             case "NCC": Open_Supplier_Import(); break;
             case "Kho": Open_Warehouse_Import(); break;
@@ -861,35 +898,8 @@
         m_bShow_Product_Import = false;
     }
 
-    private Task On_Product_Import_Completed(int p_iRowCount)
-    {
-        Try_Record_Action_History(0, "Product Excel Import", $"Rows: {p_iRowCount}");
-        m_grdMaster.Rebind();
-        Set_Success($"Đã nhập thành công {p_iRowCount} sản phẩm.");
-        return Task.CompletedTask;
-    }
-
-    private void Open_Unit_Import()
-    {
-        if (m_strSection != "Master" || m_strMaster_Type != "DonViTinh" || !r_objChuc_Nang.Is_Have_Add_Permission)
-            return;
-
-        m_bShow_Unit_Import = true;
-        Clear_Message();
-    }
-
-    private void Close_Unit_Import()
-    {
-        m_bShow_Unit_Import = false;
-    }
-
-    private Task On_Unit_Import_Completed(int p_iRowCount)
-    {
-        Try_Record_Action_History(0, "Unit Excel Import", $"Rows: {p_iRowCount}");
-        m_grdMaster.Rebind();
-        Set_Success($"Đã nhập thành công {p_iRowCount} đơn vị tính.");
-        return Task.CompletedTask;
-    }
+    private Task On_Product_Import_Completed(int p_iRowCount) =>
+        Complete_Master_Import_Async(p_iRowCount, "Product Excel Import", Format_Master_Import_Success(p_iRowCount, "sản phẩm"));
 
     private void Open_Category_Import()
     {
@@ -904,13 +914,8 @@
         m_bShow_Category_Import = false;
     }
 
-    private Task On_Category_Import_Completed(int p_iRowCount)
-    {
-        Try_Record_Action_History(0, "Category Excel Import", $"Rows: {p_iRowCount}");
-        m_grdMaster.Rebind();
-        Set_Success($"Đã nhập thành công {p_iRowCount} loại sản phẩm.");
-        return Task.CompletedTask;
-    }
+    private Task On_Category_Import_Completed(int p_iRowCount) =>
+        Complete_Master_Import_Async(p_iRowCount, "Category Excel Import", Format_Master_Import_Success(p_iRowCount, "loại sản phẩm"));
 
     private void Open_Supplier_Import()
     {
@@ -925,13 +930,8 @@
         m_bShow_Supplier_Import = false;
     }
 
-    private Task On_Supplier_Import_Completed(int p_iRowCount)
-    {
-        Try_Record_Action_History(0, "Supplier Excel Import", $"Rows: {p_iRowCount}");
-        m_grdMaster.Rebind();
-        Set_Success($"Đã nhập thành công {p_iRowCount} nhà cung cấp.");
-        return Task.CompletedTask;
-    }
+    private Task On_Supplier_Import_Completed(int p_iRowCount) =>
+        Complete_Master_Import_Async(p_iRowCount, "Supplier Excel Import", Format_Master_Import_Success(p_iRowCount, "nhà cung cấp"));
 
     private void Open_Warehouse_Import()
     {
@@ -946,16 +946,59 @@
         m_bShow_Warehouse_Import = false;
     }
 
-    private Task On_Warehouse_Import_Completed(int p_iRowCount)
+    private Task On_Warehouse_Import_Completed(int p_iRowCount) =>
+        Complete_Master_Import_Async(p_iRowCount, "Warehouse Excel Import", Format_Master_Import_Success(p_iRowCount, "kho"));
+
+    private string Format_Master_Import_Success(int p_iRowCount, string p_strEntity_Name) =>
+        string.Format(Get_Language_Data_Field("Đã nhập thành công {0} {1}."), p_iRowCount, Get_Language_Data_Field(p_strEntity_Name));
+
+    private async Task Complete_Master_Import_Async(int p_iRowCount, string p_strAction, string p_strSuccess_Message)
     {
-        Try_Record_Action_History(0, "Warehouse Excel Import", $"Rows: {p_iRowCount}");
-        m_grdMaster.Rebind();
-        Set_Success($"Đã nhập thành công {p_iRowCount} kho.");
-        return Task.CompletedTask;
+        Try_Record_Action_History(0, p_strAction, $"Rows: {p_iRowCount}");
+        Exception? v_objRefresh_Exception = null;
+
+        r_objLayout.Start_Loading();
+        try
+        {
+            try
+            {
+                await Load_Lookups_Async();
+            }
+            catch (Exception p_objException)
+            {
+                v_objRefresh_Exception = p_objException;
+            }
+
+            try
+            {
+                m_grdMaster.Rebind();
+            }
+            catch (Exception p_objException)
+            {
+                v_objRefresh_Exception ??= p_objException;
+            }
+        }
+        finally
+        {
+            r_objLayout.Stop_Loading();
+        }
+
+        if (v_objRefresh_Exception is null)
+        {
+            Set_Success(p_strSuccess_Message);
+            return;
+        }
+
+        Set_Error(new InvalidOperationException(
+            string.Format(Get_Language_Data_Field("Đã nhập thành công {0} dòng, nhưng không thể làm mới lookup hoặc danh sách. Hãy tải lại màn hình."), p_iRowCount),
+            v_objRefresh_Exception));
     }
 
     private void Edit_Master(CWarehouseMaster p_objData)
     {
+        if (!Try_Refresh_Product_Unit_Lookup())
+            return;
+
         r_iAuto_ID = p_objData.Auto_ID;
         switch (m_strMaster_Type)
         {
@@ -1027,8 +1070,30 @@
 
     private async Task Delete_Master_Async(long p_iAuto_ID)
     {
+        if (!r_objChuc_Nang.Is_Have_Delete_Permission)
+            return;
+
+        bool v_bConfirmed;
         try
         {
+            v_bConfirmed = await g_jsRuntime.InvokeAsync<bool>(
+                "confirm",
+                Get_Language_Data_Field("Bạn chắc chắn muốn xóa dòng dữ liệu này?"));
+        }
+        catch (Exception ex)
+        {
+            Set_Error(ex);
+            return;
+        }
+        if (!v_bConfirmed)
+            return;
+
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
+        try
+        {
+            v_iQueue_ID = Process_Queue("Warehouse Master Delete - " + m_strMaster_Type);
             switch (m_strMaster_Type)
             {
                 case "Kho":
@@ -1057,18 +1122,46 @@
             Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse " + m_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
-            Set_Success("Đã xóa danh mục.");
+            Set_Success(Get_Language_Data_Field("Đã xóa danh mục."));
         }
         catch (Exception ex)
         {
             Set_Error(ex);
         }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+                End_Queue(v_iQueue_ID);
+            r_objLayout.Stop_Loading();
+        }
     }
 
     private async Task Delete_Kho_User_Async(long p_iPermission_ID)
     {
+        if (!r_objChuc_Nang.Is_Have_Delete_Permission)
+            return;
+
+        bool v_bConfirmed;
         try
         {
+            v_bConfirmed = await g_jsRuntime.InvokeAsync<bool>(
+                "confirm",
+                Get_Language_Data_Field("Bạn chắc chắn muốn xóa dòng dữ liệu này?"));
+        }
+        catch (Exception ex)
+        {
+            Set_Error(ex);
+            return;
+        }
+        if (!v_bConfirmed)
+            return;
+
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
+        try
+        {
+            v_iQueue_ID = Process_Queue("Warehouse Master Delete - KhoUser");
             m_objPermissionController.F2015_sp_del_Kho_User(
                 p_iPermission_ID,
                 r_strActive_User_Name,
@@ -1076,11 +1169,17 @@
             Try_Record_Action_History(p_iPermission_ID, "Xóa", "Warehouse " + m_strMaster_Type);
             await Load_Lookups_Async();
             await Load_Master_Async();
-            Set_Success("Đã xóa danh mục.");
+            Set_Success(Get_Language_Data_Field("Đã xóa danh mục."));
         }
         catch (Exception ex)
         {
             Set_Error(ex);
+        }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+                End_Queue(v_iQueue_ID);
+            r_objLayout.Stop_Loading();
         }
     }
 

@@ -1,18 +1,18 @@
 @inherits FBase_Info
 
 <div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; padding-left: 0px; background-color: rgba(10, 10, 10, .8);">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-light">
                 <ul class="nav nav-pills card-header-pills" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link active" data-bs-toggle="tab" href="#warehouse_master_info" role="tab" aria-selected="true">Thông tin</a>
+                        <a class="nav-link active" data-bs-toggle="tab" href="#warehouse_master_info" role="tab" aria-selected="true">@Get_Language_Data_Field("Thông tin")</a>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link" data-bs-toggle="tab" href="#warehouse_master_history" role="tab" aria-selected="false" tabindex="-1">Lịch sử xử lý</a>
+                        <a class="nav-link" data-bs-toggle="tab" href="#warehouse_master_history" role="tab" aria-selected="false" tabindex="-1">@Get_Language_Data_Field("Lịch sử xử lý")</a>
                     </li>
                 </ul>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick="@(() => Modal_Cancel())"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@Get_Language_Data_Field("Đóng")" @onclick="@(() => Modal_Cancel())"></button>
             </div>
 
             <div class="modal-body">
@@ -20,41 +20,50 @@
                     <div class="tab-pane active show" id="warehouse_master_info" role="tabpanel">
                         @if (m_strMaster_Type == "KhoUser")
                         {
-                            <div class="row">
+                            <div class="row g-3">
                                 <div class="col-lg-4">
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID phân quyền</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Permission_ID, true)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Mã đăng nhập</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Login_Name, false)</span></div></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("ID phân quyền")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Permission_ID, true)</span></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Mã đăng nhập")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Login_Name, false)</span></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Họ tên")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.User_Name, false)</span></div>
                                 </div>
                                 <div class="col-lg-4">
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Họ tên</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.User_Name, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID kho</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Warehouse_ID, true)</span></div></div>
-                                </div>
-                                <div class="col-lg-4">
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Tên kho</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Warehouse_Name, false)</span></div></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("ID kho")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Warehouse_ID, true)</span></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Tên kho")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objPermission.Warehouse_Name, false)</span></div>
                                 </div>
                             </div>
                         }
                         else
                         {
-                            <div class="row">
+                            <div class="row g-3">
                                 <div class="col-lg-4">
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">ID</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Auto_ID, true)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Mã</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Code, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Tên</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Name, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Loại danh mục</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_strMaster_Type, false)</span></div></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("ID")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Auto_ID, true)</span></div>
+                                    @if (m_strMaster_Type is "LoaiSanPham" or "SanPham" or "NCC")
+                                    {
+                                        <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Mã")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Code, false)</span></div>
+                                    }
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Tên")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Name, false)</span></div>
+                                    @if (m_strMaster_Type == "SanPham")
+                                    {
+                                        <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Loại sản phẩm ID")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID, true)</span></div>
+                                    }
                                 </div>
                                 <div class="col-lg-4">
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Liên kết 1</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID, true)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Liên kết 2</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID_2, true)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ghi chú</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Ghi_Chu, false)</span></div></div>
+                                    @if (m_strMaster_Type == "SanPham")
+                                    {
+                                        <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Đơn vị tính ID")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Related_ID_2, true)</span></div>
+                                    }
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Ghi chú")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Ghi_Chu, false)</span></div>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-lg-4">
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Người tạo")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By, false)</span></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Chức năng tạo")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By_Function, false)</span></div>
                                 </div>
                                 <div class="col-lg-4">
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ngày giờ tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Người tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Chức năng tạo</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Created_By_Function, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Ngày cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Người cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By, false)</span></div></div>
-                                    <div class="row mb-3"><div class="col-lg-11"><label class="form-label-info">Chức năng cập nhật sau cùng</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By_Function, false)</span></div></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Ngày cập nhật sau cùng")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated, false)</span></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Người cập nhật sau cùng")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By, false)</span></div>
+                                    <div class="mb-3"><label class="form-label-info">@Get_Language_Data_Field("Chức năng cập nhật sau cùng")</label><br /><span class="form-label">@CUtility.Get_Label_Text(m_objData.Last_Updated_By_Function, false)</span></div>
                                 </div>
                             </div>
                         }

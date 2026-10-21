@@ -6,47 +6,44 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 public sealed class WarehouseExcelImportUiTests
 {
     [Fact]
-    public void Master_import_is_named_in_vietnamese_and_rendered_inside_the_tools_menu()
+    public void Master_routes_use_common_FBase_import_and_do_not_render_legacy_importers()
     {
-        var v_strListSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-        var v_strBaseSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
-
-        Assert.DoesNotContain(">Import Excel</button>", v_strListSource);
-        Assert.Contains("@Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null)", v_strListSource);
-        Assert.Contains("m_strMaster_Type is \"SanPham\" or \"DonViTinh\" or \"LoaiSanPham\" or \"NCC\" or \"Kho\"", v_strListSource);
-        Assert.Contains("@onclick=\"Open_Selected_Master_Import\"", v_strListSource);
-        Assert.Contains("Nhập Excel", v_strListSource);
-        Assert.Contains("RenderFragment? p_objAdditional_Tool_Item = null", v_strBaseSource);
-        Assert.Contains("@p_objAdditional_Tool_Item", v_strBaseSource);
-
-        foreach (var v_strComponent in new[]
+        var v_arrRoutesAndComponents = new[]
         {
-            "FWarehouse_Product_Import.razor",
-            "FWarehouse_Unit_Import.razor",
-            "FWarehouse_Category_Import.razor",
-            "FWarehouse_Supplier_Import.razor",
-            "FWarehouse_Kho_Import.razor"
-        })
+            ("Warehouse.razor", "F2009_1_Kho_List.razor", "<F2009_1_Kho_List />", "<FWarehouse_Kho_Import"),
+            ("Warehouse_Loai_San_Pham.razor", "F2017_1_Loai_San_Pham_List.razor", "<F2017_1_Loai_San_Pham_List />", "<FWarehouse_Category_Import"),
+            ("Warehouse_Nha_Cung_Cap.razor", "F2019_1_Nha_Cung_Cap_List.razor", "<F2019_1_Nha_Cung_Cap_List />", "<FWarehouse_Supplier_Import"),
+            ("Warehouse_San_Pham.razor", "F2018_1_San_Pham_List.razor", "<F2018_1_San_Pham_List />", "<FWarehouse_Product_Import")
+        };
+
+        foreach (var (v_strRouteFile, v_strListFile, v_strListComponent, v_strLegacyImporter) in v_arrRoutesAndComponents)
         {
-            var v_strDialogSource = File.ReadAllText(FindRepositoryPath(
-                "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strComponent));
-            Assert.Contains("<h5 class=\"modal-title\">Nhập Excel -", v_strDialogSource);
-            Assert.DoesNotContain("<h5 class=\"modal-title\">Import Excel -", v_strDialogSource);
+            var v_strRoute = File.ReadAllText(FindRepositoryPath(
+                "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", v_strRouteFile));
+            var v_strList = File.ReadAllText(FindRepositoryPath(
+                "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strListFile));
+
+            Assert.Contains(v_strListComponent, v_strRoute);
+            Assert.Contains("FCommon_Import_Excel", v_strList);
+            Assert.Contains("protected override void Import_Excel_Entry", v_strList);
+            Assert.DoesNotContain(v_strLegacyImporter, v_strList);
         }
     }
 
     [Fact]
-    public void Warehouse_import_action_is_scoped_to_Add_and_refreshes_once_after_success()
+    public void Warehouse_route_uses_FBase_import_instead_of_legacy_preview_confirm_import()
     {
-        var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+        var v_strRoute = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse.razor"));
+        var v_strList = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2009_1_Kho_List.razor"));
 
-        Assert.Contains("m_strMaster_Type != \"Kho\" || !r_objChuc_Nang.Is_Have_Add_Permission", v_strSource);
-        Assert.Contains("<FWarehouse_Kho_Import", v_strSource);
-        Assert.Contains("On_Warehouse_Import_Completed", v_strSource);
-        Assert.Contains("\"Warehouse Excel Import\"", v_strSource);
+        Assert.Contains("<F2009_1_Kho_List />", v_strRoute);
+        Assert.Contains("@if (r_objChuc_Nang.Is_Have_Add_Permission)", v_strList);
+        Assert.Contains("Open_Import_Excel(\"Kho_Import_Template.xlsx\")", v_strList);
+        Assert.Contains("FCommon_Import_Excel", v_strList);
+        Assert.Contains("protected override void Import_Excel_Entry", v_strList);
+        Assert.DoesNotContain("<FWarehouse_Kho_Import", v_strList);
     }
 
     [Fact]
@@ -67,12 +64,14 @@ public sealed class WarehouseExcelImportUiTests
     {
         var v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Kho_Import.razor"));
+        var v_strShell = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Import_Preview_Shell.razor"));
 
+        Assert.Contains("<FWarehouse_Import_Preview_Shell", v_strSource);
         Assert.Contains("Kho_Import_Template.xlsx", v_strSource);
-        Assert.Contains("Xem trước", v_strSource);
         Assert.Contains("PreviewValid", v_strSource);
         Assert.Contains("PreviewInvalid", v_strSource);
-        Assert.Contains("disabled=\"@(!Can_Confirm)\"", v_strSource);
+        Assert.Contains("disabled=\"@(!CanConfirm)\"", v_strShell);
         Assert.Contains("Confirm_Async", v_strSource);
     }
 

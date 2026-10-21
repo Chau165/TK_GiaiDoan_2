@@ -6,7 +6,12 @@ internal static class WarehouseTestDatabase
     {
         get
         {
-            return Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING") ?? "Server=localhost;Database=TKS_Thuc_Tap_V11_GiaiDoan2;Integrated Security=True;TrustServerCertificate=True;";
+            return ValidateConnectionString(Environment.GetEnvironmentVariable("TKS_INTEGRATION_CONNECTION_STRING"));
         }
+    }
+
+    internal static string ValidateConnectionString(string? p_strConnectionString)
+    {
+        return ProductImportTestDatabase.ValidateConnectionString(p_strConnectionString ?? string.Empty);
     }
 }

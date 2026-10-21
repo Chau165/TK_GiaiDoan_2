@@ -1,0 +1,64 @@
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" style="background-color: rgba(10, 10, 10, .8);">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">@Title</h5>
+                <button type="button" class="btn-close" aria-label="@Localize("Đóng")" disabled="@IsImporting" @onclick="OnClose"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+                    <a class="btn btn-outline-secondary" href="@TemplateUrl" download>
+                        <i class="ri-download-2-line me-1"></i>@Localize("Tải template")
+                    </a>
+                    <div>
+                        <label class="form-label" for="@FileInputId">@Localize("Chọn file .xlsx")</label>
+                        <InputFile id="@FileInputId" OnChange="OnFileChanged" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled="@IsBusy" />
+                    </div>
+                    <button type="button" class="btn btn-primary" @onclick="OnPreview" disabled="@(!CanPreview)">
+                        @if (IsParsing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            <span>@Localize("Đang kiểm tra")</span>
+                        }
+                        else
+                        {
+                            <span>@Localize("Xem trước")</span>
+                        }
+                    </button>
+                </div>
+                @ChildContent
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" disabled="@IsImporting" @onclick="OnClose">@Localize("Đóng")</button>
+                <button type="button" class="btn btn-primary" disabled="@(!CanConfirm)" @onclick="OnConfirm">
+                    @if (IsImporting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        <span>@Localize("Đang nhập")</span>
+                    }
+                    else
+                    {
+                        <span>@Localize("Xác nhận nhập")</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string TemplateUrl { get; set; } = "";
+    [Parameter] public string FileInputId { get; set; } = "import-file";
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public bool IsParsing { get; set; }
+    [Parameter] public bool IsImporting { get; set; }
+    [Parameter] public bool CanPreview { get; set; }
+    [Parameter] public bool CanConfirm { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnFileChanged { get; set; }
+    [Parameter] public EventCallback OnPreview { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public Func<string, string> Localize { get; set; } = static p_strText => p_strText;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

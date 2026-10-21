@@ -539,6 +539,7 @@
         await Task.Delay(1); // Gắn await 1ms là để có hàm await, task async mới chạy
 
         r_objCallback_Event.Message_ID = (int)EModal_Result.Close_And_Reload_Data;
+        r_objCallback_Event.Message_Description = "";
 
         r_objLayout.Start_Loading();
         r_strError = "";
@@ -549,18 +550,27 @@
             if (r_bUpdate == true)
             {
                 v_iQueue_ID = Process_Queue("Update Data");
-                Update_Data();
-
-                string v_strEdit_Log = CUtility.Compare_Entity(r_objSource, r_objDes);
 
                 if (r_objSource == null)
                     throw new Exception(Get_Language_Data_Field("Chưa get object phục vụ cho việc log CRUD, liên hệ bên phát triển phần mềm để fix, Lỗi này chỉ thông báo chứ không ảnh hưởng dữ liệu của bạn."));
 
-                if (r_objDes == null)
-                    throw new Exception(Get_Language_Data_Field("Chưa get object phục vụ cho việc log CRUD, liên hệ bên phát triển phần mềm để fix, Lỗi này chỉ thông báo chứ không ảnh hưởng dữ liệu của bạn."));
+                Update_Data();
 
-                CCommon_Controller.FCommon_Insert_Action_History(r_iAuto_ID, Get_Language_Data_Field("Hiệu chỉnh"), "Web",
-                    r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, v_strEdit_Log);
+                try
+                {
+                    if (r_objDes == null)
+                        throw new Exception(Get_Language_Data_Field("Chưa get object đích phục vụ cho việc log CRUD."));
+
+                    string v_strEdit_Log = CUtility.Compare_Entity(r_objSource, r_objDes);
+                    CCommon_Controller.FCommon_Insert_Action_History(r_iAuto_ID, Get_Language_Data_Field("Hiệu chỉnh"), "Web",
+                        r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, v_strEdit_Log);
+                }
+                catch (Exception v_objHistory_Exception)
+                {
+                    r_objCallback_Event.Message_Description = CCommonFunction.Set_Error_MessageBox(string.Format(
+                        Get_Language_Data_Field("Dữ liệu đã được lưu nhưng không ghi được lịch sử thao tác: {0}"),
+                        v_objHistory_Exception.Message));
+                }
 
             }
             else
@@ -571,8 +581,17 @@
                 if (r_strAdd_Key == "")
                     throw new Exception(Get_Language_Data_Field("Chưa get key add date phục vụ cho log CRUD, liên hệ bên phát triển phần mềm để fix, Lỗi này chỉ thông báo chứ không ảnh hưởng dữ liệu của bạn."));
 
-                CCommon_Controller.FCommon_Insert_Action_History(r_iAuto_ID, Get_Language_Data_Field("Thêm mới"), "Web",
-                    r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Key: " + r_strAdd_Key);
+                try
+                {
+                    CCommon_Controller.FCommon_Insert_Action_History(r_iAuto_ID, Get_Language_Data_Field("Thêm mới"), "Web",
+                        r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Key: " + r_strAdd_Key);
+                }
+                catch (Exception v_objHistory_Exception)
+                {
+                    r_objCallback_Event.Message_Description = CCommonFunction.Set_Error_MessageBox(string.Format(
+                        Get_Language_Data_Field("Dữ liệu đã được lưu nhưng không ghi được lịch sử thao tác: {0}"),
+                        v_objHistory_Exception.Message));
+                }
             }
         }
 
@@ -622,13 +641,24 @@
 
                     Delete_Data_Entry(p_iAuto_ID);
 
+                    string v_strHistory_Warning = "";
+                    string v_strDelete_Key = string.IsNullOrWhiteSpace(r_strDelete_Key) ? p_iAuto_ID.ToString() : r_strDelete_Key;
+
+                    try
+                    {
+                        CCommon_Controller.FCommon_Insert_Action_History(p_iAuto_ID, Get_Language_Data_Field("Xoá"), "Web",
+                            r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Key: " + v_strDelete_Key + ", ID: " + p_iAuto_ID.ToString());
+                    }
+                    catch (Exception v_objHistory_Exception)
+                    {
+                        v_strHistory_Warning = CCommonFunction.Set_Error_MessageBox(string.Format(
+                            Get_Language_Data_Field("Đã xóa dữ liệu nhưng không ghi được lịch sử thao tác: {0}"),
+                            v_objHistory_Exception.Message));
+                    }
+
                     Load_Data_Init();
-
-                    if (r_strDelete_Key == "")
-                        throw new Exception(Get_Language_Data_Field("Chưa get key phục vụ, liên hệ bên phát triển phần mềm để fix, Lỗi này chỉ thông báo chứ không ảnh hưởng dữ liệu của bạn."));
-
-                    CCommon_Controller.FCommon_Insert_Action_History(p_iAuto_ID, Get_Language_Data_Field("Xoá"), "Web",
-                        r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Key: " + r_strDelete_Key + ", ID: " + p_iAuto_ID.ToString());
+                    if (v_strHistory_Warning != "")
+                        r_strError = v_strHistory_Warning;
                 }
             }
         }
@@ -1682,6 +1712,9 @@
 
             Load_Data_Init();
             On_Close_Edit_Process(p_objEvent);
+
+            if (string.IsNullOrWhiteSpace(p_objEvent.Message_Description) == false)
+                r_strError = p_objEvent.Message_Description;
 
             r_objLayout.Stop_Loading();
         }

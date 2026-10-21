@@ -1,0 +1,116 @@
+@inherits FBase
+
+<div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; background-color: rgba(10, 10, 10, .8);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">@Get_Language_Data_Field(r_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label='@Get_Language_Data_Field("Đóng")' @onclick="@(() => Modal_Cancel())"></button>
+            </div>
+
+            @((MarkupString)r_strError)
+
+            <EditForm Model="@m_objData">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="row mb-3">
+                                <div class="col-lg-11">
+                                    <label class="form-label">@Get_Language_Data_Field("Tên đơn vị tính"):</label>
+                                    <InputText class="form-control" @bind-Value="m_objData.Ten_Don_Vi_Tinh" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="row mb-3">
+                                <div class="col-lg-11">
+                                    <label class="form-label">@Get_Language_Data_Field("Ghi chú"):</label>
+                                    <InputText class="form-control" @bind-Value="m_objData.Ghi_Chu" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" disabled="@(!Can_Save)" @onclick="Save_Unit_Data">@Get_Language_Data_Field("Lưu Thay Đổi")</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CDM_Don_Vi_Tinh m_objData = new();
+
+    private bool Can_Save => r_iAuto_ID == 0
+        ? r_objChuc_Nang.Is_Have_Add_Permission
+        : r_objChuc_Nang.Is_Have_Edit_Permission && m_objData.Auto_ID == r_iAuto_ID;
+
+    protected override void Load_Data()
+    {
+        r_bUpdate = false;
+        r_objSource = null;
+        r_objDes = null;
+        r_strAdd_Key = "";
+        m_objData = new CDM_Don_Vi_Tinh();
+
+        if (r_iAuto_ID == 0)
+            return;
+
+        m_objData = new CDM_Don_Vi_Tinh_Controller()
+            .F2016_sp_sel_List_Don_Vi_Tinh()
+            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == r_iAuto_ID)
+            ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy đơn vị tính cần hiệu chỉnh."));
+
+        r_bUpdate = true;
+        var v_objClone = new CDM_Don_Vi_Tinh();
+        CUtility.Clone_Entity(m_objData, v_objClone);
+        r_objSource = v_objClone;
+    }
+
+    protected override void Add_Data()
+    {
+        Check_Data();
+        m_objData.Auto_ID = new CDM_Don_Vi_Tinh_Controller().F2016_sp_ins_Don_Vi_Tinh(
+            m_objData,
+            r_strActive_User_Name,
+            r_strActive_Function_Code);
+        r_iAuto_ID = m_objData.Auto_ID;
+        r_strAdd_Key = m_objData.Ten_Don_Vi_Tinh;
+        CCache_Don_Vi_Tinh.Add_Data(m_objData);
+    }
+
+    protected override void Update_Data()
+    {
+        Check_Data();
+        new CDM_Don_Vi_Tinh_Controller().F2016_sp_upd_Don_Vi_Tinh(
+            m_objData,
+            r_strActive_User_Name,
+            r_strActive_Function_Code);
+
+        var v_objClone = new CDM_Don_Vi_Tinh();
+        CUtility.Clone_Entity(m_objData, v_objClone);
+        r_objDes = v_objClone;
+        CCache_Don_Vi_Tinh.Update_Data(m_objData);
+    }
+
+    private void Check_Data()
+    {
+        r_strError = "";
+        if (string.IsNullOrWhiteSpace(m_objData.Ten_Don_Vi_Tinh))
+            throw new InvalidOperationException(Get_Language_Data_Field("Tên đơn vị tính không được để trống."));
+        if (m_objData.Ten_Don_Vi_Tinh.Length > 200)
+            throw new InvalidOperationException(Get_Language_Data_Field("Tên đơn vị tính không được vượt quá 200 ký tự."));
+        if ((m_objData.Ghi_Chu?.Length ?? 0) > 1000)
+            throw new InvalidOperationException(Get_Language_Data_Field("Ghi chú không được vượt quá 1000 ký tự."));
+    }
+
+    private async Task Save_Unit_Data()
+    {
+        if (!Can_Save)
+            return;
+
+        await Save_Data();
+    }
+}
