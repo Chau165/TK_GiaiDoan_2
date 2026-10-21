@@ -4071,8 +4071,8 @@ BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    SELECT h.Ngay_Nhap_Kho AS Ngay, h.So_Phieu_Nhap_Kho AS So_Phieu, n.Ten_NCC AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Nhap AS So_Luong, d.Don_Gia_Nhap AS Don_Gia, CAST(d.SL_Nhap * d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia
-    FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = h.NCC_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID
+    SELECT h.Kho_ID, k.Ten_Kho, h.Ngay_Nhap_Kho AS Ngay, h.So_Phieu_Nhap_Kho AS So_Phieu, n.Ten_NCC AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Nhap AS So_Luong, d.Don_Gia_Nhap AS Don_Gia, CAST(d.SL_Nhap * d.Don_Gia_Nhap AS DECIMAL(18,2)) AS Tri_Gia
+    FROM dbo.tbl_XNK_Nhap_Kho h JOIN dbo.tbl_XNK_Nhap_Kho_Raw_Data d ON d.Nhap_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = h.NCC_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = h.Kho_ID
     WHERE h.Ngay_Nhap_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
     ORDER BY h.Ngay_Nhap_Kho, h.So_Phieu_Nhap_Kho;
 END
@@ -4085,8 +4085,8 @@ BEGIN
     SET NOCOUNT ON;
     IF @Tu_Ngay IS NULL OR @Den_Ngay IS NULL OR @Tu_Ngay > @Den_Ngay THROW 51200, N'Khoảng ngày báo cáo không hợp lệ.', 1;
     IF @Kho_ID IS NOT NULL EXEC dbo.sp_DM_Kho_User_Ensure_Access @Ma_Dang_Nhap, @Kho_ID;
-    SELECT h.Ngay_Xuat_Kho AS Ngay, h.So_Phieu_Xuat_Kho AS So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Xuat AS So_Luong, d.Don_Gia_Xuat AS Don_Gia, CAST(d.SL_Xuat * d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia
-    FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID
+    SELECT h.Kho_ID, k.Ten_Kho, h.Ngay_Xuat_Kho AS Ngay, h.So_Phieu_Xuat_Kho AS So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap, p.Ma_San_Pham, p.Ten_San_Pham, d.SL_Xuat AS So_Luong, d.Don_Gia_Xuat AS Don_Gia, CAST(d.SL_Xuat * d.Don_Gia_Xuat AS DECIMAL(18,2)) AS Tri_Gia
+    FROM dbo.tbl_XNK_Xuat_Kho h JOIN dbo.tbl_XNK_Xuat_Kho_Raw_Data d ON d.Xuat_Kho_ID = h.Auto_ID JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = d.San_Pham_ID JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = h.Kho_ID
     WHERE h.Ngay_Xuat_Kho BETWEEN @Tu_Ngay AND @Den_Ngay AND h.Is_Posted = 1 AND EXISTS (SELECT 1 FROM dbo.tbl_DM_Kho_User ku WHERE ku.Ma_Dang_Nhap = @Ma_Dang_Nhap AND ku.Kho_ID = h.Kho_ID) AND (@Kho_ID IS NULL OR h.Kho_ID = @Kho_ID)
     ORDER BY h.Ngay_Xuat_Kho, h.So_Phieu_Xuat_Kho;
 END
@@ -4126,6 +4126,7 @@ BEGIN
                h.Auto_ID AS Document_ID,
                h.Ngay_Nhap_Kho AS Ngay,
                h.So_Phieu_Nhap_Kho AS So_Phieu,
+               h.Kho_ID,
                h.NCC_ID,
                d.San_Pham_ID,
                d.SL_Nhap AS So_Luong,
@@ -4138,12 +4139,13 @@ BEGIN
         ORDER BY h.Ngay_Nhap_Kho, h.So_Phieu_Nhap_Kho, h.Auto_ID, d.Auto_ID
         OFFSET @Offset ROWS FETCH NEXT @Page_Size ROWS ONLY
     )
-    SELECT ps.Ngay, ps.So_Phieu, n.Ten_NCC AS Nha_Cung_Cap,
+    SELECT ps.Kho_ID, k.Ten_Kho, ps.Ngay, ps.So_Phieu, n.Ten_NCC AS Nha_Cung_Cap,
            p.Ma_San_Pham, p.Ten_San_Pham, ps.So_Luong, ps.Don_Gia,
            CAST(ps.So_Luong * ps.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
     FROM PageScope ps
     JOIN dbo.tbl_DM_NCC n ON n.Auto_ID = ps.NCC_ID
     JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ps.San_Pham_ID
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = ps.Kho_ID
     ORDER BY ps.Ngay, ps.So_Phieu, ps.Document_ID, ps.Detail_ID;
 END
 GO
@@ -4182,6 +4184,7 @@ BEGIN
                h.Auto_ID AS Document_ID,
                h.Ngay_Xuat_Kho AS Ngay,
                h.So_Phieu_Xuat_Kho AS So_Phieu,
+               h.Kho_ID,
                d.San_Pham_ID,
                d.SL_Xuat AS So_Luong,
                d.Don_Gia_Xuat AS Don_Gia
@@ -4193,11 +4196,12 @@ BEGIN
         ORDER BY h.Ngay_Xuat_Kho, h.So_Phieu_Xuat_Kho, h.Auto_ID, d.Auto_ID
         OFFSET @Offset ROWS FETCH NEXT @Page_Size ROWS ONLY
     )
-    SELECT ps.Ngay, ps.So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,
+    SELECT ps.Kho_ID, k.Ten_Kho, ps.Ngay, ps.So_Phieu, CAST(N'' AS NVARCHAR(255)) AS Nha_Cung_Cap,
            p.Ma_San_Pham, p.Ten_San_Pham, ps.So_Luong, ps.Don_Gia,
            CAST(ps.So_Luong * ps.Don_Gia AS DECIMAL(18,2)) AS Tri_Gia
     FROM PageScope ps
     JOIN dbo.tbl_DM_San_Pham p ON p.Auto_ID = ps.San_Pham_ID
+    JOIN dbo.tbl_DM_Kho k ON k.Auto_ID = ps.Kho_ID
     ORDER BY ps.Ngay, ps.So_Phieu, ps.Document_ID, ps.Detail_ID;
 END
 GO

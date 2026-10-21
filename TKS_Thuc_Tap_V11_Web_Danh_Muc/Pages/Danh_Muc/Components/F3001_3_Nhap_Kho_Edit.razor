@@ -1,0 +1,25 @@
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse
+
+<FWarehouse_3_Warehouse_Edit
+    m_strEditor_Type="@m_strEditor_Type"
+    m_bIs_Receipt="true"
+    m_objDocument="@m_objDocument"
+    m_objDetail="@m_objDetail"
+    m_arrProduct="@m_arrProduct"
+    m_arrSupplier="@m_arrSupplier"
+    m_arrWarehouse="@m_arrWarehouse"
+    OnSave_Document="@OnSave_Document"
+    OnSave_Detail="@OnSave_Detail"
+    OnCancel="@OnCancel" />
+
+@code {
+    [Parameter] public string m_strEditor_Type { get; set; } = "";
+    [Parameter] public CWarehouseDocument m_objDocument { get; set; } = new();
+    [Parameter] public CWarehouseDocumentDetail m_objDetail { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
+    [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
+    [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
+    [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

@@ -13,7 +13,7 @@ public sealed class WarehouseUiWorkflowTests
     [Fact]
     public void Warehouse_document_product_dropdown_shows_master_unit_next_to_name()
     {
-        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
         var v_Edit = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
         Assert.Contains("Don_Vi_Tinh_ID", v_List);
@@ -31,15 +31,12 @@ public sealed class WarehouseUiWorkflowTests
     [Fact]
     public void Warehouse_page_only_renders_editors_when_the_user_starts_an_editing_action()
     {
-        var v_Source = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_Source = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
         var v_InfoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
-        Assert.Contains("private bool m_bDocumentEditing;", v_Source);
-        Assert.Contains("private bool m_bDetailEditing;", v_Source);
-        Assert.Contains("@if (r_bIs_Show_Edit)", v_Source);
-        Assert.Contains("@if (r_bIs_Show_Info)", v_Source);
         Assert.Contains("@if (m_bDocumentEditing)", v_Source);
         Assert.Contains("@if (m_bDetailEditing)", v_Source);
+        Assert.Contains("if (m_objDocument != null)", v_InfoSource);
         Assert.Contains("Thêm sản phẩm", v_InfoSource);
         Assert.Contains("m_grdDocument.Rebind()", v_Source);
         Assert.Contains("Select_Document_Async(p_objData)", v_Source);
@@ -61,7 +58,7 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("Is_Have_Add_Permission", v_List);
         Assert.Contains("Is_Have_Edit_Permission", v_List);
         Assert.Contains("Is_Have_Delete_Permission", v_List);
-        Assert.Contains("Layout_Tool_Button(grdData)", v_List);
+        Assert.Contains("@Layout_Default_Filter(grdData, \"Kho_Import_Template.xlsx\")", v_List);
     }
 
     [Fact]
@@ -187,6 +184,8 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_lists_use_server_side_ten_record_paging()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_Transaction = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
+        var v_AllLists = v_List + v_Transaction;
         var v_MasterController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs"));
         var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs"));
         var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
@@ -194,10 +193,10 @@ public sealed class WarehouseUiWorkflowTests
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
         Assert.Contains("OnRead=\"Read_Master_Async\"", v_List);
-        Assert.Contains("OnRead=\"Read_Document_Async\"", v_List);
+        Assert.Contains("OnRead=\"Read_Document_Async\"", v_Transaction);
         Assert.Contains("OnRead=\"Read_Report_Detail_Async\"", v_List);
         Assert.Contains("OnRead=\"Read_Inventory_Async\"", v_List);
-        Assert.Contains("PageSize=\"10\"", v_List);
+        Assert.Contains("PageSize=\"10\"", v_AllLists);
         Assert.Contains("List_Master_Page_Async", v_MasterController);
         Assert.Contains("List_Lookup_Page_Async", v_MasterController);
         Assert.Contains("sp_XNK_Document_Page", v_DocumentController);
@@ -213,7 +212,8 @@ public sealed class WarehouseUiWorkflowTests
     [Fact]
     public void Warehouse_server_read_grids_do_not_mix_data_binding_with_on_read()
     {
-        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor")) +
+            File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
         var v_GridTags = Regex.Matches(v_List, "<TelerikGrid\\b[^>]*>", RegexOptions.Singleline);
 
         Assert.NotEmpty(v_GridTags);
@@ -229,14 +229,16 @@ public sealed class WarehouseUiWorkflowTests
     {
         var v_FBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_Transaction = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
+        var v_AllLists = v_List + v_Transaction;
 
         Assert.Contains("if (p_grdGrid.OnRead.HasDelegate)", v_FBase);
         Assert.Contains("await Export_Excel_Telerik_Default(p_grdGrid);", v_FBase);
         Assert.Contains("await Export_Excel_Custom(p_grdGrid);", v_FBase);
         Assert.Contains("p_objArgs.Columns.RemoveAll(v_objColumn => string.IsNullOrWhiteSpace(v_objColumn.Field));", v_FBase);
-        Assert.Equal(5, Regex.Matches(v_List, "<GridExcelExport\\b[^>]*AllPages=\"true\"[^>]*>").Count);
-        Assert.Equal(5, Regex.Matches(v_List, "OnBeforeExport=\"Prepare_Excel_Export\"").Count);
-        Assert.Equal(5, Regex.Matches(v_List, "CGrid_DataSource_Utility.Requires_Full_Source\\(args.Request, r_bIs_Excel_OnRead_Export").Count);
+        Assert.Equal(5, Regex.Matches(v_AllLists, "<GridExcelExport\\b[^>]*AllPages=\"true\"[^>]*>").Count);
+        Assert.Equal(5, Regex.Matches(v_AllLists, "OnBeforeExport=\"Prepare_Excel_Export\"").Count);
+        Assert.Equal(4, Regex.Matches(v_List, "CGrid_DataSource_Utility.Requires_Full_Source\\(args.Request, r_bIs_Excel_OnRead_Export").Count);
     }
 
     [Fact]
@@ -257,7 +259,7 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_document_excel_export_includes_detail_rows_and_formats_document_datetime()
     {
         var v_FBase = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
-        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
         var v_iExportStart = v_List.IndexOf("private async Task Export_Document_Excel_Async()", StringComparison.Ordinal);
 
         Assert.True(v_iExportStart >= 0, "Document Excel export must use a detail-aware export handler.");
@@ -384,8 +386,9 @@ public sealed class WarehouseUiWorkflowTests
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("<option value=\"Receipt\">Chi tiết hàng nhập</option>", v_List);
-        Assert.Contains("<option value=\"Issue\">Chi tiết hàng xuất</option>", v_List);
+        Assert.Contains("Select_Report_Type_Async(\"Receipt\")", v_List);
+        Assert.Contains("Select_Report_Type_Async(\"Issue\")", v_List);
+        Assert.Contains("Select_Report_Type_Async(\"Inventory\")", v_List);
         Assert.Contains("@key=\"m_strReport_Type\"", v_List);
         Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page", v_List);
         Assert.Contains("F9002_sp_Chi_Tiet_Xuat_Page", v_List);
@@ -395,7 +398,7 @@ public sealed class WarehouseUiWorkflowTests
     public void Warehouse_period_inventory_grid_hides_current_balance_columns()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
-        var v_iGridStart = v_List.IndexOf("<TelerikGrid TItem=\"CWarehouseInventoryReport\"", StringComparison.Ordinal);
+        var v_iGridStart = v_List.IndexOf("<TelerikGrid @key=\"m_strReport_Type\" TItem=\"CWarehouseInventoryReport\"", StringComparison.Ordinal);
         var v_iPeriodStart = v_List.IndexOf("@if (!Is_Current_Inventory_Report)", v_iGridStart, StringComparison.Ordinal);
         var v_iCurrentReportBranch = v_List.IndexOf("else", v_iPeriodStart, StringComparison.Ordinal);
 
@@ -421,19 +424,21 @@ public sealed class WarehouseUiWorkflowTests
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("if (m_strReport_Type is \"Inventory\" or \"InventoryCurrent\") m_grdInventory.Rebind();", v_List);
-        Assert.Contains("@if(m_strReport_Type is \"Inventory\" or \"InventoryCurrent\"){@Layout_Tool_Button(m_grdInventory)}", v_List);
+        Assert.Contains("m_grdInventory.Rebind();", v_List);
+        Assert.Contains("ToolButtons=\"@Layout_Tool_Button(m_grdInventory)\"", v_List);
+        Assert.Contains("GridExcelExport FileName=\"Warehouse_Inventory_Export\" AllPages=\"true\"", v_List);
+        Assert.Contains("GridCsvExport FileName=\"Warehouse_Inventory_Export\" AllPages=\"true\"", v_List);
     }
 
     [Fact]
-    public void Warehouse_report_warehouse_selection_rebinds_the_active_grid_immediately()
+    public void Warehouse_report_tabs_rebind_the_active_grid()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("@bind=\"m_iReport_Warehouse_ID\" @bind:after=\"Load_Report_Async\"", v_List);
-        Assert.Contains("private async Task Load_Report_Async()", v_List);
-        Assert.Contains("if (m_strReport_Type is \"Inventory\" or \"InventoryCurrent\") m_grdInventory.Rebind();", v_List);
-        Assert.Contains("else m_grdReportDetail.Rebind();", v_List);
+        Assert.Contains("private async Task Select_Report_Type_Async(string p_strReport_Type)", v_List);
+        Assert.Contains("private Task Load_Report_Async()", v_List);
+        Assert.Contains("m_grdInventory.Rebind();", v_List);
+        Assert.Contains("m_grdReportDetail.Rebind();", v_List);
     }
 
     [Fact]
@@ -443,11 +448,10 @@ public sealed class WarehouseUiWorkflowTests
         var v_ReportController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "BC", "CWarehouseReport_Controller.cs"));
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
-        Assert.Contains("<label class=\"form-label\">Kho</label>", v_List);
-        Assert.Contains("m_iReport_Warehouse_ID", v_List);
-        Assert.Contains("<option value=\"\">Tất cả kho</option>", v_List);
-        Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
-        Assert.Contains("F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)", v_List);
+        Assert.DoesNotContain("m_iReport_Warehouse_ID", v_List);
+        Assert.Contains("Field=\"Ten_Kho\" Title=\"Kho\"", v_List);
+        Assert.Contains("F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, null)", v_List);
+        Assert.Contains("F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, null)", v_List);
         Assert.Contains("F9001_sp_Ton_Kho_Hien_Tai_Page(", v_List);
         Assert.Contains("F9002_sp_Xuat_Nhap_Ton_Page(", v_List);
         Assert.Contains("long? p_iWarehouse_ID = null", v_ReportController);
@@ -477,15 +481,17 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
-    public void Warehouse_document_grids_filter_by_a_user_authorized_warehouse()
+    public void Warehouse_document_grids_filter_by_authorized_warehouse_through_FilterRow()
     {
-        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
         var v_DocumentController = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs"));
         var v_Procedures = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
 
-        Assert.Contains("m_iDocument_Warehouse_ID", v_List);
-        Assert.Contains("@bind=\"m_iDocument_Warehouse_ID\"", v_List);
-        Assert.Contains("m_objDocumentSupportController.sp_XNK_Document_Page(", v_List);
+        Assert.DoesNotContain("m_iDocument_Warehouse_ID", v_List);
+        Assert.Contains("Field=\"Ten_Kho\" Title=\"Kho\"", v_List);
+        Assert.Contains("F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, null)", v_List);
+        Assert.Contains("F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, null)", v_List);
+        Assert.Contains("CGrid_DataSource_Utility.Apply(v_arrSource, args.Request)", v_List);
         Assert.Contains("long? p_iWarehouse_ID = null", v_DocumentController);
         Assert.Contains("p_iWarehouse_ID", v_DocumentController);
 
@@ -584,6 +590,68 @@ public sealed class WarehouseUiWorkflowTests
         var v_Editor = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
         Assert.Contains("ValueExpression=\"@(() => m_objPermission.Login_Name)\"", v_Editor);
+    }
+
+    [Fact]
+    public void Warehouse_toolbars_reuse_original_FBase_helpers_without_extending_FBase()
+    {
+        var v_Base = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Common", "Common", "FBase.razor"));
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
+        var v_Report = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_Toolbar = File.ReadAllText(FindWarehouseComponent("FWarehouse_Filter_Toolbar.razor"));
+
+        Assert.Contains("Layout_Default_Filter<T>(TelerikGrid<T> p_objGrid, string p_strExcel_Template", v_Base);
+        Assert.Contains("Layout_Tool_Button(p_objGrid)", v_Base);
+        Assert.DoesNotContain("RenderFragment? p_objFilterContent", v_Base);
+        Assert.DoesNotContain("Layout_Date_Range_Filter", v_Base);
+        Assert.Contains("<FWarehouse_Filter_Toolbar", v_List);
+        Assert.Contains("ToolButtons=\"@Layout_Tool_Button(m_grdDocument, p_objCustom_Excel_Export: Export_Document_Excel_Async)\"", v_List);
+        Assert.Contains("Layout_Tool_Button(m_grdInventory)", v_Report);
+        Assert.Contains("Layout_Tool_Button(m_grdReportDetail)", v_Report);
+        Assert.DoesNotContain("Layout_Default_Filter(", v_List);
+        Assert.DoesNotContain("Layout_Date_Range_Filter", v_List);
+        Assert.Contains("btn rounded-pill btn-primary waves-effect waves-light", v_Toolbar);
+        Assert.Contains("@Localize(\"Tìm kiếm\")", v_Toolbar);
+        Assert.Contains("CanAdd && OnAdd.HasDelegate", v_Toolbar);
+        Assert.Contains("CanAdd && OnImport.HasDelegate", v_Toolbar);
+    }
+
+    [Fact]
+    public void Warehouse_document_filterrow_uses_grid_fields_and_drops_the_toolbar_warehouse_selector()
+    {
+        var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
+
+        Assert.DoesNotContain("Quản lý phiếu nhập", v_List);
+        Assert.DoesNotContain("Quản lý phiếu xuất", v_List);
+        Assert.DoesNotContain("@bind=\"m_iDocument_Warehouse_ID\"", v_List);
+        Assert.DoesNotContain("m_iDocument_Warehouse_ID", v_List);
+        Assert.Contains("Field=\"So_Phieu\"", v_List);
+        Assert.Contains("Field=\"Ten_Kho\"", v_List);
+        Assert.Contains("Field=\"Is_Posted\"", v_List);
+        Assert.Contains("Field=\"Ghi_Chu\"", v_List);
+        Assert.Contains("Format_Grid(m_grdDocument)", v_List);
+    }
+
+    [Fact]
+    public void Warehouse_grid_filters_apply_all_descriptors_before_paging()
+    {
+        var v_arrDocuments = new List<CWarehouseDocument>
+        {
+            new() { So_Phieu = "NK-101", Ten_Kho = "Long Thành", Is_Posted = false, Ghi_Chu = "Đợt A" },
+            new() { So_Phieu = "NK-102", Ten_Kho = "Long Thành", Is_Posted = true, Ghi_Chu = "Đợt A" },
+            new() { So_Phieu = "NK-103", Ten_Kho = "Bình Dương", Is_Posted = false, Ghi_Chu = "Đợt B" }
+        };
+        var v_objRequest = CreateDataSourceRequest(1, 1);
+        v_objRequest.Filters.Add(new FilterDescriptor("Ten_Kho", FilterOperator.Contains, "Long"));
+        v_objRequest.Filters.Add(new FilterDescriptor("So_Phieu", FilterOperator.StartsWith, "NK-10"));
+        v_objRequest.Filters.Add(new FilterDescriptor("Is_Posted", FilterOperator.IsEqualTo, false));
+
+        var v_objResult = CGrid_DataSource_Utility.Apply(v_arrDocuments, v_objRequest);
+
+        Assert.Equal(1, v_objResult.Total_Count);
+        Assert.Single(v_objResult.Items);
+        Assert.Equal("NK-101", v_objResult.Items[0].So_Phieu);
     }
 
     private static DataSourceRequest CreateDataSourceRequest(int p_iPage, int p_iPage_Size)

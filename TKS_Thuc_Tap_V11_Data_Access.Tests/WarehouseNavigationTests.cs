@@ -49,37 +49,81 @@ public sealed class WarehouseNavigationTests
     }
 
     [Theory]
-    [InlineData("Warehouse_Nhap_Kho.razor", "/Kho/Nhap_Kho", "Receipt")]
-    [InlineData("Warehouse_Xuat_Kho.razor", "/Kho/Xuat_Kho", "Issue")]
-    [InlineData("Warehouse_Ton_Kho.razor", "/Kho/Ton_Kho", "Report")]
-    [InlineData("Warehouse_Bao_Cao.razor", "/Kho/Bao_Cao", "Report")]
-    public void Warehouse_operations_have_dedicated_routes(string p_FileName, string p_Route, string p_Section)
+    [InlineData("Warehouse_Ton_Kho.razor", "/Kho/Ton_Kho")]
+    [InlineData("Warehouse_Bao_Cao.razor", "/Kho/Bao_Cao")]
+    public void Warehouse_report_routes_use_the_report_list(string p_FileName, string p_Route)
     {
         var v_Page = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", p_FileName));
 
         Assert.Contains($"@page \"{p_Route}\"", v_Page);
-        Assert.Contains($"<FWarehouse_1_Warehouse_List m_strSection=\"{p_Section}\"", v_Page);
+        Assert.Contains("<FWarehouse_1_Warehouse_List m_strSection=\"Report\"", v_Page);
+    }
+
+    [Theory]
+    [InlineData("Warehouse_Nhap_Kho.razor", "/Kho/Nhap_Kho", "F3001_1_Nhap_Kho_List")]
+    [InlineData("Warehouse_Xuat_Kho.razor", "/Kho/Xuat_Kho", "F3002_1_Xuat_Kho_List")]
+    public void Warehouse_document_routes_use_dedicated_list_components(string p_FileName, string p_Route, string p_ListComponent)
+    {
+        var v_Page = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", p_FileName));
+        var v_CombinedList = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+
+        Assert.Contains($"@page \"{p_Route}\"", v_Page);
+        Assert.Contains($"<{p_ListComponent} />", v_Page);
+        Assert.DoesNotContain("FWarehouse_1_Warehouse_List", v_Page);
+        Assert.DoesNotContain("m_strSection is \"Receipt\" or \"Issue\"", v_CombinedList);
+        Assert.DoesNotContain("Read_Document_Async", v_CombinedList);
     }
 
     [Fact]
-    public void Current_inventory_has_no_report_selector_or_duplicate_report_option()
+    public void Warehouse_document_lists_compose_dedicated_info_and_edit_components()
+    {
+        var v_List = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Transaction_List.razor"));
+        var v_ReceiptInfo = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F3001_2_Nhap_Kho_Info.razor"));
+        var v_IssueInfo = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F3002_2_Xuat_Kho_Info.razor"));
+        var v_ReceiptEdit = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F3001_3_Nhap_Kho_Edit.razor"));
+        var v_IssueEdit = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F3002_3_Xuat_Kho_Edit.razor"));
+
+        Assert.Contains("<F3001_2_Nhap_Kho_Info", v_List);
+        Assert.Contains("<F3002_2_Xuat_Kho_Info", v_List);
+        Assert.Contains("<F3001_3_Nhap_Kho_Edit", v_List);
+        Assert.Contains("<F3002_3_Xuat_Kho_Edit", v_List);
+        Assert.Contains("FWarehouse_2_Warehouse_Info", v_ReceiptInfo);
+        Assert.Contains("m_bIs_Receipt=\"true\"", v_ReceiptInfo);
+        Assert.Contains("FWarehouse_2_Warehouse_Info", v_IssueInfo);
+        Assert.Contains("m_bIs_Receipt=\"false\"", v_IssueInfo);
+        Assert.Contains("FWarehouse_3_Warehouse_Edit", v_ReceiptEdit);
+        Assert.Contains("m_bIs_Receipt=\"true\"", v_ReceiptEdit);
+        Assert.Contains("FWarehouse_3_Warehouse_Edit", v_IssueEdit);
+        Assert.Contains("m_bIs_Receipt=\"false\"", v_IssueEdit);
+    }
+
+    [Fact]
+    public void Current_inventory_has_no_report_tabs_or_date_range_toolbar()
     {
         var v_InventoryPage = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Ton_Kho.razor"));
         var v_Component = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
         var v_ReportSelectorIndex = v_Component.IndexOf(
-            "<label class=\"form-label\">Báo cáo</label>", StringComparison.Ordinal);
+            "<ul class=\"nav nav-tabs mb-2\"", StringComparison.Ordinal);
         var v_InventoryGuardIndex = v_Component.LastIndexOf(
             "@if (!Is_Current_Inventory_Report)", v_ReportSelectorIndex, StringComparison.Ordinal);
 
         Assert.Contains("m_strInitial_Report_Type=\"InventoryCurrent\"", v_InventoryPage);
-        Assert.True(v_InventoryGuardIndex >= 0, "The report selector must be hidden for current inventory.");
-        Assert.DoesNotContain("<option value=\"InventoryCurrent\">Tồn kho hiện tại</option>", v_Component);
-        Assert.Contains("<option value=\"Receipt\">Chi tiết hàng nhập</option>", v_Component);
-        Assert.Contains("<option value=\"Issue\">Chi tiết hàng xuất</option>", v_Component);
-        Assert.Contains("<option value=\"Inventory\">Xuất nhập tồn theo kỳ</option>", v_Component);
+        Assert.True(v_InventoryGuardIndex >= 0, "Report tabs must be hidden for current inventory.");
+        Assert.Contains("Select_Report_Type_Async(\"Receipt\")", v_Component);
+        Assert.Contains("Select_Report_Type_Async(\"Issue\")", v_Component);
+        Assert.Contains("Select_Report_Type_Async(\"Inventory\")", v_Component);
+        Assert.Contains("ToolButtons=\"@Layout_Tool_Button(m_grdInventory)\"", v_Component);
+        Assert.DoesNotContain("<label class=\"form-label\">Kho</label>", v_Component);
     }
 
     [Fact]

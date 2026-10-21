@@ -1,0 +1,27 @@
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse
+
+<FWarehouse_2_Warehouse_Info
+    m_objDocument="@m_objDocument"
+    m_arrDetail="@m_arrDetail"
+    m_bIs_Receipt="true"
+    m_bCan_Add="@m_bCan_Add"
+    m_bCan_Edit="@m_bCan_Edit"
+    m_bCan_Delete="@m_bCan_Delete"
+    m_bCan_Export="@m_bCan_Export"
+    OnAdd_Detail="@OnAdd_Detail"
+    OnEdit_Detail="@OnEdit_Detail"
+    OnDelete_Detail="@OnDelete_Detail"
+    OnPrint="@OnPrint" />
+
+@code {
+    [Parameter] public CWarehouseDocument? m_objDocument { get; set; }
+    [Parameter] public List<CWarehouseDocumentDetail> m_arrDetail { get; set; } = new();
+    [Parameter] public bool m_bCan_Add { get; set; }
+    [Parameter] public bool m_bCan_Edit { get; set; }
+    [Parameter] public bool m_bCan_Delete { get; set; }
+    [Parameter] public bool m_bCan_Export { get; set; }
+    [Parameter] public EventCallback OnAdd_Detail { get; set; }
+    [Parameter] public EventCallback<CWarehouseDocumentDetail> OnEdit_Detail { get; set; }
+    [Parameter] public EventCallback<long> OnDelete_Detail { get; set; }
+    [Parameter] public EventCallback OnPrint { get; set; }
+}

@@ -1,0 +1,67 @@
+<div class="row">
+    <div class="col-lg-7">
+        <div class="row g-3">
+            @if (ShowDateRange)
+            {
+                <div style="width: 80px; padding-top: 8px;">
+                    <label class="form-label">@Localize(DateLabel):</label>
+                </div>
+                <div style="width: 140px;">
+                    <TelerikDatePicker Value="@DateFrom" ValueChanged="@DateFromChanged" Format="@CConfig.Date_Format_String"></TelerikDatePicker>
+                </div>
+                <div style="width: 40px; text-align: center; padding-top: 8px;">
+                    <label class="form-label">--&gt;</label>
+                </div>
+                <div style="width: 140px;">
+                    <TelerikDatePicker Value="@DateTo" ValueChanged="@DateToChanged" Format="@CConfig.Date_Format_String"></TelerikDatePicker>
+                </div>
+            }
+
+            @if (OnSearch.HasDelegate)
+            {
+                <div class="col-lg-4">
+                    <div class="hstack flex-wrap gap-2 mb-3 mb-lg-0">
+                        <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="OnSearch">@Localize("Tìm kiếm")</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="hstack flex-wrap gap-2 mb-3 mb-lg-0" style="float: right;">
+            @if (CanAdd && OnAdd.HasDelegate)
+            {
+                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="OnAdd">
+                    <i class="ri-add-circle-fill align-bottom me-1"></i>
+                    @Localize("Thêm")
+                </button>
+            }
+
+            @if (CanAdd && OnImport.HasDelegate)
+            {
+                <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="OnImport">
+                    <i class="ri-upload-fill align-bottom me-1"></i>
+                    @Localize("Import")
+                </button>
+            }
+
+            @ToolButtons
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool ShowDateRange { get; set; }
+    [Parameter] public string DateLabel { get; set; } = "";
+    [Parameter] public DateTime DateFrom { get; set; }
+    [Parameter] public EventCallback<DateTime> DateFromChanged { get; set; }
+    [Parameter] public DateTime DateTo { get; set; }
+    [Parameter] public EventCallback<DateTime> DateToChanged { get; set; }
+    [Parameter] public EventCallback OnSearch { get; set; }
+    [Parameter] public EventCallback OnAdd { get; set; }
+    [Parameter] public EventCallback OnImport { get; set; }
+    [Parameter] public bool CanAdd { get; set; }
+    [Parameter] public Func<string, string> Localize { get; set; } = static p_strText => p_strText;
+    [Parameter] public RenderFragment? ToolButtons { get; set; }
+}

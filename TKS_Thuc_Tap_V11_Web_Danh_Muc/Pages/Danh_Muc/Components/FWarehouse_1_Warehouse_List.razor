@@ -3,15 +3,16 @@
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.BC
 @using TKS_Thuc_Tap_V11_Data_Access.Utility
-@using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
-@using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK
 @inherits FBase
 
 <div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">@Section_Title</h5>
-    </div>
+    @if (m_strSection == "Master")
+    {
+        <div class="card-header">
+            <h5 class="mb-0">@Section_Title</h5>
+        </div>
+    }
     <div class="card-body">
         @((MarkupString)r_strError)
         @if (!String.IsNullOrWhiteSpace(m_strSuccess))
@@ -125,129 +126,56 @@
             }
         }
 
-        @if (m_strSection is "Receipt" or "Issue")
-        {
-            <div class="d-flex justify-content-between align-items-end gap-3 mb-3">
-                <div>
-                    <h5 class="mb-3">
-                        @if (Is_Receipt)
-                        {
-                            <text>Quản lý phiếu nhập</text>
-                        }
-                        else
-                        {
-                            <text>Quản lý phiếu xuất</text>
-                        }
-                    </h5>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                            <label class="form-label">Kho</label>
-                            <select class="form-select" @bind="m_iDocument_Warehouse_ID">
-                                <option value="">Tất cả kho</option>
-                                @foreach (var v_objWarehouse in m_arrWarehouse)
-                                {
-                                    <option value="@v_objWarehouse.Auto_ID">@v_objWarehouse.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-auto">
-                            <button class="btn btn-primary" @onclick="Load_Documents_Async">Xem phiếu</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="d-flex gap-2">
-                    @Layout_Tool_Button(m_grdDocument, Can_Import_Document ? Document_Import_Tool_Item : null, Export_Document_Excel_Async)
-                    @if (r_objChuc_Nang.Is_Have_Add_Permission)
-                    {
-                        <button class="btn btn-primary" @onclick="New_Document">Tạo phiếu mới</button>
-                    }
-                </div>
-            </div>
-            @if (m_bDocumentEditing)
-            {
-                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Document" m_bIs_Receipt="@Is_Receipt" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
-            }
-            <TelerikGrid TItem="CWarehouseDocument" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Document_Async" @ref="m_grdDocument">
-                <GridExport><GridExcelExport FileName="Warehouse_Document_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Document_Export" AllPages="true" /></GridExport>
-                <GridColumns>
-                    <GridColumn Field="Ngay_Chung_Tu" Title="Ngày" Width="120px" />
-                    <GridColumn Field="So_Phieu" Title="Số phiếu" Width="160px" />
-                    <GridColumn Field="Ten_Kho" Title="Kho" Width="180px" />
-                    @if (Is_Receipt)
-                    {
-                        <GridColumn Field="Ten_NCC" Title="NCC" Width="180px" />
-                    }
-                    <GridColumn Title="Trạng thái" Width="100px">
-                        <Template Context="v_objContext">
-                            @if (((CWarehouseDocument)v_objContext).Is_Posted)
-                            {
-                                <text>Đã Post</text>
-                            }
-                            else
-                            {
-                                <text>Nháp</text>
-                            }
-                        </Template>
-                    </GridColumn>
-                    <GridColumn Field="Ghi_Chu" Title="Ghi chú" />
-                    <GridColumn Title=""><Template Context="v_objContext">@{ var v_objDocument=(CWarehouseDocument)v_objContext; }<button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => Select_Document_Async(v_objDocument))">Chi tiết</button>@if(!v_objDocument.Is_Posted && r_objChuc_Nang.Is_Have_Edit_Permission){<button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="@(() => Edit_Document(v_objDocument))">Sửa</button>}@if(!v_objDocument.Is_Posted && r_objChuc_Nang.Is_Have_Edit_Permission){<button type="button" class="btn btn-sm btn-success me-1" @onclick="@(() => Post_Document_Async(v_objDocument))">Post</button>}@if(!v_objDocument.Is_Posted && r_objChuc_Nang.Is_Have_Delete_Permission){<button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => Delete_Document_Async(v_objDocument.Auto_ID))">Xóa</button>}</Template></GridColumn>
-                </GridColumns>
-            </TelerikGrid>
-            @if (m_bDetailEditing)
-            {
-                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Detail" m_bIs_Receipt="@Is_Receipt" m_objDetail="@m_objDetail" m_arrProduct="@m_arrProduct" OnSave_Detail="Save_Detail_Async" OnCancel="Cancel_Detail" />
-            }
-            <FWarehouse_2_Warehouse_Info m_objDocument="@m_objSelectedDocument" m_arrDetail="@m_arrDetail" m_bIs_Receipt="@Is_Receipt" m_bCan_Add="@r_objChuc_Nang.Is_Have_Add_Permission" m_bCan_Edit="@r_objChuc_Nang.Is_Have_Edit_Permission" m_bCan_Delete="@r_objChuc_Nang.Is_Have_Delete_Permission" m_bCan_Export="@r_objChuc_Nang.Is_Have_Export_Permission" OnAdd_Detail="New_Detail" OnEdit_Detail="Edit_Detail" OnDelete_Detail="Delete_Detail_Async" OnPrint="Print_Async" />
-        }
-
         @if (m_strSection == "Report")
         {
-            <div class="row g-3 align-items-end">
-                @if (!Is_Current_Inventory_Report)
-                {
-                    <div class="col-md-3">
-                        <label class="form-label">Báo cáo</label>
-                        <select class="form-select" @bind="m_strReport_Type">
-                            <option value="Receipt">Chi tiết hàng nhập</option>
-                            <option value="Issue">Chi tiết hàng xuất</option>
-                            <option value="Inventory">Xuất nhập tồn theo kỳ</option>
-                        </select>
-                    </div>
-                }
-                <div class="col-md-3">
-                    <label class="form-label">Kho</label>
-                    <select class="form-select" @bind="m_iReport_Warehouse_ID" @bind:after="Load_Report_Async">
-                        <option value="">Tất cả kho</option>
-                        @foreach (var v_objWarehouse in m_arrWarehouse)
-                        {
-                            <option value="@v_objWarehouse.Auto_ID">@v_objWarehouse.Name</option>
-                        }
-                    </select>
-                </div>
-                @if (!Is_Current_Inventory_Report)
-                {
-                    <div class="col-md-2">
-                        <label class="form-label">Từ ngày</label>
-                        <TelerikDatePicker @bind-Value="m_dtmFrom" Format="@CConfig.Date_Format_String" />
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Đến ngày</label>
-                        <TelerikDatePicker @bind-Value="m_dtmTo" Format="@CConfig.Date_Format_String" />
-                    </div>
-                }
-                else
-                {
-                    <div class="col-md-4">
-                        <div class="form-text">Đọc số dư đã Post tại thời điểm hiện tại; không tính lại nhập/xuất theo kỳ.</div>
-                    </div>
-                }
-                <div class="col-md-2">
-                    <button class="btn btn-primary" @onclick="Load_Report_Async">Xem báo cáo</button>
-                </div>
-            </div>
+            @if (!Is_Current_Inventory_Report)
+            {
+                <ul class="nav nav-tabs mb-2" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link @(m_strReport_Type == "Receipt" ? "active" : "")" role="tab" @onclick="@(() => Select_Report_Type_Async("Receipt"))">@Get_Language_Data_Field("Chi tiết hàng nhập")</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link @(m_strReport_Type == "Issue" ? "active" : "")" role="tab" @onclick="@(() => Select_Report_Type_Async("Issue"))">@Get_Language_Data_Field("Chi tiết hàng xuất")</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link @(m_strReport_Type == "Inventory" ? "active" : "")" role="tab" @onclick="@(() => Select_Report_Type_Async("Inventory"))">@Get_Language_Data_Field("Xuất nhập tồn theo kỳ")</button>
+                    </li>
+                </ul>
+            }
+
+            @if (Is_Current_Inventory_Report)
+            {
+                <FWarehouse_Filter_Toolbar Localize="@Get_Language_Data_Field" ToolButtons="@Layout_Tool_Button(m_grdInventory)" />
+            }
+            else if (m_strReport_Type is "Inventory")
+            {
+                <FWarehouse_Filter_Toolbar
+                    ShowDateRange="true"
+                    DateLabel="Từ ngày"
+                    DateFrom="@m_dtmFrom"
+                    DateFromChanged="Set_Date_From"
+                    DateTo="@m_dtmTo"
+                    DateToChanged="Set_Date_To"
+                    OnSearch="Load_Report_Async"
+                    Localize="@Get_Language_Data_Field"
+                    ToolButtons="@Layout_Tool_Button(m_grdInventory)" />
+            }
+            else
+            {
+                <FWarehouse_Filter_Toolbar
+                    ShowDateRange="true"
+                    DateLabel="Từ ngày"
+                    DateFrom="@m_dtmFrom"
+                    DateFromChanged="Set_Date_From"
+                    DateTo="@m_dtmTo"
+                    DateToChanged="Set_Date_To"
+                    OnSearch="Load_Report_Async"
+                    Localize="@Get_Language_Data_Field"
+                    ToolButtons="@Layout_Tool_Button(m_grdReportDetail)" />
+            }
             @if (m_strReport_Type is "Inventory" or "InventoryCurrent")
             {
-                <TelerikGrid TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory">
+                <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" FilterMode="GridFilterMode.FilterRow" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory">
                     <GridExport>
                         <GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" />
                         <GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" />
@@ -288,11 +216,26 @@
             }
             else
             {
-            <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseDetailReport" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Report_Detail_Async" @ref="m_grdReportDetail"><GridExport><GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" /></GridExport><GridColumns><GridColumn Field="Ngay" Title="Ngày" /><GridColumn Field="So_Phieu" Title="Số phiếu" />@if(m_strReport_Type=="Receipt"){<GridColumn Field="Nha_Cung_Cap" Title="NCC" />}<GridColumn Field="Ma_San_Pham" Title="Mã SP" /><GridColumn Field="Ten_San_Pham" Title="Tên SP" /><GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn><GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn><GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn></GridColumns></TelerikGrid>
-            }
-            @if (r_objChuc_Nang.Is_Have_Export_Permission)
-            {
-                <div class="mt-2">@if(m_strReport_Type is "Inventory" or "InventoryCurrent"){@Layout_Tool_Button(m_grdInventory)}else{@Layout_Tool_Button(m_grdReportDetail)}</div>
+                <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseDetailReport" Height="calc(100vh - 310px)" FilterMode="GridFilterMode.FilterRow" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Report_Detail_Async" @ref="m_grdReportDetail">
+                    <GridExport>
+                        <GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" />
+                        <GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" />
+                    </GridExport>
+                    <GridColumns>
+                        <GridColumn Field="Ngay" Title="Ngày" />
+                        <GridColumn Field="So_Phieu" Title="Số phiếu" />
+                        <GridColumn Field="Ten_Kho" Title="Kho" />
+                        @if (m_strReport_Type == "Receipt")
+                        {
+                            <GridColumn Field="Nha_Cung_Cap" Title="NCC" />
+                        }
+                        <GridColumn Field="Ma_San_Pham" Title="Mã SP" />
+                        <GridColumn Field="Ten_San_Pham" Title="Tên SP" />
+                        <GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CUtility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn>
+                        <GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn>
+                        <GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CUtility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn>
+                    </GridColumns>
+                </TelerikGrid>
             }
         }
     </div>
@@ -338,11 +281,6 @@
 {
     <FWarehouse_Kho_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Warehouse_Import" OnCompleted="On_Warehouse_Import_Completed" />
 }
-@if (m_bShow_Document_Import)
-{
-    <FWarehouse_Transaction_Import IsReceipt="@Is_Receipt" UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Document_Import" OnCompleted="On_Document_Import_Completed" />
-}
-
 @code {
     [Parameter] public string m_strSection { get; set; } = "Master";
     [Parameter] public string m_strInitial_Master_Type { get; set; } = "DonViTinh";
@@ -352,9 +290,6 @@
 
     private readonly CWarehouseMasterSupport_Controller m_objMasterSupportController = new();
     private readonly CDM_Kho_User_Controller m_objPermissionController = new();
-    private readonly CXNK_Nhap_Kho_Controller m_objNhapKhoController = new();
-    private readonly CXNK_Xuat_Kho_Controller m_objXuatKhoController = new();
-    private readonly CWarehouseDocumentSupport_Controller m_objDocumentSupportController = new();
     private readonly CWarehouseReport_Controller m_objReportController = new();
     private string m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private bool m_bRouteParametersApplied;
@@ -362,7 +297,6 @@
     private bool m_bShow_Category_Import;
     private bool m_bShow_Supplier_Import;
     private bool m_bShow_Warehouse_Import;
-    private bool m_bShow_Document_Import;
     private CWarehouseMaster m_objMaster = new();
     private CDM_Kho m_objKho = new();
     private CDM_Don_Vi_Tinh m_objDon_Vi_Tinh = new();
@@ -370,34 +304,12 @@
     private CDM_San_Pham m_objSan_Pham = new();
     private CDM_NCC m_objNCC = new();
     private CWarehousePermission m_objPermission = new();
-    private CWarehouseDocument m_objDocument = new();
-    private CWarehouseDocument? m_objSelectedDocument;
-    private CWarehouseDocumentDetail m_objDetail = new();
     private List<CWarehouseMaster> m_arrMaster = new();
-    private List<CWarehouseDocument> m_arrDocument = new();
-    private List<CWarehouseDocumentDetail> m_arrDetail = new();
     private List<CWarehouseLookup> m_arrUnit = new(), m_arrCategory = new(), m_arrProduct = new(), m_arrSupplier = new(), m_arrWarehouse = new(), m_arrAllWarehouse = new(), m_arrUser = new();
     private List<CWarehousePermission> m_arrWarehouseUser = new();
     private List<CWarehouseDetailReport> m_arrDetailReport = new();
     private List<CWarehouseInventoryReport> m_arrInventoryReport = new();
     private DateTime m_dtmFrom = new(DateTime.Today.Year, DateTime.Today.Month, 1), m_dtmTo = DateTime.Today;
-    private long? m_iReport_Warehouse_ID;
-    private long? m_iDocument_Warehouse_ID;
-    private bool m_bDocumentEditing;
-    private bool m_bDetailEditing;
-    private bool Is_Receipt
-    {
-        get
-        {
-            return m_strSection == "Receipt";
-        }
-    }
-
-    private bool Can_Import_Document =>
-        (m_strSection is "Receipt" or "Issue") && r_objChuc_Nang.Is_Have_Add_Permission;
-
-    private RenderFragment Document_Import_Tool_Item => @<button type="button" class="dropdown-item" @onclick="Open_Document_Import"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; Nhập Excel</button>;
-
     private bool Is_Current_Inventory_Report
     {
         get
@@ -410,9 +322,10 @@
     private TelerikGrid<CWarehousePermission> m_grdPermission = new();
     private TelerikGrid<CWarehousePermission> m_objFormattedPermissionGrid = new();
     private string m_strFormattedMaster_Type = "";
-    private TelerikGrid<CWarehouseDocument> m_grdDocument = new();
     private TelerikGrid<CWarehouseDetailReport> m_grdReportDetail = new();
+    private TelerikGrid<CWarehouseDetailReport>? m_objFormattedReportDetailGrid;
     private TelerikGrid<CWarehouseInventoryReport> m_grdInventory = new();
+    private TelerikGrid<CWarehouseInventoryReport>? m_objFormattedInventoryGrid;
 
     private string Master_Type_Title
     {
@@ -460,12 +373,6 @@
                         return $"Master Data - {Master_Type_Title}";
                     }
 
-                case "Receipt":
-                    return "Nhập kho";
-
-                case "Issue":
-                    return "Xuất kho";
-
                 default:
                     if (Is_Current_Inventory_Report)
                     {
@@ -510,12 +417,6 @@
         base.OnParametersSet();
     }
 
-    protected override void Init_Data()
-    {
-        m_bDocumentEditing = false;
-        m_bDetailEditing = false;
-    }
-
     protected override void Load_Data()
     {
         r_strError = "";
@@ -553,6 +454,19 @@
             Format_Grid(m_grdMaster);
         }
 
+        if (m_strSection == "Report" && (m_strReport_Type is "Inventory" or "InventoryCurrent") &&
+            !ReferenceEquals(m_objFormattedInventoryGrid, m_grdInventory))
+        {
+            m_objFormattedInventoryGrid = m_grdInventory;
+            Format_Grid(m_grdInventory);
+        }
+        else if (m_strSection == "Report" && !Is_Current_Inventory_Report &&
+            !ReferenceEquals(m_objFormattedReportDetailGrid, m_grdReportDetail))
+        {
+            m_objFormattedReportDetailGrid = m_grdReportDetail;
+            Format_Grid(m_grdReportDetail);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -560,7 +474,6 @@
     {
         await Load_Lookups_Async();
         if (m_strSection == "Master") await Load_Master_Async();
-        else if (m_strSection is "Receipt" or "Issue") await Load_Documents_Async();
     }
 
     private async Task Load_Lookups_Async()
@@ -856,32 +769,6 @@
             case "NCC": Open_Supplier_Import(); break;
             case "Kho": Open_Warehouse_Import(); break;
         }
-    }
-
-    private void Open_Document_Import()
-    {
-        if (!Can_Import_Document)
-            return;
-
-        m_bShow_Document_Import = true;
-        Clear_Message();
-    }
-
-    private void Close_Document_Import()
-    {
-        m_bShow_Document_Import = false;
-    }
-
-    private Task On_Document_Import_Completed(CTransactionImportConfirmResult p_objResult)
-    {
-        var v_strDocumentType = Is_Receipt ? "phiếu nhập" : "phiếu xuất";
-        Try_Record_Action_History(0, $"{(Is_Receipt ? "Receipt" : "Issue")} Excel Import",
-            $"Imported: {p_objResult.Imported_Documents}; skipped duplicates: {p_objResult.Skipped_Documents}");
-        m_objSelectedDocument = null;
-        m_arrDetail.Clear();
-        m_grdDocument.Rebind();
-        Set_Success($"Đã nhập {p_objResult.Imported_Documents} {v_strDocumentType}; bỏ qua {p_objResult.Skipped_Documents} chứng từ trùng khớp.");
-        return Task.CompletedTask;
     }
 
     private void Open_Product_Import()
@@ -1183,341 +1070,35 @@
         }
     }
 
-    private void New_Document()
+    private void Set_Date_From(DateTime p_dtmValue) => m_dtmFrom = p_dtmValue;
+
+    private void Set_Date_To(DateTime p_dtmValue) => m_dtmTo = p_dtmValue;
+
+    private async Task Select_Report_Type_Async(string p_strReport_Type)
     {
-        m_objDocument = New_Document_Model();
-        m_objSelectedDocument = null;
-        m_arrDetail.Clear();
-        m_objDetail = new();
-        m_bDocumentEditing = true;
-        m_bDetailEditing = false;
-        Clear_Message();
-    }
-
-    private CWarehouseDocument New_Document_Model()
-    {
-        return new() { Is_Receipt = Is_Receipt, Ngay_Chung_Tu = DateTime.Today };
-    }
-
-    private async Task Load_Documents_Async()
-    {
-        try
-        {
-            m_grdDocument.Rebind();
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-    }
-
-    private void Cancel_Document() { m_bDocumentEditing = false; m_objDocument = New_Document_Model(); }
-    private void Edit_Document(CWarehouseDocument p_objData)
-    {
-        m_objDocument = Clone_Document(p_objData);
-        m_objSelectedDocument = null;
-        m_arrDetail.Clear();
-        m_bDocumentEditing = true;
-        m_bDetailEditing = false;
-        Clear_Message();
-    }
-
-    private async Task Save_Document_Async(CWarehouseDocument p_objData)
-    {
-        try
-        {
-            var v_iAuto_ID = p_objData.Auto_ID;
-            if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
-            p_objData.Is_Receipt = Is_Receipt;
-            p_objData.Last_Updated_By = r_strActive_User_Name;
-            p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
-            if (v_iAuto_ID == 0)
-            {
-                p_objData.Created_By = r_strActive_User_Name;
-                p_objData.Created_By_Function = r_strActive_Function_Code;
-            }
-
-            if (Is_Receipt)
-            {
-                var v_objReceipt = To_Nhap_Kho(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_objReceipt)
-                    : m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Header(v_objReceipt);
-            }
-            else
-            {
-                var v_objIssue = To_Xuat_Kho(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_objIssue)
-                    : m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Header(v_objIssue);
-            }
-
-            string v_strAction;
-            if (v_iAuto_ID == 0)
-            {
-                v_strAction = "Thêm mới";
-            }
-            else
-            {
-                v_strAction = "Hiệu chỉnh";
-            }
-
-            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse document " + p_objData.So_Phieu);
-            m_grdDocument.Rebind();
-            await Select_Document_Async(p_objData);
-            Set_Success("Đã lưu phiếu.");
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-    }
-
-    private async Task Delete_Document_Async(long p_iAuto_ID)
-    {
-        try
-        {
-            if (Is_Receipt)
-                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
-            else
-                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
-            Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse document");
-            Cancel_Document();
-            m_objSelectedDocument = null;
-            m_arrDetail.Clear();
-            await Load_Documents_Async();
-            Set_Success("Đã xóa phiếu.");
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-    }
-
-    private async Task Post_Document_Async(CWarehouseDocument p_objData)
-    {
-        try
-        {
-            if (p_objData.Is_Posted || !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
-            m_objDocumentSupportController.sp_XNK_Document_Post(
-                Is_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_User_Name, r_strActive_Function_Code);
-            p_objData.Is_Posted = true;
-            Try_Record_Action_History(p_objData.Auto_ID, "Post", "Warehouse document " + p_objData.So_Phieu);
-            m_grdDocument.Rebind();
-            await Select_Document_Async(p_objData);
-            Set_Success("Đã Post phiếu; tồn kho đã được cập nhật.");
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-    }
-
-    private async Task Select_Document_Async(CWarehouseDocument p_objData)
-    {
-        try
-        {
-            m_objSelectedDocument = p_objData;
-            m_objDocument = Clone_Document(p_objData);
-            m_arrDetail = Is_Receipt
-                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_objData.Auto_ID, r_strActive_User_Name)
-                    .Select(To_Warehouse_Detail).ToList()
-                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_objData.Auto_ID, r_strActive_User_Name)
-                    .Select(To_Warehouse_Detail).ToList();
-            m_objDetail = new() { Document_ID = p_objData.Auto_ID };
-            m_bDocumentEditing = false;
-            m_bDetailEditing = false;
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-    }
-
-    private void New_Detail()
-    {
-        if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Add_Permission)
-        {
+        if (p_strReport_Type is not ("Receipt" or "Issue" or "Inventory"))
             return;
-        }
 
-        m_objDetail = new() { Document_ID = m_objSelectedDocument.Auto_ID };
-        m_bDetailEditing = true;
-        Clear_Message();
+        m_strReport_Type = p_strReport_Type;
+        await Load_Report_Async();
     }
 
-    private void Cancel_Detail()
-    {
-        if (m_objSelectedDocument == null)
-        {
-            return;
-        }
-
-        m_objDetail = new() { Document_ID = m_objSelectedDocument.Auto_ID };
-        m_bDetailEditing = false;
-    }
-
-    private void Edit_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        if (!r_objChuc_Nang.Is_Have_Edit_Permission)
-        {
-            return;
-        }
-
-        m_objDetail = Clone_Detail(p_objData);
-        m_bDetailEditing = true;
-        Clear_Message();
-    }
-
-    private async Task Save_Detail_Async(CWarehouseDocumentDetail p_objData)
+    private Task Load_Report_Async()
     {
         try
         {
-            if (m_objSelectedDocument == null || p_objData.Auto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || p_objData.Auto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
-            p_objData.Document_ID = m_objSelectedDocument.Auto_ID;
-            var v_iAuto_ID = p_objData.Auto_ID;
-            p_objData.Last_Updated_By = r_strActive_User_Name;
-            p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
-            if (v_iAuto_ID == 0)
-            {
-                p_objData.Created_By = r_strActive_User_Name;
-                p_objData.Created_By_Function = r_strActive_Function_Code;
-            }
-
-            if (Is_Receipt)
-            {
-                var v_objReceiptDetail = To_Nhap_Kho_Detail(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_objReceiptDetail)
-                    : m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Detail(v_objReceiptDetail);
-            }
+            Clear_Message();
+            if (m_strReport_Type is "Inventory" or "InventoryCurrent")
+                m_grdInventory.Rebind();
             else
-            {
-                var v_objIssueDetail = To_Xuat_Kho_Detail(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_objIssueDetail)
-                    : m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Detail(v_objIssueDetail);
-            }
-
-            string v_strAction;
-            if (v_iAuto_ID == 0)
-            {
-                v_strAction = "Thêm mới";
-            }
-            else
-            {
-                v_strAction = "Hiệu chỉnh";
-            }
-
-            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse detail");
-            await Select_Document_Async(m_objSelectedDocument);
-            Set_Success("Đã lưu chi tiết.");
+                m_grdReportDetail.Rebind();
         }
         catch (Exception ex)
         {
             Set_Error(ex);
         }
-    }
 
-    private async Task Delete_Detail_Async(long p_iAuto_ID)
-    {
-        try
-        {
-            if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Delete_Permission)
-            {
-                return;
-            }
-
-            if (Is_Receipt)
-                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
-            else
-                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
-            Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse detail");
-            await Select_Document_Async(m_objSelectedDocument);
-            Set_Success("Đã xóa chi tiết.");
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-    }
-
-    private async Task Load_Report_Async()
-    {
-        try { Clear_Message(); if (m_strReport_Type is "Inventory" or "InventoryCurrent") m_grdInventory.Rebind(); else m_grdReportDetail.Rebind(); }
-        catch (Exception ex) { Set_Error(ex); }
-    }
-
-    private async Task Export_Document_Excel_Async()
-    {
-        var v_dtmStart = DateTime.Now;
-        await Task.Delay(1);
-        r_objLayout.Start_Loading();
-        r_strError = "";
-        long v_iQueue_ID = 0;
-
-        try
-        {
-            v_iQueue_ID = Process_Queue("Export Warehouse Documents Excel");
-            var v_arrDocuments = Is_Receipt
-                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
-                    .Select(To_Warehouse_Document).ToList()
-                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
-                    .Select(To_Warehouse_Document).ToList();
-            var v_arrRows = CWarehouseDocumentExcelExporter.BuildRows(v_arrDocuments, Get_Document_Details);
-            var v_arrWorkbook = CWarehouseDocumentExcelExporter.CreateWorkbook(v_arrRows, Is_Receipt);
-            var v_strFile_Name = "Warehouse_Document_Export_" + DateTime.Now.ToString("ddMMyyHHmmss") + ".xlsx";
-
-            using (var v_objStream = new MemoryStream(v_arrWorkbook))
-            using (var v_objStreamReference = new DotNetStreamReference(stream: v_objStream))
-                await g_jsRuntime.InvokeVoidAsync("downloadFileFromStream", v_strFile_Name, v_objStreamReference);
-
-            var v_objAccessLogController = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang_Controller();
-            var v_objAccessLog = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang
-            {
-                Ma_Chuc_Nang = r_strActive_Function_Code,
-                Ma_Dang_Nhap = r_strActive_User_Name,
-                Ten_Chuc_Nang = r_objChuc_Nang.Ten_Chuc_Nang
-            };
-            var v_strFunctionName = Get_Language_Data_Field(v_objAccessLog.Ma_Chuc_Nang);
-            if (v_strFunctionName == v_objAccessLog.Ma_Chuc_Nang)
-                v_strFunctionName = v_objAccessLog.Ten_Chuc_Nang;
-            v_objAccessLog.Ten_Chuc_Nang = v_strFunctionName + " - " + Get_Language_Data_Field("Export Excel");
-            v_objAccessLogController.FQ_424_NKTCCN_sp_ins_Insert(v_objAccessLog);
-
-            IReadOnlyCollection<CWarehouseDocumentDetail> Get_Document_Details(long p_iDocument_ID)
-            {
-                return Is_Receipt
-                    ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_iDocument_ID, r_strActive_User_Name)
-                        .Select(To_Warehouse_Detail).ToList()
-                    : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_iDocument_ID, r_strActive_User_Name)
-                        .Select(To_Warehouse_Detail).ToList();
-            }
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-        }
-        finally
-        {
-            End_Queue(v_iQueue_ID);
-        }
-
-        r_objLayout.Stop_Loading();
-        var v_tsElapsed = DateTime.Now - v_dtmStart;
-        await g_jsRuntime.InvokeVoidAsync("Set_Speed_Label", v_tsElapsed.TotalSeconds.ToString("###,###0.##") + "s");
+        return Task.CompletedTask;
     }
 
     private async Task Export_Master_Excel_Async()
@@ -1686,46 +1267,15 @@
         }
     }
 
-    private async Task Read_Document_Async(GridReadEventArgs args)
-    {
-        try
-        {
-            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
-            {
-                var v_arrSource = Is_Receipt
-                    ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
-                        .Select(To_Warehouse_Document).ToList()
-                    : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, m_iDocument_Warehouse_ID)
-                        .Select(To_Warehouse_Document).ToList();
-                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
-                args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
-                if (args.Request.PageSize > 0)
-                    m_arrDocument = v_objReadResult.Items;
-            }
-            else
-            {
-                var v_objResult = m_objDocumentSupportController.sp_XNK_Document_Page(
-                    Is_Receipt, args.Request.Page, args.Request.PageSize, "", r_strActive_User_Name, m_iDocument_Warehouse_ID);
-                m_arrDocument = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
-            }
-        }
-        catch (Exception ex)
-        {
-            Set_Error(ex);
-            args.Data = new List<CWarehouseDocument>();
-            args.Total = 0;
-        }
-    }
-
     private Task Read_Report_Detail_Async(GridReadEventArgs args)
     {
         try
         {
-            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export))
             {
                 List<CWarehouseDetailReport> v_arrSource = m_strReport_Type == "Receipt"
-                    ? m_objReportController.F9002_sp_Chi_Tiet_Nhap(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID)
-                    : m_objReportController.F9002_sp_Chi_Tiet_Xuat(m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                    ? m_objReportController.F9002_sp_Chi_Tiet_Nhap(m_dtmFrom, m_dtmTo, r_strActive_User_Name, null)
+                    : m_objReportController.F9002_sp_Chi_Tiet_Xuat(m_dtmFrom, m_dtmTo, r_strActive_User_Name, null);
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
                 args.Data = v_objReadResult.Items; args.Total = v_objReadResult.Total_Count;
                 if (args.Request.PageSize > 0)
@@ -1734,8 +1284,8 @@
             else
             {
                 var v_objResult = m_strReport_Type == "Receipt"
-                    ? m_objReportController.F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID)
-                    : m_objReportController.F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                    ? m_objReportController.F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, null)
+                    : m_objReportController.F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, args.Request.Page, args.Request.PageSize, r_strActive_User_Name, null);
                 m_arrDetailReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
         }
@@ -1753,19 +1303,19 @@
     {
         try
         {
-            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export, false))
+            if (CGrid_DataSource_Utility.Requires_Full_Source(args.Request, r_bIs_Excel_OnRead_Export))
             {
                 List<CWarehouseInventoryReport> v_arrSource;
                 if (Is_Current_Inventory_Report)
                 {
                     var v_objFullResult = m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(
-                        1, 0, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                        1, 0, r_strActive_User_Name, null);
                     v_arrSource = v_objFullResult.Items;
                 }
                 else
                 {
                     v_arrSource = Get_Historical_Inventory_Report(
-                        m_dtmFrom, m_dtmTo, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                        m_dtmFrom, m_dtmTo, r_strActive_User_Name, null);
                 }
 
                 var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
@@ -1781,9 +1331,9 @@
 
                 var v_objResult = Is_Current_Inventory_Report
                     ? m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(
-                        args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID)
+                        args.Request.Page, v_iPage_Size, r_strActive_User_Name, null)
                     : m_objReportController.F9002_sp_Xuat_Nhap_Ton_Page(
-                        m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, m_iReport_Warehouse_ID);
+                        m_dtmFrom, m_dtmTo, args.Request.Page, v_iPage_Size, r_strActive_User_Name, null);
                 m_arrInventoryReport = v_objResult.Items; args.Data = v_objResult.Items; args.Total = v_objResult.Total_Count;
             }
         }
@@ -1816,18 +1366,6 @@
             v_objReport.Ten_Kho = v_dicAuthorizedWarehouseNames.GetValueOrDefault(v_objReport.Kho_ID, "");
 
         return v_arrReport;
-    }
-
-    private Task Print_Async()
-    {
-        if (r_objChuc_Nang.Is_Have_Export_Permission)
-        {
-            return g_jsRuntime.InvokeVoidAsync("print").AsTask();
-        }
-        else
-        {
-            return Task.CompletedTask;
-        }
     }
 
     private void Try_Record_Action_History(long p_iRef_ID, string p_strAction, string p_strContent)
@@ -1890,197 +1428,6 @@
             User_Name = p_objData.User_Name,
             Warehouse_ID = p_objData.Warehouse_ID,
             Warehouse_Name = p_objData.Warehouse_Name
-        };
-    }
-
-    private static CWarehouseDocument Clone_Document(CWarehouseDocument p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Is_Receipt = p_objData.Is_Receipt,
-            So_Phieu = p_objData.So_Phieu,
-            Kho_ID = p_objData.Kho_ID,
-            NCC_ID = p_objData.NCC_ID,
-            Ten_Kho = p_objData.Ten_Kho,
-            Ten_NCC = p_objData.Ten_NCC,
-            Ngay_Chung_Tu = p_objData.Ngay_Chung_Tu,
-            Is_Posted = p_objData.Is_Posted,
-            Posted_At = p_objData.Posted_At,
-            Ghi_Chu = p_objData.Ghi_Chu
-        };
-    }
-
-    private static CXNK_Nhap_Kho To_Nhap_Kho(CWarehouseDocument p_objData)
-    {
-        return new CXNK_Nhap_Kho
-        {
-            Auto_ID = p_objData.Auto_ID,
-            So_Phieu_Nhap_Kho = p_objData.So_Phieu,
-            Kho_ID = p_objData.Kho_ID,
-            NCC_ID = p_objData.NCC_ID,
-            Ngay_Nhap_Kho = p_objData.Ngay_Chung_Tu,
-            Ghi_Chu = p_objData.Ghi_Chu,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CXNK_Xuat_Kho To_Xuat_Kho(CWarehouseDocument p_objData)
-    {
-        return new CXNK_Xuat_Kho
-        {
-            Auto_ID = p_objData.Auto_ID,
-            So_Phieu_Xuat_Kho = p_objData.So_Phieu,
-            Kho_ID = p_objData.Kho_ID,
-            Ngay_Xuat_Kho = p_objData.Ngay_Chung_Tu,
-            Ghi_Chu = p_objData.Ghi_Chu,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CXNK_Nhap_Kho_Detail To_Nhap_Kho_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        return new CXNK_Nhap_Kho_Detail
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Nhap_Kho_ID = p_objData.Document_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            SL_Nhap = p_objData.So_Luong,
-            Don_Gia_Nhap = p_objData.Don_Gia,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CXNK_Xuat_Kho_Detail To_Xuat_Kho_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        return new CXNK_Xuat_Kho_Detail
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Xuat_Kho_ID = p_objData.Document_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            SL_Xuat = p_objData.So_Luong,
-            Don_Gia_Xuat = p_objData.Don_Gia,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CWarehouseDocument To_Warehouse_Document(CXNK_Nhap_Kho p_objData)
-    {
-        return new CWarehouseDocument
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Is_Receipt = true,
-            So_Phieu = p_objData.So_Phieu_Nhap_Kho,
-            Kho_ID = p_objData.Kho_ID,
-            Ten_Kho = p_objData.Ten_Kho,
-            NCC_ID = p_objData.NCC_ID,
-            Ten_NCC = p_objData.Ten_NCC,
-            Ngay_Chung_Tu = p_objData.Ngay_Nhap_Kho,
-            Is_Posted = p_objData.Is_Posted,
-            Posted_At = p_objData.Posted_At,
-            Ghi_Chu = p_objData.Ghi_Chu,
-            Created = p_objData.Created,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated = p_objData.Last_Updated,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CWarehouseDocument To_Warehouse_Document(CXNK_Xuat_Kho p_objData)
-    {
-        return new CWarehouseDocument
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Is_Receipt = false,
-            So_Phieu = p_objData.So_Phieu_Xuat_Kho,
-            Kho_ID = p_objData.Kho_ID,
-            Ten_Kho = p_objData.Ten_Kho,
-            NCC_ID = p_objData.NCC_ID,
-            Ten_NCC = p_objData.Ten_NCC,
-            Ngay_Chung_Tu = p_objData.Ngay_Xuat_Kho,
-            Is_Posted = p_objData.Is_Posted,
-            Posted_At = p_objData.Posted_At,
-            Ghi_Chu = p_objData.Ghi_Chu,
-            Created = p_objData.Created,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated = p_objData.Last_Updated,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Nhap_Kho_Detail p_objData)
-    {
-        return new CWarehouseDocumentDetail
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Document_ID = p_objData.Nhap_Kho_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            Ma_San_Pham = p_objData.Ma_San_Pham,
-            Ten_San_Pham = p_objData.Ten_San_Pham,
-            Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
-            So_Luong = p_objData.SL_Nhap,
-            Don_Gia = p_objData.Don_Gia_Nhap,
-            Created = p_objData.Created,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated = p_objData.Last_Updated,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Xuat_Kho_Detail p_objData)
-    {
-        return new CWarehouseDocumentDetail
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Document_ID = p_objData.Xuat_Kho_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            Ma_San_Pham = p_objData.Ma_San_Pham,
-            Ten_San_Pham = p_objData.Ten_San_Pham,
-            Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
-            So_Luong = p_objData.SL_Xuat,
-            Don_Gia = p_objData.Don_Gia_Xuat,
-            Created = p_objData.Created,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated = p_objData.Last_Updated,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Document_ID = p_objData.Document_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            So_Luong = p_objData.So_Luong,
-            Don_Gia = p_objData.Don_Gia,
-            Ma_San_Pham = p_objData.Ma_San_Pham,
-            Ten_San_Pham = p_objData.Ten_San_Pham
         };
     }
 

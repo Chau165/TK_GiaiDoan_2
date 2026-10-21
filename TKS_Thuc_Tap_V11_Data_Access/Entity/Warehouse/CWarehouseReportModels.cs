@@ -2,6 +2,8 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
 public class CWarehouseDetailReport
 {
+    public long Kho_ID { get; set; }
+    public string Ten_Kho { get; set; } = "";
     public DateTime Ngay { get; set; }
     public string So_Phieu { get; set; } = "";
     public string Nha_Cung_Cap { get; set; } = "";
