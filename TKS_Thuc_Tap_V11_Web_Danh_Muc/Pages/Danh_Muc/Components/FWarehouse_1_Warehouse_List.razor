@@ -48,7 +48,7 @@
                     }
                     else
                     {
-                        @Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null, Export_Master_Excel_Async)
+                        @Layout_Tool_Button(m_grdMaster, null, Export_Master_Excel_Async)
                     }
                 </div>
             </div>
@@ -265,22 +265,6 @@
     }
 }
 
-@if (m_bShow_Product_Import)
-{
-    <FWarehouse_Product_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Product_Import" OnCompleted="On_Product_Import_Completed" />
-}
-@if (m_bShow_Category_Import)
-{
-    <FWarehouse_Category_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Category_Import" OnCompleted="On_Category_Import_Completed" />
-}
-@if (m_bShow_Supplier_Import)
-{
-    <FWarehouse_Supplier_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Supplier_Import" OnCompleted="On_Supplier_Import_Completed" />
-}
-@if (m_bShow_Warehouse_Import)
-{
-    <FWarehouse_Kho_Import UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" Localize="@Get_Language_Data_Field" OnClose="Close_Warehouse_Import" OnCompleted="On_Warehouse_Import_Completed" />
-}
 @code {
     [Parameter] public string m_strSection { get; set; } = "Master";
     [Parameter] public string m_strInitial_Master_Type { get; set; } = "DonViTinh";
@@ -293,10 +277,6 @@
     private readonly CWarehouseReport_Controller m_objReportController = new();
     private string m_strMaster_Type = "DonViTinh", m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private bool m_bRouteParametersApplied;
-    private bool m_bShow_Product_Import;
-    private bool m_bShow_Category_Import;
-    private bool m_bShow_Supplier_Import;
-    private bool m_bShow_Warehouse_Import;
     private CWarehouseMaster m_objMaster = new();
     private CDM_Kho m_objKho = new();
     private CDM_Don_Vi_Tinh m_objDon_Vi_Tinh = new();
@@ -751,134 +731,6 @@
             m_objPermission = new();
         r_bIs_Show_Edit = true;
         Clear_Message();
-    }
-
-    private bool Can_Import_Selected_Master =>
-        m_strSection == "Master" &&
-        r_objChuc_Nang.Is_Have_Add_Permission &&
-        m_strMaster_Type is "SanPham" or "LoaiSanPham" or "NCC" or "Kho";
-
-    private RenderFragment Master_Import_Tool_Item => @<button type="button" class="dropdown-item" @onclick="Open_Selected_Master_Import"><i class="ri-file-excel-2-fill align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Nhập Excel")</button>;
-
-    private void Open_Selected_Master_Import()
-    {
-        switch (m_strMaster_Type)
-        {
-            case "SanPham": Open_Product_Import(); break;
-            case "LoaiSanPham": Open_Category_Import(); break;
-            case "NCC": Open_Supplier_Import(); break;
-            case "Kho": Open_Warehouse_Import(); break;
-        }
-    }
-
-    private void Open_Product_Import()
-    {
-        if (m_strSection != "Master" || m_strMaster_Type != "SanPham" || !r_objChuc_Nang.Is_Have_Add_Permission)
-            return;
-
-        m_bShow_Product_Import = true;
-        Clear_Message();
-    }
-
-    private void Close_Product_Import()
-    {
-        m_bShow_Product_Import = false;
-    }
-
-    private Task On_Product_Import_Completed(int p_iRowCount) =>
-        Complete_Master_Import_Async(p_iRowCount, "Product Excel Import", Format_Master_Import_Success(p_iRowCount, "sản phẩm"));
-
-    private void Open_Category_Import()
-    {
-        if (m_strSection != "Master" || m_strMaster_Type != "LoaiSanPham" || !r_objChuc_Nang.Is_Have_Add_Permission)
-            return;
-        m_bShow_Category_Import = true;
-        Clear_Message();
-    }
-
-    private void Close_Category_Import()
-    {
-        m_bShow_Category_Import = false;
-    }
-
-    private Task On_Category_Import_Completed(int p_iRowCount) =>
-        Complete_Master_Import_Async(p_iRowCount, "Category Excel Import", Format_Master_Import_Success(p_iRowCount, "loại sản phẩm"));
-
-    private void Open_Supplier_Import()
-    {
-        if (m_strSection != "Master" || m_strMaster_Type != "NCC" || !r_objChuc_Nang.Is_Have_Add_Permission)
-            return;
-        m_bShow_Supplier_Import = true;
-        Clear_Message();
-    }
-
-    private void Close_Supplier_Import()
-    {
-        m_bShow_Supplier_Import = false;
-    }
-
-    private Task On_Supplier_Import_Completed(int p_iRowCount) =>
-        Complete_Master_Import_Async(p_iRowCount, "Supplier Excel Import", Format_Master_Import_Success(p_iRowCount, "nhà cung cấp"));
-
-    private void Open_Warehouse_Import()
-    {
-        if (m_strSection != "Master" || m_strMaster_Type != "Kho" || !r_objChuc_Nang.Is_Have_Add_Permission)
-            return;
-        m_bShow_Warehouse_Import = true;
-        Clear_Message();
-    }
-
-    private void Close_Warehouse_Import()
-    {
-        m_bShow_Warehouse_Import = false;
-    }
-
-    private Task On_Warehouse_Import_Completed(int p_iRowCount) =>
-        Complete_Master_Import_Async(p_iRowCount, "Warehouse Excel Import", Format_Master_Import_Success(p_iRowCount, "kho"));
-
-    private string Format_Master_Import_Success(int p_iRowCount, string p_strEntity_Name) =>
-        string.Format(Get_Language_Data_Field("Đã nhập thành công {0} {1}."), p_iRowCount, Get_Language_Data_Field(p_strEntity_Name));
-
-    private async Task Complete_Master_Import_Async(int p_iRowCount, string p_strAction, string p_strSuccess_Message)
-    {
-        Try_Record_Action_History(0, p_strAction, $"Rows: {p_iRowCount}");
-        Exception? v_objRefresh_Exception = null;
-
-        r_objLayout.Start_Loading();
-        try
-        {
-            try
-            {
-                await Load_Lookups_Async();
-            }
-            catch (Exception p_objException)
-            {
-                v_objRefresh_Exception = p_objException;
-            }
-
-            try
-            {
-                m_grdMaster.Rebind();
-            }
-            catch (Exception p_objException)
-            {
-                v_objRefresh_Exception ??= p_objException;
-            }
-        }
-        finally
-        {
-            r_objLayout.Stop_Loading();
-        }
-
-        if (v_objRefresh_Exception is null)
-        {
-            Set_Success(p_strSuccess_Message);
-            return;
-        }
-
-        Set_Error(new InvalidOperationException(
-            string.Format(Get_Language_Data_Field("Đã nhập thành công {0} dòng, nhưng không thể làm mới lookup hoặc danh sách. Hãy tải lại màn hình."), p_iRowCount),
-            v_objRefresh_Exception));
     }
 
     private void Edit_Master(CWarehouseMaster p_objData)

@@ -1,4 +1,4 @@
-@inherits FBase
+﻿@inherits FBase
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @Layout_Default_Filter(grdData, "Don_Vi_Tinh_Import_Template.xlsx")
 
@@ -100,139 +100,86 @@
     {
         var v_objCtrData = new CDM_Don_Vi_Tinh_Controller();
         var v_sbError = new StringBuilder();
-        var v_sbHistoryWarning = new StringBuilder();
-        var v_sbSkipped = new StringBuilder();
-        var v_iSkipped = 0;
-        var v_iFailed = 0;
-
+        var v_sbWarning = new StringBuilder();
         try
         {
-            var v_objWorksheet = CImportLegacyWorksheetAdapter.ToUnit(
-                v_objCtrlExcel.Read_Profiled_Import_Sheet("Unit"));
-            var v_objValidation = CUnitImportValidator.Preview(
-                v_objWorksheet,
-                v_objCtrData.F2016_sp_sel_List_Don_Vi_Tinh());
-            var v_arrFileErrors = v_objValidation.Errors.Where(v_objError => v_objError.Row_Number <= 1).ToArray();
-            if (v_arrFileErrors.Length > 0 || v_objValidation.Unsupported_Columns.Count > 0 ||
-                v_objValidation.Unsupported_Capabilities.Count > 0)
+            if (!r_objChuc_Nang.Is_Have_Add_Permission)
+                throw new UnauthorizedAccessException(Get_Language_Data_Field("Bạn không có quyền thêm mới."));
+            using DataTable v_dt = v_objCtrlExcel.List_Range_Value_To_End(0, "A2", "B");
+            int v_iExcelRow = 1;
+            foreach (DataRow v_row in v_dt.Rows)
             {
-                var v_arrMessages = v_arrFileErrors.Select(v_objError => v_objError.Message)
-                    .Concat(v_objValidation.Unsupported_Columns.Select(v_strColumn => $"Cột không được hỗ trợ: {v_strColumn}."))
-                    .Concat(v_objValidation.Unsupported_Capabilities.Select(v_objIssue => v_objIssue.Message));
-                throw new InvalidDataException(string.Join(Environment.NewLine, v_arrMessages));
-            }
-
-            if (v_objValidation.Rows.Count == 0)
-                throw new InvalidDataException(Get_Language_Data_Field("File không có dòng dữ liệu đơn vị tính."));
-
-            foreach (var v_objRow in v_objValidation.Rows)
-            {
-                if (v_objRow.Is_Skipped)
-                {
-                    v_iSkipped++;
-                    v_sbSkipped.AppendLine(string.Format(
-                        Get_Language_Data_Field("Dòng {0} đã có dữ liệu giống hệt trong hệ thống; đã bỏ qua."),
-                        v_objRow.Row_Number));
+                v_iExcelRow++;
+                // Chỉ bỏ dòng thực sự rỗng; khóa rỗng với dữ liệu khác vẫn phải báo lỗi.
+                if (v_row.ItemArray.All(v_objValue => string.IsNullOrWhiteSpace(CUtility.Convert_To_String(v_objValue))))
                     continue;
-                }
-
-                if (!v_objRow.Is_Valid)
-                {
-                    v_iFailed++;
-                    foreach (var v_objError in v_objRow.Errors)
-                        v_sbError.AppendLine(Get_Language_Data_Field(v_objError.Message));
-                    continue;
-                }
-
-                var v_objData = new CDM_Don_Vi_Tinh
-                {
-                    Ten_Don_Vi_Tinh = v_objRow.Ten_Don_Vi_Tinh,
-                    Ghi_Chu = v_objRow.Ghi_Chu
-                };
-
                 try
                 {
+                    var v_objData = new CDM_Don_Vi_Tinh
+                    {
+                        Ten_Don_Vi_Tinh = CUtility.Convert_To_String(v_row[0]).Trim(),
+                        Ghi_Chu = CUtility.Convert_To_String(v_row[1]).Trim(),
+                    };
+                    if (v_objData.Ten_Don_Vi_Tinh.Length > 200)
+                        throw new InvalidDataException("Ten_Don_Vi_Tinh vượt quá 200 ký tự của tham số SQL.");
+                    if (v_objData.Ghi_Chu.Length > 1000)
+                        throw new InvalidDataException("Ghi_Chu vượt quá 1000 ký tự của tham số SQL.");
                     using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
                     {
                         v_conn.Open();
-                        using (SqlTransaction v_trans = v_conn.BeginTransaction())
+                        using SqlTransaction v_trans = v_conn.BeginTransaction();
+                        try
                         {
-                            try
-                            {
-                                v_objData.Auto_ID = v_objCtrData.F2016_sp_ins_Don_Vi_Tinh(
-                                    v_conn,
-                                    v_trans,
-                                    v_objData,
-                                    r_strActive_User_Name,
-                                    r_strActive_Function_Code);
-                                v_trans.Commit();
-                            }
-                            catch
-                            {
-                                try
-                                {
-                                    v_trans.Rollback();
-                                }
-                                catch
-                                {
-                                }
-                                throw;
-                            }
+                            v_objData.Auto_ID = v_objCtrData.F2016_sp_ins_Don_Vi_Tinh(
+                                v_conn, v_trans, v_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                            v_trans.Commit();
+                        }
+                        catch
+                        {
+                            try { v_trans.Rollback(); } catch { }
+                            throw;
                         }
                     }
-
-                    CCache_Don_Vi_Tinh.Add_Data(v_objData);
                     p_iCount_Success++;
+                    // Hậu xử lý sau commit không được biến dữ liệu đã lưu thành lỗi import.
+                    try { CCache_Don_Vi_Tinh.Add_Data(v_objData); }
+                    catch (Exception ex)
+                    {
+                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa cập nhật Cache")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
+                    }
                     try
                     {
                         CCommon_Controller.FCommon_Insert_Action_History(
-                            v_objData.Auto_ID,
-                            Get_Language_Data_Field("Import Excel - Thêm Mới"),
-                            "Web",
-                            r_strActive_User_Name,
-                            r_strActive_Function_Code,
-                            r_objChuc_Nang.Ten_Chuc_Nang,
+                            v_objData.Auto_ID, Get_Language_Data_Field("Import Excel - Thêm Mới"), "Web",
+                            r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang,
                             "Key: " + v_objData.Ten_Don_Vi_Tinh);
                     }
-                    catch (Exception p_objException)
+                    catch (Exception ex)
                     {
-                        v_sbHistoryWarning.AppendLine(string.Format(
-                            Get_Language_Data_Field("Dòng {0} đã được nhập nhưng không ghi được lịch sử xử lý: {1}"),
-                            v_objRow.Row_Number,
-                            p_objException.Message));
+                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa ghi lịch sử")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
                     }
                 }
-                catch (Exception p_objException)
+                catch (Exception ex)
                 {
-                    v_iFailed++;
-                    v_sbError.AppendLine(string.Format(
-                        Get_Language_Data_Field("Dòng {0} có lỗi: {1}"),
-                        v_objRow.Row_Number,
-                        p_objException.Message));
+                    p_iCount_Error++;
+                    v_sbError.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow} {Get_Language_Data_Field("có lỗi")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
                 }
             }
-
-            p_iCount_Error = v_iFailed + v_iSkipped;
-
-            var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
-                Get_Language_Data_Field("Thêm mới {0} dòng thành công."),
-                p_iCount_Success));
-            if (v_sbError.Length > 0)
-                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbError.ToString());
-            if (v_sbSkipped.Length > 0)
-                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbSkipped.ToString());
-            if (v_sbHistoryWarning.Length > 0)
-                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbHistoryWarning.ToString());
-
-            Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
+            if (p_iCount_Success == 0 && p_iCount_Error == 0)
+                v_sbError.AppendLine(Get_Language_Data_Field("File không có dòng dữ liệu."));
         }
-        catch (Exception p_objException)
+        catch (Exception ex)
         {
-            p_iCount_Error = Math.Max(p_iCount_Error, 1);
-            Open_Message_Info(
-                Get_Language_Data_Field("Thông báo Import Excel"),
-                CCommonFunction.Set_Error_MessageBox(Get_Language_Data_Field(p_objException.Message)));
+            p_iCount_Error++;
+            v_sbError.AppendLine(System.Net.WebUtility.HtmlEncode(ex.Message));
         }
+        var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
+            Get_Language_Data_Field("Thêm mới {0} dòng thành công."), p_iCount_Success));
+        if (v_sbError.Length > 0)
+            v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbError.ToString());
+        if (v_sbWarning.Length > 0)
+            v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbWarning.ToString());
+        Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
     }
 
     private void Open_Unit_Edit(long p_iAuto_ID)

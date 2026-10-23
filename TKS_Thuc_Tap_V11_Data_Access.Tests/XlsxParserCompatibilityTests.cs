@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using ClosedXML.Excel;
 using ExcelDataReader;
@@ -118,96 +118,10 @@ public sealed class XlsxParserCompatibilityTests
         }
     }
 
-    [Fact]
-    public async Task Product_reader_preserves_raw_excel_values_and_never_trusts_formula_cache()
-    {
-        var v_arrBytes = File.ReadAllBytes(GetMicrosoftExcelFixturePath());
-        await using var v_objStream = new NonSeekableReadStream(new MemoryStream(v_arrBytes, writable: false));
-        var v_objWorksheet = await new TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Reader()
-            .ReadAsync(v_objStream);
 
-        Assert.Equal("SanPham", v_objWorksheet.Name);
-        Assert.Contains(v_objWorksheet.Rows, v_objRow => v_objRow.RowNumber == 5);
-        Assert.Equal("00123", GetProductCell(v_objWorksheet, 4, 1).Value);
-        Assert.Equal("Text", GetProductCell(v_objWorksheet, 4, 1).CellType);
-        Assert.Equal(12345d, GetProductCell(v_objWorksheet, 9, 1).Value);
-        Assert.Equal("Number", GetProductCell(v_objWorksheet, 9, 1).CellType);
-        Assert.IsType<DateTime>(GetProductCell(v_objWorksheet, 10, 5).Value);
-        Assert.True(v_objWorksheet.Rows.Single(v_objRow => v_objRow.RowNumber == 6).IsHidden);
 
-        var v_objFormulaCell = GetProductCell(v_objWorksheet, 7, 2);
-        Assert.Equal("1+1", v_objFormulaCell.Formula);
-        Assert.Null(v_objFormulaCell.Value);
-        Assert.Equal("Formula", v_objFormulaCell.CellType);
-        Assert.True(v_objStream.CanRead);
-    }
 
-    [Fact]
-    public async Task Product_reader_reads_all_available_producers_including_the_epplus_failure_fixture()
-    {
-        var v_arrFixtures = new[]
-        {
-            (Name: "Telerik", Bytes: CreateTelerikWorkbook()),
-            (Name: "EPPlus-7.0.5", Bytes: CreateEpplusWorkbook()),
-            (Name: "Microsoft-Excel-16.0", Bytes: File.ReadAllBytes(GetMicrosoftExcelFixturePath()))
-        };
-        var v_objReader = new TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Reader();
 
-        foreach (var v_objFixture in v_arrFixtures)
-        {
-            await using var v_objStream = new MemoryStream(v_objFixture.Bytes, writable: false);
-            var v_objWorksheet = await v_objReader.ReadAsync(v_objStream);
-
-            Assert.Equal("SanPham", v_objWorksheet.Name);
-            for (var v_iColumn = 0; v_iColumn < m_arrHeaders.Length; v_iColumn++)
-                Assert.Equal(m_arrHeaders[v_iColumn], GetProductCell(v_objWorksheet, 1, v_iColumn + 1).Value);
-            Assert.Equal("SP001", GetProductCell(v_objWorksheet, 2, 1).Value);
-            Assert.Equal("Sữa hộp", GetProductCell(v_objWorksheet, 3, 2).Value);
-            Assert.Equal("00123", GetProductCell(v_objWorksheet, 4, 1).Value);
-
-            var v_objFormula = GetProductCell(v_objWorksheet, 7, 2);
-            Assert.Equal("1+1", v_objFormula.Formula);
-            Assert.Null(v_objFormula.Value);
-            m_objOutput.WriteLine($"Product reader/{v_objFixture.Name}: PASS");
-        }
-    }
-
-    [Fact]
-    public async Task Product_reader_returns_controlled_errors_for_invalid_or_missing_product_sheet()
-    {
-        var v_objReader = new TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Reader();
-        await using var v_objMissingSheet = new MemoryStream(CreateEpplusWorkbook(includeProductSheet: false));
-        await using var v_objCorrupt = new MemoryStream(new byte[] { 0x01, 0x7f, 0x00, 0xff, 0x42 });
-        await using var v_objTruncated = new MemoryStream(File.ReadAllBytes(GetMicrosoftExcelFixturePath())[..128]);
-        await using var v_objEmpty = new MemoryStream(Array.Empty<byte>());
-
-        await Assert.ThrowsAsync<InvalidDataException>(() => v_objReader.ReadAsync(v_objMissingSheet));
-        await Assert.ThrowsAsync<InvalidDataException>(() => v_objReader.ReadAsync(v_objCorrupt));
-        await Assert.ThrowsAsync<InvalidDataException>(() => v_objReader.ReadAsync(v_objTruncated));
-        await Assert.ThrowsAsync<InvalidDataException>(() => v_objReader.ReadAsync(v_objEmpty));
-    }
-
-    [Fact]
-    public async Task Product_reader_rejects_input_larger_than_one_MiB()
-    {
-        var v_objReader = new TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Reader();
-        await using var v_objStream = new MemoryStream(new byte[1_048_577], writable: false);
-
-        var v_objException = await Assert.ThrowsAsync<InvalidDataException>(
-            () => v_objReader.ReadAsync(v_objStream));
-        Assert.Contains("1 MiB", v_objException.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Product_reader_rejects_workbooks_over_the_row_or_column_limit()
-    {
-        var v_objReader = new TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Reader();
-        await using var v_objTooManyRows = new MemoryStream(CreateBoundedProductWorkbook(row: 102, column: 5));
-        await using var v_objTooManyColumns = new MemoryStream(CreateBoundedProductWorkbook(row: 2, column: 101));
-
-        await Assert.ThrowsAsync<InvalidDataException>(() => v_objReader.ReadAsync(v_objTooManyRows));
-        await Assert.ThrowsAsync<InvalidDataException>(() => v_objReader.ReadAsync(v_objTooManyColumns));
-    }
 
     [Fact]
     public void Telerik_reads_its_own_producer_fixture_and_epplus_failure_is_reproduced()
@@ -595,12 +509,6 @@ public sealed class XlsxParserCompatibilityTests
         var v_objValue => v_objValue.ToString()
     };
 
-    private static TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Cell GetProductCell(
-        TKS_Thuc_Tap_V11_Data_Access.Utility.CProduct_Xlsx_Worksheet p_objWorksheet,
-        int p_iRowNumber,
-        int p_iColumnNumber) => p_objWorksheet.Rows
-            .Single(v_objRow => v_objRow.RowNumber == p_iRowNumber)
-            .Cells.Single(v_objCell => v_objCell.ColumnNumber == p_iColumnNumber);
 
     private static string NormalizeRuntimeKind(object? p_objValue) => p_objValue switch
     {

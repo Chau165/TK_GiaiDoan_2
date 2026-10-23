@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.RegularExpressions;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
@@ -45,7 +45,7 @@ public sealed class WarehouseMasterFinalizationContractTests
     [Fact]
     public void Product_page_helpers_have_a_separate_temporary_product_support_owner()
     {
-        Assembly v_objWebAssembly = typeof(CWarehouseProductImportService).Assembly;
+        Assembly v_objWebAssembly = typeof(CWarehouseProductSupport_Service).Assembly;
         Type? v_objProductSupportType = v_objWebAssembly.GetType(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc.Services.CWarehouseProductSupport_Service");
 
@@ -60,28 +60,28 @@ public sealed class WarehouseMasterFinalizationContractTests
     }
 
     [Fact]
-    public void Master_import_services_own_one_transaction_for_each_batch()
+    public void Master_import_components_own_one_transaction_for_each_row()
     {
         (string ServiceName, string StoreMethod)[] v_arrContracts =
         [
-            ("CWarehouseProductImportService.cs", "F2018_sp_ins_San_Pham"),
-            ("CWarehouseUnitImportService.cs", "F2016_sp_ins_Don_Vi_Tinh"),
-            ("CWarehouseCategoryImportService.cs", "F2017_sp_ins_Loai_San_Pham"),
-            ("CWarehouseSupplierImportService.cs", "F2019_sp_ins_NCC"),
-            ("CWarehouseKhoImportService.cs", "F2009_sp_ins_Kho")
+            ("F2018_1_San_Pham_List.razor", "F2018_sp_ins_San_Pham"),
+            ("FWarehouse_Unit_List.razor", "F2016_sp_ins_Don_Vi_Tinh"),
+            ("F2017_1_Loai_San_Pham_List.razor", "F2017_sp_ins_Loai_San_Pham"),
+            ("F2019_1_Nha_Cung_Cap_List.razor", "F2019_sp_ins_NCC"),
+            ("F2009_1_Kho_List.razor", "F2009_sp_ins_Kho")
         ];
 
         foreach ((string v_strServiceName, string v_strStoreMethod) in v_arrContracts)
         {
             string v_strSource = File.ReadAllText(FindRepositoryPath(
-                "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", v_strServiceName));
+                "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strServiceName));
 
             Assert.DoesNotContain("CWarehouseMaster_Controller", v_strSource);
-            Assert.Equal(1, CountOccurrences(v_strSource, "new SqlConnection("));
+            Assert.Equal(1, CountOccurrences(v_strSource, "CSqlHelper.CreateConnection("));
             Assert.Equal(1, CountOccurrences(v_strSource, ".BeginTransaction()"));
-            Assert.Contains(v_strStoreMethod + "(v_objConnection, v_objTransaction", v_strSource);
-            Assert.Contains("v_objTransaction.Commit();", v_strSource);
-            Assert.Contains("v_objTransaction.Rollback();", v_strSource);
+            Assert.Matches(Regex.Escape(v_strStoreMethod) + @"\(\s*v_conn, v_trans", v_strSource);
+            Assert.Contains("v_trans.Commit();", v_strSource);
+            Assert.Contains("v_trans.Rollback();", v_strSource);
         }
     }
 
@@ -130,7 +130,8 @@ public sealed class WarehouseMasterFinalizationContractTests
 
             MatchCollection v_arrStoreMethods = Regex.Matches(v_strControllerSource,
                 @"(?ms)^    public (?:List<\w+>|long|void) (?<name>F\w+)\(.*?^    \}");
-            Assert.Equal(7, v_arrStoreMethods.Count);
+            Assert.True(v_arrStoreMethods.Count >= 7);
+            Assert.Equal(2, v_arrStoreMethods.Cast<Match>().Count(v_objMethod => v_objMethod.Groups["name"].Value == v_strInsertMethod));
             foreach (Match v_objStoreMethod in v_arrStoreMethods)
             {
                 MatchCollection v_arrStoreCalls = Regex.Matches(v_objStoreMethod.Value,

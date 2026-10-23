@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Reflection;
 using System.Threading.Tasks;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
@@ -121,7 +121,7 @@ public sealed class WarehousePermissionRefactorTests
         var v_strListSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
         var v_strImportSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", "CWarehouseTransactionImportService.cs"));
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Transaction_List.razor.cs"));
 
         Assert.Contains("CDM_Kho_User_Controller", v_strListSource);
         Assert.Contains("F2015_sp_sel_List_Kho_User", v_strListSource);

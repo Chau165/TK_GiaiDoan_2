@@ -1,4 +1,4 @@
-@inherits FBase
+﻿@inherits FBase
 @using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @Layout_Default_Filter(grdData, "San_Pham_Import_Template.xlsx")
 
@@ -133,143 +133,105 @@
 
     protected override void Import_Excel_Entry(CExcel_Controller v_objCtrlExcel, ref int p_iCount_Success, ref int p_iCount_Error)
     {
-        var v_objProductController = new CDM_San_Pham_Controller();
-        var v_arrCategories = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup();
-        var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup();
-        var v_arrExistingProducts = v_objProductController.F2018_sp_sel_List_San_Pham();
-        var v_sbErrors = new StringBuilder();
-        var v_sbSkipped = new StringBuilder();
-        var v_sbHistoryWarnings = new StringBuilder();
-        var v_iFailed = 0;
-        var v_iSkipped = 0;
-
+        var v_objCtrData = new CDM_San_Pham_Controller();
+        var v_sbError = new StringBuilder();
+        var v_sbWarning = new StringBuilder();
         try
         {
-            var v_objWorksheet = CImportLegacyWorksheetAdapter.ToProduct(
-                v_objCtrlExcel.Read_Profiled_Import_Sheet("Product"));
-
-            var v_objValidation = CProductImportValidator.Preview(
-                v_objWorksheet,
-                v_arrCategories,
-                v_arrUnits,
-                v_arrExistingProducts);
-
-            var v_arrFileErrors = v_objValidation.Errors.Where(v_objError => v_objError.Row_Number <= 1).ToArray();
-            if (v_arrFileErrors.Length > 0 || v_objValidation.Unsupported_Columns.Count > 0 || v_objValidation.Unsupported_Capabilities.Count > 0)
+            if (!r_objChuc_Nang.Is_Have_Add_Permission)
+                throw new UnauthorizedAccessException(Get_Language_Data_Field("Bạn không có quyền thêm mới."));
+            var v_arrCategories = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup();
+            var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup();
+            using DataTable v_dt = v_objCtrlExcel.List_Range_Value_To_End(0, "A2", "E");
+            int v_iExcelRow = 1;
+            foreach (DataRow v_row in v_dt.Rows)
             {
-                var v_arrMessages = v_arrFileErrors.Select(v_objError => v_objError.Message)
-                    .Concat(v_objValidation.Unsupported_Columns.Select(v_strColumn => $"Cột không được hỗ trợ: {v_strColumn}."))
-                    .Concat(v_objValidation.Unsupported_Capabilities.Select(v_objIssue => v_objIssue.Message));
-                throw new InvalidDataException(string.Join(Environment.NewLine, v_arrMessages));
-            }
-
-            if (v_objValidation.Rows.Count == 0)
-                throw new InvalidDataException(Get_Language_Data_Field("File không có dòng dữ liệu sản phẩm."));
-
-            foreach (var v_objRow in v_objValidation.Rows)
-            {
-                if (v_objRow.Is_Skipped)
-                {
-                    v_iSkipped++;
-                    v_sbSkipped.AppendLine(string.Format(
-                        Get_Language_Data_Field("Dòng {0} đã có dữ liệu giống hệt; đã bỏ qua."),
-                        v_objRow.Row_Number));
+                v_iExcelRow++;
+                // Chỉ bỏ dòng thực sự rỗng; khóa rỗng với dữ liệu khác vẫn phải báo lỗi.
+                if (v_row.ItemArray.All(v_objValue => string.IsNullOrWhiteSpace(CUtility.Convert_To_String(v_objValue))))
                     continue;
-                }
-
-                if (!v_objRow.Is_Valid)
-                {
-                    v_iFailed++;
-                    foreach (var v_objError in v_objRow.Errors)
-                        v_sbErrors.AppendLine(Get_Language_Data_Field(v_objError.Message));
-                    continue;
-                }
-
-                var v_objData = new CDM_San_Pham
-                {
-                    Ma_San_Pham = v_objRow.Ma_San_Pham,
-                    Ten_San_Pham = v_objRow.Ten_San_Pham,
-                    Loai_San_Pham_ID = v_objRow.Loai_San_Pham_ID,
-                    Don_Vi_Tinh_ID = v_objRow.Don_Vi_Tinh_ID,
-                    Ghi_Chu = v_objRow.Ghi_Chu
-                };
-
                 try
                 {
+                    var v_objData = new CDM_San_Pham
+                    {
+                        Ma_San_Pham = CUtility.Convert_To_String(v_row[0]).Trim(),
+                        Ten_San_Pham = CUtility.Convert_To_String(v_row[1]).Trim(),
+                        Ghi_Chu = CUtility.Convert_To_String(v_row[4]).Trim(),
+                    };
+                    if (v_objData.Ma_San_Pham.Length > 100)
+                        throw new InvalidDataException("Ma_San_Pham vượt quá 100 ký tự của tham số SQL.");
+                    if (v_objData.Ten_San_Pham.Length > 255)
+                        throw new InvalidDataException("Ten_San_Pham vượt quá 255 ký tự của tham số SQL.");
+                    if (v_objData.Ghi_Chu.Length > 1000)
+                        throw new InvalidDataException("Ghi_Chu vượt quá 1000 ký tự của tham số SQL.");
+                    var v_strCategory = CUtility.Convert_To_String(v_row[2]).Trim().Normalize();
+                    var v_strUnit = CUtility.Convert_To_String(v_row[3]).Trim().Normalize();
+                    var v_arrCategoryMatches = v_arrCategories.Where(v_objCategory => string.Equals(
+                        v_objCategory.Ma_LSP.Trim().Normalize(), v_strCategory, StringComparison.OrdinalIgnoreCase)).ToArray();
+                    var v_arrUnitMatches = v_arrUnits.Where(v_objUnit => string.Equals(
+                        v_objUnit.Ten_Don_Vi_Tinh.Trim().Normalize(), v_strUnit, StringComparison.OrdinalIgnoreCase)).ToArray();
+                    if (v_strCategory.Length == 0 || v_arrCategoryMatches.Length != 1)
+                        throw new InvalidDataException("Không xác định duy nhất được mã loại sản phẩm: " + v_strCategory);
+                    if (v_strUnit.Length == 0 || v_arrUnitMatches.Length != 1)
+                        throw new InvalidDataException("Không xác định duy nhất được đơn vị tính: " + v_strUnit);
+                    v_objData.Loai_San_Pham_ID = v_arrCategoryMatches[0].Auto_ID;
+                    v_objData.Don_Vi_Tinh_ID = v_arrUnitMatches[0].Auto_ID;
                     using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
                     {
                         v_conn.Open();
-                        using (SqlTransaction v_trans = v_conn.BeginTransaction())
+                        using SqlTransaction v_trans = v_conn.BeginTransaction();
+                        try
                         {
-                            try
-                            {
-                                v_objData.Auto_ID = v_objProductController.F2018_sp_ins_San_Pham(
-                                    v_conn,
-                                    v_trans,
-                                    v_objData,
-                                    r_strActive_User_Name,
-                                    r_strActive_Function_Code);
-                                v_trans.Commit();
-                            }
-                            catch
-                            {
-                                try { v_trans.Rollback(); } catch { }
-                                throw;
-                            }
+                            v_objData.Auto_ID = v_objCtrData.F2018_sp_ins_San_Pham(
+                                v_conn, v_trans, v_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                            v_trans.Commit();
+                        }
+                        catch
+                        {
+                            try { v_trans.Rollback(); } catch { }
+                            throw;
                         }
                     }
-
-                    CCache_San_Pham.Add_Data(v_objData);
                     p_iCount_Success++;
+                    // Hậu xử lý sau commit không được biến dữ liệu đã lưu thành lỗi import.
+                    try { CCache_San_Pham.Add_Data(v_objData); }
+                    catch (Exception ex)
+                    {
+                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa cập nhật Cache")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
+                    }
                     try
                     {
                         CCommon_Controller.FCommon_Insert_Action_History(
-                            v_objData.Auto_ID,
-                            Get_Language_Data_Field("Import Excel - Thêm Mới"),
-                            "Web",
-                            r_strActive_User_Name,
-                            r_strActive_Function_Code,
-                            r_objChuc_Nang.Ten_Chuc_Nang,
+                            v_objData.Auto_ID, Get_Language_Data_Field("Import Excel - Thêm Mới"), "Web",
+                            r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang,
                             "Key: " + v_objData.Ma_San_Pham);
                     }
-                    catch (Exception p_objException)
+                    catch (Exception ex)
                     {
-                        v_sbHistoryWarnings.AppendLine(string.Format(
-                            Get_Language_Data_Field("Dòng {0} đã được nhập nhưng không ghi được lịch sử xử lý: {1}"),
-                            v_objRow.Row_Number,
-                            p_objException.Message));
+                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa ghi lịch sử")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
                     }
                 }
-                catch (Exception p_objException)
+                catch (Exception ex)
                 {
-                    v_iFailed++;
-                    v_sbErrors.AppendLine(string.Format(
-                        Get_Language_Data_Field("Dòng {0} có lỗi: {1}"),
-                        v_objRow.Row_Number,
-                        p_objException.Message));
+                    p_iCount_Error++;
+                    v_sbError.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow} {Get_Language_Data_Field("có lỗi")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
                 }
             }
-
-            p_iCount_Error = v_iFailed + v_iSkipped;
-            var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
-                Get_Language_Data_Field("Thêm mới {0} dòng thành công."),
-                p_iCount_Success));
-            if (v_sbErrors.Length > 0)
-                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbErrors.ToString());
-            if (v_sbSkipped.Length > 0)
-                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbSkipped.ToString());
-            if (v_sbHistoryWarnings.Length > 0)
-                v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbHistoryWarnings.ToString());
-
-            Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
+            if (p_iCount_Success == 0 && p_iCount_Error == 0)
+                v_sbError.AppendLine(Get_Language_Data_Field("File không có dòng dữ liệu."));
         }
-        catch (Exception p_objException)
+        catch (Exception ex)
         {
-            p_iCount_Error = Math.Max(p_iCount_Error, 1);
-            Open_Message_Info(
-                Get_Language_Data_Field("Thông báo Import Excel"),
-                CCommonFunction.Set_Error_MessageBox(Get_Language_Data_Field(p_objException.Message)));
+            p_iCount_Error++;
+            v_sbError.AppendLine(System.Net.WebUtility.HtmlEncode(ex.Message));
         }
+        var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
+            Get_Language_Data_Field("Thêm mới {0} dòng thành công."), p_iCount_Success));
+        if (v_sbError.Length > 0)
+            v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbError.ToString());
+        if (v_sbWarning.Length > 0)
+            v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbWarning.ToString());
+        Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
     }
 
     private void Open_Product_Edit(long p_iAuto_ID)

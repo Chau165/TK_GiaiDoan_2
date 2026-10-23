@@ -1,8 +1,8 @@
 @inherits FBase
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 
-<div class="@(m_strEditor_Type == "Master" ? "" : "card border mt-3")">
-    <div class="@(m_strEditor_Type == "Master" ? "" : "card-body")">
+<div class="@(m_strEditor_Type == "Master" || m_strEditor_Type == "Document" ? "" : "card border mt-3")">
+    <div class="@(m_strEditor_Type == "Master" || m_strEditor_Type == "Document" ? "" : "card-body")">
         @if (m_strEditor_Type == "Master")
         {
             @if (m_strMaster_Type == "KhoUser")
@@ -107,32 +107,56 @@
         }
         else if (m_strEditor_Type == "Document")
         {
-            <EditForm Model="@m_objDocument" OnValidSubmit="Save_Document_Async">
-                <DataAnnotationsValidator />
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-3"><label class="form-label">Số phiếu</label><InputText class="form-control" @bind-Value="m_objDocument.So_Phieu" /></div>
-                    <div class="col-md-3"><label class="form-label">Kho</label><TelerikDropDownList Data="@m_arrWarehouse" @bind-Value="m_objDocument.Kho_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn kho --" /></div>
-                    @if (m_bIs_Receipt)
-                    {
-                        <div class="col-md-3"><label class="form-label">Nhà cung cấp</label><TelerikDropDownList Data="@m_arrSupplier" @bind-Value="m_objDocument.NCC_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn NCC --" /></div>
-                    }
-                    <div class="col-md-2"><label class="form-label">Ngày</label><TelerikDatePicker @bind-Value="m_objDocument.Ngay_Chung_Tu" Format="@CConfig.Date_Format_String" /></div>
-                    <div class="col-md-4"><label class="form-label">Ghi chú</label><InputText class="form-control" @bind-Value="m_objDocument.Ghi_Chu" /></div>
-                    <div class="col-md-3 d-flex gap-2">
-                        <button type="submit" class="btn btn-success">
-                            @if (m_objDocument.Auto_ID == 0)
-                            {
-                                <text>Lưu phiếu</text>
-                            }
-                            else
-                            {
-                                <text>Cập nhật</text>
-                            }
-                        </button>
-                        <button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button>
-                    </div>
+            <div class="modal fade show" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="warehouse-document-modal-title" style="display: block; padding-left: 0px; background-color: rgba(10, 10, 10, .8);">
+                <div class="modal-dialog modal-lg">
+                    <EditForm Model="@m_objDocument" OnValidSubmit="Save_Document_Async" class="modal-content">
+                        <div class="modal-header bg-light">
+                            <h5 id="warehouse-document-modal-title" class="modal-title">
+                                @Get_Language_Data_Field(m_objDocument.Auto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh") —
+                                @Get_Language_Data_Field(m_bIs_Receipt ? "Phiếu nhập kho" : "Phiếu xuất kho")
+                            </h5>
+                            <button type="button" class="btn-close" aria-label='@Get_Language_Data_Field("Đóng")' @onclick="Cancel_Async"></button>
+                        </div>
+
+                        <DataAnnotationsValidator />
+                        @if (!string.IsNullOrWhiteSpace(m_strError_Message))
+                        {
+                            <div class="modal-body pb-0">@((MarkupString)m_strError_Message)</div>
+                        }
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-lg-6">
+                                    <label class="form-label">@Get_Language_Data_Field("Số phiếu")</label>
+                                    <InputText class="form-control" @bind-Value="m_objDocument.So_Phieu" />
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label">@Get_Language_Data_Field("Kho")</label>
+                                    <TelerikDropDownList Data="@m_arrWarehouse" @bind-Value="m_objDocument.Kho_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn kho --")' />
+                                </div>
+                                @if (m_bIs_Receipt)
+                                {
+                                    <div class="col-lg-6">
+                                        <label class="form-label">@Get_Language_Data_Field("Nhà cung cấp")</label>
+                                        <TelerikDropDownList Data="@m_arrSupplier" @bind-Value="m_objDocument.NCC_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn NCC --")' />
+                                    </div>
+                                }
+                                <div class="col-lg-6">
+                                    <label class="form-label">@Get_Language_Data_Field("Ngày chứng từ")</label>
+                                    <TelerikDatePicker @bind-Value="m_objDocument.Ngay_Chung_Tu" Format="@CConfig.Date_Format_String" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">@Get_Language_Data_Field("Ghi chú")</label>
+                                    <InputText class="form-control" @bind-Value="m_objDocument.Ghi_Chu" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
+                            <button type="submit" class="btn btn-primary">@Get_Language_Data_Field("Lưu Thay Đổi")</button>
+                        </div>
+                    </EditForm>
                 </div>
-            </EditForm>
+            </div>
         }
         else if (m_strEditor_Type == "Detail")
         {
@@ -183,6 +207,7 @@
     [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
     [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public string m_strError_Message { get; set; } = "";
 
     private List<CWarehouseLookup> m_arrAvailableWarehouse = new();
     private string m_strBound_Login_Name = "";

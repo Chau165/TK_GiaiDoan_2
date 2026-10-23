@@ -1,9 +1,21 @@
-using Xunit;
+﻿using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
 public sealed class MasterDataCompanyStyleMigrationTests
 {
+    [Fact]
+    public void Legacy_master_import_modals_are_not_exposed_by_the_report_and_permission_host()
+    {
+        var v_strWarehouseHost = ReadComponentFile("FWarehouse_1_Warehouse_List.razor");
+
+        Assert.DoesNotContain("Master_Import_Tool_Item", v_strWarehouseHost);
+        Assert.DoesNotContain("<FWarehouse_Product_Import", v_strWarehouseHost);
+        Assert.DoesNotContain("<FWarehouse_Category_Import", v_strWarehouseHost);
+        Assert.DoesNotContain("<FWarehouse_Supplier_Import", v_strWarehouseHost);
+        Assert.DoesNotContain("<FWarehouse_Kho_Import", v_strWarehouseHost);
+    }
+
     [Fact]
     public void All_master_info_components_render_the_created_timestamp_with_localized_label()
     {
@@ -42,11 +54,11 @@ public sealed class MasterDataCompanyStyleMigrationTests
         Assert.Contains("FCommon_Import_Excel", v_strList);
         Assert.DoesNotContain("Open_Kho_Import_Excel", v_strList);
         Assert.Contains("protected override void Import_Excel_Entry(CExcel_Controller", v_strList);
-        Assert.Contains("Read_Profiled_Import_Sheet(\"Warehouse\")", v_strList);
-        Assert.Contains("CImportLegacyWorksheetAdapter.ToWarehouse", v_strList);
+        Assert.DoesNotContain("Read_Profiled_Import_Sheet", v_strList);
+        Assert.DoesNotContain("CImportLegacyWorksheetAdapter", v_strList);
         Assert.DoesNotContain("CWarehouse_Xlsx_Reader", v_strList);
         Assert.DoesNotContain("Row_Number - 2", v_strList);
-        Assert.Contains("CWarehouseImportValidator.Preview", v_strList);
+        Assert.Contains("foreach (DataRow v_row", v_strList);
         Assert.DoesNotContain("CWarehouseImportValidator.Revalidate", v_strList);
         Assert.Contains("F2009_sp_ins_Kho", v_strList);
         Assert.Contains("v_trans.Commit()", v_strList);
@@ -89,11 +101,11 @@ public sealed class MasterDataCompanyStyleMigrationTests
         Assert.Contains("FCommon_Import_Excel", v_strList);
         Assert.DoesNotContain("Open_Supplier_Import_Excel", v_strList);
         Assert.Contains("protected override void Import_Excel_Entry(CExcel_Controller", v_strList);
-        Assert.Contains("Read_Profiled_Import_Sheet(\"Supplier\")", v_strList);
-        Assert.Contains("CImportLegacyWorksheetAdapter.ToSupplier", v_strList);
+        Assert.DoesNotContain("Read_Profiled_Import_Sheet", v_strList);
+        Assert.DoesNotContain("CImportLegacyWorksheetAdapter", v_strList);
         Assert.DoesNotContain("CSupplier_Xlsx_Reader", v_strList);
         Assert.DoesNotContain("Row_Number - 2", v_strList);
-        Assert.Contains("CSupplierImportValidator.Preview", v_strList);
+        Assert.Contains("foreach (DataRow v_row", v_strList);
         Assert.DoesNotContain("CSupplierImportValidator.Revalidate", v_strList);
         Assert.Contains("F2019_sp_ins_NCC", v_strList);
         Assert.Contains("v_trans.Commit()", v_strList);
@@ -136,11 +148,11 @@ public sealed class MasterDataCompanyStyleMigrationTests
         Assert.Contains("FCommon_Import_Excel", v_strList);
         Assert.DoesNotContain("Open_Category_Import_Excel", v_strList);
         Assert.Contains("protected override void Import_Excel_Entry(CExcel_Controller", v_strList);
-        Assert.Contains("Read_Profiled_Import_Sheet(\"Category\")", v_strList);
-        Assert.Contains("CImportLegacyWorksheetAdapter.ToCategory", v_strList);
+        Assert.DoesNotContain("Read_Profiled_Import_Sheet", v_strList);
+        Assert.DoesNotContain("CImportLegacyWorksheetAdapter", v_strList);
         Assert.DoesNotContain("CCategory_Xlsx_Reader", v_strList);
         Assert.DoesNotContain("Row_Number - 2", v_strList);
-        Assert.Contains("CCategoryImportValidator.Preview", v_strList);
+        Assert.Contains("foreach (DataRow v_row", v_strList);
         Assert.DoesNotContain("CCategoryImportValidator.Revalidate", v_strList);
         Assert.Contains("F2017_sp_ins_Loai_San_Pham", v_strList);
         Assert.Contains("v_trans.Commit()", v_strList);
@@ -183,12 +195,13 @@ public sealed class MasterDataCompanyStyleMigrationTests
         Assert.Contains("FCommon_Import_Excel", v_strList);
         Assert.DoesNotContain("Open_Product_Import_Excel", v_strList);
         Assert.Contains("protected override void Import_Excel_Entry(CExcel_Controller", v_strList);
-        Assert.Contains("Read_Profiled_Import_Sheet(\"Product\")", v_strList);
-        Assert.Contains("CImportLegacyWorksheetAdapter.ToProduct", v_strList);
-        Assert.DoesNotContain("List_Range_Value_To_End", v_strList);
+        Assert.DoesNotContain("Read_Profiled_Import_Sheet", v_strList);
+        Assert.DoesNotContain("CImportLegacyWorksheetAdapter", v_strList);
+        Assert.Contains("List_Range_Value_To_End(0, \"A2\", \"E\")", v_strList);
+        Assert.DoesNotContain("CExcel_Import_DataTable_Adapter", v_strList);
         Assert.DoesNotContain("CProduct_Xlsx_Reader", v_strList);
         Assert.DoesNotContain("Row_Number - 2", v_strList);
-        Assert.Contains("CProductImportValidator.Preview", v_strList);
+        Assert.Contains("foreach (DataRow v_row", v_strList);
         Assert.Contains("F2018_sp_ins_San_Pham", v_strList);
         Assert.Contains("v_trans.Commit()", v_strList);
         Assert.Contains("CCache_San_Pham.Add_Data", v_strList);
@@ -215,6 +228,23 @@ public sealed class MasterDataCompanyStyleMigrationTests
         Assert.Contains("r_objSource", v_strEdit);
         Assert.Contains("r_objDes", v_strEdit);
         Assert.Contains("CCache_San_Pham", v_strEdit);
+    }
+
+    [Theory]
+    [InlineData("F2009_1_Kho_List.razor", "B")]
+    [InlineData("FWarehouse_Unit_List.razor", "B")]
+    [InlineData("F2017_1_Loai_San_Pham_List.razor", "C")]
+    [InlineData("F2018_1_San_Pham_List.razor", "E")]
+    [InlineData("F2019_1_Nha_Cung_Cap_List.razor", "C")]
+    public void Master_data_import_maps_entities_from_the_company_positional_data_rows(
+        string p_strComponentFile,
+        string p_strLastColumn)
+    {
+        var v_strList = ReadComponentFile(p_strComponentFile);
+
+        Assert.Contains($"List_Range_Value_To_End(0, \"A2\", \"{p_strLastColumn}\")", v_strList);
+        Assert.DoesNotContain("CExcel_Import_DataTable_Adapter", v_strList);
+        Assert.Contains("CUtility.Convert_To_String(v_row[", v_strList);
     }
 
     private static string ReadModuleFile(string p_strFileName) => File.ReadAllText(FindRepositoryPath(

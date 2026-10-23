@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using Xunit;
@@ -131,16 +131,16 @@ public sealed class WarehouseMasterEntityDecompositionContractTests
     {
         (string v_strService, string v_strEntity)[] v_arrContracts =
         [
-            ("CWarehouseProductImportService.cs", "CDM_San_Pham"),
-            ("CWarehouseUnitImportService.cs", "CDM_Don_Vi_Tinh"),
-            ("CWarehouseCategoryImportService.cs", "CDM_Loai_San_Pham"),
-            ("CWarehouseSupplierImportService.cs", "CDM_NCC"),
-            ("CWarehouseKhoImportService.cs", "CDM_Kho")
+            ("F2018_1_San_Pham_List.razor", "CDM_San_Pham"),
+            ("FWarehouse_Unit_List.razor", "CDM_Don_Vi_Tinh"),
+            ("F2017_1_Loai_San_Pham_List.razor", "CDM_Loai_San_Pham"),
+            ("F2019_1_Nha_Cung_Cap_List.razor", "CDM_NCC"),
+            ("F2009_1_Kho_List.razor", "CDM_Kho")
         ];
 
         foreach ((string v_strService, string v_strEntity) in v_arrContracts)
         {
-            string v_strSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", v_strService);
+            string v_strSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strService);
             Assert.Contains("new " + v_strEntity, v_strSource);
             Assert.DoesNotContain("CWarehouseMaster", v_strSource);
         }

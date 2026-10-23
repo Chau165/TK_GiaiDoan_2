@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -39,11 +39,11 @@ public sealed class WarehouseDmCacheSyncTests
     {
         get
         {
-            yield return new object[] { "CWarehouseProductImportService.cs", "Import_Products_Async", "CCache_San_Pham", "Load_Cache_San_Pham" };
-            yield return new object[] { "CWarehouseUnitImportService.cs", "Import_Units_Async", "CCache_Don_Vi_Tinh", "Load_Cache_Don_Vi_Tinh" };
-            yield return new object[] { "CWarehouseCategoryImportService.cs", "Import_Categories_Async", "CCache_Loai_San_Pham", "Load_Cache_Loai_San_Pham" };
-            yield return new object[] { "CWarehouseSupplierImportService.cs", "Import_Suppliers_Async", "CCache_NCC", "Load_Cache_NCC" };
-            yield return new object[] { "CWarehouseKhoImportService.cs", "Import_Warehouses_Async", "CCache_Kho", "Load_Cache_Kho" };
+            yield return new object[] { "F2018_1_San_Pham_List.razor", "Import_Excel_Entry", "CCache_San_Pham", "Load_Cache_San_Pham" };
+            yield return new object[] { "FWarehouse_Unit_List.razor", "Import_Excel_Entry", "CCache_Don_Vi_Tinh", "Load_Cache_Don_Vi_Tinh" };
+            yield return new object[] { "F2017_1_Loai_San_Pham_List.razor", "Import_Excel_Entry", "CCache_Loai_San_Pham", "Load_Cache_Loai_San_Pham" };
+            yield return new object[] { "F2019_1_Nha_Cung_Cap_List.razor", "Import_Excel_Entry", "CCache_NCC", "Load_Cache_NCC" };
+            yield return new object[] { "F2009_1_Kho_List.razor", "Import_Excel_Entry", "CCache_Kho", "Load_Cache_Kho" };
         }
     }
 
@@ -129,14 +129,15 @@ public sealed class WarehouseDmCacheSyncTests
         string p_strCache_Name,
         string p_strLoad_Method)
     {
-        string v_strSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", p_strService_File);
-        string v_strImport_Body = GetMethodBody(v_strSource, "internal async Task " + p_strImport_Method + "(");
-        int v_iCommit = v_strImport_Body.IndexOf("v_objTransaction.Commit();", StringComparison.Ordinal);
-        int v_iRefresh = v_strImport_Body.IndexOf(p_strCache_Name + "." + p_strLoad_Method + "();", StringComparison.Ordinal);
+        string v_strSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", p_strService_File);
+        string v_strImport_Body = GetMethodBody(v_strSource, "protected override void " + p_strImport_Method + "(");
+        int v_iCommit = v_strImport_Body.IndexOf("v_trans.Commit();", StringComparison.Ordinal);
+        int v_iRefresh = v_strImport_Body.IndexOf(p_strCache_Name + ".Add_Data(v_objData)", StringComparison.Ordinal);
         int v_iTransaction_Catch = v_strImport_Body.IndexOf("catch", v_iCommit, StringComparison.Ordinal);
         int v_iCatch_Open = v_strImport_Body.IndexOf('{', v_iTransaction_Catch);
         int v_iCatch_Close = FindMatchingBrace(v_strImport_Body, v_iCatch_Open);
 
+        Assert.DoesNotContain(p_strLoad_Method + "(", v_strImport_Body);
         Assert.True(v_iCommit >= 0, "Import transaction commit was not found.");
         Assert.True(v_iRefresh > v_iCatch_Close, "Cache refresh must follow the transaction catch/rollback path.");
         Assert.DoesNotContain("CCache_", v_strImport_Body[..v_iCommit]);
@@ -145,9 +146,9 @@ public sealed class WarehouseDmCacheSyncTests
         Assert.DoesNotContain(".Delete_Data(", v_strImport_Body[..v_iCommit]);
 
         string v_strTransaction_Catch = v_strImport_Body[v_iTransaction_Catch..(v_iCatch_Close + 1)];
-        Assert.Contains("v_objTransaction.Rollback();", v_strTransaction_Catch);
+        Assert.Contains("v_trans.Rollback();", v_strTransaction_Catch);
         Assert.Contains("throw;", v_strTransaction_Catch);
-        Assert.Contains("đã commit thành công", v_strImport_Body[v_iRefresh..], StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Đã lưu nhưng", v_strImport_Body[v_iRefresh..], StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertOperationPrecedesCacheMutation(string p_strSource, string p_strStore_Call, string p_strCache_Call)

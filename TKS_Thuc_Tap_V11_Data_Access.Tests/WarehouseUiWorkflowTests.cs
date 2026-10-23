@@ -44,6 +44,30 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
+    public void Warehouse_document_header_uses_owner_style_modal_and_keeps_detail_editor_separate()
+    {
+        var v_Transaction = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
+        var v_Edit = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
+
+        Assert.Contains("m_strEditor_Type == \"Master\" || m_strEditor_Type == \"Document\" ? \"\" : \"card border mt-3\"", v_Edit);
+        Assert.Contains("else if (m_strEditor_Type == \"Document\")", v_Edit);
+        Assert.Contains("modal fade show", v_Edit);
+        Assert.Contains("modal-dialog modal-lg", v_Edit);
+        Assert.Contains("modal-header bg-light", v_Edit);
+        Assert.Contains("modal-body", v_Edit);
+        Assert.Contains("modal-footer", v_Edit);
+        Assert.Contains("m_objDocument.Auto_ID == 0 ? \"Thêm mới\" : \"Hiệu chỉnh\"", v_Edit);
+        Assert.Contains("m_bIs_Receipt ? \"Phiếu nhập kho\" : \"Phiếu xuất kho\"", v_Edit);
+        Assert.Contains("m_strError_Message", v_Edit);
+        Assert.Contains("m_strError_Message=\"@r_strError\"", v_Transaction);
+        Assert.Contains("OnSave_Document=\"Save_Document_Async\"", v_Transaction);
+        Assert.Contains("OnCancel=\"Cancel_Document\"", v_Transaction);
+        Assert.Contains("m_strEditor_Type=\"Detail\"", v_Transaction);
+        Assert.Contains("else if (m_strEditor_Type == \"Detail\")", v_Edit);
+        Assert.Contains("card border mt-3", v_Edit);
+    }
+
+    [Fact]
     public void Warehouse_page_routes_to_dedicated_company_style_master_components()
     {
         var v_Page = File.ReadAllText(FindWarehousePage());
@@ -86,7 +110,7 @@ public sealed class WarehouseUiWorkflowTests
         var v_Edit = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
         var v_Info = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Master_Info.razor"));
 
-        Assert.Contains("m_strEditor_Type == \"Master\" ? \"\" : \"card border mt-3\"", v_Edit);
+        Assert.Contains("m_strEditor_Type == \"Master\" || m_strEditor_Type == \"Document\" ? \"\" : \"card border mt-3\"", v_Edit);
         Assert.Contains("@Get_Language_Data_Field(\"Tên\")", v_Edit);
         Assert.Contains("col-lg-6", v_Edit);
         Assert.Contains("Get_Language_Data_Field(\"Thông tin\")", v_Info);
@@ -113,7 +137,7 @@ public sealed class WarehouseUiWorkflowTests
     }
 
     [Fact]
-    public void Warehouse_master_import_refreshes_lookup_projections_and_grid_after_commit()
+    public void Warehouse_host_does_not_wire_legacy_master_import_callbacks()
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
         var v_ImportCallbacks = new[]
@@ -126,22 +150,14 @@ public sealed class WarehouseUiWorkflowTests
 
         foreach (var v_strCallback in v_ImportCallbacks)
         {
-            Assert.Matches(
-                $"private Task {v_strCallback}\\(int p_iRowCount\\)\\s*=>\\s*Complete_Master_Import_Async",
-                v_List);
+            Assert.DoesNotContain(v_strCallback, v_List);
         }
 
-        var v_iRefreshStart = v_List.IndexOf("private async Task Complete_Master_Import_Async", StringComparison.Ordinal);
-        var v_iNextMethod = v_List.IndexOf("\n    private ", v_iRefreshStart + 1, StringComparison.Ordinal);
-        Assert.True(v_iRefreshStart >= 0 && v_iNextMethod > v_iRefreshStart);
-        var v_RefreshMethod = v_List[v_iRefreshStart..v_iNextMethod];
-
-        Assert.Contains("await Load_Lookups_Async();", v_RefreshMethod);
-        Assert.Contains("m_grdMaster.Rebind();", v_RefreshMethod);
-        Assert.Contains("r_objLayout.Start_Loading();", v_RefreshMethod);
-        Assert.Contains("r_objLayout.Stop_Loading();", v_RefreshMethod);
-        Assert.Contains("Set_Error(new InvalidOperationException(", v_RefreshMethod);
-        Assert.Contains("string.Format(Get_Language_Data_Field(\"Đã nhập thành công {0} dòng, nhưng không thể làm mới lookup", v_RefreshMethod);
+        Assert.DoesNotContain("Complete_Master_Import_Async", v_List);
+        Assert.DoesNotContain("<FWarehouse_Product_Import", v_List);
+        Assert.DoesNotContain("<FWarehouse_Category_Import", v_List);
+        Assert.DoesNotContain("<FWarehouse_Supplier_Import", v_List);
+        Assert.DoesNotContain("<FWarehouse_Kho_Import", v_List);
     }
 
     [Fact]
@@ -246,7 +262,7 @@ public sealed class WarehouseUiWorkflowTests
     {
         var v_List = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
 
-        Assert.Contains("@Layout_Tool_Button(m_grdMaster, Can_Import_Selected_Master ? Master_Import_Tool_Item : null, Export_Master_Excel_Async)", v_List);
+        Assert.Contains("@Layout_Tool_Button(m_grdMaster, null, Export_Master_Excel_Async)", v_List);
         Assert.Contains("private async Task Export_Master_Excel_Async()", v_List);
         Assert.Contains("CWarehouseMasterExcelExporter.CreateWorkbook", v_List);
         Assert.Contains("Load_Master_Source()", v_List);

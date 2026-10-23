@@ -8,6 +8,7 @@
     m_arrProduct="@m_arrProduct"
     m_arrSupplier="@m_arrSupplier"
     m_arrWarehouse="@m_arrWarehouse"
+    m_strError_Message="@m_strError_Message"
     OnSave_Document="@OnSave_Document"
     OnSave_Detail="@OnSave_Detail"
     OnCancel="@OnCancel" />
@@ -19,6 +20,7 @@
     [Parameter] public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
     [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
+    [Parameter] public string m_strError_Message { get; set; } = "";
     [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
     [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }

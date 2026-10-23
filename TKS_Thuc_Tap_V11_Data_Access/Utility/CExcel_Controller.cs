@@ -18,20 +18,10 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
 	{
 		const int maxFileSize = 10485760;
 		private ExcelPackage m_objExcel_Package = null;
-		private readonly long m_lFile_Length;
 
 		public CExcel_Controller(FileInfo p_objFile_Info)
 		{
 			m_objExcel_Package = new ExcelPackage(p_objFile_Info);
-            m_lFile_Length = p_objFile_Info.Length;
-        }
-
-        public CImportDetectedSheet Read_Profiled_Import_Sheet(string p_strProfile_Code)
-        {
-            return new CProfiledWorkbook_Xlsx_Reader().ReadSingleSheet(
-                m_objExcel_Package,
-                p_strProfile_Code,
-                m_lFile_Length);
         }
 
         public static void Validate_Header_Matches(FileInfo p_objSource_File, FileInfo p_objTemplate_File)

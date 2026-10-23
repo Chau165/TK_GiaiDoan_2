@@ -1,4 +1,4 @@
-@using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
+﻿@using TKS_Thuc_Tap_V11_Web_Danh_Muc.Services
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
 @using TKS_Thuc_Tap_V11_Data_Access.Controller.Cache
 @using TKS_Thuc_Tap_V11_Data_Access.Utility
@@ -37,11 +37,11 @@
         {
             @if (m_bIs_Receipt)
             {
-                <F3001_3_Nhap_Kho_Edit m_strEditor_Type="Document" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
+                <F3001_3_Nhap_Kho_Edit m_strEditor_Type="Document" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" m_strError_Message="@r_strError" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
             }
             else
             {
-                <F3002_3_Xuat_Kho_Edit m_strEditor_Type="Document" m_objDocument="@m_objDocument" m_arrProduct="@m_arrProduct" m_arrWarehouse="@m_arrWarehouse" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
+                <F3002_3_Xuat_Kho_Edit m_strEditor_Type="Document" m_objDocument="@m_objDocument" m_arrProduct="@m_arrProduct" m_arrWarehouse="@m_arrWarehouse" m_strError_Message="@r_strError" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
             }
         }
 
@@ -116,9 +116,13 @@ else
     <F3002_2_Xuat_Kho_Info m_objDocument="@m_objSelectedDocument" m_arrDetail="@m_arrDetail" m_bCan_Add="@r_objChuc_Nang.Is_Have_Add_Permission" m_bCan_Edit="@r_objChuc_Nang.Is_Have_Edit_Permission" m_bCan_Delete="@r_objChuc_Nang.Is_Have_Delete_Permission" m_bCan_Export="@r_objChuc_Nang.Is_Have_Export_Permission" OnAdd_Detail="New_Detail" OnEdit_Detail="Edit_Detail" OnDelete_Detail="Delete_Detail_Async" OnPrint="Print_Async" />
 }
 
-@if (m_bShow_Document_Import)
+@if (r_bIs_Show_Import_Excel)
 {
-    <FWarehouse_Transaction_Import IsReceipt="@m_bIs_Receipt" UserName="@r_strActive_User_Name" FunctionCode="@r_strActive_Function_Code" OnClose="Close_Document_Import" OnCompleted="On_Document_Import_Completed" />
+    <FCommon_Import_Excel r_objImport_Excel="@r_objImport_Excel" OnClose="@Close_Import_Excel" Localize="@Get_Language_Data_Field" />
+}
+@if (r_bIs_Show_Message_Info)
+{
+    <FCommon_Message_Info r_strMessage_Header="@r_strMessage_Header" r_strMessage_Info="@r_strMessage_Info" OnClose="@Close_Message_Info" />
 }
 
 @code {
@@ -130,7 +134,6 @@ else
     private readonly CWarehouseDocumentSupport_Controller m_objDocumentSupportController = new();
     private string m_strSuccess = "";
     private string m_strAuditWarning = "";
-    private bool m_bShow_Document_Import;
     private bool m_bDocumentEditing;
     private bool m_bDetailEditing;
     private CWarehouseDocument m_objDocument = new();
@@ -158,6 +161,9 @@ else
         r_strError = "";
         m_strSuccess = "";
         m_strAuditWarning = "";
+        // FBase.Import_Excel kết thúc bằng Load_Data_Init; Grid OnRead cần Rebind.
+        if (m_objFormattedDocumentGrid != null)
+            m_grdDocument.Rebind();
     }
 
     protected override Task After_Render_Async(bool firstRender)
@@ -215,23 +221,8 @@ else
     {
         if (!r_objChuc_Nang.Is_Have_Add_Permission)
             return Task.CompletedTask;
-
-        m_bShow_Document_Import = true;
         Clear_Message();
-        return Task.CompletedTask;
-    }
-
-    private void Close_Document_Import() => m_bShow_Document_Import = false;
-
-    private Task On_Document_Import_Completed(CTransactionImportConfirmResult p_objResult)
-    {
-        var v_strDocumentType = m_bIs_Receipt ? "phiếu nhập" : "phiếu xuất";
-        Try_Record_Action_History(0, $"{(m_bIs_Receipt ? "Receipt" : "Issue")} Excel Import",
-            $"Imported: {p_objResult.Imported_Documents}; skipped duplicates: {p_objResult.Skipped_Documents}");
-        m_objSelectedDocument = null;
-        m_arrDetail.Clear();
-        m_grdDocument.Rebind();
-        Set_Success($"Đã nhập {p_objResult.Imported_Documents} {v_strDocumentType}; bỏ qua {p_objResult.Skipped_Documents} chứng từ trùng khớp.");
+        Open_Import_Excel(m_bIs_Receipt ? "Nhap_Kho_Import_Template.xlsx" : "Xuat_Kho_Import_Template.xlsx");
         return Task.CompletedTask;
     }
 
@@ -246,7 +237,7 @@ else
 
     private void Set_Date_From(DateTime p_dtmValue) => m_dtmFrom = p_dtmValue;
     private void Set_Date_To(DateTime p_dtmValue) => m_dtmTo = p_dtmValue;
-    private void Cancel_Document() { m_bDocumentEditing = false; m_objDocument = New_Document_Model(); }
+    private void Cancel_Document() { m_bDocumentEditing = false; m_objDocument = New_Document_Model(); Clear_Message(); }
 
     private void Edit_Document(CWarehouseDocument p_objData)
     {

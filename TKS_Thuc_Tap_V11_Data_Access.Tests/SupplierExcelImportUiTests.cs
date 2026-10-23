@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
@@ -14,8 +14,8 @@ public sealed class SupplierExcelImportUiTests
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2019_1_Nha_Cung_Cap_List.razor"));
 
         Assert.Contains("<F2019_1_Nha_Cung_Cap_List />", v_strRoute);
-        Assert.Contains("@if (r_objChuc_Nang.Is_Have_Add_Permission)", v_strList);
-        Assert.Contains("Open_Import_Excel(\"Nha_Cung_Cap_Import_Template.xlsx\")", v_strList);
+        Assert.Contains("Is_Have_Add_Permission", v_strList);
+        Assert.Contains("@Layout_Default_Filter(grdData, \"Nha_Cung_Cap_Import_Template.xlsx\")", v_strList);
         Assert.Contains("FCommon_Import_Excel", v_strList);
         Assert.Contains("protected override void Import_Excel_Entry", v_strList);
         Assert.DoesNotContain("<FWarehouse_Supplier_Import", v_strList);
@@ -36,21 +36,6 @@ public sealed class SupplierExcelImportUiTests
         Assert.Equal("@", v_objSheet.Column(1).Style.NumberFormat.Format);
     }
 
-    [Fact]
-    public void Supplier_import_dialog_shows_template_preview_errors_and_confirm_gating()
-    {
-        var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Supplier_Import.razor"));
-        var v_strShell = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Import_Preview_Shell.razor"));
-
-        Assert.Contains("<FWarehouse_Import_Preview_Shell", v_strSource);
-        Assert.Contains("Nha_Cung_Cap_Import_Template.xlsx", v_strSource);
-        Assert.Contains("PreviewValid", v_strSource);
-        Assert.Contains("PreviewInvalid", v_strSource);
-        Assert.Contains("disabled=\"@(!CanConfirm)\"", v_strShell);
-        Assert.Contains("Confirm_Async", v_strSource);
-    }
 
     private static string FindRepositoryPath(params string[] p_arrParts)
     {

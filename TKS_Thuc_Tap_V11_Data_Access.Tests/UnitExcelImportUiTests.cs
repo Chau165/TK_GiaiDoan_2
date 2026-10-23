@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using Xunit;
 
@@ -47,12 +47,12 @@ public sealed class UnitExcelImportUiTests
         var v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Unit_List.razor"));
 
-        Assert.Contains("Read_Profiled_Import_Sheet(\"Unit\")", v_strSource);
-        Assert.Contains("CImportLegacyWorksheetAdapter.ToUnit", v_strSource);
-        Assert.Contains("CUnitImportValidator.Preview", v_strSource);
-        Assert.Contains("Ten_Don_Vi_Tinh = v_objRow.Ten_Don_Vi_Tinh", v_strSource);
-        Assert.Contains("Ghi_Chu = v_objRow.Ghi_Chu", v_strSource);
-        Assert.DoesNotContain("List_Range_Value_To_End", v_strSource);
+        Assert.DoesNotContain("Read_Profiled_Import_Sheet", v_strSource);
+        Assert.DoesNotContain("CImportLegacyWorksheetAdapter", v_strSource);
+        Assert.DoesNotContain("CUnitImportValidator", v_strSource);
+        Assert.Contains("Ten_Don_Vi_Tinh = CUtility.Convert_To_String(v_row[0]).Trim()", v_strSource);
+        Assert.Contains("Ghi_Chu = CUtility.Convert_To_String(v_row[1]).Trim()", v_strSource);
+        Assert.Contains("List_Range_Value_To_End", v_strSource);
         Assert.Contains("v_objCtrData.F2016_sp_ins_Don_Vi_Tinh", v_strSource);
         Assert.Contains("v_trans.Commit()", v_strSource);
         Assert.Contains("v_trans.Rollback()", v_strSource);
@@ -116,16 +116,12 @@ public sealed class UnitExcelImportUiTests
     }
 
     [Fact]
-    public async Task Official_template_has_one_sheet_and_exact_unit_headers()
+    public void Official_template_has_one_sheet_and_exact_unit_headers()
     {
         var v_strPath = FindRepositoryPath("TKS_Thuc_Tap_V11_Web", "wwwroot", "FileManagement", "Template", "Don_Vi_Tinh_Import_Template.xlsx");
-        await using var v_objStream = File.OpenRead(v_strPath);
-        var v_objSheet = await new CUnit_Xlsx_Reader().ReadAsync(v_objStream);
-
-        Assert.Equal("DonViTinh", v_objSheet.Name);
-        Assert.Equal(new[] { "Ten_Don_Vi_Tinh", "Ghi_Chu" }, v_objSheet.Rows.Single().Cells.Select(v_objCell => v_objCell.Value));
         using var v_objWorkbook = new XLWorkbook(v_strPath);
         Assert.Single(v_objWorkbook.Worksheets);
+        Assert.Equal(new[] { "Ten_Don_Vi_Tinh", "Ghi_Chu" }, v_objWorkbook.Worksheet("DonViTinh").Row(1).Cells(1, 2).Select(v_objCell => v_objCell.GetString()));
         Assert.True(v_objWorkbook.Worksheet("DonViTinh").Column(1).Width > 12);
     }
 
@@ -134,24 +130,12 @@ public sealed class UnitExcelImportUiTests
     {
         var v_strRoute = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Don_Vi_Tinh.razor"));
-        var v_strSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Unit_Import.razor"));
-        var v_strShell = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Import_Preview_Shell.razor"));
-
         Assert.Contains("<FWarehouse_Unit_List />", v_strRoute);
         Assert.DoesNotContain("FWarehouse_Unit_Import", v_strRoute);
-        // Retained for existing service tests and rollback of UI selection during review; it is not the active route.
-        Assert.Contains("<FWarehouse_Import_Preview_Shell", v_strSource);
-        Assert.Contains("Preview", v_strSource);
-        Assert.Contains("PreviewValid", v_strSource);
-        Assert.Contains("PreviewInvalid", v_strSource);
-        Assert.Contains("Don_Vi_Tinh_Import_Template.xlsx", v_strSource);
-        Assert.Contains("Confirm_Async", v_strSource);
-        Assert.Contains("<InputFile", v_strShell);
-        Assert.Contains("OnFileChanged", v_strShell);
-        Assert.Contains("disabled=\"@(!CanConfirm)\"", v_strShell);
-        Assert.Contains("OnConfirm", v_strShell);
+        string v_strActiveList = File.ReadAllText(FindRepositoryPath(
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Unit_List.razor"));
+        Assert.Contains("<FCommon_Import_Excel", v_strActiveList);
+        Assert.DoesNotContain("FWarehouse_Import_Preview_Shell", v_strActiveList);
     }
 
     private static string FindRepositoryPath(params string[] p_arrParts)

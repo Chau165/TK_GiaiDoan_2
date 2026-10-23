@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
@@ -80,8 +80,6 @@ public sealed class WarehouseReportRefactorTests
     {
         var v_strListSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-        var v_strImportSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Services", "CWarehouseTransactionImportService.cs"));
 
         Assert.Contains("F9002_sp_Chi_Tiet_Nhap", v_strListSource);
         Assert.Contains("F9002_sp_Chi_Tiet_Xuat", v_strListSource);
@@ -96,8 +94,6 @@ public sealed class WarehouseReportRefactorTests
         Assert.DoesNotContain("Inventory_Report_Page_Async(", v_strListSource);
         Assert.Contains("sp_DM_Kho_User_List_Allowed", v_strListSource);
 
-        Assert.Contains("F9001_sp_Ton_Kho_Hien_Tai_Page(", v_strImportSource);
-        Assert.DoesNotContain("Inventory_Report_Page_Async(", v_strImportSource);
     }
 
     [Fact]
