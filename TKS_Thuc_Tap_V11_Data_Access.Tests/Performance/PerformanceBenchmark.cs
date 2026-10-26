@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
@@ -200,7 +200,7 @@ public static class PerformanceBenchmark
         v_heapBefore = GC.GetTotalMemory(false);
         var v_mappedItems = new List<CWarehouseMaster>(v_table.Rows.Count);
         foreach (DataRow v_row in v_table.Rows)
-            v_mappedItems.Add(CUtility.Map_Row_To_Entity<CWarehouseMaster>(v_row));
+            v_mappedItems.Add(CWMS_Utility.Map_Warehouse_Row<CWarehouseMaster>(v_row));
 
         var v_mappingMetric = CreateSingleMetric(
             "SyntheticReflectionMapping",

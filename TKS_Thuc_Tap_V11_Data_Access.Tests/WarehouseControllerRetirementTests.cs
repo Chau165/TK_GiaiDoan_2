@@ -1,4 +1,4 @@
-using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
+﻿using TKS_Thuc_Tap_V11_Data_Access.Controller.BC;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
@@ -61,19 +61,17 @@ public sealed class WarehouseControllerRetirementTests
             new[]
             {
                 "CWarehouseDocumentSupport_Controller",
-                "CWarehouseMasterSupport_Controller",
-                "CXNK_Nhap_Kho_Controller",
-                "CXNK_Xuat_Kho_Controller"
+                "CWarehouseMasterSupport_Controller"
             }.OrderBy(v_strName => v_strName, StringComparer.Ordinal),
             v_arrActiveSubclasses);
         Assert.NotNull(typeof(CWarehouseReport_Controller));
 
         var v_strBaseSource = File.ReadAllText(Path.Combine(FindRepositoryRoot(),
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "Common", "CWarehouse_Controller_Base.cs"));
-        Assert.Contains("List_From_Procedure", v_strBaseSource);
+        Assert.DoesNotContain("List_From_Procedure", v_strBaseSource);
         Assert.Contains("Page_From_Procedure", v_strBaseSource);
-        Assert.Contains("Scalar_ID", v_strBaseSource);
-        Assert.Contains("Execute_Procedure", v_strBaseSource);
+        Assert.DoesNotContain("Scalar_ID", v_strBaseSource);
+        Assert.Contains("Fill_Page_Data", v_strBaseSource);
     }
 
     [Fact]
@@ -82,7 +80,7 @@ public sealed class WarehouseControllerRetirementTests
         var v_strRoot = FindRepositoryRoot();
         var v_strDataAccess = Path.Combine(v_strRoot, "TKS_Thuc_Tap_V11_Data_Access");
         var v_strWarehouseList = File.ReadAllText(Path.Combine(v_strRoot,
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Permission_List.razor")) + File.ReadAllText(Path.Combine(v_strRoot, "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Transaction_List.razor"));
         var v_strMasterSupport = File.ReadAllText(Path.Combine(v_strDataAccess,
             "Controller", "DM", "CWarehouseMasterSupport_Controller.cs"));
         var v_strReportController = File.ReadAllText(Path.Combine(v_strDataAccess,

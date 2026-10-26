@@ -1,111 +1,9 @@
-@inherits FBase
+﻿@inherits FBase
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 
 <div class="@(m_strEditor_Type == "Master" || m_strEditor_Type == "Document" ? "" : "card border mt-3")">
     <div class="@(m_strEditor_Type == "Master" || m_strEditor_Type == "Document" ? "" : "card-body")">
-        @if (m_strEditor_Type == "Master")
-        {
-            @if (m_strMaster_Type == "KhoUser")
-            {
-                <EditForm Model="@m_objPermission" OnValidSubmit="Save_Permission_Async">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
-                    <div class="row g-3">
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã đăng nhập / user")</label><TelerikDropDownList Data="@m_arrUser" TItem="CWarehouseLookup" TValue="string" Value="@m_objPermission.Login_Name" ValueChanged="@On_Login_Name_Changed" ValueExpression="@(() => m_objPermission.Login_Name)" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn user --")' /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Kho")</label><TelerikDropDownList Data="@m_arrAvailableWarehouse" @bind-Value="m_objPermission.Warehouse_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn kho --")' /></div>
-                        @if (m_arrAvailableWarehouse.Count == 0 && !string.IsNullOrWhiteSpace(m_objPermission.Login_Name))
-                        {
-                            <div class="col-12"><div class="form-text text-warning">@Get_Language_Data_Field("User này đã được gắn tất cả kho.")</div></div>
-                        }
-                        <div class="col-12 d-flex justify-content-end gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objPermission.Permission_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
-                        </div>
-                    </div>
-                </EditForm>
-            }
-            else if (m_strMaster_Type == "Kho")
-            {
-                <EditForm Model="@m_objKho" OnValidSubmit="Save_Kho_Async">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
-                    <div class="row g-3">
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objKho.Ten_Kho" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objKho.Ghi_Chu" /></div>
-                        <div class="col-12 d-flex justify-content-end gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objKho.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
-                        </div>
-                    </div>
-                </EditForm>
-            }
-            else if (m_strMaster_Type == "DonViTinh")
-            {
-                <EditForm Model="@m_objDon_Vi_Tinh" OnValidSubmit="Save_Don_Vi_Tinh_Async">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
-                    <div class="row g-3">
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ten_Don_Vi_Tinh" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objDon_Vi_Tinh.Ghi_Chu" /></div>
-                        <div class="col-12 d-flex justify-content-end gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objDon_Vi_Tinh.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
-                        </div>
-                    </div>
-                </EditForm>
-            }
-            else if (m_strMaster_Type == "LoaiSanPham")
-            {
-                <EditForm Model="@m_objLoai_San_Pham" OnValidSubmit="Save_Loai_San_Pham_Async">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
-                    <div class="row g-3">
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã")</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ma_LSP" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ten_LSP" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objLoai_San_Pham.Ghi_Chu" /></div>
-                        <div class="col-12 d-flex justify-content-end gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objLoai_San_Pham.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
-                        </div>
-                    </div>
-                </EditForm>
-            }
-            else if (m_strMaster_Type == "SanPham")
-            {
-                <EditForm Model="@m_objSan_Pham" OnValidSubmit="Save_San_Pham_Async">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
-                    <div class="row g-3">
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã")</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ma_San_Pham" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ten_San_Pham" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Loại sản phẩm")</label><TelerikDropDownList Data="@m_arrCategory" @bind-Value="m_objSan_Pham.Loai_San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn loại --")' /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Đơn vị tính")</label><TelerikDropDownList Data="@m_arrUnit" @bind-Value="m_objSan_Pham.Don_Vi_Tinh_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn đơn vị --")' /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objSan_Pham.Ghi_Chu" /></div>
-                        <div class="col-12 d-flex justify-content-end gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objSan_Pham.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
-                        </div>
-                    </div>
-                </EditForm>
-            }
-            else if (m_strMaster_Type == "NCC")
-            {
-                <EditForm Model="@m_objNCC" OnValidSubmit="Save_NCC_Async">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary class="text-danger" />
-                    <div class="row g-3">
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã")</label><InputText class="form-control" @bind-Value="m_objNCC.Ma_NCC" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Tên")</label><InputText class="form-control" @bind-Value="m_objNCC.Ten_NCC" /></div>
-                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Ghi chú")</label><InputText class="form-control" @bind-Value="m_objNCC.Ghi_Chu" /></div>
-                        <div class="col-12 d-flex justify-content-end gap-2">
-                            <button type="submit" class="btn btn-success">@(m_objNCC.Auto_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
-                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
-                        </div>
-                    </div>
-                </EditForm>
-            }
-        }
-        else if (m_strEditor_Type == "Document")
+        @if (m_strEditor_Type == "Document")
         {
             <div class="modal fade show" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="warehouse-document-modal-title" style="display: block; padding-left: 0px; background-color: rgba(10, 10, 10, .8);">
                 <div class="modal-dialog modal-lg">
@@ -166,7 +64,7 @@
                     <div class="col-md-4"><label class="form-label">Sản phẩm</label><TelerikDropDownList Data="@m_arrProduct" @bind-Value="m_objDetail.San_Pham_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText="-- Chọn sản phẩm --" Enabled="@(m_objDetail.Auto_ID == 0)" /></div>
                     <div class="col-md-2"><label class="form-label">Số lượng</label><InputNumber class="form-control" @bind-Value="m_objDetail.So_Luong" step="0.001" /></div>
                     <div class="col-md-2"><label class="form-label">Đơn giá</label><InputNumber class="form-control" @bind-Value="m_objDetail.Don_Gia" step="0.01" /></div>
-                    <div class="col-md-3"><label class="form-label">Trị giá</label><input class="form-control" value="@(CUtility.Format_So_Tien(m_objDetail.Tri_Gia))" disabled /></div>
+                    <div class="col-md-3"><label class="form-label">Trị giá</label><input class="form-control" value="@(CWMS_Utility.Format_So_Tien(m_objDetail.Tri_Gia))" disabled /></div>
                     <div class="col-md-1 d-flex gap-2"><button type="submit" class="btn btn-success">Lưu</button><button type="button" class="btn btn-light" @onclick="Cancel_Async">Hủy</button></div>
                 </div>
             </EditForm>
@@ -175,80 +73,48 @@
 </div>
 
 @code {
-    [Parameter] public string m_strEditor_Type { get; set; } = "";
-    [Parameter] public string m_strMaster_Type { get; set; } = "";
-    [Parameter] public bool m_bIs_Receipt { get; set; }
-    [Parameter] public CDM_Kho m_objKho { get; set; } = new();
-    [Parameter] public CDM_Don_Vi_Tinh m_objDon_Vi_Tinh { get; set; } = new();
-    [Parameter] public CDM_Loai_San_Pham m_objLoai_San_Pham { get; set; } = new();
-    [Parameter] public CDM_San_Pham m_objSan_Pham { get; set; } = new();
-    [Parameter] public CDM_NCC m_objNCC { get; set; } = new();
-    [Parameter] public CWarehousePermission m_objPermission { get; set; } = new();
-    [Parameter] public CWarehouseDocument m_objDocument { get; set; } = new();
-    [Parameter] public CWarehouseDocumentDetail m_objDetail { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrCategory { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
-    [Parameter] public List<CWarehousePermission> m_arrWarehouseUser { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
-    [Parameter] public EventCallback<CDM_Kho> OnAdd_Kho { get; set; }
-    [Parameter] public EventCallback<CDM_Kho> OnUpdate_Kho { get; set; }
-    [Parameter] public EventCallback<CDM_Don_Vi_Tinh> OnAdd_Don_Vi_Tinh { get; set; }
-    [Parameter] public EventCallback<CDM_Don_Vi_Tinh> OnUpdate_Don_Vi_Tinh { get; set; }
-    [Parameter] public EventCallback<CDM_Loai_San_Pham> OnAdd_Loai_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_Loai_San_Pham> OnUpdate_Loai_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_San_Pham> OnAdd_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_San_Pham> OnUpdate_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_NCC> OnAdd_NCC { get; set; }
-    [Parameter] public EventCallback<CDM_NCC> OnUpdate_NCC { get; set; }
-    [Parameter] public EventCallback<CWarehousePermission> OnSave_Permission { get; set; }
-    [Parameter] public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
-    [Parameter] public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
-    [Parameter] public EventCallback OnCancel { get; set; }
-    [Parameter] public string m_strError_Message { get; set; } = "";
+    [Parameter]
+    public string m_strEditor_Type { get; set; } = "";
 
-    private List<CWarehouseLookup> m_arrAvailableWarehouse = new();
-    private string m_strBound_Login_Name = "";
+    [Parameter]
+    public bool m_bIs_Receipt { get; set; }
 
-    protected override void OnParametersSet()
-    {
-        base.OnParametersSet();
-        if (m_strEditor_Type == "Master" && m_strMaster_Type == "KhoUser")
-        {
-            m_strBound_Login_Name = m_objPermission.Login_Name;
-            Refresh_Available_Warehouses();
-        }
-    }
+    [Parameter]
+    public CWarehouseDocument m_objDocument { get; set; } = new();
 
-    private Task On_Login_Name_Changed(string p_strLogin_Name)
-    {
-        if (!string.Equals(m_strBound_Login_Name, p_strLogin_Name, StringComparison.OrdinalIgnoreCase))
-            m_objPermission.Warehouse_ID = 0;
+    [Parameter]
+    public CWarehouseDocumentDetail m_objDetail { get; set; } = new();
 
-        m_objPermission.Login_Name = p_strLogin_Name;
-        m_strBound_Login_Name = p_strLogin_Name;
-        Refresh_Available_Warehouses();
-        return Task.CompletedTask;
-    }
+    [Parameter]
+    public List<CWarehouseLookup> m_arrProduct { get; set; } = new();
 
-    private void Refresh_Available_Warehouses()
-    {
-        m_arrAvailableWarehouse = CWarehousePermissionFilter.List_Available_Warehouses(
-            m_arrWarehouse, m_arrWarehouseUser, m_objPermission.Login_Name, m_objPermission.Permission_ID);
-    }
+    [Parameter]
+    public List<CWarehouseLookup> m_arrSupplier { get; set; } = new();
 
-    private Task Save_Kho_Async() => m_objKho.Auto_ID == 0 ? OnAdd_Kho.InvokeAsync(m_objKho) : OnUpdate_Kho.InvokeAsync(m_objKho);
-    private Task Save_Don_Vi_Tinh_Async() => m_objDon_Vi_Tinh.Auto_ID == 0 ? OnAdd_Don_Vi_Tinh.InvokeAsync(m_objDon_Vi_Tinh) : OnUpdate_Don_Vi_Tinh.InvokeAsync(m_objDon_Vi_Tinh);
-    private Task Save_Loai_San_Pham_Async() => m_objLoai_San_Pham.Auto_ID == 0 ? OnAdd_Loai_San_Pham.InvokeAsync(m_objLoai_San_Pham) : OnUpdate_Loai_San_Pham.InvokeAsync(m_objLoai_San_Pham);
-    private Task Save_San_Pham_Async() => m_objSan_Pham.Auto_ID == 0 ? OnAdd_San_Pham.InvokeAsync(m_objSan_Pham) : OnUpdate_San_Pham.InvokeAsync(m_objSan_Pham);
-    private Task Save_NCC_Async() => m_objNCC.Auto_ID == 0 ? OnAdd_NCC.InvokeAsync(m_objNCC) : OnUpdate_NCC.InvokeAsync(m_objNCC);
+    [Parameter]
+    public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
 
-    private Task Save_Permission_Async()
-    {
-        return OnSave_Permission.InvokeAsync(m_objPermission);
-    }
+
+
+
+
+
+
+
+
+
+
+    [Parameter]
+    public EventCallback<CWarehouseDocument> OnSave_Document { get; set; }
+
+    [Parameter]
+    public EventCallback<CWarehouseDocumentDetail> OnSave_Detail { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public string m_strError_Message { get; set; } = "";
 
     private Task Save_Document_Async()
     {

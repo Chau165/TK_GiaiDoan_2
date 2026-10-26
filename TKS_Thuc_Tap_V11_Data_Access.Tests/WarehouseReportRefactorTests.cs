@@ -79,7 +79,7 @@ public sealed class WarehouseReportRefactorTests
     public void Report_callers_select_named_operations_and_keep_authorized_composition_outside_data_access()
     {
         var v_strListSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Report_List.razor"));
 
         Assert.Contains("F9002_sp_Chi_Tiet_Nhap", v_strListSource);
         Assert.Contains("F9002_sp_Chi_Tiet_Xuat", v_strListSource);

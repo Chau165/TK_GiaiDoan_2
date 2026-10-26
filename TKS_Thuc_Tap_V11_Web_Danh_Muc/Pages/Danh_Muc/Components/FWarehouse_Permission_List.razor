@@ -1,0 +1,371 @@
+﻿@using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.BC
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Utility
+@inherits FBase
+
+<div class="card">
+    <div class="card-header"><h5 class="mb-0">Phân quyền kho - user</h5></div>
+    <div class="card-body">
+        @((MarkupString)r_strError)
+        @if (!String.IsNullOrWhiteSpace(m_strSuccess))
+        {
+            <div class="alert alert-success">@m_strSuccess</div>
+        }
+        @if (!String.IsNullOrWhiteSpace(m_strAuditWarning))
+        {
+            <div class="alert alert-warning">@m_strAuditWarning</div>
+        }
+        <div class="d-flex justify-content-between align-items-end gap-3">
+            <div class="d-flex gap-2 ms-auto">
+                @if (r_objChuc_Nang.Is_Have_Add_Permission)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="New_Master">@Get_Language_Data_Field("Thêm")</button>
+                }
+                @Layout_Tool_Button(m_grdPermission)
+            </div>
+        </div>
+        <h5 class="mt-3">@Get_Language_Data_Field("Danh sách") @Get_Language_Data_Field("Phân quyền kho - user")</h5>
+<TelerikGrid TItem="CWarehousePermission" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Kho_User_Async" @ref="m_grdPermission">
+                    <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
+                    <GridColumns>
+                        <GridColumn Width="70px">
+                            <Template>
+                                <button type="button" class="btn btn-link" title='@Get_Language_Data_Field("Xem")' @onclick="@(() => Open_Kho_User_Info((context as CWarehousePermission)))">
+                                    <i class="mdi mdi-eye" style="color: purple;"></i>
+                                </button>
+                                @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
+                                {
+                                    <button type="button" class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="mdi mdi-cog-outline" style="color: purple;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        @if (r_objChuc_Nang.Is_Have_Edit_Permission)
+                                        {
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Edit_Kho_User((context as CWarehousePermission)))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Hiệu chỉnh")</button></li>
+                                        }
+                                        @if (r_objChuc_Nang.Is_Have_Delete_Permission)
+                                        {
+                                            <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Kho_User_Async((context as CWarehousePermission).Permission_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Xóa")</button></li>
+                                        }
+                                    </ul>
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Field="Login_Name" Title='@Get_Language_Data_Field("Mã đăng nhập")' Width="180px" ShowFilterCellButtons="false" /><GridColumn Field="User_Name" Title='@Get_Language_Data_Field("Họ tên")' Width="240px" ShowFilterCellButtons="false" /><GridColumn Field="Warehouse_Name" Title='@Get_Language_Data_Field("Tên kho")' ShowFilterCellButtons="false" />
+                    </GridColumns>
+                </TelerikGrid>
+    </div>
+</div>
+@if (r_bIs_Show_Info)
+{
+    <FWarehouse_2_Warehouse_Master_Info m_objPermission="@m_objPermission" m_strMaster_Type="KhoUser" OnClose="@Close_Info" />
+}
+@if (r_bIs_Show_Edit)
+{
+    <FWarehouse_3_Warehouse_Master_Edit m_strMaster_Type="KhoUser" m_objPermission="@m_objPermission" m_arrWarehouse="@m_arrAllWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnSave_Permission="Save_Kho_User_Async" OnClose="@Close_Edit" />
+}
+@code {
+    // 23/10/2026 - Codex: tách nguyên luồng quyền kho từ host; năm Master Data dùng component chuyên biệt hiện có.
+    private const string m_strMaster_Type = "KhoUser";
+    private readonly CDM_Kho_User_Controller m_objPermissionController = new CDM_Kho_User_Controller();
+    private CWarehousePermission m_objPermission = new CWarehousePermission();
+    private List<CWarehouseLookup> m_arrAllWarehouse = new List<CWarehouseLookup>();
+    private List<CWarehouseLookup> m_arrUser = new List<CWarehouseLookup>();
+    private List<CWarehousePermission> m_arrWarehouseUser = new List<CWarehousePermission>();
+    private string m_strSuccess = "", m_strAuditWarning = "";
+    private TelerikGrid<CWarehousePermission> m_grdPermission = new TelerikGrid<CWarehousePermission>();
+    private TelerikGrid<CWarehousePermission>? m_objFormattedPermissionGrid;
+
+    protected override void Load_Data()
+    {
+        Clear_Message();
+        Format_Grid(m_grdPermission);
+        m_objFormattedPermissionGrid = m_grdPermission;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (!ReferenceEquals(m_objFormattedPermissionGrid, m_grdPermission))
+        {
+            m_objFormattedPermissionGrid = m_grdPermission;
+            Format_Grid(m_grdPermission);
+        }
+
+    }
+    protected override async Task Load_Data_Async()
+    {
+        await Load_Lookups_Async();
+        await Load_Master_Async();
+    }
+    private Task Load_Lookups_Async()
+    {
+        m_arrAllWarehouse = new List<CWarehouseLookup>();
+        foreach (CDM_Kho v_objKho in new CDM_Kho_Controller().F2009_sp_sel_List_Kho_Lookup())
+        {
+            m_arrAllWarehouse.Add(new CWarehouseLookup { Auto_ID = v_objKho.Auto_ID, Name = v_objKho.Ten_Kho });
+        }
+        m_arrUser = m_objPermissionController.F2015_sp_sel_List_Sys_Thanh_Vien_Cho_Phan_Quyen_Kho();
+        m_arrWarehouseUser = new List<CWarehousePermission>();
+        foreach (CDM_Kho_User v_objPermission in m_objPermissionController.F2015_sp_sel_List_Kho_User())
+        {
+            m_arrWarehouseUser.Add(To_Permission_UI_Projection(v_objPermission));
+        }
+        return Task.CompletedTask;
+    }
+    private Task Load_Master_Async()
+    {
+        try
+        {
+            Clear_Message();
+            Cancel_Master();
+            m_grdPermission.Rebind();
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+        return Task.CompletedTask;
+    }
+    private void New_Master()
+    {
+        m_objPermission = new CWarehousePermission();
+        r_bIs_Show_Edit = true;
+        Clear_Message();
+    }
+    private void Cancel_Master()
+    {
+        m_objPermission = new CWarehousePermission();
+        r_bIs_Show_Edit = false;
+    }
+
+    private async Task Save_Kho_User_Async(CWarehousePermission p_objData)
+    {
+        var v_iPermission_ID = p_objData.Permission_ID;
+        if (v_iPermission_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iPermission_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
+        {
+            return;
+        }
+
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
+        try
+        {
+            v_iQueue_ID = Process_Queue("Warehouse Master Save - KhoUser");
+            CDM_Kho_User v_objKhoUser = To_Kho_User_Entity(p_objData);
+            if (v_iPermission_ID == 0)
+            {
+                p_objData.Permission_ID = m_objPermissionController.F2015_sp_ins_Kho_User(v_objKhoUser, r_strActive_User_Name, r_strActive_Function_Code);
+            }
+            else
+            {
+                p_objData.Permission_ID = m_objPermissionController.F2015_sp_upd_Kho_User(v_objKhoUser, r_strActive_User_Name, r_strActive_Function_Code);
+            }
+
+            string v_strAction;
+            if (v_iPermission_ID == 0)
+            {
+                v_strAction = "Thêm mới";
+            }
+            else
+            {
+                v_strAction = "Hiệu chỉnh";
+            }
+
+            Try_Record_Action_History(p_objData.Permission_ID, v_strAction, "Warehouse " + m_strMaster_Type);
+            await Load_Lookups_Async();
+            await Load_Master_Async();
+            Set_Success(Get_Language_Data_Field("Đã lưu danh mục."));
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+            {
+                End_Queue(v_iQueue_ID);
+            }
+
+            r_objLayout.Stop_Loading();
+        }
+    }
+
+
+    private void Edit_Kho_User(CWarehousePermission p_objData)
+    {
+        r_iAuto_ID = p_objData.Permission_ID;
+        m_objPermission = Clone_Permission(p_objData);
+        r_bIs_Show_Edit = true;
+        Clear_Message();
+    }
+
+
+    private void Open_Kho_User_Info(CWarehousePermission p_objData)
+    {
+        r_iAuto_ID = p_objData.Permission_ID;
+        m_objPermission = Clone_Permission(p_objData);
+        r_bIs_Show_Info = true;
+        Clear_Message();
+    }
+
+
+    private async Task Delete_Kho_User_Async(long p_iPermission_ID)
+    {
+        if (!r_objChuc_Nang.Is_Have_Delete_Permission)
+        {
+            return;
+        }
+
+        bool v_bConfirmed;
+        try
+        {
+            v_bConfirmed = await g_jsRuntime.InvokeAsync<bool>("confirm", Get_Language_Data_Field("Bạn chắc chắn muốn xóa dòng dữ liệu này?"));
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+            return;
+        }
+
+        if (!v_bConfirmed)
+        {
+            return;
+        }
+
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
+        try
+        {
+            v_iQueue_ID = Process_Queue("Warehouse Master Delete - KhoUser");
+            m_objPermissionController.F2015_sp_del_Kho_User(p_iPermission_ID, r_strActive_User_Name, r_strActive_Function_Code);
+            Try_Record_Action_History(p_iPermission_ID, "Xóa", "Warehouse " + m_strMaster_Type);
+            await Load_Lookups_Async();
+            await Load_Master_Async();
+            Set_Success(Get_Language_Data_Field("Đã xóa danh mục."));
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+            {
+                End_Queue(v_iQueue_ID);
+            }
+
+            r_objLayout.Stop_Loading();
+        }
+    }
+
+
+    private async Task Read_Kho_User_Async(GridReadEventArgs p_objArgs)
+    {
+        try
+        {
+            if (CGrid_DataSource_Utility.Requires_Full_Source(p_objArgs.Request, r_bIs_Excel_OnRead_Export, false))
+            {
+                List<CWarehousePermission> v_arrSource = new List<CWarehousePermission>();
+                foreach (CDM_Kho_User v_objPermission in m_objPermissionController.F2015_sp_sel_List_Kho_User())
+                {
+                    v_arrSource.Add(To_Permission_UI_Projection(v_objPermission));
+                }
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, p_objArgs.Request);
+                p_objArgs.Data = v_objReadResult.Items;
+                p_objArgs.Total = v_objReadResult.Total_Count;
+            }
+            else
+            {
+                var v_objResult = m_objPermissionController.sp_DM_Kho_User_Page(p_objArgs.Request.Page, p_objArgs.Request.PageSize);
+                List<CWarehousePermission> v_arrPage = new List<CWarehousePermission>();
+                foreach (CDM_Kho_User v_objPermission in v_objResult.Items)
+                {
+                    v_arrPage.Add(To_Permission_UI_Projection(v_objPermission));
+                }
+                p_objArgs.Data = v_arrPage;
+                p_objArgs.Total = v_objResult.Total_Count;
+            }
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+            p_objArgs.Data = new List<CWarehousePermission>();
+            p_objArgs.Total = 0;
+        }
+    }
+
+
+    private void Try_Record_Action_History(long p_iRef_ID, string p_strAction, string p_strContent)
+    {
+        CWarehouseActionHistory_Recorder.TryRecord(() => CCommon_Controller.FCommon_Insert_Action_History(p_iRef_ID, p_strAction, "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, p_strContent), p_objException =>
+        {
+            CLogger.Warning(nameof(FWarehouse_Permission_List), nameof(Try_Record_Action_History), $"Ref_ID={p_iRef_ID}; Action={p_strAction}; {p_objException}");
+            m_strAuditWarning = "Nghiệp vụ đã thành công nhưng chưa ghi được lịch sử thao tác.";
+        });
+    }
+
+
+    private void Clear_Message()
+    {
+        r_strError = "";
+        m_strSuccess = "";
+        m_strAuditWarning = "";
+    }
+
+
+    private void Set_Success(string p_strText)
+    {
+        r_strError = "";
+        m_strSuccess = p_strText;
+    }
+
+
+    private void Set_Error(Exception p_objException)
+    {
+        m_strSuccess = "";
+        m_strAuditWarning = "";
+        r_strError = CCommonFunction.Set_Error_MessageBox(p_objException.Message);
+    }
+
+
+    private static CWarehousePermission Clone_Permission(CWarehousePermission p_objData)
+    {
+        return new()
+        {
+            Permission_ID = p_objData.Permission_ID,
+            Login_Name = p_objData.Login_Name,
+            User_Name = p_objData.User_Name,
+            Warehouse_ID = p_objData.Warehouse_ID,
+            Warehouse_Name = p_objData.Warehouse_Name
+        };
+    }
+
+
+    private static CWarehousePermission To_Permission_UI_Projection(CDM_Kho_User p_objData)
+    {
+        return new CWarehousePermission
+        {
+            Permission_ID = p_objData.Auto_ID,
+            Login_Name = p_objData.Ma_Dang_Nhap,
+            User_Name = p_objData.Ho_Ten,
+            Warehouse_ID = p_objData.Kho_ID,
+            Warehouse_Name = p_objData.Ten_Kho
+        };
+    }
+
+
+    private static CDM_Kho_User To_Kho_User_Entity(CWarehousePermission p_objData)
+    {
+        return new CDM_Kho_User
+        {
+            Auto_ID = p_objData.Permission_ID,
+            Ma_Dang_Nhap = p_objData.Login_Name,
+            Kho_ID = p_objData.Warehouse_ID
+        };
+    }
+
+}

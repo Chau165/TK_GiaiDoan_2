@@ -9,7 +9,6 @@
 
 <div class="row">
     <div class="col-lg-12">
-        @((MarkupString)r_strError)
         @if (!string.IsNullOrWhiteSpace(m_strSuccess))
         {
             <div class="alert alert-success">@m_strSuccess</div>
@@ -124,9 +123,19 @@ else
 {
     <FCommon_Message_Info r_strMessage_Header="@r_strMessage_Header" r_strMessage_Info="@r_strMessage_Info" OnClose="@Close_Message_Info" />
 }
+else if (!string.IsNullOrWhiteSpace(r_strError))
+{
+    <FCommon_Message_Info r_strMessage_Header='@Get_Language_Data_Field("Thông báo")' r_strMessage_Info="@r_strError" OnClose="@Clear_List_Error" />
+}
 
 @code {
-    [Parameter] public bool m_bIs_Receipt { get; set; }
+    private void Clear_List_Error()
+    {
+        r_strError = string.Empty;
+    }
+
+    [Parameter]
+    public bool m_bIs_Receipt { get; set; }
 
     private readonly CDM_Kho_User_Controller m_objPermissionController = new();
     private readonly CXNK_Nhap_Kho_Controller m_objNhapKhoController = new();
@@ -149,7 +158,6 @@ else
     private DateTime m_dtmTo = DateTime.Today;
     private TelerikGrid<CWarehouseDocument> m_grdDocument = new();
     private TelerikGrid<CWarehouseDocument>? m_objFormattedDocumentGrid;
-
     protected override void Init_Data()
     {
         m_bDocumentEditing = false;
@@ -163,18 +171,21 @@ else
         m_strAuditWarning = "";
         // FBase.Import_Excel kết thúc bằng Load_Data_Init; Grid OnRead cần Rebind.
         if (m_objFormattedDocumentGrid != null)
+        {
             m_grdDocument.Rebind();
+        }
     }
 
-    protected override Task After_Render_Async(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await base.OnAfterRenderAsync(firstRender);
         if (!ReferenceEquals(m_objFormattedDocumentGrid, m_grdDocument))
         {
             m_objFormattedDocumentGrid = m_grdDocument;
             Format_Grid(m_grdDocument);
         }
 
-        return Task.CompletedTask;
+
     }
 
     protected override Task Load_Data_Async()
@@ -185,23 +196,30 @@ else
 
     private void Load_Transaction_Lookups()
     {
-        m_arrUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
-            .Select(v_objUnit => new CWarehouseLookup { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh })
-            .ToList();
-        var v_dicUnitNamesByID = m_arrUnit.ToDictionary(v_objUnit => v_objUnit.Auto_ID, v_objUnit => v_objUnit.Name);
-        m_arrProduct = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham()
-            .Select(v_objProduct =>
+        // 23/10/2026 - Codex: lookup/map tường minh, giữ thứ tự và lỗi duplicate key của Dictionary.
+        m_arrUnit = new List<CWarehouseLookup>();
+        Dictionary<long, string> v_dicUnit_Names = new Dictionary<long, string>();
+        foreach (CDM_Don_Vi_Tinh v_objUnit in new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup())
+        {
+            m_arrUnit.Add(new CWarehouseLookup { Auto_ID = v_objUnit.Auto_ID, Name = v_objUnit.Ten_Don_Vi_Tinh });
+            v_dicUnit_Names.Add(v_objUnit.Auto_ID, v_objUnit.Ten_Don_Vi_Tinh);
+        }
+        m_arrProduct = new List<CWarehouseLookup>();
+        foreach (CDM_San_Pham v_objProduct in new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham())
+        {
+            v_dicUnit_Names.TryGetValue(v_objProduct.Don_Vi_Tinh_ID, out string v_strUnit_Name);
+            string v_strDisplay_Name = v_objProduct.Ten_San_Pham;
+            if (!string.IsNullOrWhiteSpace(v_strUnit_Name))
             {
-                v_dicUnitNamesByID.TryGetValue(v_objProduct.Don_Vi_Tinh_ID, out var v_strUnitName);
-                var v_strDisplayName = string.IsNullOrWhiteSpace(v_strUnitName)
-                    ? v_objProduct.Ten_San_Pham
-                    : $"{v_objProduct.Ten_San_Pham} ({v_strUnitName})";
-                return new CWarehouseLookup { Auto_ID = v_objProduct.Auto_ID, Code = v_objProduct.Ma_San_Pham, Name = v_strDisplayName };
-            })
-            .ToList();
-        m_arrSupplier = new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup()
-            .Select(v_objSupplier => new CWarehouseLookup { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC })
-            .ToList();
+                v_strDisplay_Name = $"{v_objProduct.Ten_San_Pham} ({v_strUnit_Name})";
+            }
+            m_arrProduct.Add(new CWarehouseLookup { Auto_ID = v_objProduct.Auto_ID, Code = v_objProduct.Ma_San_Pham, Name = v_strDisplay_Name });
+        }
+        m_arrSupplier = new List<CWarehouseLookup>();
+        foreach (CDM_NCC v_objSupplier in new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup())
+        {
+            m_arrSupplier.Add(new CWarehouseLookup { Auto_ID = v_objSupplier.Auto_ID, Code = v_objSupplier.Ma_NCC, Name = v_objSupplier.Ten_NCC });
+        }
         m_arrWarehouse = m_objPermissionController.sp_DM_Kho_User_List_Allowed(r_strActive_User_Name);
     }
 
@@ -220,24 +238,61 @@ else
     private Task Open_Document_Import_Async()
     {
         if (!r_objChuc_Nang.Is_Have_Add_Permission)
+        {
             return Task.CompletedTask;
+        }
+
         Clear_Message();
-        Open_Import_Excel(m_bIs_Receipt ? "Nhap_Kho_Import_Template.xlsx" : "Xuat_Kho_Import_Template.xlsx");
+        if (m_bIs_Receipt)
+        {
+            Open_Import_Excel("Nhap_Kho_Import_Template.xlsx");
+        }
+        else
+        {
+            Open_Import_Excel("Xuat_Kho_Import_Template.xlsx");
+        }
         return Task.CompletedTask;
     }
 
-    private CWarehouseDocument New_Document_Model() => new() { Is_Receipt = m_bIs_Receipt, Ngay_Chung_Tu = DateTime.Today };
+    private CWarehouseDocument New_Document_Model()
+    {
+        return new()
+        {
+            Is_Receipt = m_bIs_Receipt,
+            Ngay_Chung_Tu = DateTime.Today
+        };
+    }
 
     private Task Load_Documents_Async()
     {
-        try { m_grdDocument.Rebind(); }
-        catch (Exception ex) { Set_Error(ex); }
+        try
+        {
+            m_grdDocument.Rebind();
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+
         return Task.CompletedTask;
     }
 
-    private void Set_Date_From(DateTime p_dtmValue) => m_dtmFrom = p_dtmValue;
-    private void Set_Date_To(DateTime p_dtmValue) => m_dtmTo = p_dtmValue;
-    private void Cancel_Document() { m_bDocumentEditing = false; m_objDocument = New_Document_Model(); Clear_Message(); }
+    private void Set_Date_From(DateTime p_dtmValue)
+    {
+        m_dtmFrom = p_dtmValue;
+    }
+
+    private void Set_Date_To(DateTime p_dtmValue)
+    {
+        m_dtmTo = p_dtmValue;
+    }
+
+    private void Cancel_Document()
+    {
+        m_bDocumentEditing = false;
+        m_objDocument = New_Document_Model();
+        Clear_Message();
+    }
 
     private void Edit_Document(CWarehouseDocument p_objData)
     {
@@ -254,8 +309,13 @@ else
         try
         {
             var v_iAuto_ID = p_objData.Auto_ID;
+        string v_strAction = "Hiệu chỉnh";
+        if (v_iAuto_ID == 0) { v_strAction = "Thêm mới"; }
+
             if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
+            {
                 return;
+            }
 
             p_objData.Is_Receipt = m_bIs_Receipt;
             p_objData.Last_Updated_By = r_strActive_User_Name;
@@ -269,24 +329,37 @@ else
             if (m_bIs_Receipt)
             {
                 var v_objReceipt = To_Nhap_Kho(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_objReceipt)
-                    : m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Header(v_objReceipt);
+                if (v_iAuto_ID == 0)
+                {
+                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_objReceipt);
+                }
+                else
+                {
+                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Header(v_objReceipt);
+                }
             }
             else
             {
                 var v_objIssue = To_Xuat_Kho(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_objIssue)
-                    : m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Header(v_objIssue);
+                if (v_iAuto_ID == 0)
+                {
+                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_objIssue);
+                }
+                else
+                {
+                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Header(v_objIssue);
+                }
             }
 
-            Try_Record_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Warehouse document " + p_objData.So_Phieu);
+            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse document " + p_objData.So_Phieu);
             m_grdDocument.Rebind();
             await Select_Document_Async(p_objData);
             Set_Success("Đã lưu phiếu.");
         }
-        catch (Exception ex) { Set_Error(ex); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
     }
 
     private async Task Delete_Document_Async(long p_iAuto_ID)
@@ -294,9 +367,14 @@ else
         try
         {
             if (m_bIs_Receipt)
+            {
                 m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
+            }
             else
+            {
                 m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
+            }
+
             Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse document");
             Cancel_Document();
             m_objSelectedDocument = null;
@@ -304,7 +382,10 @@ else
             await Load_Documents_Async();
             Set_Success("Đã xóa phiếu.");
         }
-        catch (Exception ex) { Set_Error(ex); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
     }
 
     private async Task Post_Document_Async(CWarehouseDocument p_objData)
@@ -312,17 +393,21 @@ else
         try
         {
             if (p_objData.Is_Posted || !r_objChuc_Nang.Is_Have_Edit_Permission)
+            {
                 return;
+            }
 
-            m_objDocumentSupportController.sp_XNK_Document_Post(
-                m_bIs_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_User_Name, r_strActive_Function_Code);
+            m_objDocumentSupportController.sp_XNK_Document_Post(m_bIs_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_User_Name, r_strActive_Function_Code);
             p_objData.Is_Posted = true;
             Try_Record_Action_History(p_objData.Auto_ID, "Post", "Warehouse document " + p_objData.So_Phieu);
             m_grdDocument.Rebind();
             await Select_Document_Async(p_objData);
             Set_Success("Đã Post phiếu; tồn kho đã được cập nhật.");
         }
-        catch (Exception ex) { Set_Error(ex); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
     }
 
     private async Task Select_Document_Async(CWarehouseDocument p_objData)
@@ -331,21 +416,32 @@ else
         {
             m_objSelectedDocument = p_objData;
             m_objDocument = Clone_Document(p_objData);
-            m_arrDetail = m_bIs_Receipt
-                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_objData.Auto_ID, r_strActive_User_Name).Select(To_Warehouse_Detail).ToList()
-                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_objData.Auto_ID, r_strActive_User_Name).Select(To_Warehouse_Detail).ToList();
-            m_objDetail = new() { Document_ID = p_objData.Auto_ID };
+            m_arrDetail = Load_Document_Details(p_objData.Auto_ID);
+
+            m_objDetail = new()
+            {
+                Document_ID = p_objData.Auto_ID
+            };
             m_bDocumentEditing = false;
             m_bDetailEditing = false;
         }
-        catch (Exception ex) { Set_Error(ex); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
     }
 
     private void New_Detail()
     {
         if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Add_Permission)
+        {
             return;
-        m_objDetail = new() { Document_ID = m_objSelectedDocument.Auto_ID };
+        }
+
+        m_objDetail = new()
+        {
+            Document_ID = m_objSelectedDocument.Auto_ID
+        };
         m_bDetailEditing = true;
         Clear_Message();
     }
@@ -353,15 +449,24 @@ else
     private void Cancel_Detail()
     {
         if (m_objSelectedDocument == null)
+        {
             return;
-        m_objDetail = new() { Document_ID = m_objSelectedDocument.Auto_ID };
+        }
+
+        m_objDetail = new()
+        {
+            Document_ID = m_objSelectedDocument.Auto_ID
+        };
         m_bDetailEditing = false;
     }
 
     private void Edit_Detail(CWarehouseDocumentDetail p_objData)
     {
         if (!r_objChuc_Nang.Is_Have_Edit_Permission)
+        {
             return;
+        }
+
         m_objDetail = Clone_Detail(p_objData);
         m_bDetailEditing = true;
         Clear_Message();
@@ -372,10 +477,15 @@ else
         try
         {
             if (m_objSelectedDocument == null || p_objData.Auto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || p_objData.Auto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
+            {
                 return;
+            }
 
             p_objData.Document_ID = m_objSelectedDocument.Auto_ID;
             var v_iAuto_ID = p_objData.Auto_ID;
+        string v_strAction = "Hiệu chỉnh";
+        if (v_iAuto_ID == 0) { v_strAction = "Thêm mới"; }
+
             p_objData.Last_Updated_By = r_strActive_User_Name;
             p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
             if (v_iAuto_ID == 0)
@@ -387,23 +497,36 @@ else
             if (m_bIs_Receipt)
             {
                 var v_objReceiptDetail = To_Nhap_Kho_Detail(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_objReceiptDetail)
-                    : m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Detail(v_objReceiptDetail);
+                if (v_iAuto_ID == 0)
+                {
+                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_objReceiptDetail);
+                }
+                else
+                {
+                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Detail(v_objReceiptDetail);
+                }
             }
             else
             {
                 var v_objIssueDetail = To_Xuat_Kho_Detail(p_objData);
-                p_objData.Auto_ID = v_iAuto_ID == 0
-                    ? m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_objIssueDetail)
-                    : m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Detail(v_objIssueDetail);
+                if (v_iAuto_ID == 0)
+                {
+                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_objIssueDetail);
+                }
+                else
+                {
+                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Detail(v_objIssueDetail);
+                }
             }
 
-            Try_Record_Action_History(p_objData.Auto_ID, v_iAuto_ID == 0 ? "Thêm mới" : "Hiệu chỉnh", "Warehouse detail");
+            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse detail");
             await Select_Document_Async(m_objSelectedDocument);
             Set_Success("Đã lưu chi tiết.");
         }
-        catch (Exception ex) { Set_Error(ex); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
     }
 
     private async Task Delete_Detail_Async(long p_iAuto_ID)
@@ -411,16 +534,27 @@ else
         try
         {
             if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Delete_Permission)
+            {
                 return;
+            }
+
             if (m_bIs_Receipt)
+            {
                 m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
+            }
             else
+            {
                 m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
+            }
+
             Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse detail");
             await Select_Document_Async(m_objSelectedDocument);
             Set_Success("Đã xóa chi tiết.");
         }
-        catch (Exception ex) { Set_Error(ex); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
     }
 
     private async Task Export_Document_Excel_Async()
@@ -433,12 +567,7 @@ else
         try
         {
             v_iQueue_ID = Process_Queue("Export Warehouse Documents Excel");
-            var v_arrDocuments = m_bIs_Receipt
-                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, null).Select(To_Warehouse_Document).ToList()
-                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, null).Select(To_Warehouse_Document).ToList();
-            v_arrDocuments = v_arrDocuments
-                .Where(v_objDocument => v_objDocument.Ngay_Chung_Tu.Date >= m_dtmFrom.Date && v_objDocument.Ngay_Chung_Tu.Date <= m_dtmTo.Date)
-                .ToList();
+            List<CWarehouseDocument> v_arrDocuments = Load_Document_Source();
             var v_objGridState = m_grdDocument.GetState();
             var v_objRequest = new DataSourceRequest
             {
@@ -449,13 +578,12 @@ else
                 Sorts = v_objGridState.SortDescriptors.ToList()
             };
             v_arrDocuments = CGrid_DataSource_Utility.Apply(v_arrDocuments, v_objRequest).Items;
-            var v_arrRows = CWarehouseDocumentExcelExporter.BuildRows(v_arrDocuments, Get_Document_Details);
+            var v_arrRows = CWarehouseDocumentExcelExporter.BuildRows(v_arrDocuments, Load_Document_Details);
             var v_arrWorkbook = CWarehouseDocumentExcelExporter.CreateWorkbook(v_arrRows, m_bIs_Receipt);
             var v_strFile_Name = "Warehouse_Document_Export_" + DateTime.Now.ToString("ddMMyyHHmmss") + ".xlsx";
             using (var v_objStream = new MemoryStream(v_arrWorkbook))
             using (var v_objStreamReference = new DotNetStreamReference(stream: v_objStream))
                 await g_jsRuntime.InvokeVoidAsync("downloadFileFromStream", v_strFile_Name, v_objStreamReference);
-
             var v_objAccessLogController = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang_Controller();
             var v_objAccessLog = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang
             {
@@ -465,71 +593,74 @@ else
             };
             var v_strFunctionName = Get_Language_Data_Field(v_objAccessLog.Ma_Chuc_Nang);
             if (v_strFunctionName == v_objAccessLog.Ma_Chuc_Nang)
+            {
                 v_strFunctionName = v_objAccessLog.Ten_Chuc_Nang;
+            }
+
             v_objAccessLog.Ten_Chuc_Nang = v_strFunctionName + " - " + Get_Language_Data_Field("Export Excel");
             v_objAccessLogController.FQ_424_NKTCCN_sp_ins_Insert(v_objAccessLog);
-
-            IReadOnlyCollection<CWarehouseDocumentDetail> Get_Document_Details(long p_iDocument_ID) => m_bIs_Receipt
-                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_iDocument_ID, r_strActive_User_Name).Select(To_Warehouse_Detail).ToList()
-                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_iDocument_ID, r_strActive_User_Name).Select(To_Warehouse_Detail).ToList();
         }
-        catch (Exception ex) { Set_Error(ex); }
-        finally { End_Queue(v_iQueue_ID); }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+        finally
+        {
+            End_Queue(v_iQueue_ID);
+        }
 
         r_objLayout.Stop_Loading();
         var v_tsElapsed = DateTime.Now - v_dtmStart;
         await g_jsRuntime.InvokeVoidAsync("Set_Speed_Label", v_tsElapsed.TotalSeconds.ToString("###,###0.##") + "s");
     }
 
-    private Task Read_Document_Async(GridReadEventArgs args)
+    private Task Read_Document_Async(GridReadEventArgs p_objArgs)
     {
         try
         {
             if (m_dtmFrom.Date > m_dtmTo.Date)
             {
                 Set_Error(new InvalidOperationException("Khoảng ngày chứng từ không hợp lệ."));
-                args.Data = new List<CWarehouseDocument>();
-                args.Total = 0;
+                p_objArgs.Data = new List<CWarehouseDocument>();
+                p_objArgs.Total = 0;
                 return Task.CompletedTask;
             }
 
-            var v_arrSource = m_bIs_Receipt
-                ? m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, null).Select(To_Warehouse_Document).ToList()
-                : m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, null).Select(To_Warehouse_Document).ToList();
-            v_arrSource = v_arrSource
-                .Where(v_objDocument => v_objDocument.Ngay_Chung_Tu.Date >= m_dtmFrom.Date && v_objDocument.Ngay_Chung_Tu.Date <= m_dtmTo.Date)
-                .ToList();
-            var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, args.Request);
+            List<CWarehouseDocument> v_arrSource = Load_Document_Source();
+            var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, p_objArgs.Request);
             m_arrDocument = v_objReadResult.Items;
-            args.Data = v_objReadResult.Items;
-            args.Total = v_objReadResult.Total_Count;
+            p_objArgs.Data = v_objReadResult.Items;
+            p_objArgs.Total = v_objReadResult.Total_Count;
         }
-        catch (Exception ex)
+        catch (Exception v_objException)
         {
-            Set_Error(ex);
-            args.Data = new List<CWarehouseDocument>();
-            args.Total = 0;
+            Set_Error(v_objException);
+            p_objArgs.Data = new List<CWarehouseDocument>();
+            p_objArgs.Total = 0;
         }
 
         return Task.CompletedTask;
     }
 
-    private Task Print_Async() => r_objChuc_Nang.Is_Have_Export_Permission
-        ? g_jsRuntime.InvokeVoidAsync("print").AsTask()
-        : Task.CompletedTask;
+    private Task Print_Async()
+    {
+        if (r_objChuc_Nang.Is_Have_Export_Permission)
+        {
+            return g_jsRuntime.InvokeVoidAsync("print").AsTask();
+        }
+        else
+        {
+            return Task.CompletedTask;
+        }
+    }
 
     private void Try_Record_Action_History(long p_iRef_ID, string p_strAction, string p_strContent)
     {
-        CWarehouseActionHistory_Recorder.TryRecord(
-            () => CCommon_Controller.FCommon_Insert_Action_History(
-                p_iRef_ID, p_strAction, "Web", r_strActive_User_Name, r_strActive_Function_Code,
-                r_objChuc_Nang.Ten_Chuc_Nang, p_strContent),
-            p_objException =>
-            {
-                CLogger.Warning(nameof(FWarehouse_Transaction_List), nameof(Try_Record_Action_History),
-                    $"Ref_ID={p_iRef_ID}; Action={p_strAction}; {p_objException}");
-                m_strAuditWarning = "Nghiệp vụ đã thành công nhưng chưa ghi được lịch sử thao tác.";
-            });
+        CWarehouseActionHistory_Recorder.TryRecord(() => CCommon_Controller.FCommon_Insert_Action_History(p_iRef_ID, p_strAction, "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, p_strContent), p_objException =>
+        {
+            CLogger.Warning(nameof(FWarehouse_Transaction_List), nameof(Try_Record_Action_History), $"Ref_ID={p_iRef_ID}; Action={p_strAction}; {p_objException}");
+            m_strAuditWarning = "Nghiệp vụ đã thành công nhưng chưa ghi được lịch sử thao tác.";
+        });
     }
 
     private void Clear_Message()
@@ -539,7 +670,12 @@ else
         m_strAuditWarning = "";
     }
 
-    private void Set_Success(string p_strText) { r_strError = ""; m_strSuccess = p_strText; }
+    private void Set_Success(string p_strText)
+    {
+        r_strError = "";
+        m_strSuccess = p_strText;
+    }
+
     private void Set_Error(Exception p_objException)
     {
         m_strSuccess = "";
@@ -547,164 +683,243 @@ else
         r_strError = CCommonFunction.Set_Error_MessageBox(p_objException.Message);
     }
 
-    private static CWarehouseDocument Clone_Document(CWarehouseDocument p_objData) => new()
+    private static CWarehouseDocument Clone_Document(CWarehouseDocument p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Is_Receipt = p_objData.Is_Receipt,
-        So_Phieu = p_objData.So_Phieu,
-        Kho_ID = p_objData.Kho_ID,
-        NCC_ID = p_objData.NCC_ID,
-        Ten_Kho = p_objData.Ten_Kho,
-        Ten_NCC = p_objData.Ten_NCC,
-        Ngay_Chung_Tu = p_objData.Ngay_Chung_Tu,
-        Is_Posted = p_objData.Is_Posted,
-        Posted_At = p_objData.Posted_At,
-        Ghi_Chu = p_objData.Ghi_Chu
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Is_Receipt = p_objData.Is_Receipt,
+            So_Phieu = p_objData.So_Phieu,
+            Kho_ID = p_objData.Kho_ID,
+            NCC_ID = p_objData.NCC_ID,
+            Ten_Kho = p_objData.Ten_Kho,
+            Ten_NCC = p_objData.Ten_NCC,
+            Ngay_Chung_Tu = p_objData.Ngay_Chung_Tu,
+            Is_Posted = p_objData.Is_Posted,
+            Posted_At = p_objData.Posted_At,
+            Ghi_Chu = p_objData.Ghi_Chu
+        };
+    }
 
-    private static CXNK_Nhap_Kho To_Nhap_Kho(CWarehouseDocument p_objData) => new()
+    private static CXNK_Nhap_Kho To_Nhap_Kho(CWarehouseDocument p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        So_Phieu_Nhap_Kho = p_objData.So_Phieu,
-        Kho_ID = p_objData.Kho_ID,
-        NCC_ID = p_objData.NCC_ID,
-        Ngay_Nhap_Kho = p_objData.Ngay_Chung_Tu,
-        Ghi_Chu = p_objData.Ghi_Chu,
-        Ma_Dang_Nhap = p_objData.Last_Updated_By,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            So_Phieu_Nhap_Kho = p_objData.So_Phieu,
+            Kho_ID = p_objData.Kho_ID,
+            NCC_ID = p_objData.NCC_ID,
+            Ngay_Nhap_Kho = p_objData.Ngay_Chung_Tu,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CXNK_Xuat_Kho To_Xuat_Kho(CWarehouseDocument p_objData) => new()
+    private static CXNK_Xuat_Kho To_Xuat_Kho(CWarehouseDocument p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        So_Phieu_Xuat_Kho = p_objData.So_Phieu,
-        Kho_ID = p_objData.Kho_ID,
-        Ngay_Xuat_Kho = p_objData.Ngay_Chung_Tu,
-        Ghi_Chu = p_objData.Ghi_Chu,
-        Ma_Dang_Nhap = p_objData.Last_Updated_By,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            So_Phieu_Xuat_Kho = p_objData.So_Phieu,
+            Kho_ID = p_objData.Kho_ID,
+            Ngay_Xuat_Kho = p_objData.Ngay_Chung_Tu,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CXNK_Nhap_Kho_Detail To_Nhap_Kho_Detail(CWarehouseDocumentDetail p_objData) => new()
+    private static CXNK_Nhap_Kho_Detail To_Nhap_Kho_Detail(CWarehouseDocumentDetail p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Nhap_Kho_ID = p_objData.Document_ID,
-        San_Pham_ID = p_objData.San_Pham_ID,
-        SL_Nhap = p_objData.So_Luong,
-        Don_Gia_Nhap = p_objData.Don_Gia,
-        Ma_Dang_Nhap = p_objData.Last_Updated_By,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Nhap_Kho_ID = p_objData.Document_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            SL_Nhap = p_objData.So_Luong,
+            Don_Gia_Nhap = p_objData.Don_Gia,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CXNK_Xuat_Kho_Detail To_Xuat_Kho_Detail(CWarehouseDocumentDetail p_objData) => new()
+    private static CXNK_Xuat_Kho_Detail To_Xuat_Kho_Detail(CWarehouseDocumentDetail p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Xuat_Kho_ID = p_objData.Document_ID,
-        San_Pham_ID = p_objData.San_Pham_ID,
-        SL_Xuat = p_objData.So_Luong,
-        Don_Gia_Xuat = p_objData.Don_Gia,
-        Ma_Dang_Nhap = p_objData.Last_Updated_By,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Xuat_Kho_ID = p_objData.Document_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            SL_Xuat = p_objData.So_Luong,
+            Don_Gia_Xuat = p_objData.Don_Gia,
+            Ma_Dang_Nhap = p_objData.Last_Updated_By,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CWarehouseDocument To_Warehouse_Document(CXNK_Nhap_Kho p_objData) => new()
+    private static CWarehouseDocument To_Warehouse_Document(CXNK_Nhap_Kho p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Is_Receipt = true,
-        So_Phieu = p_objData.So_Phieu_Nhap_Kho,
-        Kho_ID = p_objData.Kho_ID,
-        Ten_Kho = p_objData.Ten_Kho,
-        NCC_ID = p_objData.NCC_ID,
-        Ten_NCC = p_objData.Ten_NCC,
-        Ngay_Chung_Tu = p_objData.Ngay_Nhap_Kho,
-        Is_Posted = p_objData.Is_Posted,
-        Posted_At = p_objData.Posted_At,
-        Ghi_Chu = p_objData.Ghi_Chu,
-        Created = p_objData.Created,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated = p_objData.Last_Updated,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Is_Receipt = true,
+            So_Phieu = p_objData.So_Phieu_Nhap_Kho,
+            Kho_ID = p_objData.Kho_ID,
+            Ten_Kho = p_objData.Ten_Kho,
+            NCC_ID = p_objData.NCC_ID,
+            Ten_NCC = p_objData.Ten_NCC,
+            Ngay_Chung_Tu = p_objData.Ngay_Nhap_Kho,
+            Is_Posted = p_objData.Is_Posted,
+            Posted_At = p_objData.Posted_At,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CWarehouseDocument To_Warehouse_Document(CXNK_Xuat_Kho p_objData) => new()
+    private static CWarehouseDocument To_Warehouse_Document(CXNK_Xuat_Kho p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Is_Receipt = false,
-        So_Phieu = p_objData.So_Phieu_Xuat_Kho,
-        Kho_ID = p_objData.Kho_ID,
-        Ten_Kho = p_objData.Ten_Kho,
-        NCC_ID = p_objData.NCC_ID,
-        Ten_NCC = p_objData.Ten_NCC,
-        Ngay_Chung_Tu = p_objData.Ngay_Xuat_Kho,
-        Is_Posted = p_objData.Is_Posted,
-        Posted_At = p_objData.Posted_At,
-        Ghi_Chu = p_objData.Ghi_Chu,
-        Created = p_objData.Created,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated = p_objData.Last_Updated,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Is_Receipt = false,
+            So_Phieu = p_objData.So_Phieu_Xuat_Kho,
+            Kho_ID = p_objData.Kho_ID,
+            Ten_Kho = p_objData.Ten_Kho,
+            NCC_ID = p_objData.NCC_ID,
+            Ten_NCC = p_objData.Ten_NCC,
+            Ngay_Chung_Tu = p_objData.Ngay_Xuat_Kho,
+            Is_Posted = p_objData.Is_Posted,
+            Posted_At = p_objData.Posted_At,
+            Ghi_Chu = p_objData.Ghi_Chu,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Nhap_Kho_Detail p_objData) => new()
+    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Nhap_Kho_Detail p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Document_ID = p_objData.Nhap_Kho_ID,
-        San_Pham_ID = p_objData.San_Pham_ID,
-        Ma_San_Pham = p_objData.Ma_San_Pham,
-        Ten_San_Pham = p_objData.Ten_San_Pham,
-        Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
-        So_Luong = p_objData.SL_Nhap,
-        Don_Gia = p_objData.Don_Gia_Nhap,
-        Created = p_objData.Created,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated = p_objData.Last_Updated,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Document_ID = p_objData.Nhap_Kho_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            Ma_San_Pham = p_objData.Ma_San_Pham,
+            Ten_San_Pham = p_objData.Ten_San_Pham,
+            Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
+            So_Luong = p_objData.SL_Nhap,
+            Don_Gia = p_objData.Don_Gia_Nhap,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Xuat_Kho_Detail p_objData) => new()
+    private static CWarehouseDocumentDetail To_Warehouse_Detail(CXNK_Xuat_Kho_Detail p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Document_ID = p_objData.Xuat_Kho_ID,
-        San_Pham_ID = p_objData.San_Pham_ID,
-        Ma_San_Pham = p_objData.Ma_San_Pham,
-        Ten_San_Pham = p_objData.Ten_San_Pham,
-        Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
-        So_Luong = p_objData.SL_Xuat,
-        Don_Gia = p_objData.Don_Gia_Xuat,
-        Created = p_objData.Created,
-        Created_By = p_objData.Created_By,
-        Created_By_Function = p_objData.Created_By_Function,
-        Last_Updated = p_objData.Last_Updated,
-        Last_Updated_By = p_objData.Last_Updated_By,
-        Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Document_ID = p_objData.Xuat_Kho_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            Ma_San_Pham = p_objData.Ma_San_Pham,
+            Ten_San_Pham = p_objData.Ten_San_Pham,
+            Ten_Don_Vi_Tinh = p_objData.Ten_Don_Vi_Tinh,
+            So_Luong = p_objData.SL_Xuat,
+            Don_Gia = p_objData.Don_Gia_Xuat,
+            Created = p_objData.Created,
+            Created_By = p_objData.Created_By,
+            Created_By_Function = p_objData.Created_By_Function,
+            Last_Updated = p_objData.Last_Updated,
+            Last_Updated_By = p_objData.Last_Updated_By,
+            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
+        };
+    }
 
-    private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData) => new()
+    private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData)
     {
-        Auto_ID = p_objData.Auto_ID,
-        Document_ID = p_objData.Document_ID,
-        San_Pham_ID = p_objData.San_Pham_ID,
-        So_Luong = p_objData.So_Luong,
-        Don_Gia = p_objData.Don_Gia,
-        Ma_San_Pham = p_objData.Ma_San_Pham,
-        Ten_San_Pham = p_objData.Ten_San_Pham
-    };
+        return new()
+        {
+            Auto_ID = p_objData.Auto_ID,
+            Document_ID = p_objData.Document_ID,
+            San_Pham_ID = p_objData.San_Pham_ID,
+            So_Luong = p_objData.So_Luong,
+            Don_Gia = p_objData.Don_Gia,
+            Ma_San_Pham = p_objData.Ma_San_Pham,
+            Ten_San_Pham = p_objData.Ten_San_Pham
+        };
+    }
+
+    // 23/10/2026 - Codex: gom mapping Header/Detail đang bị lặp, không thay SP hoặc filter ngày chứng từ.
+    private List<CWarehouseDocument> Load_Document_Source()
+    {
+        List<CWarehouseDocument> v_arrResult = new List<CWarehouseDocument>();
+        if (m_bIs_Receipt)
+        {
+            foreach (CXNK_Nhap_Kho v_objData in m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho(r_strActive_User_Name, null))
+            {
+                v_arrResult.Add(To_Warehouse_Document(v_objData));
+            }
+        }
+        else
+        {
+            foreach (CXNK_Xuat_Kho v_objData in m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho(r_strActive_User_Name, null))
+            {
+                v_arrResult.Add(To_Warehouse_Document(v_objData));
+            }
+        }
+        List<CWarehouseDocument> v_arrFiltered = new List<CWarehouseDocument>();
+        foreach (CWarehouseDocument v_objData in v_arrResult)
+        {
+            if (v_objData.Ngay_Chung_Tu.Date >= m_dtmFrom.Date && v_objData.Ngay_Chung_Tu.Date <= m_dtmTo.Date)
+            {
+                v_arrFiltered.Add(v_objData);
+            }
+        }
+        return v_arrFiltered;
+    }
+    private List<CWarehouseDocumentDetail> Load_Document_Details(long p_iDocument_ID)
+    {
+        List<CWarehouseDocumentDetail> v_arrResult = new List<CWarehouseDocumentDetail>();
+        if (m_bIs_Receipt)
+        {
+            foreach (CXNK_Nhap_Kho_Detail v_objData in m_objNhapKhoController.F3001_sp_sel_List_Nhap_Kho_Detail(p_iDocument_ID, r_strActive_User_Name))
+            {
+                v_arrResult.Add(To_Warehouse_Detail(v_objData));
+            }
+        }
+        else
+        {
+            foreach (CXNK_Xuat_Kho_Detail v_objData in m_objXuatKhoController.F3002_sp_sel_List_Xuat_Kho_Detail(p_iDocument_ID, r_strActive_User_Name))
+            {
+                v_arrResult.Add(To_Warehouse_Detail(v_objData));
+            }
+        }
+        return v_arrResult;
+    }
+
 }

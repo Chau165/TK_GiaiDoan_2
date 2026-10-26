@@ -1,0 +1,387 @@
+﻿@using TKS_Thuc_Tap_V11_Data_Access.Controller.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Controller.BC
+@using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
+@using TKS_Thuc_Tap_V11_Data_Access.Utility
+@inherits FBase
+
+<div class="card"><div class="card-body">
+        @((MarkupString)r_strError)
+        @if (!String.IsNullOrWhiteSpace(m_strSuccess))
+        {
+            <div class="alert alert-success">@m_strSuccess</div>
+        }
+        @if (!String.IsNullOrWhiteSpace(m_strAuditWarning))
+        {
+            <div class="alert alert-warning">@m_strAuditWarning</div>
+        }
+
+            @if (!Is_Current_Inventory_Report)
+            {
+                <ul class="nav nav-tabs mb-2" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link @(m_strReport_Type == "Receipt" ? "active" : "")" role="tab" @onclick="@(() => Select_Report_Type_Async("Receipt"))">@Get_Language_Data_Field("Chi tiết hàng nhập")</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link @(m_strReport_Type == "Issue" ? "active" : "")" role="tab" @onclick="@(() => Select_Report_Type_Async("Issue"))">@Get_Language_Data_Field("Chi tiết hàng xuất")</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link @(m_strReport_Type == "Inventory" ? "active" : "")" role="tab" @onclick="@(() => Select_Report_Type_Async("Inventory"))">@Get_Language_Data_Field("Xuất nhập tồn theo kỳ")</button>
+                    </li>
+                </ul>
+            }
+
+            @if (Is_Current_Inventory_Report)
+            {
+                <FWarehouse_Filter_Toolbar Localize="@Get_Language_Data_Field" ToolButtons="@Layout_Tool_Button(m_grdInventory)" />
+            }
+            else if (m_strReport_Type is "Inventory")
+            {
+                <FWarehouse_Filter_Toolbar
+                    ShowDateRange="true"
+                    DateLabel="Từ ngày"
+                    DateFrom="@m_dtmFrom"
+                    DateFromChanged="Set_Date_From"
+                    DateTo="@m_dtmTo"
+                    DateToChanged="Set_Date_To"
+                    OnSearch="Load_Report_Async"
+                    Localize="@Get_Language_Data_Field"
+                    ToolButtons="@Layout_Tool_Button(m_grdInventory)" />
+            }
+            else
+            {
+                <FWarehouse_Filter_Toolbar
+                    ShowDateRange="true"
+                    DateLabel="Từ ngày"
+                    DateFrom="@m_dtmFrom"
+                    DateFromChanged="Set_Date_From"
+                    DateTo="@m_dtmTo"
+                    DateToChanged="Set_Date_To"
+                    OnSearch="Load_Report_Async"
+                    Localize="@Get_Language_Data_Field"
+                    ToolButtons="@Layout_Tool_Button(m_grdReportDetail)" />
+            }
+            @if (m_strReport_Type is "Inventory" or "InventoryCurrent")
+            {
+                <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseInventoryReport" Height="calc(100vh - 310px)" FilterMode="GridFilterMode.FilterRow" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Inventory_Async" @ref="m_grdInventory">
+                    <GridExport>
+                        <GridExcelExport FileName="Warehouse_Inventory_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" />
+                        <GridCsvExport FileName="Warehouse_Inventory_Export" AllPages="true" />
+                    </GridExport>
+                    <GridColumns>
+                        <GridColumn Field="Ten_Kho" Title="Kho" />
+                        <GridColumn Field="Ma_San_Pham" Title="Mã SP" />
+                        <GridColumn Field="Ten_San_Pham" Title="Tên SP" />
+                        @if (!Is_Current_Inventory_Report)
+                        {
+                            <GridColumn Field="SL_Dau_Ky" Title="SL đầu kỳ">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dau_Ky))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Nhap" Title="SL nhập">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Nhap))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Xuat" Title="SL xuất">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Xuat))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Cuoi_Ky" Title="SL cuối kỳ">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Cuoi_Ky))</Template>
+                            </GridColumn>
+                        }
+                        else
+                        {
+                            <GridColumn Field="SL_Ton_Thuc_Te" Title="Tồn thực tế">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Ton_Thuc_Te))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Dang_Giu" Title="Đang giữ">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Dang_Giu))</Template>
+                            </GridColumn>
+                            <GridColumn Field="SL_Kha_Dung" Title="Khả dụng">
+                                <Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseInventoryReport)v_objContext).SL_Kha_Dung))</Template>
+                            </GridColumn>
+                        }
+                    </GridColumns>
+                </TelerikGrid>
+            }
+            else
+            {
+                <TelerikGrid @key="m_strReport_Type" TItem="CWarehouseDetailReport" Height="calc(100vh - 310px)" FilterMode="GridFilterMode.FilterRow" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Report_Detail_Async" @ref="m_grdReportDetail">
+                    <GridExport>
+                        <GridExcelExport FileName="Warehouse_Report_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" />
+                        <GridCsvExport FileName="Warehouse_Report_Export" AllPages="true" />
+                    </GridExport>
+                    <GridColumns>
+                        <GridColumn Field="Ngay" Title="Ngày" />
+                        <GridColumn Field="So_Phieu" Title="Số phiếu" />
+                        <GridColumn Field="Ten_Kho" Title="Kho" />
+                        @if (m_strReport_Type == "Receipt")
+                        {
+                            <GridColumn Field="Nha_Cung_Cap" Title="NCC" />
+                        }
+                        <GridColumn Field="Ma_San_Pham" Title="Mã SP" />
+                        <GridColumn Field="Ten_San_Pham" Title="Tên SP" />
+                        <GridColumn Field="So_Luong" Title="SL"><Template Context="v_objContext">@(CWMS_Utility.Format_So_Luong(((CWarehouseDetailReport)v_objContext).So_Luong))</Template></GridColumn>
+                        <GridColumn Field="Don_Gia" Title="Đơn giá"><Template Context="v_objContext">@(CWMS_Utility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Don_Gia))</Template></GridColumn>
+                        <GridColumn Field="Tri_Gia" Title="Trị giá"><Template Context="v_objContext">@(CWMS_Utility.Format_So_Tien(((CWarehouseDetailReport)v_objContext).Tri_Gia))</Template></GridColumn>
+                    </GridColumns>
+                </TelerikGrid>
+            }
+        
+</div></div>
+@code {
+    // 23/10/2026 - Codex: báo cáo chỉ đọc tách khỏi CRUD/permission; giữ truy vấn paging, filter và export.
+    [Parameter]
+    public string m_strInitial_Report_Type { get; set; } = "Receipt";
+
+    private readonly CWarehouseReport_Controller m_objReportController = new CWarehouseReport_Controller();
+    private readonly CDM_Kho_User_Controller m_objPermissionController = new CDM_Kho_User_Controller();
+    private string m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
+    private bool m_bRouteParametersApplied;
+    private List<CWarehouseDetailReport> m_arrDetailReport = new List<CWarehouseDetailReport>();
+    private List<CWarehouseInventoryReport> m_arrInventoryReport = new List<CWarehouseInventoryReport>();
+    private DateTime m_dtmFrom = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime m_dtmTo = DateTime.Today;
+    private TelerikGrid<CWarehouseDetailReport> m_grdReportDetail = new TelerikGrid<CWarehouseDetailReport>();
+    private TelerikGrid<CWarehouseDetailReport>? m_objFormattedReportDetailGrid;
+    private TelerikGrid<CWarehouseInventoryReport> m_grdInventory = new TelerikGrid<CWarehouseInventoryReport>();
+    private TelerikGrid<CWarehouseInventoryReport>? m_objFormattedInventoryGrid;
+    protected override void OnParametersSet()
+    {
+        if (!m_bRouteParametersApplied)
+        {
+            if (!string.IsNullOrWhiteSpace(m_strInitial_Report_Type))
+            {
+                m_strReport_Type = m_strInitial_Report_Type;
+            }
+
+            m_bRouteParametersApplied = true;
+        }
+
+        base.OnParametersSet();
+    }
+
+    protected override void Load_Data()
+    {
+        Clear_Message();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if ((m_strReport_Type is "Inventory" or "InventoryCurrent") && !ReferenceEquals(m_objFormattedInventoryGrid, m_grdInventory))
+        {
+            m_objFormattedInventoryGrid = m_grdInventory;
+            Format_Grid(m_grdInventory);
+        }
+        else if (!Is_Current_Inventory_Report && !ReferenceEquals(m_objFormattedReportDetailGrid, m_grdReportDetail))
+        {
+            m_objFormattedReportDetailGrid = m_grdReportDetail;
+            Format_Grid(m_grdReportDetail);
+        }
+
+
+    }
+
+    private bool Is_Current_Inventory_Report
+    {
+        get
+        {
+            return m_strReport_Type == "InventoryCurrent";
+        }
+    }
+
+    private void Set_Date_From(DateTime p_dtmValue)
+    {
+        m_dtmFrom = p_dtmValue;
+    }
+
+    private void Set_Date_To(DateTime p_dtmValue)
+    {
+        m_dtmTo = p_dtmValue;
+    }
+
+    private async Task Select_Report_Type_Async(string p_strReport_Type)
+    {
+        if (p_strReport_Type is not ("Receipt" or "Issue" or "Inventory"))
+        {
+            return;
+        }
+
+        m_strReport_Type = p_strReport_Type;
+        await Load_Report_Async();
+    }
+
+    private Task Load_Report_Async()
+    {
+        try
+        {
+            Clear_Message();
+            if (m_strReport_Type is "Inventory" or "InventoryCurrent")
+            {
+                m_grdInventory.Rebind();
+            }
+            else
+            {
+                m_grdReportDetail.Rebind();
+            }
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task Read_Report_Detail_Async(GridReadEventArgs p_objArgs)
+    {
+        try
+        {
+            if (CGrid_DataSource_Utility.Requires_Full_Source(p_objArgs.Request, r_bIs_Excel_OnRead_Export))
+            {
+                List<CWarehouseDetailReport> v_arrSource;
+                if (m_strReport_Type == "Receipt")
+                {
+                    v_arrSource = m_objReportController.F9002_sp_Chi_Tiet_Nhap(m_dtmFrom, m_dtmTo, r_strActive_User_Name, null);
+                }
+                else
+                {
+                    v_arrSource = m_objReportController.F9002_sp_Chi_Tiet_Xuat(m_dtmFrom, m_dtmTo, r_strActive_User_Name, null);
+                }
+
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, p_objArgs.Request);
+                p_objArgs.Data = v_objReadResult.Items;
+                p_objArgs.Total = v_objReadResult.Total_Count;
+                if (p_objArgs.Request.PageSize > 0)
+                {
+                    m_arrDetailReport = v_objReadResult.Items;
+                }
+            }
+            else
+            {
+                CWarehousePagedResult<CWarehouseDetailReport> v_objResult;
+                if (m_strReport_Type == "Receipt")
+                {
+                    v_objResult = m_objReportController.F9002_sp_Chi_Tiet_Nhap_Page(m_dtmFrom, m_dtmTo, p_objArgs.Request.Page, p_objArgs.Request.PageSize, r_strActive_User_Name, null);
+                }
+                else
+                {
+                    v_objResult = m_objReportController.F9002_sp_Chi_Tiet_Xuat_Page(m_dtmFrom, m_dtmTo, p_objArgs.Request.Page, p_objArgs.Request.PageSize, r_strActive_User_Name, null);
+                }
+
+                m_arrDetailReport = v_objResult.Items;
+                p_objArgs.Data = v_objResult.Items;
+                p_objArgs.Total = v_objResult.Total_Count;
+            }
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+            p_objArgs.Data = new List<CWarehouseDetailReport>();
+            p_objArgs.Total = 0;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task Read_Inventory_Async(GridReadEventArgs p_objArgs)
+    {
+        try
+        {
+            if (CGrid_DataSource_Utility.Requires_Full_Source(p_objArgs.Request, r_bIs_Excel_OnRead_Export))
+            {
+                List<CWarehouseInventoryReport> v_arrSource;
+                if (Is_Current_Inventory_Report)
+                {
+                    var v_objFullResult = m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(1, 0, r_strActive_User_Name, null);
+                    v_arrSource = v_objFullResult.Items;
+                }
+                else
+                {
+                    v_arrSource = Get_Historical_Inventory_Report(m_dtmFrom, m_dtmTo, r_strActive_User_Name, null);
+                }
+
+                var v_objReadResult = CGrid_DataSource_Utility.Apply(v_arrSource, p_objArgs.Request);
+                p_objArgs.Data = v_objReadResult.Items;
+                p_objArgs.Total = v_objReadResult.Total_Count;
+                if (p_objArgs.Request.PageSize > 0)
+                {
+                    m_arrInventoryReport = v_objReadResult.Items;
+                }
+            }
+            else
+            {
+                var v_iPage_Size = p_objArgs.Request.PageSize;
+                if (v_iPage_Size == 0 && !r_bIs_Excel_OnRead_Export)
+                {
+                    v_iPage_Size = 10;
+                }
+
+                CWarehousePagedResult<CWarehouseInventoryReport> v_objResult;
+                if (Is_Current_Inventory_Report)
+                {
+                    v_objResult = m_objReportController.F9001_sp_Ton_Kho_Hien_Tai_Page(p_objArgs.Request.Page, v_iPage_Size, r_strActive_User_Name, null);
+                }
+                else
+                {
+                    v_objResult = m_objReportController.F9002_sp_Xuat_Nhap_Ton_Page(m_dtmFrom, m_dtmTo, p_objArgs.Request.Page, v_iPage_Size, r_strActive_User_Name, null);
+                }
+
+                m_arrInventoryReport = v_objResult.Items;
+                p_objArgs.Data = v_objResult.Items;
+                p_objArgs.Total = v_objResult.Total_Count;
+            }
+        }
+        catch (Exception v_objException)
+        {
+            if (CWarehouseReportReadiness.IsRetryable(v_objException))
+            {
+                Set_Report_Not_Ready();
+            }
+            else
+            {
+                Set_Error(v_objException);
+            }
+
+            p_objArgs.Data = new List<CWarehouseInventoryReport>();
+            p_objArgs.Total = 0;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private List<CWarehouseInventoryReport> Get_Historical_Inventory_Report(DateTime p_dtmFrom, DateTime p_dtmTo, string p_strCurrent_Login, long? p_iWarehouse_ID)
+    {
+        List<CWarehouseInventoryReport> v_arrReport = m_objReportController.F9002_sp_Xuat_Nhap_Ton(p_dtmFrom, p_dtmTo, p_strCurrent_Login, p_iWarehouse_ID);
+        Dictionary<long, string> v_dicAuthorizedWarehouseNames = new Dictionary<long, string>();
+        foreach (CWarehouseLookup v_objWarehouse in m_objPermissionController.sp_DM_Kho_User_List_Allowed(p_strCurrent_Login))
+        {
+            v_dicAuthorizedWarehouseNames.Add(v_objWarehouse.Auto_ID, v_objWarehouse.Name);
+        }
+        foreach (CWarehouseInventoryReport v_objReport in v_arrReport)
+        {
+            v_objReport.Ten_Kho = v_dicAuthorizedWarehouseNames.GetValueOrDefault(v_objReport.Kho_ID, "");
+        }
+
+        return v_arrReport;
+    }
+
+    private void Clear_Message()
+    {
+        r_strError = "";
+        m_strSuccess = "";
+        m_strAuditWarning = "";
+    }
+
+    private void Set_Error(Exception p_objException)
+    {
+        m_strSuccess = "";
+        m_strAuditWarning = "";
+        r_strError = CCommonFunction.Set_Error_MessageBox(p_objException.Message);
+    }
+
+    private void Set_Report_Not_Ready()
+    {
+        m_strSuccess = "";
+        m_strAuditWarning = "";
+        r_strError = CCommonFunction.Set_Error_MessageBox(CWarehouseReportReadiness.RetryMessage);
+    }
+}

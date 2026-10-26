@@ -49,14 +49,6 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
                 return CConst.FLT_VALUE_NULL;
         }
 
-        public static decimal Convert_To_Decimal(object p_objData)
-        {
-            if ((p_objData != System.DBNull.Value) && (CUtility.Convert_To_String(p_objData) != ""))
-                return Convert.ToDecimal(p_objData);
-            else
-                return 0m;
-        }
-
         public static bool Convert_To_Bool(object p_objData)
         {
             if (p_objData != System.DBNull.Value)
@@ -648,7 +640,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
                     MethodInfo v_objMethodInfo = v_objItem_Info.SetMethod;
                     if (v_objMethodInfo != null)
                     {
-                        string v_strTypedata = Nullable.GetUnderlyingType(v_objItem_Info.PropertyType)?.Name ?? v_objItem_Info.PropertyType.Name;
+                        string v_strTypedata = v_colValue.DataType.Name;
                         switch (v_strTypedata)
                         {
                             case "String": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_String(p_Row[v_colValue])); break;
@@ -658,7 +650,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
                             case "DateTime": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_DateTime(p_Row[v_colValue])); break;
                             case "DateTime?": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_DateTime(p_Row[v_colValue])); break;
                             case "Double": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_Double(p_Row[v_colValue]), null); break;
-                            case "Decimal": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_Decimal(p_Row[v_colValue]), null); break;
+                            case "Decimal": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_Double(p_Row[v_colValue]), null); break;
                             case "Boolean": v_objItem_Info.SetValue(v_objItem, CUtility.Convert_To_Bool(p_Row[v_colValue]), null); break;
                         }
                     }
@@ -699,7 +691,7 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
                         case "DateTime": v_objTargetProp.SetValue(p_objTarget, CUtility.Convert_To_DateTime(v_objSourceVal), null); break;
                         case "DateTime?": v_objTargetProp.SetValue(p_objTarget, CUtility.Convert_To_DateTime(v_objSourceVal), null); break;
                         case "Double": v_objTargetProp.SetValue(p_objTarget, CUtility.Convert_To_Double(v_objSourceVal), null); break;
-                        case "Decimal": v_objTargetProp.SetValue(p_objTarget, CUtility.Convert_To_Decimal(v_objSourceVal), null); break;
+                        case "Decimal": v_objTargetProp.SetValue(p_objTarget, CUtility.Convert_To_Double(v_objSourceVal), null); break;
                         case "Boolean": v_objTargetProp.SetValue(p_objTarget, CUtility.Convert_To_Bool(v_objSourceVal), null); break;
                        
                     }
@@ -1079,18 +1071,6 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
             //trả về chuỗi số dấu chấm.
             //ví dụ 200000000 sẽ là 200.000.000
             return v_strnumberString;
-        }
-
-        public static string Format_So_Tien(decimal p_decGia_Tri)
-        {
-            // Hiển thị theo mệnh giá tiền Việt Nam, ví dụ 6200 -> 6.200, 372000 -> 372.000
-            return p_decGia_Tri.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
-        }
-
-        public static string Format_So_Luong(decimal p_decSo_Luong)
-        {
-            // Giữ tối đa 3 chữ số thập phân theo DECIMAL(18,3), không làm tròn mất phần nghìn.
-            return p_decSo_Luong.ToString("0.###", CultureInfo.InvariantCulture);
         }
     }
 }

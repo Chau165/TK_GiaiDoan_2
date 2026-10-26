@@ -39,24 +39,6 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Utility
             return v_dtmRes;
         }
 
-        public static DateTime? Convert_Local_Day_Start_To_Utc(DateTime? p_dtmDate)
-        {
-            if (p_dtmDate == null)
-                return null;
-
-            DateTime v_dtmLocal = DateTime.SpecifyKind(p_dtmDate.Value.Date, DateTimeKind.Local);
-            return v_dtmLocal.ToUniversalTime();
-        }
-
-        public static DateTime? Convert_Local_Next_Day_Start_To_Utc(DateTime? p_dtmDate)
-        {
-            if (p_dtmDate == null)
-                return null;
-
-            DateTime v_dtmLocal = DateTime.SpecifyKind(p_dtmDate.Value.Date.AddDays(1), DateTimeKind.Local);
-            return v_dtmLocal.ToUniversalTime();
-        }
-
         public static DateTime? Convert_To_Dau_Thang(DateTime? p_dtmData)
         {
             if (p_dtmData == null)

@@ -4,8 +4,6 @@
 
 <div class="row" style="padding-top: 10px;">
     <div class="col-lg-12">
-        @((MarkupString)r_strError)
-
         <TelerikGrid Data="@v_arrData" Height="calc(100vh - 190px)" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" @ref="@grdData">
             <GridExport>
                 <GridExcelExport FileName="San_Pham_Export" AllPages="true" OnBeforeExport="@Prepare_Excel_Export" />
@@ -73,61 +71,87 @@
 {
     <FCommon_Message_Info r_strMessage_Header="@r_strMessage_Header" r_strMessage_Info="@r_strMessage_Info" OnClose="@Close_Message_Info" />
 }
+else if (!string.IsNullOrWhiteSpace(r_strError))
+{
+    <FCommon_Message_Info r_strMessage_Header='@Get_Language_Data_Field("Thông báo")' r_strMessage_Info="@r_strError" OnClose="@Clear_List_Error" />
+}
 
 @code {
+    private void Clear_List_Error()
+    {
+        r_strError = string.Empty;
+    }
+
     private List<CProductGridRow> v_arrData = new();
     private TelerikGrid<CProductGridRow> grdData = new();
-
     protected override void Load_Data()
     {
+        // 23/10/2026 - Codex: mapping Grid tường minh; Dictionary.Add giữ lỗi khóa lookup trùng như ToDictionary.
         Format_Grid(grdData);
-
-        var v_arrProducts = new CDM_San_Pham_Controller()
-            .F2018_sp_sel_List_San_Pham_By_Created(r_objFilter.Date_From, r_objFilter.Date_To);
-        var v_dicCategories = new CDM_Loai_San_Pham_Controller()
-            .F2017_sp_sel_List_Loai_San_Pham_Lookup()
-            .ToDictionary(v_objItem => v_objItem.Auto_ID);
-        var v_dicUnits = new CDM_Don_Vi_Tinh_Controller()
-            .F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
-            .ToDictionary(v_objItem => v_objItem.Auto_ID);
-
-        v_arrData = v_arrProducts.Select(v_objItem => new CProductGridRow
+        CDM_San_Pham_Controller v_objProduct_Controller = new CDM_San_Pham_Controller();
+        List<CDM_San_Pham> v_arrProducts = v_objProduct_Controller.F2018_sp_sel_List_San_Pham_By_Created(r_objFilter.Date_From, r_objFilter.Date_To);
+        Dictionary<long, CDM_Loai_San_Pham> v_dicCategories = new Dictionary<long, CDM_Loai_San_Pham>();
+        foreach (CDM_Loai_San_Pham v_objCategory in new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup())
         {
-            Auto_ID = v_objItem.Auto_ID,
-            Code = v_objItem.Ma_San_Pham,
-            Name = v_objItem.Ten_San_Pham,
-            Related_ID = v_objItem.Loai_San_Pham_ID,
-            Related_ID_2 = v_objItem.Don_Vi_Tinh_ID,
-            Ma_San_Pham = v_objItem.Ma_San_Pham,
-            Ten_San_Pham = v_objItem.Ten_San_Pham,
-            Loai_San_Pham_ID = v_objItem.Loai_San_Pham_ID,
-            Don_Vi_Tinh_ID = v_objItem.Don_Vi_Tinh_ID,
-            Ma_LSP = v_dicCategories.TryGetValue(v_objItem.Loai_San_Pham_ID, out var v_objCategory) ? v_objCategory.Ma_LSP : "",
-            Ten_LSP = v_dicCategories.TryGetValue(v_objItem.Loai_San_Pham_ID, out v_objCategory) ? v_objCategory.Ten_LSP : "",
-            Ten_Don_Vi_Tinh = v_dicUnits.TryGetValue(v_objItem.Don_Vi_Tinh_ID, out var v_objUnit) ? v_objUnit.Ten_Don_Vi_Tinh : "",
-            Ghi_Chu = v_objItem.Ghi_Chu,
-            Created = v_objItem.Created,
-            Created_By = v_objItem.Created_By,
-            Created_By_Function = v_objItem.Created_By_Function,
-            Last_Updated = v_objItem.Last_Updated,
-            Last_Updated_By = v_objItem.Last_Updated_By,
-            Last_Updated_By_Function = v_objItem.Last_Updated_By_Function
-        }).ToList();
+            v_dicCategories.Add(v_objCategory.Auto_ID, v_objCategory);
+        }
+
+        Dictionary<long, CDM_Don_Vi_Tinh> v_dicUnits = new Dictionary<long, CDM_Don_Vi_Tinh>();
+        foreach (CDM_Don_Vi_Tinh v_objUnit in new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup())
+        {
+            v_dicUnits.Add(v_objUnit.Auto_ID, v_objUnit);
+        }
+
+        List<CProductGridRow> v_arrRows = new List<CProductGridRow>();
+        foreach (CDM_San_Pham v_objItem in v_arrProducts)
+        {
+            string v_strCategory_Code = "";
+            string v_strCategory_Name = "";
+            string v_strUnit_Name = "";
+            if (v_dicCategories.TryGetValue(v_objItem.Loai_San_Pham_ID, out CDM_Loai_San_Pham v_objCategory))
+            {
+                v_strCategory_Code = v_objCategory.Ma_LSP;
+                v_strCategory_Name = v_objCategory.Ten_LSP;
+            }
+
+            if (v_dicUnits.TryGetValue(v_objItem.Don_Vi_Tinh_ID, out CDM_Don_Vi_Tinh v_objUnit))
+            {
+                v_strUnit_Name = v_objUnit.Ten_Don_Vi_Tinh;
+            }
+
+            CProductGridRow v_objRow = new CProductGridRow
+            {
+                Auto_ID = v_objItem.Auto_ID,
+                Code = v_objItem.Ma_San_Pham,
+                Name = v_objItem.Ten_San_Pham,
+                Related_ID = v_objItem.Loai_San_Pham_ID,
+                Related_ID_2 = v_objItem.Don_Vi_Tinh_ID,
+                Ma_San_Pham = v_objItem.Ma_San_Pham,
+                Ten_San_Pham = v_objItem.Ten_San_Pham,
+                Loai_San_Pham_ID = v_objItem.Loai_San_Pham_ID,
+                Don_Vi_Tinh_ID = v_objItem.Don_Vi_Tinh_ID,
+                Ma_LSP = v_strCategory_Code,
+                Ten_LSP = v_strCategory_Name,
+                Ten_Don_Vi_Tinh = v_strUnit_Name,
+                Ghi_Chu = v_objItem.Ghi_Chu,
+                Created = v_objItem.Created,
+                Created_By = v_objItem.Created_By,
+                Created_By_Function = v_objItem.Created_By_Function,
+                Last_Updated = v_objItem.Last_Updated,
+                Last_Updated_By = v_objItem.Last_Updated_By,
+                Last_Updated_By_Function = v_objItem.Last_Updated_By_Function
+            };
+            v_arrRows.Add(v_objRow);
+        }
+
+        v_arrData = v_arrRows;
     }
 
     protected override void Delete_Data_Entry(long p_iAuto_ID)
     {
-        var v_objData = new CDM_San_Pham_Controller()
-            .F2018_sp_sel_List_San_Pham()
-            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == p_iAuto_ID)
-            ?? CCache_San_Pham.Get_Data_By_ID(p_iAuto_ID)
-            ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy sản phẩm cần xóa."));
-
+        var v_objData = new CDM_San_Pham_Controller().F2018_sp_sel_List_San_Pham().FirstOrDefault(v_objItem => v_objItem.Auto_ID == p_iAuto_ID) ?? CCache_San_Pham.Get_Data_By_ID(p_iAuto_ID) ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy sản phẩm cần xóa."));
         r_strDelete_Key = v_objData.Ma_San_Pham;
-        new CDM_San_Pham_Controller().F2018_sp_del_San_Pham(
-            p_iAuto_ID,
-            r_strActive_User_Name,
-            r_strActive_Function_Code);
+        new CDM_San_Pham_Controller().F2018_sp_del_San_Pham(p_iAuto_ID, r_strActive_User_Name, r_strActive_Function_Code);
         CCache_San_Pham.Delete_Data(p_iAuto_ID);
     }
 
@@ -139,7 +163,10 @@
         try
         {
             if (!r_objChuc_Nang.Is_Have_Add_Permission)
+            {
                 throw new UnauthorizedAccessException(Get_Language_Data_Field("Bạn không có quyền thêm mới."));
+            }
+
             var v_arrCategories = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup();
             var v_arrUnits = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup();
             using DataTable v_dt = v_objCtrlExcel.List_Range_Value_To_End(0, "A2", "E");
@@ -148,10 +175,28 @@
             {
                 v_iExcelRow++;
                 // Chỉ bỏ dòng thực sự rỗng; khóa rỗng với dữ liệu khác vẫn phải báo lỗi.
-                if (v_row.ItemArray.All(v_objValue => string.IsNullOrWhiteSpace(CUtility.Convert_To_String(v_objValue))))
+                bool v_bEmpty_Row = true;
+                foreach (object v_objValue in v_row.ItemArray)
+                {
+                    if (!string.IsNullOrWhiteSpace(CUtility.Convert_To_String(v_objValue)))
+                    {
+                        v_bEmpty_Row = false;
+                        break;
+                    }
+                }
+
+                if (v_bEmpty_Row)
+                {
                     continue;
+                }
+
                 try
                 {
+                    if (v_row.ItemArray.Length < 5)
+                    {
+                        throw new InvalidDataException("Thiếu cột dữ liệu để mapping Sản phẩm (cần 5 cột).");
+                    }
+
                     var v_objData = new CDM_San_Pham
                     {
                         Ma_San_Pham = CUtility.Convert_To_String(v_row[0]).Trim(),
@@ -159,21 +204,50 @@
                         Ghi_Chu = CUtility.Convert_To_String(v_row[4]).Trim(),
                     };
                     if (v_objData.Ma_San_Pham.Length > 100)
+                    {
                         throw new InvalidDataException("Ma_San_Pham vượt quá 100 ký tự của tham số SQL.");
+                    }
+
                     if (v_objData.Ten_San_Pham.Length > 255)
+                    {
                         throw new InvalidDataException("Ten_San_Pham vượt quá 255 ký tự của tham số SQL.");
+                    }
+
                     if (v_objData.Ghi_Chu.Length > 1000)
+                    {
                         throw new InvalidDataException("Ghi_Chu vượt quá 1000 ký tự của tham số SQL.");
+                    }
+
                     var v_strCategory = CUtility.Convert_To_String(v_row[2]).Trim().Normalize();
                     var v_strUnit = CUtility.Convert_To_String(v_row[3]).Trim().Normalize();
-                    var v_arrCategoryMatches = v_arrCategories.Where(v_objCategory => string.Equals(
-                        v_objCategory.Ma_LSP.Trim().Normalize(), v_strCategory, StringComparison.OrdinalIgnoreCase)).ToArray();
-                    var v_arrUnitMatches = v_arrUnits.Where(v_objUnit => string.Equals(
-                        v_objUnit.Ten_Don_Vi_Tinh.Trim().Normalize(), v_strUnit, StringComparison.OrdinalIgnoreCase)).ToArray();
-                    if (v_strCategory.Length == 0 || v_arrCategoryMatches.Length != 1)
+                    List<CDM_Loai_San_Pham> v_arrCategoryMatches = new List<CDM_Loai_San_Pham>();
+                    foreach (CDM_Loai_San_Pham v_objCategory in v_arrCategories)
+                    {
+                        if (string.Equals(v_objCategory.Ma_LSP.Trim().Normalize(), v_strCategory, StringComparison.OrdinalIgnoreCase))
+                        {
+                            v_arrCategoryMatches.Add(v_objCategory);
+                        }
+                    }
+
+                    List<CDM_Don_Vi_Tinh> v_arrUnitMatches = new List<CDM_Don_Vi_Tinh>();
+                    foreach (CDM_Don_Vi_Tinh v_objUnit in v_arrUnits)
+                    {
+                        if (string.Equals(v_objUnit.Ten_Don_Vi_Tinh.Trim().Normalize(), v_strUnit, StringComparison.OrdinalIgnoreCase))
+                        {
+                            v_arrUnitMatches.Add(v_objUnit);
+                        }
+                    }
+
+                    if (v_strCategory.Length == 0 || v_arrCategoryMatches.Count != 1)
+                    {
                         throw new InvalidDataException("Không xác định duy nhất được mã loại sản phẩm: " + v_strCategory);
-                    if (v_strUnit.Length == 0 || v_arrUnitMatches.Length != 1)
+                    }
+
+                    if (v_strUnit.Length == 0 || v_arrUnitMatches.Count != 1)
+                    {
                         throw new InvalidDataException("Không xác định duy nhất được đơn vị tính: " + v_strUnit);
+                    }
+
                     v_objData.Loai_San_Pham_ID = v_arrCategoryMatches[0].Auto_ID;
                     v_objData.Don_Vi_Tinh_ID = v_arrUnitMatches[0].Auto_ID;
                     using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
@@ -182,65 +256,101 @@
                         using SqlTransaction v_trans = v_conn.BeginTransaction();
                         try
                         {
-                            v_objData.Auto_ID = v_objCtrData.F2018_sp_ins_San_Pham(
-                                v_conn, v_trans, v_objData, r_strActive_User_Name, r_strActive_Function_Code);
+                            v_objData.Auto_ID = v_objCtrData.F2018_sp_ins_San_Pham(v_conn, v_trans, v_objData, r_strActive_User_Name, r_strActive_Function_Code);
                             v_trans.Commit();
                         }
                         catch
                         {
-                            try { v_trans.Rollback(); } catch { }
+                            try
+                            {
+                                v_trans.Rollback();
+                            }
+                            catch
+                            {
+                            }
+
                             throw;
                         }
                     }
+
                     p_iCount_Success++;
                     // Hậu xử lý sau commit không được biến dữ liệu đã lưu thành lỗi import.
-                    try { CCache_San_Pham.Add_Data(v_objData); }
-                    catch (Exception ex)
-                    {
-                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa cập nhật Cache")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
-                    }
                     try
                     {
-                        CCommon_Controller.FCommon_Insert_Action_History(
-                            v_objData.Auto_ID, Get_Language_Data_Field("Import Excel - Thêm Mới"), "Web",
-                            r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang,
-                            "Key: " + v_objData.Ma_San_Pham);
+                        CCache_San_Pham.Add_Data(v_objData);
                     }
-                    catch (Exception ex)
+                    catch (Exception v_objException)
                     {
-                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa ghi lịch sử")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
+                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa cập nhật Cache")}: {System.Net.WebUtility.HtmlEncode(v_objException.Message)}<br/>");
+                    }
+
+                    try
+                    {
+                        CCommon_Controller.FCommon_Insert_Action_History(v_objData.Auto_ID, Get_Language_Data_Field("Import Excel - Thêm Mới"), "Web", r_strActive_User_Name, r_strActive_Function_Code, r_objChuc_Nang.Ten_Chuc_Nang, "Key: " + v_objData.Ma_San_Pham);
+                    }
+                    catch (Exception v_objException)
+                    {
+                        v_sbWarning.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow}: {Get_Language_Data_Field("Đã lưu nhưng chưa ghi lịch sử")}: {System.Net.WebUtility.HtmlEncode(v_objException.Message)}<br/>");
                     }
                 }
-                catch (Exception ex)
+                catch (Exception v_objException) when (
+                    v_objException is InvalidDataException ||
+                    (v_objException is Microsoft.Data.SqlClient.SqlException v_objSqlException &&
+                     (v_objSqlException.Number >= 50000 || v_objSqlException.Number == 2601 || v_objSqlException.Number == 2627 || v_objSqlException.Number == 547 || v_objSqlException.Number == 515)))
                 {
                     p_iCount_Error++;
-                    v_sbError.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow} {Get_Language_Data_Field("có lỗi")}: {System.Net.WebUtility.HtmlEncode(ex.Message)}<br/>");
+                    v_sbError.AppendLine($"{Get_Language_Data_Field("Dòng")} {v_iExcelRow} {Get_Language_Data_Field("có lỗi")}: {System.Net.WebUtility.HtmlEncode(v_objException.Message)}<br/>");
                 }
             }
+
             if (p_iCount_Success == 0 && p_iCount_Error == 0)
+            {
                 v_sbError.AppendLine(Get_Language_Data_Field("File không có dòng dữ liệu."));
+            }
         }
-        catch (Exception ex)
+        catch (Exception v_objException)
         {
             p_iCount_Error++;
-            v_sbError.AppendLine(System.Net.WebUtility.HtmlEncode(ex.Message));
+            if (v_objException is System.IO.InvalidDataException && !v_objException.Message.Contains("dòng", System.StringComparison.OrdinalIgnoreCase))
+            {
+                v_sbError.AppendLine(Get_Language_Data_Field("Dòng") + " 1 " + Get_Language_Data_Field("có lỗi") + ": " + System.Net.WebUtility.HtmlEncode(v_objException.Message) + "<br/>");
+            }
+            else
+            {
+                v_sbError.AppendLine(System.Net.WebUtility.HtmlEncode(v_objException.Message) + "<br/>");
+            }
         }
-        var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(
-            Get_Language_Data_Field("Thêm mới {0} dòng thành công."), p_iCount_Success));
+
+        var v_strMessage = CCommonFunction.Set_Success_MessageBox(string.Format(Get_Language_Data_Field("Thêm mới {0} dòng thành công."), p_iCount_Success));
         if (v_sbError.Length > 0)
+        {
             v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbError.ToString());
+        }
+
         if (v_sbWarning.Length > 0)
+        {
             v_strMessage += CCommonFunction.Set_Error_MessageBox(v_sbWarning.ToString());
+        }
+
         Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
     }
 
     private void Open_Product_Edit(long p_iAuto_ID)
     {
-        var v_blCanEdit = p_iAuto_ID == 0
-            ? r_objChuc_Nang.Is_Have_Add_Permission
-            : r_objChuc_Nang.Is_Have_Edit_Permission;
+        bool v_blCanEdit;
+        if (p_iAuto_ID == 0)
+        {
+            v_blCanEdit = r_objChuc_Nang.Is_Have_Add_Permission;
+        }
+        else
+        {
+            v_blCanEdit = r_objChuc_Nang.Is_Have_Edit_Permission;
+        }
+
         if (!v_blCanEdit)
+        {
             return;
+        }
 
         Open_Edit(p_iAuto_ID);
     }
@@ -248,7 +358,9 @@
     private Task Delete_Product_Async(long p_iAuto_ID)
     {
         if (!r_objChuc_Nang.Is_Have_Delete_Permission)
+        {
             return Task.CompletedTask;
+        }
 
         return Delete_Data(p_iAuto_ID);
     }

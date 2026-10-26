@@ -1,4 +1,4 @@
-@inherits FBase
+﻿@inherits FBase
 
 <div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; background-color: rgba(10, 10, 10, .8);">
     <div class="modal-dialog modal-lg">
@@ -39,10 +39,20 @@
 
 @code {
     private CDM_Loai_San_Pham m_objData = new();
-
-    private bool Can_Save => r_iAuto_ID == 0
-        ? r_objChuc_Nang.Is_Have_Add_Permission
-        : r_objChuc_Nang.Is_Have_Edit_Permission && m_objData.Auto_ID == r_iAuto_ID;
+    private bool Can_Save
+    {
+        get
+        {
+            if (r_iAuto_ID == 0)
+            {
+                return r_objChuc_Nang.Is_Have_Add_Permission;
+            }
+            else
+            {
+                return r_objChuc_Nang.Is_Have_Edit_Permission && m_objData.Auto_ID == r_iAuto_ID;
+            }
+        }
+    }
 
     protected override void Load_Data()
     {
@@ -51,15 +61,12 @@
         r_objDes = null;
         r_strAdd_Key = "";
         m_objData = new CDM_Loai_San_Pham();
-
         if (r_iAuto_ID == 0)
+        {
             return;
+        }
 
-        m_objData = new CDM_Loai_San_Pham_Controller()
-            .F2017_sp_sel_List_Loai_San_Pham()
-            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == r_iAuto_ID)
-            ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy loại sản phẩm cần hiệu chỉnh."));
-
+        m_objData = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham().FirstOrDefault(v_objItem => v_objItem.Auto_ID == r_iAuto_ID) ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy loại sản phẩm cần hiệu chỉnh."));
         r_bUpdate = true;
         var v_objClone = new CDM_Loai_San_Pham();
         CUtility.Clone_Entity(m_objData, v_objClone);
@@ -69,10 +76,7 @@
     protected override void Add_Data()
     {
         Check_Data();
-        m_objData.Auto_ID = new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(
-            m_objData,
-            r_strActive_User_Name,
-            r_strActive_Function_Code);
+        m_objData.Auto_ID = new CDM_Loai_San_Pham_Controller().F2017_sp_ins_Loai_San_Pham(m_objData, r_strActive_User_Name, r_strActive_Function_Code);
         r_iAuto_ID = m_objData.Auto_ID;
         r_strAdd_Key = m_objData.Ma_LSP;
         CCache_Loai_San_Pham.Add_Data(m_objData);
@@ -81,11 +85,7 @@
     protected override void Update_Data()
     {
         Check_Data();
-        new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(
-            m_objData,
-            r_strActive_User_Name,
-            r_strActive_Function_Code);
-
+        new CDM_Loai_San_Pham_Controller().F2017_sp_upd_Loai_San_Pham(m_objData, r_strActive_User_Name, r_strActive_Function_Code);
         var v_objClone = new CDM_Loai_San_Pham();
         CUtility.Clone_Entity(m_objData, v_objClone);
         r_objDes = v_objClone;
@@ -98,31 +98,49 @@
         m_objData.Ma_LSP = m_objData.Ma_LSP?.Trim() ?? "";
         m_objData.Ten_LSP = m_objData.Ten_LSP?.Trim() ?? "";
         m_objData.Ghi_Chu = m_objData.Ghi_Chu?.Trim() ?? "";
-
         if (string.IsNullOrWhiteSpace(m_objData.Ma_LSP))
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Mã loại sản phẩm không được để trống."));
+        }
+
         if (m_objData.Ma_LSP.Length > 100)
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Mã loại sản phẩm không được vượt quá 100 ký tự."));
+        }
+
         if (string.IsNullOrWhiteSpace(m_objData.Ten_LSP))
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Tên loại sản phẩm không được để trống."));
+        }
+
         if (m_objData.Ten_LSP.Length > 200)
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Tên loại sản phẩm không được vượt quá 200 ký tự."));
+        }
+
         if (m_objData.Ghi_Chu.Length > 1000)
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Ghi chú không được vượt quá 1000 ký tự."));
+        }
 
         var v_arrExisting = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham();
-        if (v_arrExisting.Any(v_objItem => v_objItem.Auto_ID != m_objData.Auto_ID &&
-            string.Equals(v_objItem.Ma_LSP, m_objData.Ma_LSP, StringComparison.OrdinalIgnoreCase)))
+        if (v_arrExisting.Any(v_objItem => v_objItem.Auto_ID != m_objData.Auto_ID && string.Equals(v_objItem.Ma_LSP, m_objData.Ma_LSP, StringComparison.OrdinalIgnoreCase)))
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Mã loại sản phẩm đã tồn tại."));
-        if (v_arrExisting.Any(v_objItem => v_objItem.Auto_ID != m_objData.Auto_ID &&
-            string.Equals(v_objItem.Ten_LSP, m_objData.Ten_LSP, StringComparison.OrdinalIgnoreCase)))
+        }
+
+        if (v_arrExisting.Any(v_objItem => v_objItem.Auto_ID != m_objData.Auto_ID && string.Equals(v_objItem.Ten_LSP, m_objData.Ten_LSP, StringComparison.OrdinalIgnoreCase)))
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Tên loại sản phẩm đã tồn tại."));
+        }
     }
 
     private async Task Save_Category_Data()
     {
         if (!Can_Save)
+        {
             return;
+        }
 
         await Save_Data();
     }

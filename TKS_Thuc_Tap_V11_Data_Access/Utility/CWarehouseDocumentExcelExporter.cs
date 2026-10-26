@@ -1,17 +1,13 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Utility;
-
 public static class CWarehouseDocumentExcelExporter
 {
-    public static List<CWarehouseDocumentExcelExportRow> BuildRows(
-        IEnumerable<CWarehouseDocument> p_arrDocuments,
-        Func<long, IReadOnlyCollection<CWarehouseDocumentDetail>> p_funcGetDetails)
+    public static List<CWarehouseDocumentExcelExportRow> BuildRows(IEnumerable<CWarehouseDocument> p_arrDocuments, Func<long, IReadOnlyCollection<CWarehouseDocumentDetail>> p_funcGetDetails)
     {
         ArgumentNullException.ThrowIfNull(p_arrDocuments);
         ArgumentNullException.ThrowIfNull(p_funcGetDetails);
-
         var v_arrRows = new List<CWarehouseDocumentExcelExportRow>();
         foreach (var v_objDocument in p_arrDocuments)
         {
@@ -22,28 +18,65 @@ public static class CWarehouseDocumentExcelExporter
                 continue;
             }
 
-            v_arrRows.AddRange(v_arrDetails.Select(v_objDetail => CreateRow(v_objDocument, v_objDetail)));
+            foreach (CWarehouseDocumentDetail v_objDetail in v_arrDetails)
+            {
+                v_arrRows.Add(CreateRow(v_objDocument, v_objDetail));
+            }
         }
 
         return v_arrRows;
     }
 
-    public static byte[] CreateWorkbook(
-        IEnumerable<CWarehouseDocumentExcelExportRow> p_arrRows,
-        bool isReceipt)
+    public static byte[] CreateWorkbook(IEnumerable<CWarehouseDocumentExcelExportRow> p_arrRows, bool isReceipt)
     {
         ArgumentNullException.ThrowIfNull(p_arrRows);
         var v_arrRows = p_arrRows.ToList();
-        var v_arrHeaders = isReceipt
-            ? new[] { "Ngày", "Số phiếu", "Kho", "NCC", "Trạng thái", "Ghi chú", "Mã SP", "Tên sản phẩm", "ĐVT", "SL nhập", "Đơn giá", "Trị giá" }
-            : new[] { "Ngày", "Số phiếu", "Kho", "Trạng thái", "Ghi chú", "Mã SP", "Tên sản phẩm", "ĐVT", "SL xuất", "Đơn giá", "Trị giá" };
+        string[] v_arrHeaders;
+        if (isReceipt)
+        {
+            v_arrHeaders = new[]
+        {
+            "Ngày",
+            "Số phiếu",
+            "Kho",
+            "NCC",
+            "Trạng thái",
+            "Ghi chú",
+            "Mã SP",
+            "Tên sản phẩm",
+            "ĐVT",
+            "SL nhập",
+            "Đơn giá",
+            "Trị giá"
+        };
 
+        }
+        else
+        {
+            v_arrHeaders = new[]
+        {
+            "Ngày",
+            "Số phiếu",
+            "Kho",
+            "Trạng thái",
+            "Ghi chú",
+            "Mã SP",
+            "Tên sản phẩm",
+            "ĐVT",
+            "SL xuất",
+            "Đơn giá",
+            "Trị giá"
+        };
+        }
         using var v_objWorkbook = new XLWorkbook();
-        var v_objWorksheet = v_objWorkbook.Worksheets.Add(isReceipt ? "PhieuNhap" : "PhieuXuat");
+        string v_strSheet_Name = "PhieuXuat";
+        if (isReceipt) { v_strSheet_Name = "PhieuNhap"; }
+        var v_objWorksheet = v_objWorkbook.Worksheets.Add(v_strSheet_Name);
         v_objWorksheet.Style.Font.FontName = "Calibri";
-
         for (var v_iColumn = 0; v_iColumn < v_arrHeaders.Length; v_iColumn++)
+        {
             v_objWorksheet.Cell(1, v_iColumn + 1).Value = v_arrHeaders[v_iColumn];
+        }
 
         for (var v_iRow = 0; v_iRow < v_arrRows.Count; v_iRow++)
         {
@@ -54,21 +87,39 @@ public static class CWarehouseDocumentExcelExporter
             v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.So_Phieu;
             v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Ten_Kho;
             if (isReceipt)
+            {
                 v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Ten_NCC;
-            v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Is_Posted ? "Đã Post" : "Nháp";
+            }
+
+            if (v_objRow.Is_Posted)
+            {
+                v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = "Đã Post";
+            }
+            else
+            {
+                v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = "Nháp";
+            }
+
             v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Ghi_Chu;
             v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Ma_San_Pham;
             v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Ten_San_Pham;
             v_objWorksheet.Cell(v_iExcelRow, v_iColumn++).Value = v_objRow.Ten_Don_Vi_Tinh;
-
             if (v_objRow.So_Luong.HasValue)
+            {
                 v_objWorksheet.Cell(v_iExcelRow, v_iColumn).Value = v_objRow.So_Luong.Value;
+            }
+
             v_iColumn++;
             if (v_objRow.Don_Gia.HasValue)
+            {
                 v_objWorksheet.Cell(v_iExcelRow, v_iColumn).Value = v_objRow.Don_Gia.Value;
+            }
+
             v_iColumn++;
             if (v_objRow.Tri_Gia.HasValue)
+            {
                 v_objWorksheet.Cell(v_iExcelRow, v_iColumn).Value = v_objRow.Tri_Gia.Value;
+            }
         }
 
         var v_iLastRow = Math.Max(1, v_arrRows.Count + 1);
@@ -79,22 +130,77 @@ public static class CWarehouseDocumentExcelExporter
         v_objWorksheet.Range(1, 1, 1, v_iLastColumn).Style.Fill.BackgroundColor = XLColor.LightGray;
         v_objWorksheet.Range(1, 1, v_iLastRow, v_iLastColumn).SetAutoFilter();
         v_objWorksheet.SheetView.FreezeRows(1);
-
         v_objWorksheet.Column(1).Width = 22;
         v_objWorksheet.Column(1).Style.DateFormat.Format = "dd/MM/yyyy HH:mm:ss";
         v_objWorksheet.Column(2).Width = 18;
         v_objWorksheet.Column(3).Width = 24;
-        var v_iStatusColumn = isReceipt ? 5 : 4;
-        var v_iNoteColumn = isReceipt ? 6 : 5;
-        var v_iProductCodeColumn = isReceipt ? 7 : 6;
-        var v_iProductNameColumn = isReceipt ? 8 : 7;
-        var v_iUnitColumn = isReceipt ? 9 : 8;
-        var v_iQuantityColumn = isReceipt ? 10 : 9;
+        int v_iStatusColumn;
+        if (isReceipt)
+        {
+            v_iStatusColumn = 5;
+        }
+        else
+        {
+            v_iStatusColumn = 4;
+        }
+
+        int v_iNoteColumn;
+        if (isReceipt)
+        {
+            v_iNoteColumn = 6;
+        }
+        else
+        {
+            v_iNoteColumn = 5;
+        }
+
+        int v_iProductCodeColumn;
+        if (isReceipt)
+        {
+            v_iProductCodeColumn = 7;
+        }
+        else
+        {
+            v_iProductCodeColumn = 6;
+        }
+
+        int v_iProductNameColumn;
+        if (isReceipt)
+        {
+            v_iProductNameColumn = 8;
+        }
+        else
+        {
+            v_iProductNameColumn = 7;
+        }
+
+        int v_iUnitColumn;
+        if (isReceipt)
+        {
+            v_iUnitColumn = 9;
+        }
+        else
+        {
+            v_iUnitColumn = 8;
+        }
+
+        int v_iQuantityColumn;
+        if (isReceipt)
+        {
+            v_iQuantityColumn = 10;
+        }
+        else
+        {
+            v_iQuantityColumn = 9;
+        }
+
         var v_iPriceColumn = v_iQuantityColumn + 1;
         var v_iValueColumn = v_iQuantityColumn + 2;
-
         if (isReceipt)
+        {
             v_objWorksheet.Column(4).Width = 30;
+        }
+
         v_objWorksheet.Column(v_iStatusColumn).Width = 14;
         v_objWorksheet.Column(v_iNoteColumn).Width = 32;
         v_objWorksheet.Column(v_iProductCodeColumn).Width = 16;
@@ -106,15 +212,12 @@ public static class CWarehouseDocumentExcelExporter
         v_objWorksheet.Column(v_iQuantityColumn).Style.NumberFormat.Format = "#,##0.####";
         v_objWorksheet.Column(v_iPriceColumn).Style.NumberFormat.Format = "#,##0.####";
         v_objWorksheet.Column(v_iValueColumn).Style.NumberFormat.Format = "#,##0.####";
-
         using var v_objStream = new MemoryStream();
         v_objWorkbook.SaveAs(v_objStream);
         return v_objStream.ToArray();
     }
 
-    private static CWarehouseDocumentExcelExportRow CreateRow(
-        CWarehouseDocument p_objDocument,
-        CWarehouseDocumentDetail? p_objDetail)
+    private static CWarehouseDocumentExcelExportRow CreateRow(CWarehouseDocument p_objDocument, CWarehouseDocumentDetail? p_objDetail)
     {
         return new CWarehouseDocumentExcelExportRow
         {

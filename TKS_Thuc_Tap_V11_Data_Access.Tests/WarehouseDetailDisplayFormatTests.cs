@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -16,7 +16,7 @@ public sealed class WarehouseDetailDisplayFormatTests
     [InlineData(-6200, "-6.200")]
     public void Format_So_Tien_uses_vnd_thousands_separator_without_decimals(decimal p_decValue, string p_strExpected)
     {
-        Assert.Equal(p_strExpected, CUtility.Format_So_Tien(p_decValue));
+        Assert.Equal(p_strExpected, CWMS_Utility.Format_So_Tien(p_decValue));
     }
 
     [Theory]
@@ -32,7 +32,7 @@ public sealed class WarehouseDetailDisplayFormatTests
     [InlineData(999999.999, "999999.999")]
     public void Format_So_Luong_preserves_meaningful_decimal_precision(decimal p_decValue, string p_strExpected)
     {
-        Assert.Equal(p_strExpected, CUtility.Format_So_Luong(p_decValue));
+        Assert.Equal(p_strExpected, CWMS_Utility.Format_So_Luong(p_decValue));
     }
 
     [Fact]
@@ -91,18 +91,18 @@ public sealed class WarehouseDetailDisplayFormatTests
     {
         var v_InfoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
-        Assert.Contains("CUtility.Format_So_Luong", v_InfoSource);
+        Assert.Contains("CWMS_Utility.Format_So_Luong", v_InfoSource);
         Assert.Contains("v_objDetail.Ten_Don_Vi_Tinh", v_InfoSource);
-        Assert.Contains("CUtility.Format_So_Tien", v_InfoSource);
+        Assert.Contains("CWMS_Utility.Format_So_Tien", v_InfoSource);
     }
 
     [Fact]
     public void Warehouse_report_grids_format_quantity_and_money_with_shared_helpers()
     {
-        var v_ListSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_1_Warehouse_List.razor"));
+        var v_ListSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_Report_List.razor"));
 
-        Assert.Contains("CUtility.Format_So_Luong", v_ListSource);
-        Assert.Contains("CUtility.Format_So_Tien", v_ListSource);
+        Assert.Contains("CWMS_Utility.Format_So_Luong", v_ListSource);
+        Assert.Contains("CWMS_Utility.Format_So_Tien", v_ListSource);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class WarehouseDetailDisplayFormatTests
     {
         var v_EditSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
-        Assert.Contains("CUtility.Format_So_Tien", v_EditSource);
+        Assert.Contains("CWMS_Utility.Format_So_Tien", v_EditSource);
     }
 
     private static string FindWarehouseComponent(string p_FileName)

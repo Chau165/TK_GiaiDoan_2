@@ -32,7 +32,17 @@ public sealed class UnitExcelImportUiTests
         Assert.Contains("OnClose=\"@Close_Import_Excel\"", v_strSource);
         Assert.Contains("protected override void Import_Excel_Entry", v_strSource);
         Assert.DoesNotContain("<FWarehouse_Unit_Import", v_strSource);
-        Assert.Contains("Validate_Header_Matches(fileInfo, v_objTemplate_File)", v_strBase);
+        Assert.DoesNotContain("CWMS_Excel_Utility.Validate_Import_File", v_strSource);
+        int v_iValidateIndex = v_strBase.IndexOf("CWMS_Excel_Utility.Validate_Import_File", StringComparison.Ordinal);
+        int v_iQueueIndex = v_strBase.IndexOf("Process_Queue(\"Import Excel\")", StringComparison.Ordinal);
+        int v_iImportIndex = v_strBase.IndexOf("Import_Excel_Entry(v_objCtrExcel", StringComparison.Ordinal);
+        int v_iRejectGuardIndex = v_strBase.IndexOf("if (!v_bImport_File_Validated)", StringComparison.Ordinal);
+        int v_iReloadIndex = v_strBase.IndexOf("Load_Data_Init();", v_iRejectGuardIndex, StringComparison.Ordinal);
+        Assert.True(v_iValidateIndex >= 0 && v_iValidateIndex < v_iQueueIndex);
+        Assert.True(v_iQueueIndex < v_iImportIndex);
+        Assert.True(v_iImportIndex < v_iRejectGuardIndex && v_iRejectGuardIndex < v_iReloadIndex);
+        Assert.Contains("return;", v_strBase.Substring(v_iRejectGuardIndex, v_iReloadIndex - v_iRejectGuardIndex));
+        Assert.Contains("if (v_iQueue_ID > 0)", v_strBase);
 
         var v_strCommonImport = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Common", "Common", "FCommon_Import_Excel.razor"));

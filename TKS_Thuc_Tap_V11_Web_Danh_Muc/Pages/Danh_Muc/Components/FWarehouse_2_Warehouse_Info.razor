@@ -1,4 +1,4 @@
-@inherits FBase
+﻿@inherits FBase
 
 @if (m_objDocument != null)
 {
@@ -40,19 +40,19 @@
                     <GridColumn Field="So_Luong" Title="SL">
                         <Template Context="v_objContext">
                             @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @(CUtility.Format_So_Luong(v_objDetail!.So_Luong)) (@v_objDetail.Ten_Don_Vi_Tinh)
+                            @(CWMS_Utility.Format_So_Luong(v_objDetail!.So_Luong)) (@v_objDetail.Ten_Don_Vi_Tinh)
                         </Template>
                     </GridColumn>
                     <GridColumn Field="Don_Gia" Title="Đơn giá">
                         <Template Context="v_objContext">
                             @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @(CUtility.Format_So_Tien(v_objDetail!.Don_Gia))
+                            @(CWMS_Utility.Format_So_Tien(v_objDetail!.Don_Gia))
                         </Template>
                     </GridColumn>
                     <GridColumn Field="Tri_Gia" Title="Trị giá">
                         <Template Context="v_objContext">
                             @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @(CUtility.Format_So_Tien(v_objDetail!.Tri_Gia))
+                            @(CWMS_Utility.Format_So_Tien(v_objDetail!.Tri_Gia))
                         </Template>
                     </GridColumn>
                     <GridColumn Title="">
@@ -70,7 +70,7 @@
                     </GridColumn>
                 </GridColumns>
             </TelerikGrid>
-            <div class="text-end fw-bold mt-2">Tổng trị giá: @(CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia)))</div>
+            <div class="text-end fw-bold mt-2">Tổng trị giá: @(CWMS_Utility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia)))</div>
         </div>
     </div>
 
@@ -137,9 +137,9 @@ else {
                         <td>@v_objLine.Detail.Ma_San_Pham</td>
                         <td>@v_objLine.Detail.Ten_San_Pham</td>
                         <td class="warehouse-print-center">@v_objLine.Detail.Ten_Don_Vi_Tinh</td>
-                        <td class="warehouse-print-number-cell">@CUtility.Format_So_Luong(v_objLine.Detail.So_Luong)</td>
-                        <td class="warehouse-print-number-cell">@CUtility.Format_So_Tien(v_objLine.Detail.Don_Gia)</td>
-                        <td class="warehouse-print-number-cell">@CUtility.Format_So_Tien(v_objLine.Detail.Tri_Gia)</td>
+                        <td class="warehouse-print-number-cell">@CWMS_Utility.Format_So_Luong(v_objLine.Detail.So_Luong)</td>
+                        <td class="warehouse-print-number-cell">@CWMS_Utility.Format_So_Tien(v_objLine.Detail.Don_Gia)</td>
+                        <td class="warehouse-print-number-cell">@CWMS_Utility.Format_So_Tien(v_objLine.Detail.Tri_Gia)</td>
                     </tr>
                 }
                 @if (m_arrDetail.Count == 0)
@@ -150,16 +150,16 @@ else {
             <tfoot>
                 <tr>
                     <th colspan="4" class="warehouse-print-right">Tổng</th>
-                    <th class="warehouse-print-number-cell">@CUtility.Format_So_Luong(m_arrDetail.Sum(x => x.So_Luong))</th>
+                    <th class="warehouse-print-number-cell">@CWMS_Utility.Format_So_Luong(m_arrDetail.Sum(x => x.So_Luong))</th>
                     <th></th>
-                    <th class="warehouse-print-number-cell">@CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia))</th>
+                    <th class="warehouse-print-number-cell">@CWMS_Utility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia))</th>
                 </tr>
             </tfoot>
         </table>
 
         <section class="warehouse-print-totals">
-            <div><strong>Tổng số lượng:</strong> @CUtility.Format_So_Luong(m_arrDetail.Sum(x => x.So_Luong))</div>
-            <div><strong>Tổng trị giá:</strong> @CUtility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia))</div>
+            <div><strong>Tổng số lượng:</strong> @CWMS_Utility.Format_So_Luong(m_arrDetail.Sum(x => x.So_Luong))</div>
+            <div><strong>Tổng trị giá:</strong> @CWMS_Utility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia))</div>
         </section>
 
         <footer class="warehouse-print-signatures">

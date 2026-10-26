@@ -1,16 +1,19 @@
-using System.Text;
+﻿using System.Text;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Utility;
-
 public static class CImportBusinessValueComparer
 {
-    public static bool AreEqual(string? p_strLeft, string? p_strRight) =>
-        string.Equals(Normalize(p_strLeft), Normalize(p_strRight), StringComparison.OrdinalIgnoreCase);
+    public static bool AreEqual(string? p_strLeft, string? p_strRight)
+    {
+        return string.Equals(Normalize(p_strLeft), Normalize(p_strRight), StringComparison.OrdinalIgnoreCase);
+    }
 
     public static string Normalize(string? p_strValue)
     {
         if (string.IsNullOrWhiteSpace(p_strValue))
+        {
             return "";
+        }
 
         var v_strSource = p_strValue.Normalize(NormalizationForm.FormC);
         var v_objBuilder = new StringBuilder(v_strSource.Length);
@@ -24,7 +27,10 @@ public static class CImportBusinessValueComparer
             }
 
             if (v_bPendingSpace)
+            {
                 v_objBuilder.Append(' ');
+            }
+
             v_objBuilder.Append(v_ch);
             v_bPendingSpace = false;
         }

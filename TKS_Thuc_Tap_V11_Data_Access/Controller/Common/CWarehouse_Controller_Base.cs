@@ -1,76 +1,63 @@
-using System.Data;
+﻿using System.Data;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
-
 public abstract class CWarehouse_Controller_Base
 {
-    protected static List<T> List_From_Procedure<T>(string p_strProcedure, params object[] p_arrValue) where T : new()
-    {
-        using var v_dtData = new DataTable();
-        CSqlHelper.FillDataTable(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dtData, p_strProcedure, p_arrValue);
-
-        var v_arrRes = new List<T>();
-        foreach (DataRow v_row in v_dtData.Rows)
-            v_arrRes.Add(CUtility.Map_Row_To_Entity<T>(v_row));
-
-        return v_arrRes;
-    }
-
-    protected static CWarehousePagedResult<T> Page_From_Procedure<T>(string p_strProcedure, params object[] p_arrValue) where T : new()
+    protected static CWarehousePagedResult<T> Page_From_Procedure<T>(string p_strProcedure, params object[] p_arrValue)
+        where T : new()
     {
         using var v_dsData = new DataSet();
-        CSqlHelper.FillDataSet(CConfig.TKS_Thuc_Tap_V11_Conn_String, v_dsData, p_strProcedure, p_arrValue);
-
+        Fill_Page_Data(v_dsData, p_strProcedure, p_arrValue);
         if (v_dsData.Tables.Count < 2 || v_dsData.Tables[0].Rows.Count == 0)
+        {
             throw new InvalidOperationException($"{p_strProcedure} must return total count and page data.");
+        }
 
         var v_objResult = new CWarehousePagedResult<T>
         {
             Total_Count = Convert.ToInt32(v_dsData.Tables[0].Rows[0]["Total_Count"])
         };
-
         foreach (DataRow v_row in v_dsData.Tables[1].Rows)
-            v_objResult.Items.Add(CUtility.Map_Row_To_Entity<T>(v_row));
+        {
+            v_objResult.Items.Add(CWMS_Utility.Map_Warehouse_Row<T>(v_row));
+        }
 
         return v_objResult;
     }
 
-    protected static long Scalar_ID(string p_strProcedure, params object[] p_arrValue)
+    // 23/10/2026 - Codex: SP phân trang trả hai result sets; Source A chỉ hỗ trợ DataTable.
+    // Giữ phần đọc DataSet tại Controller Warehouse, tái sử dụng connection và parameter cache của công ty.
+    public static void Fill_Page_Data(DataSet p_dsData, string p_strProcedure, params object[] p_arrValue)
     {
-        return Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue));
-    }
+        SqlParameter[] v_arrParameters = CSqlHelperParameterCache.GetSpParameterSet(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure);
+        if (v_arrParameters.Length != p_arrValue.Length)
+        {
+            throw new Exception($"{p_strProcedure}. Parameter count does not match Parameter Value count.");
+        }
 
-    protected static long Scalar_ID(string p_strProcedure, params SqlParameter[] p_arrParameters)
-    {
-        return Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrParameters));
-    }
+        for (int v_i = 0; v_i < v_arrParameters.Length; v_i++)
+        {
+            object v_objValue = p_arrValue[v_i];
+            if (v_objValue == null)
+            {
+                v_objValue = DBNull.Value;
+            }
 
-    protected static void Execute_Procedure(string p_strProcedure, params object[] p_arrValue)
-    {
-        CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue);
-    }
+            v_arrParameters[v_i].Value = v_objValue;
+        }
 
-    protected static void Execute_Procedure(string p_strProcedure, params SqlParameter[] p_arrParameters)
-    {
-        CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrParameters);
-    }
-
-    protected static long Scalar_ID(SqlConnection p_conn, SqlTransaction p_trans, string p_strProcedure, params object[] p_arrValue)
-    {
-        return Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue));
-    }
-
-    protected static long Scalar_ID(SqlConnection p_conn, SqlTransaction p_trans, string p_strProcedure, params SqlParameter[] p_arrParameters)
-    {
-        return Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, p_strProcedure, p_arrParameters));
-    }
-
-    protected static void Execute_Procedure(SqlConnection p_conn, SqlTransaction p_trans, string p_strProcedure, params object[] p_arrValue)
-    {
-        CSqlHelper.ExecuteNonquery(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, p_strProcedure, p_arrValue);
+        using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
+        using (SqlCommand v_objCommand = new SqlCommand(p_strProcedure, v_conn))
+        using (SqlDataAdapter v_objAdapter = new SqlDataAdapter(v_objCommand))
+        {
+            v_objCommand.CommandType = CommandType.StoredProcedure;
+            v_objCommand.CommandTimeout = 30;
+            v_objCommand.Parameters.AddRange(v_arrParameters);
+            v_objAdapter.Fill(p_dsData);
+        }
     }
 }

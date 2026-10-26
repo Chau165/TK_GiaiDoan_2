@@ -1,4 +1,4 @@
-using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
+﻿using TKS_Thuc_Tap_V11_Data_Access.Controller.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
 using System.Text.RegularExpressions;
 using Xunit;
@@ -40,8 +40,8 @@ public sealed class WarehouseMasterCreatedFilterContractTests
         DateTime v_dtmExpectedFrom = DateTime.SpecifyKind(v_dtmSelected.Date, DateTimeKind.Local).ToUniversalTime();
         DateTime v_dtmExpectedToExclusive = DateTime.SpecifyKind(v_dtmSelected.Date.AddDays(1), DateTimeKind.Local).ToUniversalTime();
 
-        DateTime? v_dtmActualFrom = CUtility_Date.Convert_Local_Day_Start_To_Utc(v_dtmSelected);
-        DateTime? v_dtmActualToExclusive = CUtility_Date.Convert_Local_Next_Day_Start_To_Utc(v_dtmSelected);
+        DateTime? v_dtmActualFrom = CWMS_Utility.Convert_Local_Day_Start_To_Utc(v_dtmSelected);
+        DateTime? v_dtmActualToExclusive = CWMS_Utility.Convert_Local_Next_Day_Start_To_Utc(v_dtmSelected);
 
         Assert.Equal((DateTime?)v_dtmExpectedFrom, v_dtmActualFrom);
         Assert.Equal((DateTime?)v_dtmExpectedToExclusive, v_dtmActualToExclusive);
@@ -58,8 +58,8 @@ public sealed class WarehouseMasterCreatedFilterContractTests
     [Fact]
     public void Null_filter_dates_remain_unbounded()
     {
-        Assert.Null(CUtility_Date.Convert_Local_Day_Start_To_Utc(null));
-        Assert.Null(CUtility_Date.Convert_Local_Next_Day_Start_To_Utc(null));
+        Assert.Null(CWMS_Utility.Convert_Local_Day_Start_To_Utc(null));
+        Assert.Null(CWMS_Utility.Convert_Local_Next_Day_Start_To_Utc(null));
     }
 
     [Fact]

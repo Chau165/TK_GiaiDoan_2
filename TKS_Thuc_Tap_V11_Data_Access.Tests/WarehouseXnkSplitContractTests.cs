@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -175,7 +175,7 @@ public sealed class WarehouseXnkSplitContractTests
         string v_strSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CWarehouseDocumentSupport_Controller.cs"));
         Assert.Contains("Page_From_Procedure<CWarehouseDocument>(\"sp_XNK_Document_Page\"", v_strSource, StringComparison.Ordinal);
-        Assert.Contains("Execute_Procedure(\"sp_XNK_Document_Post\"", v_strSource, StringComparison.Ordinal);
+        Assert.Contains("\"sp_XNK_Document_Post\"", v_strSource, StringComparison.Ordinal);
         Assert.DoesNotContain("F3001_", v_strSource, StringComparison.Ordinal);
         Assert.DoesNotContain("F3002_", v_strSource, StringComparison.Ordinal);
         Assert.DoesNotContain("Save_Imported", v_strSource, StringComparison.Ordinal);
@@ -194,7 +194,7 @@ public sealed class WarehouseXnkSplitContractTests
         {
             string v_strSource = File.ReadAllText(FindRepositoryPath(
                 "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", v_strController + ".cs"));
-            Assert.Contains($"CUtility.Map_Row_To_Entity<{v_strEntity}>(v_row)", v_strSource, StringComparison.Ordinal);
+            Assert.Contains($"CWMS_Utility.Map_Warehouse_Row<{v_strEntity}>(v_row)", v_strSource, StringComparison.Ordinal);
             Assert.DoesNotContain("v_row[", v_strSource, StringComparison.Ordinal);
         }
     }
@@ -253,10 +253,68 @@ public sealed class WarehouseXnkSplitContractTests
                 Assert.Equal(v_strStore.Contains("_ins_") ? 2 : 1, v_arrBodies.Length);
                 foreach (string v_strBody in v_arrBodies)
                 {
-                    string[] v_arrController_Parameters = Regex.Matches(v_strBody, "\"(@[A-Za-z_][A-Za-z0-9_]*)\"")
-                        .Select(v_objMatch => v_objMatch.Groups[1].Value)
-                        .ToArray();
-                    Assert.Equal(v_arrSql_Parameters, v_arrController_Parameters);
+                    Match v_objCall = Regex.Match(v_strBody, "CSqlHelper\\.(?:ExecuteScalar|ExecuteNonquery)\\(");
+                    Assert.True(v_objCall.Success);
+                    List<string> v_arrArguments = new List<string>();
+                    int v_iDepth = 1;
+                    int v_iStart = v_objCall.Index + v_objCall.Length;
+                    bool v_bQuoted = false;
+                    for (int v_i = v_iStart; v_i < v_strBody.Length; v_i++)
+                    {
+                        char v_c = v_strBody[v_i];
+                        if (v_c == '"' && (v_i == 0 || v_strBody[v_i - 1] != '\\')) { v_bQuoted = !v_bQuoted; }
+                        if (v_bQuoted) { continue; }
+                        if (v_c == '(') { v_iDepth++; }
+                        if (v_c == ')')
+                        {
+                            v_iDepth--;
+                            if (v_iDepth == 0)
+                            {
+                                v_arrArguments.Add(v_strBody[v_iStart..v_i].Trim());
+                                break;
+                            }
+                        }
+                        if (v_c == ',' && v_iDepth == 1)
+                        {
+                            v_arrArguments.Add(v_strBody[v_iStart..v_i].Trim());
+                            v_iStart = v_i + 1;
+                        }
+                    }
+                    int v_iStore = v_arrArguments.IndexOf("\"" + v_strStore + "\"");
+                    Assert.True(v_iStore >= 0);
+                    string[] v_arrValues = v_arrArguments.Skip(v_iStore + 1).ToArray();
+                    Assert.Equal(v_arrSql_Parameters.Length, v_arrValues.Length);
+                    for (int v_i = 0; v_i < v_arrSql_Parameters.Length; v_i++)
+                    {
+                        string v_strName = v_arrSql_Parameters[v_i][1..];
+                        string v_strExpected;
+                        if (v_strStore.Contains("_del_"))
+                        {
+                            v_strExpected = v_strName switch
+                            {
+                                "Auto_ID" => "p_iAuto_ID",
+                                "Ma_Dang_Nhap" => "Normalize_SQL_Text(p_strCurrent_Login)",
+                                _ => "Normalize_SQL_Text(null)"
+                            };
+                        }
+                        else if (v_strStore.Contains("_upd_") && v_strName.StartsWith("Created_By"))
+                        {
+                            v_strExpected = "Normalize_SQL_Text(null)";
+                        }
+                        else if (v_strName.StartsWith("Ngay_"))
+                        {
+                            v_strExpected = "p_objData." + v_strName + ".Date";
+                        }
+                        else if (v_strName.StartsWith("So_Phieu_") || v_strName is "Ghi_Chu" or "Ma_Dang_Nhap" || v_strName.Contains("_By"))
+                        {
+                            v_strExpected = "Normalize_SQL_Text(p_objData." + v_strName + ")";
+                        }
+                        else
+                        {
+                            v_strExpected = "p_objData." + v_strName;
+                        }
+                        Assert.Equal(v_strExpected, v_arrValues[v_i]);
+                    }
                 }
             }
         }
@@ -350,7 +408,7 @@ public sealed class WarehouseXnkSplitContractTests
         Type v_objEntity_Type = typeof(CUtility).Assembly.GetType(
             $"TKS_Thuc_Tap_V11_Data_Access.Entity.XNK.{p_strEntity_Name}")
             ?? throw new InvalidOperationException($"Entity type {p_strEntity_Name} was not found.");
-        MethodInfo v_objMapper = typeof(CUtility).GetMethod(nameof(CUtility.Map_Row_To_Entity))!
+        MethodInfo v_objMapper = typeof(CWMS_Utility).GetMethod(nameof(CWMS_Utility.Map_Warehouse_Row))!
             .MakeGenericMethod(v_objEntity_Type);
         object v_objEntity = v_objMapper.Invoke(null, [v_row])!;
         foreach ((string v_strName, object v_objExpected) in p_arrValues)

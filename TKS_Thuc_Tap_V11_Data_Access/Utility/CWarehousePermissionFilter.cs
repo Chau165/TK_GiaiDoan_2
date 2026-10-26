@@ -1,4 +1,4 @@
-using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
+﻿using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Utility;
 
@@ -10,15 +10,25 @@ public static class CWarehousePermissionFilter
         string p_strLogin_Name,
         long p_iCurrentPermission_ID = 0)
     {
-        var v_setAssignedWarehouseIds = p_arrPermissions
-        .Where(p_objPermission =>
-            string.Equals(p_objPermission.Login_Name, p_strLogin_Name, StringComparison.OrdinalIgnoreCase)
-            && p_objPermission.Permission_ID != p_iCurrentPermission_ID)
-        .Select(p_objPermission => p_objPermission.Warehouse_ID)
-        .ToHashSet();
-
-        return p_arrAllWarehouses
-            .Where(p_objWarehouse => !v_setAssignedWarehouseIds.Contains(p_objWarehouse.Auto_ID))
-            .ToList();
+        ArgumentNullException.ThrowIfNull(p_arrPermissions);
+        HashSet<long> v_arrAssigned_IDs = new HashSet<long>();
+        foreach (CWarehousePermission v_objPermission in p_arrPermissions)
+        {
+            if (string.Equals(v_objPermission.Login_Name, p_strLogin_Name, StringComparison.OrdinalIgnoreCase)
+                && v_objPermission.Permission_ID != p_iCurrentPermission_ID)
+            {
+                v_arrAssigned_IDs.Add(v_objPermission.Warehouse_ID);
+            }
+        }
+        ArgumentNullException.ThrowIfNull(p_arrAllWarehouses);
+        List<CWarehouseLookup> v_arrResult = new List<CWarehouseLookup>();
+        foreach (CWarehouseLookup v_objWarehouse in p_arrAllWarehouses)
+        {
+            if (!v_arrAssigned_IDs.Contains(v_objWarehouse.Auto_ID))
+            {
+                v_arrResult.Add(v_objWarehouse);
+            }
+        }
+        return v_arrResult;
     }
 }

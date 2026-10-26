@@ -65,7 +65,7 @@ public sealed class WarehousePermissionRefactorTests
         v_dtData.Columns.Add("Warehouse_Name", typeof(string));
         var v_row = v_dtData.Rows.Add(7L, "warehouse.user", "Warehouse User", 11L, "Kho Hà Nội");
 
-        CWarehousePermission v_objPermission = CUtility.Map_Row_To_Entity<CWarehousePermission>(v_row);
+        CWarehousePermission v_objPermission = CWMS_Utility.Map_Warehouse_Row<CWarehousePermission>(v_row);
 
         Assert.Equal(7L, v_objPermission.Permission_ID);
         Assert.Equal("warehouse.user", v_objPermission.Login_Name);
@@ -119,7 +119,7 @@ public sealed class WarehousePermissionRefactorTests
     public void Permission_callers_use_explicit_store_methods_and_authorized_lookup()
     {
         var v_strListSource = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
+            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Permission_List.razor"));
         var v_strImportSource = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Transaction_List.razor.cs"));
 
@@ -130,7 +130,7 @@ public sealed class WarehousePermissionRefactorTests
         Assert.Contains("F2015_sp_upd_Kho_User", v_strListSource);
         Assert.Contains("F2015_sp_del_Kho_User", v_strListSource);
         Assert.Contains("F2015_sp_sel_List_Sys_Thanh_Vien_Cho_Phan_Quyen_Kho", v_strListSource);
-        Assert.Contains("sp_DM_Kho_User_List_Allowed", v_strListSource);
+        Assert.Contains("sp_DM_Kho_User_List_Allowed", v_strImportSource);
         Assert.DoesNotContain("CWarehousePermission_Controller", v_strListSource);
         Assert.DoesNotContain("m_objPermissionController.Save_Kho_User_Async", v_strListSource);
         var v_iAddBranch = v_strListSource.IndexOf("if (v_iPermission_ID == 0)", StringComparison.Ordinal);

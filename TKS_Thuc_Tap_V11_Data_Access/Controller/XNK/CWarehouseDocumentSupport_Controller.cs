@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
@@ -25,11 +25,10 @@ public class CWarehouseDocumentSupport_Controller : CWarehouse_Controller_Base
         string p_strLast_Updated_By,
         string p_strLast_Updated_By_Function)
     {
-        Execute_Procedure("sp_XNK_Document_Post",
-            new SqlParameter("@Is_Receipt", System.Data.SqlDbType.Bit) { Value = p_bIs_Receipt },
-            new SqlParameter("@Document_ID", System.Data.SqlDbType.BigInt) { Value = p_iDocument_ID },
-            new SqlParameter("@Ma_Dang_Nhap", System.Data.SqlDbType.NVarChar, 100) { Value = p_strCurrent_Login },
-            new SqlParameter("@Last_Updated_By", System.Data.SqlDbType.NVarChar, 100) { Value = p_strLast_Updated_By },
-            new SqlParameter("@Last_Updated_By_Function", System.Data.SqlDbType.NVarChar, 100) { Value = p_strLast_Updated_By_Function });
+        // 23/10/2026 - Codex: gọi helper công ty trực tiếp; metadata SP giữ type/size của tham số.
+        TKS_Thuc_Tap_V11_Data_Access.DataLayer.CSqlHelper.ExecuteNonquery(
+            TKS_Thuc_Tap_V11_Data_Access.Utility.CConfig.TKS_Thuc_Tap_V11_Conn_String,
+            "sp_XNK_Document_Post", p_bIs_Receipt, p_iDocument_ID, p_strCurrent_Login,
+            p_strLast_Updated_By, p_strLast_Updated_By_Function);
     }
 }

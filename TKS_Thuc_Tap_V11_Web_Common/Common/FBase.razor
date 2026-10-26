@@ -249,16 +249,12 @@
             catch (Exception) { }
         }
 
-        await After_Render_Async(firstRender);
 
         //await g_jsRuntime.InvokeVoidAsync("setModalDraggableAndResizable");
         await base.OnAfterRenderAsync(firstRender);
     }
 
-    protected virtual Task After_Render_Async(bool firstRender)
-    {
-        return Task.CompletedTask;
-    }
+
 
     #region Hàm inherit
     protected virtual void Init_Data()
@@ -286,29 +282,7 @@
 
     }
 
-    public static async Task<byte[]> Read_Import_File_Async(
-        IBrowserFile p_objFile,
-        string p_strExpectedExtension,
-        long p_iMaxFileSize,
-        CancellationToken p_objCancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(p_objFile);
-        if (p_iMaxFileSize <= 0)
-            throw new ArgumentOutOfRangeException(nameof(p_iMaxFileSize));
 
-        if (!string.Equals(Path.GetExtension(p_objFile.Name), p_strExpectedExtension, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"Chỉ chấp nhận file {p_strExpectedExtension}.");
-        if (p_objFile.Size < 0 || p_objFile.Size > p_iMaxFileSize)
-            throw new InvalidDataException($"Kích thước file không được vượt quá {p_iMaxFileSize:N0} byte.");
-
-        await using var v_objSource = p_objFile.OpenReadStream(p_iMaxFileSize, p_objCancellationToken);
-        using var v_objBuffer = new MemoryStream();
-        await v_objSource.CopyToAsync(v_objBuffer, p_objCancellationToken);
-        if (v_objBuffer.Length > p_iMaxFileSize)
-            throw new InvalidDataException($"Kích thước file không được vượt quá {p_iMaxFileSize:N0} byte.");
-
-        return v_objBuffer.ToArray();
-    }
 
     protected virtual void Delete_Data_Entry(long p_iAuto_ID)
     {
@@ -350,24 +324,25 @@
         int v_iCount_Success = 0;
         int v_iCount_Error = 0;
         long v_iQueue_ID = 0;
+        bool v_bImport_File_Validated = false;
 
         CExcel_Controller v_objCtrExcel = null;
 
         try
         {
             FileInfo fileInfo = new FileInfo(r_objImport_Excel.Path_File);
-            string v_strTemplate_Name = Path.GetFileName(r_objImport_Excel.URL_File_Template);
-            if (string.IsNullOrWhiteSpace(v_strTemplate_Name))
-                throw new InvalidDataException("Chưa xác định template Excel để kiểm tra cấu trúc file.");
-
-            FileInfo v_objTemplate_File = new FileInfo(Path.Combine(
-                g_objEnvironment.WebRootPath,
-                "FileManagement",
-                "Template",
-                v_strTemplate_Name));
-            CExcel_Controller.Validate_Header_Matches(fileInfo, v_objTemplate_File);
-
             v_objCtrExcel = new CExcel_Controller(fileInfo);
+
+            string v_strTemplate_Url = r_objImport_Excel?.URL_File_Template;
+            if (string.IsNullOrWhiteSpace(v_strTemplate_Url))
+                throw new InvalidDataException("Chức năng này chưa được cấu hình template Excel để import.");
+
+            string v_strTemplate_Name = Path.GetFileName(v_strTemplate_Url);
+            string v_strTemplate_Folder = CConfig.Template_URL.Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            FileInfo v_objTemplate_File = new FileInfo(Path.Combine(g_objEnvironment.WebRootPath, v_strTemplate_Folder, v_strTemplate_Name));
+            CWMS_Excel_Utility.Validate_Import_File(fileInfo, v_objTemplate_File);
+            v_bImport_File_Validated = true;
+
             v_iQueue_ID = Process_Queue("Import Excel");
 
             Import_Excel_Entry(v_objCtrExcel, ref v_iCount_Success, ref v_iCount_Error);
@@ -403,7 +378,17 @@
 
         catch (Exception ex)
         {
-            r_strError = CCommonFunction.Set_Error_MessageBox(ex.Message);
+            if (!v_bImport_File_Validated && ex.Message == "File Excel không đúng template. Vui lòng sử dụng template được cung cấp cho chức năng này.")
+            {
+                string v_strMessage = CCommonFunction.Set_Success_MessageBox(
+                    Get_Language_Data_Field("Thêm mới") + " 0 " + Get_Language_Data_Field("dòng thành công."));
+                v_strMessage += CCommonFunction.Set_Error_MessageBox(ex.Message);
+                Open_Message_Info(Get_Language_Data_Field("Thông báo Import Excel"), v_strMessage);
+            }
+            else
+            {
+                r_strError = CCommonFunction.Set_Error_MessageBox(ex.Message);
+            }
         }
 
         finally
@@ -411,7 +396,18 @@
             if (v_objCtrExcel != null)
                 v_objCtrExcel.Close();
 
-            End_Queue(v_iQueue_ID);
+            if (v_iQueue_ID > 0)
+                End_Queue(v_iQueue_ID);
+        }
+
+        if (!v_bImport_File_Validated)
+        {
+            r_objLayout.Stop_Loading();
+
+            DateTime v_dtmValidation_End = DateTime.Now;
+            TimeSpan v_tsValidation = v_dtmValidation_End - v_dtmStart;
+            g_jsRuntime.InvokeVoidAsync("Set_Speed_Label", v_tsValidation.TotalSeconds.ToString("###,###0.##") + "s");
+            return;
         }
 
         Load_Data_Init();
@@ -987,7 +983,7 @@
     public async Task Export_Excel_Telerik_Default<T>(TelerikGrid<T> p_grdGrid)
     {
         CLog_Nhat_Ky_Truy_Cap_Chuc_Nang_Controller v_objCtrFH = new CLog_Nhat_Ky_Truy_Cap_Chuc_Nang_Controller();
-        
+
         DateTime v_dtmStart = DateTime.Now;
 
         await Task.Delay(1); // Gắn await 1ms là để có hàm await, task async mới chạy
@@ -2053,7 +2049,7 @@
                                      </Columns>
                                  </GridColumn>
                              }
-                             
+
                              break;
 
                          default:

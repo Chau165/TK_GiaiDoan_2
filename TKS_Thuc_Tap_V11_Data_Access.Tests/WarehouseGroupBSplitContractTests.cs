@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
@@ -63,12 +63,12 @@ public sealed class WarehouseGroupBSplitContractTests
     [Fact]
     public void Don_Vi_Tinh_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strCaller = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-
-        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
-        Assert.Contains("F2016_sp_ins_Don_Vi_Tinh(p_objData", v_strCaller);
-        Assert.Contains("F2016_sp_upd_Don_Vi_Tinh(p_objData", v_strCaller);
+        string v_strEditor = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Unit_Edit.razor"));
+        Assert.Contains("protected override void Add_Data()", v_strEditor);
+        Assert.Contains("protected override void Update_Data()", v_strEditor);
+        Assert.Contains("_sp_ins_", v_strEditor);
+        Assert.Contains("_sp_upd_", v_strEditor);
+        Assert.Contains("Save_Data()", v_strEditor);
     }
 
     [Fact]
@@ -101,12 +101,12 @@ public sealed class WarehouseGroupBSplitContractTests
     [Fact]
     public void Kho_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strCaller = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-
-        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
-        Assert.Contains("F2009_sp_ins_Kho(p_objData", v_strCaller);
-        Assert.Contains("F2009_sp_upd_Kho(p_objData", v_strCaller);
+        string v_strEditor = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2009_3_Kho_Edit.razor"));
+        Assert.Contains("protected override void Add_Data()", v_strEditor);
+        Assert.Contains("protected override void Update_Data()", v_strEditor);
+        Assert.Contains("_sp_ins_", v_strEditor);
+        Assert.Contains("_sp_upd_", v_strEditor);
+        Assert.Contains("Save_Data()", v_strEditor);
     }
     [Fact]
     public void Loai_San_Pham_insert_and_update_stores_preserve_validation_and_one_write_path_each()
@@ -142,12 +142,12 @@ public sealed class WarehouseGroupBSplitContractTests
     [Fact]
     public void Loai_San_Pham_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strCaller = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-
-        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
-        Assert.Contains("F2017_sp_ins_Loai_San_Pham(p_objData", v_strCaller);
-        Assert.Contains("F2017_sp_upd_Loai_San_Pham(p_objData", v_strCaller);
+        string v_strEditor = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2017_3_Loai_San_Pham_Edit.razor"));
+        Assert.Contains("protected override void Add_Data()", v_strEditor);
+        Assert.Contains("protected override void Update_Data()", v_strEditor);
+        Assert.Contains("_sp_ins_", v_strEditor);
+        Assert.Contains("_sp_upd_", v_strEditor);
+        Assert.Contains("Save_Data()", v_strEditor);
     }
     [Fact]
     public void San_Pham_insert_and_update_stores_preserve_validation_foreign_keys_and_one_write_path_each()
@@ -187,12 +187,12 @@ public sealed class WarehouseGroupBSplitContractTests
     [Fact]
     public void San_Pham_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strCaller = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-
-        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
-        Assert.Contains("F2018_sp_ins_San_Pham(p_objData", v_strCaller);
-        Assert.Contains("F2018_sp_upd_San_Pham(p_objData", v_strCaller);
+        string v_strEditor = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2018_3_San_Pham_Edit.razor"));
+        Assert.Contains("protected override void Add_Data()", v_strEditor);
+        Assert.Contains("protected override void Update_Data()", v_strEditor);
+        Assert.Contains("_sp_ins_", v_strEditor);
+        Assert.Contains("_sp_upd_", v_strEditor);
+        Assert.Contains("Save_Data()", v_strEditor);
     }
     [Fact]
     public void NCC_insert_and_update_stores_preserve_validation_and_one_write_path_each()
@@ -228,12 +228,12 @@ public sealed class WarehouseGroupBSplitContractTests
     [Fact]
     public void NCC_caller_selects_insert_or_update_by_Auto_ID()
     {
-        var v_strCaller = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-
-        Assert.Contains("if (v_iAuto_ID == 0)", v_strCaller);
-        Assert.Contains("F2019_sp_ins_NCC(p_objData", v_strCaller);
-        Assert.Contains("F2019_sp_upd_NCC(p_objData", v_strCaller);
+        string v_strEditor = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "F2019_3_Nha_Cung_Cap_Edit.razor"));
+        Assert.Contains("protected override void Add_Data()", v_strEditor);
+        Assert.Contains("protected override void Update_Data()", v_strEditor);
+        Assert.Contains("_sp_ins_", v_strEditor);
+        Assert.Contains("_sp_upd_", v_strEditor);
+        Assert.Contains("Save_Data()", v_strEditor);
     }
     [Fact]
     public void Kho_User_insert_and_update_stores_preserve_validation_and_one_write_path_each()
@@ -314,8 +314,10 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
-        Assert.Contains("Scalar_ID(\"F3001_sp_ins_Nhap_Kho_Header\"", v_strController);
-        Assert.Contains("Scalar_ID(\"F3001_sp_upd_Nhap_Kho_Header\"", v_strController);
+        Assert.Contains("\"F3001_sp_ins_Nhap_Kho_Header\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
+        Assert.Contains("\"F3001_sp_upd_Nhap_Kho_Header\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
         Assert.DoesNotContain("p_bIs_Receipt", v_strController);
         Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
@@ -363,8 +365,10 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Nhap_Kho_Controller.cs"));
-        Assert.Contains("Scalar_ID(\"F3001_sp_ins_Nhap_Kho_Detail\"", v_strController);
-        Assert.Contains("Scalar_ID(\"F3001_sp_upd_Nhap_Kho_Detail\"", v_strController);
+        Assert.Contains("\"F3001_sp_ins_Nhap_Kho_Detail\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
+        Assert.Contains("\"F3001_sp_upd_Nhap_Kho_Detail\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
         Assert.DoesNotContain("p_bIs_Receipt", v_strController);
         Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
@@ -411,8 +415,10 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
-        Assert.Contains("Scalar_ID(\"F3002_sp_ins_Xuat_Kho_Header\"", v_strController);
-        Assert.Contains("Scalar_ID(\"F3002_sp_upd_Xuat_Kho_Header\"", v_strController);
+        Assert.Contains("\"F3002_sp_ins_Xuat_Kho_Header\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
+        Assert.Contains("\"F3002_sp_upd_Xuat_Kho_Header\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
         Assert.DoesNotContain("p_bIs_Receipt", v_strController);
         Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }
@@ -465,8 +471,10 @@ public sealed class WarehouseGroupBSplitContractTests
     {
         var v_strController = File.ReadAllText(FindRepositoryPath(
             "TKS_Thuc_Tap_V11_Data_Access", "Controller", "XNK", "CXNK_Xuat_Kho_Controller.cs"));
-        Assert.Contains("Scalar_ID(\"F3002_sp_ins_Xuat_Kho_Detail\"", v_strController);
-        Assert.Contains("Scalar_ID(\"F3002_sp_upd_Xuat_Kho_Detail\"", v_strController);
+        Assert.Contains("\"F3002_sp_ins_Xuat_Kho_Detail\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
+        Assert.Contains("\"F3002_sp_upd_Xuat_Kho_Detail\"", v_strController);
+        Assert.Contains("CSqlHelper.ExecuteScalar", v_strController);
         Assert.DoesNotContain("p_bIs_Receipt", v_strController);
         Assert.DoesNotContain("Auto_ID == 0", v_strController);
     }

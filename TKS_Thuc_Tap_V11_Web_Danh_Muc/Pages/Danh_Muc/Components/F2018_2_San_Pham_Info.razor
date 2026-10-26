@@ -1,4 +1,4 @@
-@inherits FBase
+﻿@inherits FBase
 
 <div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; background-color: rgba(10, 10, 10, .8);">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -53,26 +53,27 @@
     private CDM_Loai_San_Pham? m_objCategory;
     private CDM_Don_Vi_Tinh? m_objUnit;
     private List<CLog_Record_Action_History> m_arrRAH = new();
+    private string Category_Display
+    {
+        get
+        {
+            return m_objCategory?.Ten_LSP ?? string.Format(Get_Language_Data_Field("Không tìm thấy loại sản phẩm (ID {0})"), m_objData.Loai_San_Pham_ID);
+        }
+    }
 
-    private string Category_Display => m_objCategory?.Ten_LSP
-        ?? string.Format(Get_Language_Data_Field("Không tìm thấy loại sản phẩm (ID {0})"), m_objData.Loai_San_Pham_ID);
-    private string Unit_Display => m_objUnit?.Ten_Don_Vi_Tinh
-        ?? string.Format(Get_Language_Data_Field("Không tìm thấy đơn vị tính (ID {0})"), m_objData.Don_Vi_Tinh_ID);
+    private string Unit_Display
+    {
+        get
+        {
+            return m_objUnit?.Ten_Don_Vi_Tinh ?? string.Format(Get_Language_Data_Field("Không tìm thấy đơn vị tính (ID {0})"), m_objData.Don_Vi_Tinh_ID);
+        }
+    }
 
     protected override void Load_Data()
     {
-        m_objData = new CDM_San_Pham_Controller()
-            .F2018_sp_sel_Get_By_ID(r_iAuto_ID)
-            ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy sản phẩm cần xem."));
-
-        m_objCategory = new CDM_Loai_San_Pham_Controller()
-            .F2017_sp_sel_List_Loai_San_Pham_Lookup()
-            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == m_objData.Loai_San_Pham_ID);
-        m_objUnit = new CDM_Don_Vi_Tinh_Controller()
-            .F2016_sp_sel_List_Don_Vi_Tinh_Lookup()
-            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == m_objData.Don_Vi_Tinh_ID);
-
-        m_arrRAH = new CLog_Record_Action_History_Controller()
-            .FCommon_Sys_sp_sel_List_Log_Record_Action_History(r_iAuto_ID);
+        m_objData = new CDM_San_Pham_Controller().F2018_sp_sel_Get_By_ID(r_iAuto_ID) ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy sản phẩm cần xem."));
+        m_objCategory = new CDM_Loai_San_Pham_Controller().F2017_sp_sel_List_Loai_San_Pham_Lookup().FirstOrDefault(v_objItem => v_objItem.Auto_ID == m_objData.Loai_San_Pham_ID);
+        m_objUnit = new CDM_Don_Vi_Tinh_Controller().F2016_sp_sel_List_Don_Vi_Tinh_Lookup().FirstOrDefault(v_objItem => v_objItem.Auto_ID == m_objData.Don_Vi_Tinh_ID);
+        m_arrRAH = new CLog_Record_Action_History_Controller().FCommon_Sys_sp_sel_List_Log_Record_Action_History(r_iAuto_ID);
     }
 }

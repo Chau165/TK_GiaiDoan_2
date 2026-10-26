@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Tests;
 
@@ -17,7 +17,7 @@ public sealed class WarehouseNavigationTests
         Assert.Contains("[Parameter] public string m_strSection", v_Component);
         Assert.Contains("[Parameter] public string m_strInitial_Master_Type", v_Component);
         Assert.Contains("[Parameter] public bool m_bMaster_Type_Only", v_Component);
-        Assert.Contains("class=\"d-flex gap-2 ms-auto\"", v_Component);
+        Assert.Contains("<FWarehouse_Permission_List", v_Component);
         Assert.DoesNotContain("Select_Section_Async", v_Component);
         Assert.DoesNotContain("@onclick=\"@(() => Select_Section_Async", v_Component);
     }
@@ -108,22 +108,15 @@ public sealed class WarehouseNavigationTests
     [Fact]
     public void Current_inventory_has_no_report_tabs_or_date_range_toolbar()
     {
-        var v_InventoryPage = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Ton_Kho.razor"));
-        var v_Component = File.ReadAllText(FindRepositoryPath(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor"));
-        var v_ReportSelectorIndex = v_Component.IndexOf(
-            "<ul class=\"nav nav-tabs mb-2\"", StringComparison.Ordinal);
-        var v_InventoryGuardIndex = v_Component.LastIndexOf(
-            "@if (!Is_Current_Inventory_Report)", v_ReportSelectorIndex, StringComparison.Ordinal);
-
-        Assert.Contains("m_strInitial_Report_Type=\"InventoryCurrent\"", v_InventoryPage);
-        Assert.True(v_InventoryGuardIndex >= 0, "Report tabs must be hidden for current inventory.");
-        Assert.Contains("Select_Report_Type_Async(\"Receipt\")", v_Component);
-        Assert.Contains("Select_Report_Type_Async(\"Issue\")", v_Component);
-        Assert.Contains("Select_Report_Type_Async(\"Inventory\")", v_Component);
-        Assert.Contains("ToolButtons=\"@Layout_Tool_Button(m_grdInventory)\"", v_Component);
-        Assert.DoesNotContain("<label class=\"form-label\">Kho</label>", v_Component);
+        string v_strPage = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Warehouse_Ton_Kho.razor"));
+        string v_strReport = File.ReadAllText(FindRepositoryPath("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_Report_List.razor"));
+        Assert.Contains("InventoryCurrent", v_strPage);
+        Assert.Contains("@if (!Is_Current_Inventory_Report)", v_strReport);
+        int v_iGuard = v_strReport.IndexOf("@if (Is_Current_Inventory_Report)", StringComparison.Ordinal);
+        int v_iNext = v_strReport.IndexOf("else if", v_iGuard, StringComparison.Ordinal);
+        string v_strCurrent = v_strReport[v_iGuard..v_iNext];
+        Assert.Contains("Layout_Tool_Button(m_grdInventory)", v_strCurrent);
+        Assert.DoesNotContain("ShowDateRange", v_strCurrent);
     }
 
     [Fact]
@@ -159,8 +152,8 @@ public sealed class WarehouseNavigationTests
         Assert.Contains("m_bMaster_Type_Only=\"true\"", v_Page);
         Assert.Contains("m_bWarehouse_Permission_Only=\"true\"", v_Page);
         Assert.Contains("[Parameter] public bool m_bWarehouse_Permission_Only", v_Component);
-        Assert.Contains("if (m_bWarehouse_Permission_Only)", v_Component);
-        Assert.Contains("m_strMaster_Type = \"KhoUser\"", v_Component);
+        Assert.Contains("m_bWarehouse_Permission_Only ||", v_Component);
+        Assert.Contains("<FWarehouse_Permission_List", v_Component);
     }
 
     private static string FindRepositoryPath(params string[] p_arrParts)

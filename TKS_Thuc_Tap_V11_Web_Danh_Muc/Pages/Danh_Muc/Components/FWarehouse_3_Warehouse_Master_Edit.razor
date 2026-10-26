@@ -1,55 +1,81 @@
-@inherits FBase_Edit
+﻿@inherits FBase_Edit
 @using TKS_Thuc_Tap_V11_Data_Access.Entity.DM
 
 <div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; padding-left: 0px; background-color: rgba(10, 10, 10, .8);">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-light">
-                <h5 class="modal-title">@Get_Language_Data_Field(Is_Edit_Mode ? "Hiệu chỉnh" : "Thêm mới")</h5>
+                <h5 class="modal-title">@Get_Language_Data_Field(Permission_Title)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label='@Get_Language_Data_Field("Đóng")' @onclick="Cancel_Async"></button>
             </div>
             <div class="modal-body">
-                <FWarehouse_3_Warehouse_Edit m_strEditor_Type="Master" m_strMaster_Type="@m_strMaster_Type" m_objKho="@m_objKho" m_objDon_Vi_Tinh="@m_objDon_Vi_Tinh" m_objLoai_San_Pham="@m_objLoai_San_Pham" m_objSan_Pham="@m_objSan_Pham" m_objNCC="@m_objNCC" m_objPermission="@m_objPermission" m_arrUnit="@m_arrUnit" m_arrCategory="@m_arrCategory" m_arrWarehouse="@m_arrWarehouse" m_arrWarehouseUser="@m_arrWarehouseUser" m_arrUser="@m_arrUser" OnAdd_Kho="OnAdd_Kho" OnUpdate_Kho="OnUpdate_Kho" OnAdd_Don_Vi_Tinh="OnAdd_Don_Vi_Tinh" OnUpdate_Don_Vi_Tinh="OnUpdate_Don_Vi_Tinh" OnAdd_Loai_San_Pham="OnAdd_Loai_San_Pham" OnUpdate_Loai_San_Pham="OnUpdate_Loai_San_Pham" OnAdd_San_Pham="OnAdd_San_Pham" OnUpdate_San_Pham="OnUpdate_San_Pham" OnAdd_NCC="OnAdd_NCC" OnUpdate_NCC="OnUpdate_NCC" OnSave_Permission="OnSave_Permission" OnCancel="Cancel_Async" />
+
+                <EditForm Model="@m_objPermission" OnValidSubmit="Save_Permission_Async">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
+                    <div class="row g-3">
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Mã đăng nhập / user")</label><TelerikDropDownList Data="@m_arrUser" TItem="CWarehouseLookup" TValue="string" Value="@m_objPermission.Login_Name" ValueChanged="@On_Login_Name_Changed" ValueExpression="@(() => m_objPermission.Login_Name)" ValueField="@nameof(CWarehouseLookup.Code)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn user --")' /></div>
+                        <div class="col-lg-6"><label class="form-label">@Get_Language_Data_Field("Kho")</label><TelerikDropDownList Data="@m_arrAvailableWarehouse" @bind-Value="m_objPermission.Warehouse_ID" ValueField="@nameof(CWarehouseLookup.Auto_ID)" TextField="@nameof(CWarehouseLookup.Name)" DefaultText='@Get_Language_Data_Field("-- Chọn kho --")' /></div>
+                        @if (m_arrAvailableWarehouse.Count == 0 && !string.IsNullOrWhiteSpace(m_objPermission.Login_Name))
+                        {
+                            <div class="col-12"><div class="form-text text-warning">@Get_Language_Data_Field("User này đã được gắn tất cả kho.")</div></div>
+                        }
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="submit" class="btn btn-success">@(m_objPermission.Permission_ID == 0 ? Get_Language_Data_Field("Thêm") : Get_Language_Data_Field("Lưu"))</button>
+                            <button type="button" class="btn btn-light" @onclick="Cancel_Async">@Get_Language_Data_Field("Hủy")</button>
+                        </div>
+                    </div>
+                </EditForm>
+
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    [Parameter] public string m_strMaster_Type { get; set; } = "";
-    [Parameter] public CDM_Kho m_objKho { get; set; } = new();
-    [Parameter] public CDM_Don_Vi_Tinh m_objDon_Vi_Tinh { get; set; } = new();
-    [Parameter] public CDM_Loai_San_Pham m_objLoai_San_Pham { get; set; } = new();
-    [Parameter] public CDM_San_Pham m_objSan_Pham { get; set; } = new();
-    [Parameter] public CDM_NCC m_objNCC { get; set; } = new();
-    [Parameter] public CWarehousePermission m_objPermission { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrUnit { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrCategory { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new();
-    [Parameter] public List<CWarehousePermission> m_arrWarehouseUser { get; set; } = new();
-    [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new();
-    [Parameter] public EventCallback<CDM_Kho> OnAdd_Kho { get; set; }
-    [Parameter] public EventCallback<CDM_Kho> OnUpdate_Kho { get; set; }
-    [Parameter] public EventCallback<CDM_Don_Vi_Tinh> OnAdd_Don_Vi_Tinh { get; set; }
-    [Parameter] public EventCallback<CDM_Don_Vi_Tinh> OnUpdate_Don_Vi_Tinh { get; set; }
-    [Parameter] public EventCallback<CDM_Loai_San_Pham> OnAdd_Loai_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_Loai_San_Pham> OnUpdate_Loai_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_San_Pham> OnAdd_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_San_Pham> OnUpdate_San_Pham { get; set; }
-    [Parameter] public EventCallback<CDM_NCC> OnAdd_NCC { get; set; }
-    [Parameter] public EventCallback<CDM_NCC> OnUpdate_NCC { get; set; }
+    // 23/10/2026 - Codex: form quyền kho có trách nhiệm riêng; danh mục dùng các Edit đã tồn tại.
+    [Parameter] public string m_strMaster_Type { get; set; } = "KhoUser";
+    [Parameter] public CWarehousePermission m_objPermission { get; set; } = new CWarehousePermission();
+    [Parameter] public List<CWarehouseLookup> m_arrWarehouse { get; set; } = new List<CWarehouseLookup>();
+    [Parameter] public List<CWarehousePermission> m_arrWarehouseUser { get; set; } = new List<CWarehousePermission>();
+    [Parameter] public List<CWarehouseLookup> m_arrUser { get; set; } = new List<CWarehouseLookup>();
     [Parameter] public EventCallback<CWarehousePermission> OnSave_Permission { get; set; }
-    private bool Is_Edit_Mode => m_strMaster_Type switch
+    private List<CWarehouseLookup> m_arrAvailableWarehouse = new List<CWarehouseLookup>();
+    private string m_strBound_Login_Name = "";
+    private string Permission_Title
     {
-        "Kho" => m_objKho.Auto_ID != 0,
-        "DonViTinh" => m_objDon_Vi_Tinh.Auto_ID != 0,
-        "LoaiSanPham" => m_objLoai_San_Pham.Auto_ID != 0,
-        "SanPham" => m_objSan_Pham.Auto_ID != 0,
-        "NCC" => m_objNCC.Auto_ID != 0,
-        "KhoUser" => m_objPermission.Permission_ID != 0,
-        _ => false
-    };
-
+        get
+        {
+            if (m_objPermission.Permission_ID == 0) { return "Thêm mới"; }
+            return "Hiệu chỉnh";
+        }
+    }
+    protected override void OnParametersSet()
+    {
+        if (m_strBound_Login_Name != m_objPermission.Login_Name)
+        {
+            m_strBound_Login_Name = m_objPermission.Login_Name;
+        }
+        m_arrAvailableWarehouse = CWarehousePermissionFilter.List_Available_Warehouses(
+            m_arrWarehouse, m_arrWarehouseUser, m_objPermission.Login_Name, m_objPermission.Permission_ID);
+        base.OnParametersSet();
+    }
+    private Task On_Login_Name_Changed(string p_strLogin_Name)
+    {
+        if (!string.Equals(m_strBound_Login_Name, p_strLogin_Name, StringComparison.OrdinalIgnoreCase))
+        {
+            m_objPermission.Warehouse_ID = 0;
+        }
+        m_objPermission.Login_Name = p_strLogin_Name;
+        m_strBound_Login_Name = p_strLogin_Name;
+        m_arrAvailableWarehouse = CWarehousePermissionFilter.List_Available_Warehouses(
+            m_arrWarehouse, m_arrWarehouseUser, m_objPermission.Login_Name, m_objPermission.Permission_ID);
+        return Task.CompletedTask;
+    }
+    private Task Save_Permission_Async()
+    {
+        return OnSave_Permission.InvokeAsync(m_objPermission);
+    }
     private Task Cancel_Async()
     {
         return OnClose.InvokeAsync(new CEvent_Call_Back { Message_ID = (int)EModal_Result.Close_Cancel });

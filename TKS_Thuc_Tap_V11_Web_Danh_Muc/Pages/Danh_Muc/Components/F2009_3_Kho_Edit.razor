@@ -1,4 +1,4 @@
-@inherits FBase
+﻿@inherits FBase
 
 <div class="modal fade show" tabindex="-1" role="dialog" aria-hidden="true" style="display: block; background-color: rgba(10, 10, 10, .8);">
     <div class="modal-dialog modal-lg">
@@ -35,10 +35,20 @@
 
 @code {
     private CDM_Kho m_objData = new();
-
-    private bool Can_Save => r_iAuto_ID == 0
-        ? r_objChuc_Nang.Is_Have_Add_Permission
-        : r_objChuc_Nang.Is_Have_Edit_Permission && m_objData.Auto_ID == r_iAuto_ID;
+    private bool Can_Save
+    {
+        get
+        {
+            if (r_iAuto_ID == 0)
+            {
+                return r_objChuc_Nang.Is_Have_Add_Permission;
+            }
+            else
+            {
+                return r_objChuc_Nang.Is_Have_Edit_Permission && m_objData.Auto_ID == r_iAuto_ID;
+            }
+        }
+    }
 
     protected override void Load_Data()
     {
@@ -47,15 +57,12 @@
         r_objDes = null;
         r_strAdd_Key = "";
         m_objData = new CDM_Kho();
-
         if (r_iAuto_ID == 0)
+        {
             return;
+        }
 
-        m_objData = new CDM_Kho_Controller()
-            .F2009_sp_sel_List_Kho()
-            .FirstOrDefault(v_objItem => v_objItem.Auto_ID == r_iAuto_ID)
-            ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy kho cần hiệu chỉnh."));
-
+        m_objData = new CDM_Kho_Controller().F2009_sp_sel_List_Kho().FirstOrDefault(v_objItem => v_objItem.Auto_ID == r_iAuto_ID) ?? throw new InvalidOperationException(Get_Language_Data_Field("Không tìm thấy kho cần hiệu chỉnh."));
         r_bUpdate = true;
         var v_objClone = new CDM_Kho();
         CUtility.Clone_Entity(m_objData, v_objClone);
@@ -65,10 +72,7 @@
     protected override void Add_Data()
     {
         Check_Data();
-        m_objData.Auto_ID = new CDM_Kho_Controller().F2009_sp_ins_Kho(
-            m_objData,
-            r_strActive_User_Name,
-            r_strActive_Function_Code);
+        m_objData.Auto_ID = new CDM_Kho_Controller().F2009_sp_ins_Kho(m_objData, r_strActive_User_Name, r_strActive_Function_Code);
         r_iAuto_ID = m_objData.Auto_ID;
         r_strAdd_Key = m_objData.Ten_Kho;
         CCache_Kho.Add_Data(m_objData);
@@ -77,11 +81,7 @@
     protected override void Update_Data()
     {
         Check_Data();
-        new CDM_Kho_Controller().F2009_sp_upd_Kho(
-            m_objData,
-            r_strActive_User_Name,
-            r_strActive_Function_Code);
-
+        new CDM_Kho_Controller().F2009_sp_upd_Kho(m_objData, r_strActive_User_Name, r_strActive_Function_Code);
         var v_objClone = new CDM_Kho();
         CUtility.Clone_Entity(m_objData, v_objClone);
         r_objDes = v_objClone;
@@ -93,24 +93,34 @@
         r_strError = "";
         m_objData.Ten_Kho = m_objData.Ten_Kho?.Trim() ?? "";
         m_objData.Ghi_Chu = m_objData.Ghi_Chu?.Trim() ?? "";
-
         if (string.IsNullOrWhiteSpace(m_objData.Ten_Kho))
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Tên kho không được để trống."));
+        }
+
         if (m_objData.Ten_Kho.Length > 255)
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Tên kho không được vượt quá 255 ký tự."));
+        }
+
         if (m_objData.Ghi_Chu.Length > 1000)
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Ghi chú không được vượt quá 1000 ký tự."));
+        }
 
         var v_arrExisting = new CDM_Kho_Controller().F2009_sp_sel_List_Kho();
-        if (v_arrExisting.Any(v_objItem => v_objItem.Auto_ID != m_objData.Auto_ID &&
-            string.Equals(v_objItem.Ten_Kho, m_objData.Ten_Kho, StringComparison.OrdinalIgnoreCase)))
+        if (v_arrExisting.Any(v_objItem => v_objItem.Auto_ID != m_objData.Auto_ID && string.Equals(v_objItem.Ten_Kho, m_objData.Ten_Kho, StringComparison.OrdinalIgnoreCase)))
+        {
             throw new InvalidOperationException(Get_Language_Data_Field("Tên kho đã tồn tại."));
+        }
     }
 
     private async Task Save_Kho_Data()
     {
         if (!Can_Save)
+        {
             return;
+        }
 
         await Save_Data();
     }

@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using Microsoft.Data.SqlClient;
 using TKS_Thuc_Tap_V11_Data_Access.DataLayer;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.XNK;
@@ -7,7 +7,7 @@ using TKS_Thuc_Tap_V11_Data_Access.Controller.Common;
 
 namespace TKS_Thuc_Tap_V11_Data_Access.Controller.XNK;
 
-public class CXNK_Nhap_Kho_Controller : CWarehouse_Controller_Base
+public class CXNK_Nhap_Kho_Controller
 {
     public List<CXNK_Nhap_Kho> F3001_sp_sel_List_Nhap_Kho(string p_strCurrent_Login, long? p_iWarehouse_ID = null)
     {
@@ -19,7 +19,7 @@ public class CXNK_Nhap_Kho_Controller : CWarehouse_Controller_Base
                 "F3001_sp_sel_List_Nhap_Kho", p_strCurrent_Login, p_iWarehouse_ID);
             foreach (DataRow v_row in v_dtData.Rows)
             {
-                CXNK_Nhap_Kho v_objResult = CUtility.Map_Row_To_Entity<CXNK_Nhap_Kho>(v_row);
+                CXNK_Nhap_Kho v_objResult = CWMS_Utility.Map_Warehouse_Row<CXNK_Nhap_Kho>(v_row);
                 v_arrResult.Add(v_objResult);
             }
         }
@@ -44,7 +44,7 @@ public class CXNK_Nhap_Kho_Controller : CWarehouse_Controller_Base
                 "F3001_sp_sel_List_Nhap_Kho_Detail", p_iNhap_Kho_ID, p_strCurrent_Login);
             foreach (DataRow v_row in v_dtData.Rows)
             {
-                CXNK_Nhap_Kho_Detail v_objResult = CUtility.Map_Row_To_Entity<CXNK_Nhap_Kho_Detail>(v_row);
+                CXNK_Nhap_Kho_Detail v_objResult = CWMS_Utility.Map_Warehouse_Row<CXNK_Nhap_Kho_Detail>(v_row);
                 v_arrResult.Add(v_objResult);
             }
         }
@@ -61,134 +61,102 @@ public class CXNK_Nhap_Kho_Controller : CWarehouse_Controller_Base
 
     public long F3001_sp_ins_Nhap_Kho_Header(CXNK_Nhap_Kho p_objData)
     {
-        p_objData.Auto_ID = Scalar_ID("F3001_sp_ins_Nhap_Kho_Header",
-            InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
-            NVarChar("@So_Phieu_Nhap_Kho", p_objData.So_Phieu_Nhap_Kho, 100),
-            BigInt("@Kho_ID", p_objData.Kho_ID), BigInt("@NCC_ID", p_objData.NCC_ID),
-            Date("@Ngay_Nhap_Kho", p_objData.Ngay_Nhap_Kho), NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
-            NVarChar("@Ma_Dang_Nhap", p_objData.Ma_Dang_Nhap, 100),
-            NVarChar("@Created_By", p_objData.Created_By, 100),
-            NVarChar("@Created_By_Function", p_objData.Created_By_Function, 100),
-            NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
-            NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
+        p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_ins_Nhap_Kho_Header",
+            p_objData.Auto_ID,
+            Normalize_SQL_Text(p_objData.So_Phieu_Nhap_Kho),
+            p_objData.Kho_ID, p_objData.NCC_ID,
+            p_objData.Ngay_Nhap_Kho.Date, Normalize_SQL_Text(p_objData.Ghi_Chu),
+            Normalize_SQL_Text(p_objData.Ma_Dang_Nhap),
+            Normalize_SQL_Text(p_objData.Created_By),
+            Normalize_SQL_Text(p_objData.Created_By_Function),
+            Normalize_SQL_Text(p_objData.Last_Updated_By),
+            Normalize_SQL_Text(p_objData.Last_Updated_By_Function)));
         return p_objData.Auto_ID;
     }
 
     public long F3001_sp_ins_Nhap_Kho_Header(SqlConnection p_conn, SqlTransaction p_trans, CXNK_Nhap_Kho p_objData)
     {
-        p_objData.Auto_ID = Scalar_ID(p_conn, p_trans, "F3001_sp_ins_Nhap_Kho_Header",
-            InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
-            NVarChar("@So_Phieu_Nhap_Kho", p_objData.So_Phieu_Nhap_Kho, 100),
-            BigInt("@Kho_ID", p_objData.Kho_ID), BigInt("@NCC_ID", p_objData.NCC_ID),
-            Date("@Ngay_Nhap_Kho", p_objData.Ngay_Nhap_Kho), NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
-            NVarChar("@Ma_Dang_Nhap", p_objData.Ma_Dang_Nhap, 100),
-            NVarChar("@Created_By", p_objData.Created_By, 100),
-            NVarChar("@Created_By_Function", p_objData.Created_By_Function, 100),
-            NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
-            NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
+        p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_ins_Nhap_Kho_Header",
+            p_objData.Auto_ID,
+            Normalize_SQL_Text(p_objData.So_Phieu_Nhap_Kho),
+            p_objData.Kho_ID, p_objData.NCC_ID,
+            p_objData.Ngay_Nhap_Kho.Date, Normalize_SQL_Text(p_objData.Ghi_Chu),
+            Normalize_SQL_Text(p_objData.Ma_Dang_Nhap),
+            Normalize_SQL_Text(p_objData.Created_By),
+            Normalize_SQL_Text(p_objData.Created_By_Function),
+            Normalize_SQL_Text(p_objData.Last_Updated_By),
+            Normalize_SQL_Text(p_objData.Last_Updated_By_Function)));
         return p_objData.Auto_ID;
     }
 
     public long F3001_sp_upd_Nhap_Kho_Header(CXNK_Nhap_Kho p_objData)
     {
-        p_objData.Auto_ID = Scalar_ID("F3001_sp_upd_Nhap_Kho_Header",
-            InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID),
-            NVarChar("@So_Phieu_Nhap_Kho", p_objData.So_Phieu_Nhap_Kho, 100),
-            BigInt("@Kho_ID", p_objData.Kho_ID), BigInt("@NCC_ID", p_objData.NCC_ID),
-            Date("@Ngay_Nhap_Kho", p_objData.Ngay_Nhap_Kho), NVarChar("@Ghi_Chu", p_objData.Ghi_Chu, 1000),
-            NVarChar("@Ma_Dang_Nhap", p_objData.Ma_Dang_Nhap, 100),
-            NVarChar("@Created_By", null, 100), NVarChar("@Created_By_Function", null, 100),
-            NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100),
-            NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
+        p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_upd_Nhap_Kho_Header",
+            p_objData.Auto_ID,
+            Normalize_SQL_Text(p_objData.So_Phieu_Nhap_Kho),
+            p_objData.Kho_ID, p_objData.NCC_ID,
+            p_objData.Ngay_Nhap_Kho.Date, Normalize_SQL_Text(p_objData.Ghi_Chu),
+            Normalize_SQL_Text(p_objData.Ma_Dang_Nhap),
+            Normalize_SQL_Text(null), Normalize_SQL_Text(null),
+            Normalize_SQL_Text(p_objData.Last_Updated_By),
+            Normalize_SQL_Text(p_objData.Last_Updated_By_Function)));
         return p_objData.Auto_ID;
     }
 
     public void F3001_sp_del_Nhap_Kho_Header(long p_iAuto_ID, string p_strCurrent_Login)
     {
-        Execute_Procedure("F3001_sp_del_Nhap_Kho_Header", BigInt("@Auto_ID", p_iAuto_ID),
-            NVarChar("@Last_Updated_By", null, 100), NVarChar("@Last_Updated_By_Function", null, 100),
-            NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+        CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_del_Nhap_Kho_Header", p_iAuto_ID,
+            Normalize_SQL_Text(null), Normalize_SQL_Text(null),
+            Normalize_SQL_Text(p_strCurrent_Login));
     }
 
     public long F3001_sp_ins_Nhap_Kho_Detail(CXNK_Nhap_Kho_Detail p_objData)
     {
-        p_objData.Auto_ID = Scalar_ID("F3001_sp_ins_Nhap_Kho_Detail",
-            InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID), BigInt("@Nhap_Kho_ID", p_objData.Nhap_Kho_ID),
-            BigInt("@San_Pham_ID", p_objData.San_Pham_ID), Decimal("@SL_Nhap", p_objData.SL_Nhap, 18, 3),
-            Decimal("@Don_Gia_Nhap", p_objData.Don_Gia_Nhap, 18, 2), NVarChar("@Ma_Dang_Nhap", p_objData.Ma_Dang_Nhap, 100),
-            NVarChar("@Created_By", p_objData.Created_By, 100), NVarChar("@Created_By_Function", p_objData.Created_By_Function, 100),
-            NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100), NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
+        p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_ins_Nhap_Kho_Detail",
+            p_objData.Auto_ID, p_objData.Nhap_Kho_ID,
+            p_objData.San_Pham_ID, p_objData.SL_Nhap,
+            p_objData.Don_Gia_Nhap, Normalize_SQL_Text(p_objData.Ma_Dang_Nhap),
+            Normalize_SQL_Text(p_objData.Created_By), Normalize_SQL_Text(p_objData.Created_By_Function),
+            Normalize_SQL_Text(p_objData.Last_Updated_By), Normalize_SQL_Text(p_objData.Last_Updated_By_Function)));
         return p_objData.Auto_ID;
     }
 
     public long F3001_sp_ins_Nhap_Kho_Detail(SqlConnection p_conn, SqlTransaction p_trans, CXNK_Nhap_Kho_Detail p_objData)
     {
-        p_objData.Auto_ID = Scalar_ID(p_conn, p_trans, "F3001_sp_ins_Nhap_Kho_Detail",
-            InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID), BigInt("@Nhap_Kho_ID", p_objData.Nhap_Kho_ID),
-            BigInt("@San_Pham_ID", p_objData.San_Pham_ID), Decimal("@SL_Nhap", p_objData.SL_Nhap, 18, 3),
-            Decimal("@Don_Gia_Nhap", p_objData.Don_Gia_Nhap, 18, 2), NVarChar("@Ma_Dang_Nhap", p_objData.Ma_Dang_Nhap, 100),
-            NVarChar("@Created_By", p_objData.Created_By, 100), NVarChar("@Created_By_Function", p_objData.Created_By_Function, 100),
-            NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100), NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
+        p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(p_conn, p_trans, CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_ins_Nhap_Kho_Detail",
+            p_objData.Auto_ID, p_objData.Nhap_Kho_ID,
+            p_objData.San_Pham_ID, p_objData.SL_Nhap,
+            p_objData.Don_Gia_Nhap, Normalize_SQL_Text(p_objData.Ma_Dang_Nhap),
+            Normalize_SQL_Text(p_objData.Created_By), Normalize_SQL_Text(p_objData.Created_By_Function),
+            Normalize_SQL_Text(p_objData.Last_Updated_By), Normalize_SQL_Text(p_objData.Last_Updated_By_Function)));
         return p_objData.Auto_ID;
     }
 
     public long F3001_sp_upd_Nhap_Kho_Detail(CXNK_Nhap_Kho_Detail p_objData)
     {
-        p_objData.Auto_ID = Scalar_ID("F3001_sp_upd_Nhap_Kho_Detail",
-            InputOutput_BigInt("@Auto_ID", p_objData.Auto_ID), BigInt("@Nhap_Kho_ID", p_objData.Nhap_Kho_ID),
-            BigInt("@San_Pham_ID", p_objData.San_Pham_ID), Decimal("@SL_Nhap", p_objData.SL_Nhap, 18, 3),
-            Decimal("@Don_Gia_Nhap", p_objData.Don_Gia_Nhap, 18, 2), NVarChar("@Ma_Dang_Nhap", p_objData.Ma_Dang_Nhap, 100),
-            NVarChar("@Created_By", null, 100), NVarChar("@Created_By_Function", null, 100),
-            NVarChar("@Last_Updated_By", p_objData.Last_Updated_By, 100), NVarChar("@Last_Updated_By_Function", p_objData.Last_Updated_By_Function, 100));
+        p_objData.Auto_ID = Convert.ToInt64(CSqlHelper.ExecuteScalar(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_upd_Nhap_Kho_Detail",
+            p_objData.Auto_ID, p_objData.Nhap_Kho_ID,
+            p_objData.San_Pham_ID, p_objData.SL_Nhap,
+            p_objData.Don_Gia_Nhap, Normalize_SQL_Text(p_objData.Ma_Dang_Nhap),
+            Normalize_SQL_Text(null), Normalize_SQL_Text(null),
+            Normalize_SQL_Text(p_objData.Last_Updated_By), Normalize_SQL_Text(p_objData.Last_Updated_By_Function)));
         return p_objData.Auto_ID;
     }
 
     public void F3001_sp_del_Nhap_Kho_Detail(long p_iAuto_ID, string p_strCurrent_Login)
     {
-        Execute_Procedure("F3001_sp_del_Nhap_Kho_Detail", BigInt("@Auto_ID", p_iAuto_ID),
-            NVarChar("@Last_Updated_By", null, 100), NVarChar("@Last_Updated_By_Function", null, 100),
-            NVarChar("@Ma_Dang_Nhap", p_strCurrent_Login, 100));
+        CSqlHelper.ExecuteNonquery(CConfig.TKS_Thuc_Tap_V11_Conn_String, "F3001_sp_del_Nhap_Kho_Detail", p_iAuto_ID,
+            Normalize_SQL_Text(null), Normalize_SQL_Text(null),
+            Normalize_SQL_Text(p_strCurrent_Login));
     }
 
-    private static SqlParameter BigInt(string p_strName, long p_iValue)
+    // 23/10/2026 - Codex: dùng parameter metadata của CSqlHelper gốc, giữ quy tắc chuỗi rỗng -> SQL NULL.
+    private static object Normalize_SQL_Text(string? p_strValue)
     {
-        SqlParameter v_objParameter = new SqlParameter(p_strName, SqlDbType.BigInt) { Value = p_iValue };
-        return v_objParameter;
-    }
-
-    private static SqlParameter InputOutput_BigInt(string p_strName, long p_iValue)
-    {
-        SqlParameter v_objParameter = new SqlParameter(p_strName, SqlDbType.BigInt)
+        if (string.IsNullOrEmpty(p_strValue))
         {
-            Direction = ParameterDirection.InputOutput,
-            Value = p_iValue
-        };
-        return v_objParameter;
-    }
-
-    private static SqlParameter Date(string p_strName, DateTime p_dtmValue)
-    {
-        SqlParameter v_objParameter = new SqlParameter(p_strName, SqlDbType.Date) { Value = p_dtmValue.Date };
-        return v_objParameter;
-    }
-
-    private static SqlParameter Decimal(string p_strName, decimal p_decValue, byte p_bPrecision, byte p_bScale)
-    {
-        SqlParameter v_objParameter = new SqlParameter(p_strName, SqlDbType.Decimal)
-        {
-            Precision = p_bPrecision,
-            Scale = p_bScale,
-            Value = p_decValue
-        };
-        return v_objParameter;
-    }
-
-    private static SqlParameter NVarChar(string p_strName, string? p_strValue, int p_iSize)
-    {
-        SqlParameter v_objParameter = new SqlParameter(p_strName, SqlDbType.NVarChar, p_iSize)
-        {
-            Value = string.IsNullOrEmpty(p_strValue) ? DBNull.Value : p_strValue
-        };
-        return v_objParameter;
+            return DBNull.Value;
+        }
+        return p_strValue;
     }
 }

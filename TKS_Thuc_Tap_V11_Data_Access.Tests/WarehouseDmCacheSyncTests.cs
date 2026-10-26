@@ -100,25 +100,24 @@ public sealed class WarehouseDmCacheSyncTests
         string p_strDelete_Store,
         string p_strCache_Name)
     {
-        string v_strPage_Source = ReadRepositoryFile(
-            "TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor");
-        string v_strAdd_Method = GetRegion(
-            v_strPage_Source,
-            "private Task Add_" + p_strEntity_Name + "_Async",
-            "private Task Update_" + p_strEntity_Name + "_Async");
-        string v_strUpdate_Method = GetRegion(
-            v_strPage_Source,
-            "private Task Update_" + p_strEntity_Name + "_Async",
-            p_strEntity_Name == "NCC" ? "private async Task Save_Master_Operation_Async" : "private Task Add_");
-        string v_strDelete_Method = GetMethodBody(v_strPage_Source, "private async Task Delete_Master_Async(");
-
-        AssertOperationPrecedesCacheMutation(v_strAdd_Method, p_strInsert_Store + "(", p_strCache_Name + ".Add_Data(p_objData)");
-        AssertOperationPrecedesCacheMutation(v_strUpdate_Method, p_strUpdate_Store + "(", p_strCache_Name + ".Update_Data(p_objData)");
-        AssertOperationPrecedesCacheMutation(v_strDelete_Method, p_strDelete_Store + "(", p_strCache_Name + ".Delete_Data(p_iAuto_ID)");
-
-        string v_strSave_Method = GetMethodBody(v_strPage_Source, "private async Task Save_Master_Operation_Async(");
-        Assert.True(v_strSave_Method.IndexOf("p_actSave();", StringComparison.Ordinal) <
-            v_strSave_Method.IndexOf("catch (Exception", StringComparison.Ordinal));
+        string v_strEditor_File = p_strEntity_Name switch
+        {
+            "Kho" => "F2009_3_Kho_Edit.razor",
+            "Don_Vi_Tinh" => "FWarehouse_Unit_Edit.razor",
+            "Loai_San_Pham" => "F2017_3_Loai_San_Pham_Edit.razor",
+            "San_Pham" => "F2018_3_San_Pham_Edit.razor",
+            "NCC" => "F2019_3_Nha_Cung_Cap_Edit.razor",
+            _ => throw new ArgumentOutOfRangeException(nameof(p_strEntity_Name))
+        };
+        string v_strList_File = v_strEditor_File.Replace("_3_", "_1_").Replace("_Edit", "_List");
+        string v_strEditor = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strEditor_File);
+        string v_strList = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strList_File);
+        string v_strAdd = GetMethodBody(v_strEditor, "protected override void Add_Data(");
+        string v_strUpdate = GetMethodBody(v_strEditor, "protected override void Update_Data(");
+        string v_strDelete = GetMethodBody(v_strList, "protected override void Delete_Data_Entry(");
+        AssertOperationPrecedesCacheMutation(v_strAdd, p_strInsert_Store + "(", p_strCache_Name + ".Add_Data(m_objData)");
+        AssertOperationPrecedesCacheMutation(v_strUpdate, p_strUpdate_Store + "(", p_strCache_Name + ".Update_Data(m_objData)");
+        AssertOperationPrecedesCacheMutation(v_strDelete, p_strDelete_Store + "(", p_strCache_Name + ".Delete_Data(p_iAuto_ID)");
     }
 
     [Theory]

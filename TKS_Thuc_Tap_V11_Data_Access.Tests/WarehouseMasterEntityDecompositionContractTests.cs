@@ -152,19 +152,16 @@ public sealed class WarehouseMasterEntityDecompositionContractTests
     [Fact]
     public void Master_editor_and_save_callers_use_typed_entities_while_shared_page_support_stays_unchanged()
     {
-        string v_strListSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_1_Warehouse_List.razor");
-        string v_strEditSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", "FWarehouse_3_Warehouse_Edit.razor");
-        string v_strPageSupport = ReadRepositoryFile("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs");
-
-        foreach (string v_strEntity in new[] { "CDM_Kho", "CDM_Don_Vi_Tinh", "CDM_Loai_San_Pham", "CDM_San_Pham", "CDM_NCC" })
+        string[] v_arrFiles = { "F2009_3_Kho_Edit.razor", "FWarehouse_Unit_Edit.razor", "F2017_3_Loai_San_Pham_Edit.razor", "F2018_3_San_Pham_Edit.razor", "F2019_3_Nha_Cung_Cap_Edit.razor" };
+        foreach (string v_strFile in v_arrFiles)
         {
-            Assert.Contains(v_strEntity, v_strListSource);
-            Assert.Contains(v_strEntity, v_strEditSource);
+            string v_strSource = ReadRepositoryFile("TKS_Thuc_Tap_V11_Web_Danh_Muc", "Pages", "Danh_Muc", "Components", v_strFile);
+            Assert.Contains("private CDM_", v_strSource);
+            Assert.Contains("r_objSource =", v_strSource);
+            Assert.Contains("r_objDes =", v_strSource);
+            Assert.DoesNotContain("Save_Master_Async(CWarehouseMaster", v_strSource);
         }
-
-        Assert.DoesNotContain("Save_Master_Async(CWarehouseMaster", v_strListSource);
-        Assert.Contains("sp_DM_Master_Page", v_strPageSupport);
-        Assert.Contains("sp_DM_Lookup_Page", v_strPageSupport);
+        string v_strPageSupport = ReadRepositoryFile("TKS_Thuc_Tap_V11_Data_Access", "Controller", "DM", "CWarehouseMasterSupport_Controller.cs");
         Assert.Contains("Page_From_Procedure<CWarehouseMaster>", v_strPageSupport);
         Assert.Contains("Page_From_Procedure<CWarehouseLookup>", v_strPageSupport);
     }
