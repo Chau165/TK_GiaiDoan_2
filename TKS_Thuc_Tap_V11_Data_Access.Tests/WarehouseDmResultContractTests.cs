@@ -2,8 +2,6 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 using TKS_Thuc_Tap_V11_Data_Access.Entity.DM;
 using TKS_Thuc_Tap_V11_Data_Access.Utility;
@@ -15,11 +13,11 @@ public sealed class WarehouseDmResultContractTests
 {
     public static IEnumerable<object[]> ProcedureContracts =>
     [
-        ["F2009_sp_sel_List_Kho", "F2009_sp_sel_List_Kho_Lookup", "tbl_DM_Kho", "Ten_Kho", new[] { "Auto_ID", "Ten_Kho", "Ghi_Chu" }, new[] { "Auto_ID", "Ten_Kho" }],
-        ["F2016_sp_sel_List_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_Lookup", "tbl_DM_Don_Vi_Tinh", "Ten_Don_Vi_Tinh", new[] { "Auto_ID", "Ten_Don_Vi_Tinh", "Ghi_Chu" }, new[] { "Auto_ID", "Ten_Don_Vi_Tinh" }],
-        ["F2017_sp_sel_List_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_Lookup", "tbl_DM_Loai_San_Pham", "Ma_LSP", new[] { "Auto_ID", "Ma_LSP", "Ten_LSP", "Ghi_Chu" }, new[] { "Auto_ID", "Ma_LSP", "Ten_LSP" }],
-        ["F2018_sp_sel_List_San_Pham", "F2018_sp_sel_List_San_Pham_Lookup", "tbl_DM_San_Pham", "Ma_San_Pham", new[] { "Auto_ID", "Ma_San_Pham", "Ten_San_Pham", "Loai_San_Pham_ID", "Don_Vi_Tinh_ID", "Ghi_Chu" }, new[] { "Auto_ID", "Ma_San_Pham", "Ten_San_Pham" }],
-        ["F2019_sp_sel_List_NCC", "F2019_sp_sel_List_NCC_Lookup", "tbl_DM_NCC", "Ma_NCC", new[] { "Auto_ID", "Ma_NCC", "Ten_NCC", "Ghi_Chu" }, new[] { "Auto_ID", "Ma_NCC", "Ten_NCC" }]
+        ["F2009_sp_sel_List_Kho", "F2009_sp_sel_List_Kho_Lookup", "view_DM_Kho", "Ten_Kho", new[] { "Auto_ID", "Ten_Kho", "Ghi_Chu" }, new[] { "Auto_ID", "Ten_Kho" }],
+        ["F2016_sp_sel_List_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_Lookup", "view_DM_Don_Vi_Tinh", "Ten_Don_Vi_Tinh", new[] { "Auto_ID", "Ten_Don_Vi_Tinh", "Ghi_Chu" }, new[] { "Auto_ID", "Ten_Don_Vi_Tinh" }],
+        ["F2017_sp_sel_List_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_Lookup", "view_DM_Loai_San_Pham", "Ma_LSP", new[] { "Auto_ID", "Ma_LSP", "Ten_LSP", "Ghi_Chu" }, new[] { "Auto_ID", "Ma_LSP", "Ten_LSP" }],
+        ["F2018_sp_sel_List_San_Pham", "F2018_sp_sel_List_San_Pham_Lookup", "view_DM_San_Pham", "Ma_San_Pham", new[] { "Auto_ID", "Ma_San_Pham", "Ten_San_Pham", "Loai_San_Pham_ID", "Don_Vi_Tinh_ID", "Ghi_Chu" }, new[] { "Auto_ID", "Ma_San_Pham", "Ten_San_Pham" }],
+        ["F2019_sp_sel_List_NCC", "F2019_sp_sel_List_NCC_Lookup", "view_DM_NCC", "Ma_NCC", new[] { "Auto_ID", "Ma_NCC", "Ten_NCC", "Ghi_Chu" }, new[] { "Auto_ID", "Ma_NCC", "Ten_NCC" }]
     ];
 
     [Theory]
@@ -80,25 +78,25 @@ public sealed class WarehouseDmResultContractTests
     }
 
     [Fact]
-    public void Shared_DM_page_and_dedicated_cache_store_definitions_remain_unchanged()
+    public void Shared_DM_page_and_dedicated_cache_store_definitions_use_active_views()
     {
-        Dictionary<string, string> v_dicExpected_Hashes = new()
+        (string Name, string[] Views)[] v_arrContracts =
         {
-            ["sp_DM_Master_Page"] = "9E5A8C8862461F88CFC95E3A2B60A8CA5AD172384AC6F3696FC45388FED2316B",
-            ["sp_DM_Lookup_Page"] = "CA0138A69A9090FE763A341B158A8AFF21287C037CCFAFE9A78679F170C17B81",
-            ["F2009_sp_sel_List_Kho_For_Cache"] = "3295DB74333F6ACB5D58B95B267D2FBC1000600ACC198BB231B88790C3E0E353",
-            ["F2016_sp_sel_List_Don_Vi_Tinh_For_Cache"] = "66C150B7D0FE53D8C258006C7040AD46CCBDC2CF8D71D9EE9E0BB8EEB7936893",
-            ["F2017_sp_sel_List_Loai_San_Pham_For_Cache"] = "78BCECAF50F2C6570ABEB5334C5A8CEA1B8AA5ED1B4BD888447A569AD3494D66",
-            ["F2018_sp_sel_List_San_Pham_For_Cache"] = "49F4C4DD3606A21987821EC4E4A887D8AA320575DA0C621BDF26BA25F4FCFC96",
-            ["F2019_sp_sel_List_NCC_For_Cache"] = "394995DD1D03E321E3813EA03C04D62CF00A83639CFD57B5DAB88823DA955F28"
+            ("sp_DM_Master_Page", ["view_DM_Don_Vi_Tinh", "view_DM_Kho", "view_DM_NCC", "view_DM_Loai_San_Pham", "view_DM_San_Pham"]),
+            ("sp_DM_Lookup_Page", ["view_DM_Don_Vi_Tinh", "view_DM_Kho", "view_DM_NCC", "view_DM_Loai_San_Pham", "view_DM_San_Pham"]),
+            ("F2009_sp_sel_List_Kho_For_Cache", ["view_DM_Kho"]),
+            ("F2016_sp_sel_List_Don_Vi_Tinh_For_Cache", ["view_DM_Don_Vi_Tinh"]),
+            ("F2017_sp_sel_List_Loai_San_Pham_For_Cache", ["view_DM_Loai_San_Pham"]),
+            ("F2018_sp_sel_List_San_Pham_For_Cache", ["view_DM_San_Pham"]),
+            ("F2019_sp_sel_List_NCC_For_Cache", ["view_DM_NCC"])
         };
 
         string v_strSource = File.ReadAllText(FindRepositoryPath("Database", "WarehouseModule.Procedures.sql"));
-        foreach ((string v_strName, string v_strExpectedHash) in v_dicExpected_Hashes)
+        foreach ((string v_strName, string[] v_arrViews) in v_arrContracts)
         {
             string v_strProcedure = ExtractProcedure(v_strSource, v_strName);
-            byte[] v_arrBytes = Encoding.UTF8.GetBytes(Regex.Replace(v_strProcedure, "\\r\\n|\\r", "\n"));
-            Assert.Equal(v_strExpectedHash, Convert.ToHexString(SHA256.HashData(v_arrBytes)));
+            foreach (string v_strView in v_arrViews)
+                Assert.Contains("FROM dbo." + v_strView, v_strProcedure, StringComparison.OrdinalIgnoreCase);
         }
     }
 

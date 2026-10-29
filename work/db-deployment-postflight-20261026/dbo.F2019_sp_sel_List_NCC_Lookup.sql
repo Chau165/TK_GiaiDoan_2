@@ -1,0 +1,7 @@
+
+CREATE   PROCEDURE dbo.F2019_sp_sel_List_NCC_Lookup
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ma_NCC, Ten_NCC FROM dbo.view_DM_NCC ORDER BY Ma_NCC;
+END

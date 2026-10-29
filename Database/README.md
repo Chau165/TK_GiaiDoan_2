@@ -13,7 +13,10 @@ To apply the warehouse module to a freshly restored copy, run in order:
 
 ```powershell
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseModule.Schema.sql
+sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseMaster.Views.sql
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseModule.Procedures.sql
+sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseMaster.GetById.Procedures.sql
+sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseMaster.ByCreated.Procedures.sql
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseModule.Security.sql
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseModule.Security.Preflight.sql -v ApplicationLogin="DOMAIN\\WarehouseApp" ApplicationUser="DOMAIN\\WarehouseApp"
 sqlcmd -S localhost -E -d TKS_Thuc_Tap_V11_GiaiDoan2 -b -f 65001 -i Database\WarehouseModule.Menu.sql
@@ -77,14 +80,19 @@ or other secrets in this file.
    database.
 2. Apply `Database\WarehouseModule.Schema.sql` to create/upgrade the warehouse
    tables, queue lifecycle, and worker heartbeat state.
-3. Apply `Database\WarehouseModule.Procedures.sql` to install the canonical
+3. Apply `Database\WarehouseMaster.Views.sql` to install the five active master
+   projections after the schema change.
+4. Apply `Database\WarehouseModule.Procedures.sql` to install the canonical
    document, posting, report, movement, snapshot, monitor, and reconciliation
    procedures.
-4. Apply `Database\WarehouseModule.Security.sql`, then run the read-only
+5. Apply `Database\WarehouseMaster.GetById.Procedures.sql` and
+   `Database\WarehouseMaster.ByCreated.Procedures.sql` for the five master-data
+   read contracts.
+6. Apply `Database\WarehouseModule.Security.sql`, then run the read-only
    `Database\WarehouseModule.Security.Preflight.sql` with the exact intended
    application login/user mapping before activation. Do not use a privileged
    developer identity as production-security evidence.
-5. After schema and procedures are deployed, run the required one-time
+7. After schema, views, and procedures are deployed, run the required one-time
    cutover/bootstrap from the posted ledger:
 
    ```powershell
@@ -95,7 +103,7 @@ or other secrets in this file.
    daily movement freshness. Do not run it repeatedly as a substitute for the
    worker.
 
-6. Deploy these SQL Agent scripts against `msdb` in the same final system:
+8. Deploy these SQL Agent scripts against `msdb` in the same final system:
 
    ```text
    Database\Jobs\WarehouseInventoryMovementRebuild.SqlAgent.sql
@@ -111,11 +119,11 @@ or other secrets in this file.
    (`SE Asia Standard Time`). All four job steps target
    `TKS_Thuc_Tap_V11_GiaiDoan2` and use the canonical worker/monitor procedures.
 
-7. Keep the legacy `TKS Warehouse - Inventory Snapshot Rebuild` job disabled.
+9. Keep the legacy `TKS Warehouse - Inventory Snapshot Rebuild` job disabled.
    It is retained for history/rollback context and must not race the current
    Snapshot Repair lifecycle worker.
 
-8. Post-deployment, verify read-only: source-to-database object parity;
+10. Post-deployment, verify read-only: source-to-database object parity;
    Business DB consistency invariants; SQL Server Agent `Running` with its
    approved `Manual` startup type; fresh successful job history; fresh worker
    heartbeat; and a non-critical snapshot monitor result. A stopped Agent after

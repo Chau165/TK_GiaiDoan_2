@@ -34,7 +34,7 @@ public sealed class WarehouseGroupCDesharingContractTests
             var v_strLookup = ExtractProcedure(v_strSql, v_strLookupName);
 
             Assert.DoesNotContain("@Entity", v_strLookup, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains($"FROM dbo.{v_strTable}", v_strLookup, StringComparison.Ordinal);
+            Assert.Contains($"FROM dbo.view_DM_{v_strMeaning}", v_strLookup, StringComparison.Ordinal);
             Assert.Contains($"\"{v_strLookupName}\"", v_strController, StringComparison.Ordinal);
         }
 
@@ -69,7 +69,7 @@ public sealed class WarehouseGroupCDesharingContractTests
             var v_strStore = ExtractProcedure(v_strSql, v_strStoreName);
 
             Assert.DoesNotContain("@Entity", v_strStore, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains($"FROM dbo.{v_strTable}", v_strStore, StringComparison.Ordinal);
+            Assert.Contains($"FROM dbo.view_DM_{v_strMeaning}", v_strStore, StringComparison.Ordinal);
             Assert.Contains($"\"{v_strStoreName}\"", v_strController, StringComparison.Ordinal);
         }
 
@@ -104,7 +104,9 @@ public sealed class WarehouseGroupCDesharingContractTests
             var v_strDelete = ExtractProcedure(v_strSql, v_strDeleteName);
 
             Assert.DoesNotContain("@Entity", v_strDelete, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains($"DELETE FROM dbo.{v_strTable}", v_strDelete, StringComparison.Ordinal);
+            Assert.Contains($"UPDATE dbo.{v_strTable}", v_strDelete, StringComparison.Ordinal);
+            Assert.Contains("deleted=1", v_strDelete, StringComparison.Ordinal);
+            Assert.DoesNotContain($"DELETE FROM dbo.{v_strTable}", v_strDelete, StringComparison.Ordinal);
             Assert.Contains($"\"{v_strDeleteName}\"", v_strController, StringComparison.Ordinal);
         }
 

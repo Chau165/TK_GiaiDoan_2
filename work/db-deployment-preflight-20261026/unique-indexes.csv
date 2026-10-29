@@ -1,0 +1,8 @@
+"Table_Name","Index_Name","is_unique","type_desc","key_ordinal","Column_Name"
+"dbo.tbl_DM_Don_Vi_Tinh","UX_tbl_DM_Don_Vi_Tinh_Ten","True","NONCLUSTERED","1","Ten_Don_Vi_Tinh"
+"dbo.tbl_DM_Kho","UX_tbl_DM_Kho_Ten","True","NONCLUSTERED","1","Ten_Kho"
+"dbo.tbl_DM_Loai_San_Pham","UX_tbl_DM_Loai_San_Pham_Ma","True","NONCLUSTERED","1","Ma_LSP"
+"dbo.tbl_DM_Loai_San_Pham","UX_tbl_DM_Loai_San_Pham_Ten","True","NONCLUSTERED","1","Ten_LSP"
+"dbo.tbl_DM_NCC","UX_tbl_DM_NCC_Ma","True","NONCLUSTERED","1","Ma_NCC"
+"dbo.tbl_DM_NCC","UX_tbl_DM_NCC_Ten","True","NONCLUSTERED","1","Ten_NCC"
+"dbo.tbl_DM_San_Pham","UX_tbl_DM_San_Pham_Ma","True","NONCLUSTERED","1","Ma_San_Pham"

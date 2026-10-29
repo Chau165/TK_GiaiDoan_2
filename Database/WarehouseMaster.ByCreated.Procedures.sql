@@ -20,7 +20,7 @@ BEGIN
         THROW 51001, N'Ngày bắt đầu không được lớn hơn ngày kết thúc.', 1;
 
     SELECT Auto_ID, Ten_Kho, Ghi_Chu, Created
-    FROM dbo.tbl_DM_Kho
+    FROM dbo.view_DM_Kho
     WHERE (@Date_From_Utc IS NULL OR Created >= @Date_From_Utc)
       AND (@Date_To_Utc_Exclusive IS NULL OR Created < @Date_To_Utc_Exclusive)
     ORDER BY Ten_Kho;
@@ -40,7 +40,7 @@ BEGIN
         THROW 51001, N'Ngày bắt đầu không được lớn hơn ngày kết thúc.', 1;
 
     SELECT Auto_ID, Ten_Don_Vi_Tinh, Ghi_Chu, Created
-    FROM dbo.tbl_DM_Don_Vi_Tinh
+    FROM dbo.view_DM_Don_Vi_Tinh
     WHERE (@Date_From_Utc IS NULL OR Created >= @Date_From_Utc)
       AND (@Date_To_Utc_Exclusive IS NULL OR Created < @Date_To_Utc_Exclusive)
     ORDER BY Ten_Don_Vi_Tinh;
@@ -60,7 +60,7 @@ BEGIN
         THROW 51001, N'Ngày bắt đầu không được lớn hơn ngày kết thúc.', 1;
 
     SELECT Auto_ID, Ma_LSP, Ten_LSP, Ghi_Chu, Created
-    FROM dbo.tbl_DM_Loai_San_Pham
+    FROM dbo.view_DM_Loai_San_Pham
     WHERE (@Date_From_Utc IS NULL OR Created >= @Date_From_Utc)
       AND (@Date_To_Utc_Exclusive IS NULL OR Created < @Date_To_Utc_Exclusive)
     ORDER BY Ma_LSP;
@@ -80,7 +80,7 @@ BEGIN
         THROW 51001, N'Ngày bắt đầu không được lớn hơn ngày kết thúc.', 1;
 
     SELECT Auto_ID, Ma_San_Pham, Ten_San_Pham, Loai_San_Pham_ID, Don_Vi_Tinh_ID, Ghi_Chu, Created
-    FROM dbo.tbl_DM_San_Pham
+    FROM dbo.view_DM_San_Pham
     WHERE (@Date_From_Utc IS NULL OR Created >= @Date_From_Utc)
       AND (@Date_To_Utc_Exclusive IS NULL OR Created < @Date_To_Utc_Exclusive)
     ORDER BY Ma_San_Pham;
@@ -100,7 +100,7 @@ BEGIN
         THROW 51001, N'Ngày bắt đầu không được lớn hơn ngày kết thúc.', 1;
 
     SELECT Auto_ID, Ma_NCC, Ten_NCC, Ghi_Chu, Created
-    FROM dbo.tbl_DM_NCC
+    FROM dbo.view_DM_NCC
     WHERE (@Date_From_Utc IS NULL OR Created >= @Date_From_Utc)
       AND (@Date_To_Utc_Exclusive IS NULL OR Created < @Date_To_Utc_Exclusive)
     ORDER BY Ma_NCC;

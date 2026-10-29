@@ -40,6 +40,7 @@ CREATE TABLE dbo.tbl_DM_Don_Vi_Tinh
     Auto_ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_tbl_DM_Don_Vi_Tinh PRIMARY KEY,
     Ten_Don_Vi_Tinh NVARCHAR(200) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
+    deleted INT NULL CONSTRAINT DF_tbl_DM_Don_Vi_Tinh_deleted DEFAULT 0,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_Don_Vi_Tinh_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_Don_Vi_Tinh_Last_Updated DEFAULT SYSUTCDATETIME()
 );
@@ -52,6 +53,7 @@ CREATE TABLE dbo.tbl_DM_Loai_San_Pham
     Ma_LSP NVARCHAR(100) NOT NULL,
     Ten_LSP NVARCHAR(200) NOT NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
+    deleted INT NULL CONSTRAINT DF_tbl_DM_Loai_San_Pham_deleted DEFAULT 0,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_Loai_San_Pham_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_Loai_San_Pham_Last_Updated DEFAULT SYSUTCDATETIME()
 );
@@ -66,6 +68,7 @@ CREATE TABLE dbo.tbl_DM_San_Pham
     Loai_San_Pham_ID BIGINT NOT NULL,
     Don_Vi_Tinh_ID BIGINT NOT NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
+    deleted INT NULL CONSTRAINT DF_tbl_DM_San_Pham_deleted DEFAULT 0,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_San_Pham_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_San_Pham_Last_Updated DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_tbl_DM_San_Pham_Loai FOREIGN KEY (Loai_San_Pham_ID) REFERENCES dbo.tbl_DM_Loai_San_Pham(Auto_ID),
@@ -80,6 +83,7 @@ CREATE TABLE dbo.tbl_DM_NCC
     Ma_NCC NVARCHAR(100) NOT NULL,
     Ten_NCC NVARCHAR(255) NOT NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
+    deleted INT NULL CONSTRAINT DF_tbl_DM_NCC_deleted DEFAULT 0,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_NCC_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_NCC_Last_Updated DEFAULT SYSUTCDATETIME()
 );
@@ -91,6 +95,7 @@ CREATE TABLE dbo.tbl_DM_Kho
     Auto_ID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_tbl_DM_Kho PRIMARY KEY,
     Ten_Kho NVARCHAR(255) NOT NULL,
     Ghi_Chu NVARCHAR(1000) NULL,
+    deleted INT NULL CONSTRAINT DF_tbl_DM_Kho_deleted DEFAULT 0,
     Created DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_Kho_Created DEFAULT SYSUTCDATETIME(),
     Last_Updated DATETIME2 NOT NULL CONSTRAINT DF_tbl_DM_Kho_Last_Updated DEFAULT SYSUTCDATETIME()
 );
@@ -203,6 +208,11 @@ IF COL_LENGTH(N'dbo.tbl_DM_Loai_San_Pham', N'Created_By') IS NULL ALTER TABLE db
 IF COL_LENGTH(N'dbo.tbl_DM_San_Pham', N'Created_By') IS NULL ALTER TABLE dbo.tbl_DM_San_Pham ADD Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
 IF COL_LENGTH(N'dbo.tbl_DM_NCC', N'Created_By') IS NULL ALTER TABLE dbo.tbl_DM_NCC ADD Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
 IF COL_LENGTH(N'dbo.tbl_DM_Kho', N'Created_By') IS NULL ALTER TABLE dbo.tbl_DM_Kho ADD Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
+IF COL_LENGTH(N'dbo.tbl_DM_Don_Vi_Tinh', N'deleted') IS NULL ALTER TABLE dbo.tbl_DM_Don_Vi_Tinh ADD deleted INT NULL CONSTRAINT DF_tbl_DM_Don_Vi_Tinh_deleted DEFAULT 0 WITH VALUES;
+IF COL_LENGTH(N'dbo.tbl_DM_Loai_San_Pham', N'deleted') IS NULL ALTER TABLE dbo.tbl_DM_Loai_San_Pham ADD deleted INT NULL CONSTRAINT DF_tbl_DM_Loai_San_Pham_deleted DEFAULT 0 WITH VALUES;
+IF COL_LENGTH(N'dbo.tbl_DM_San_Pham', N'deleted') IS NULL ALTER TABLE dbo.tbl_DM_San_Pham ADD deleted INT NULL CONSTRAINT DF_tbl_DM_San_Pham_deleted DEFAULT 0 WITH VALUES;
+IF COL_LENGTH(N'dbo.tbl_DM_NCC', N'deleted') IS NULL ALTER TABLE dbo.tbl_DM_NCC ADD deleted INT NULL CONSTRAINT DF_tbl_DM_NCC_deleted DEFAULT 0 WITH VALUES;
+IF COL_LENGTH(N'dbo.tbl_DM_Kho', N'deleted') IS NULL ALTER TABLE dbo.tbl_DM_Kho ADD deleted INT NULL CONSTRAINT DF_tbl_DM_Kho_deleted DEFAULT 0 WITH VALUES;
 IF COL_LENGTH(N'dbo.tbl_DM_Kho_User', N'Created_By') IS NULL ALTER TABLE dbo.tbl_DM_Kho_User ADD Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated DATETIME2 NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
 IF COL_LENGTH(N'dbo.tbl_XNK_Nhap_Kho', N'Created_By') IS NULL ALTER TABLE dbo.tbl_XNK_Nhap_Kho ADD Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;
 IF COL_LENGTH(N'dbo.tbl_XNK_Nhap_Kho_Raw_Data', N'Created') IS NULL ALTER TABLE dbo.tbl_XNK_Nhap_Kho_Raw_Data ADD Created DATETIME2 NULL, Last_Updated DATETIME2 NULL, Created_By NVARCHAR(100) NULL, Created_By_Function NVARCHAR(100) NULL, Last_Updated_By NVARCHAR(100) NULL, Last_Updated_By_Function NVARCHAR(100) NULL;

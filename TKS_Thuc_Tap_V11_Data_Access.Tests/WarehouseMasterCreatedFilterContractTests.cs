@@ -95,11 +95,11 @@ public sealed class WarehouseMasterCreatedFilterContractTests
         string v_strScript = File.ReadAllText(FindRepositoryPath("Database", "WarehouseMaster.ByCreated.Procedures.sql"));
         (string ControllerFile, string Entity, string Procedure, string Table, string OrderBy)[] v_arrContracts =
         [
-            ("CDM_Kho_Controller.cs", "CDM_Kho", "F2009_sp_sel_List_Kho_By_Created", "tbl_DM_Kho", "Ten_Kho"),
-            ("CDM_Don_Vi_Tinh_Controller.cs", "CDM_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_By_Created", "tbl_DM_Don_Vi_Tinh", "Ten_Don_Vi_Tinh"),
-            ("CDM_Loai_San_Pham_Controller.cs", "CDM_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_By_Created", "tbl_DM_Loai_San_Pham", "Ma_LSP"),
-            ("CDM_San_Pham_Controller.cs", "CDM_San_Pham", "F2018_sp_sel_List_San_Pham_By_Created", "tbl_DM_San_Pham", "Ma_San_Pham"),
-            ("CDM_NCC_Controller.cs", "CDM_NCC", "F2019_sp_sel_List_NCC_By_Created", "tbl_DM_NCC", "Ma_NCC")
+            ("CDM_Kho_Controller.cs", "CDM_Kho", "F2009_sp_sel_List_Kho_By_Created", "view_DM_Kho", "Ten_Kho"),
+            ("CDM_Don_Vi_Tinh_Controller.cs", "CDM_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_By_Created", "view_DM_Don_Vi_Tinh", "Ten_Don_Vi_Tinh"),
+            ("CDM_Loai_San_Pham_Controller.cs", "CDM_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_By_Created", "view_DM_Loai_San_Pham", "Ma_LSP"),
+            ("CDM_San_Pham_Controller.cs", "CDM_San_Pham", "F2018_sp_sel_List_San_Pham_By_Created", "view_DM_San_Pham", "Ma_San_Pham"),
+            ("CDM_NCC_Controller.cs", "CDM_NCC", "F2019_sp_sel_List_NCC_By_Created", "view_DM_NCC", "Ma_NCC")
         ];
 
         foreach ((string v_strControllerFile, string v_strEntity, string v_strProcedure, string v_strTable, string v_strOrderBy) in v_arrContracts)

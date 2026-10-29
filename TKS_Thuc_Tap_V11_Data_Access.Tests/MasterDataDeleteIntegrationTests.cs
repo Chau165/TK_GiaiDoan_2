@@ -30,8 +30,11 @@ public sealed class MasterDataDeleteIntegrationTests
             new CDM_Loai_San_Pham_Controller().F2017_sp_del_Loai_San_Pham(
                 v_iCategoryId, "tdd-delete-user", "tdd-delete-function");
 
-            Assert.Equal(0L, await ScalarLongAsync(
+            Assert.Equal(1L, await ScalarLongAsync(
                 "SELECT COUNT_BIG(*) FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID = @Id;",
+                BigInt("@Id", v_iCategoryId)));
+            Assert.Equal(1L, await ScalarLongAsync(
+                "SELECT deleted FROM dbo.tbl_DM_Loai_San_Pham WHERE Auto_ID = @Id;",
                 BigInt("@Id", v_iCategoryId)));
         }
         finally

@@ -1,0 +1,6 @@
+CREATE   PROCEDURE dbo.F2019_sp_sel_List_NCC_For_Cache
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ma_NCC, Ten_NCC, Ghi_Chu FROM dbo.tbl_DM_NCC ORDER BY Ma_NCC;
+END

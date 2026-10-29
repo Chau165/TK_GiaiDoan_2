@@ -1,0 +1,6 @@
+CREATE   PROCEDURE dbo.F2009_sp_sel_List_Kho_Lookup
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Auto_ID, Ten_Kho FROM dbo.tbl_DM_Kho ORDER BY Ten_Kho;
+END

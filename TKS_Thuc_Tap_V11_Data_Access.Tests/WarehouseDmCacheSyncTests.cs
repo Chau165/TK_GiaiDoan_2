@@ -15,11 +15,11 @@ public sealed class WarehouseDmCacheSyncTests
     {
         get
         {
-            yield return new object[] { "CCache_Kho", typeof(CDM_Kho), typeof(CDM_Kho_Controller), "Load_Cache_Kho", "F2009_sp_sel_List_Kho_For_Cache", "tbl_DM_Kho", new[] { "Auto_ID", "Ten_Kho", "Ghi_Chu" }, "Ten_Kho" };
-            yield return new object[] { "CCache_Don_Vi_Tinh", typeof(CDM_Don_Vi_Tinh), typeof(CDM_Don_Vi_Tinh_Controller), "Load_Cache_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_For_Cache", "tbl_DM_Don_Vi_Tinh", new[] { "Auto_ID", "Ten_Don_Vi_Tinh", "Ghi_Chu" }, "Ten_Don_Vi_Tinh" };
-            yield return new object[] { "CCache_Loai_San_Pham", typeof(CDM_Loai_San_Pham), typeof(CDM_Loai_San_Pham_Controller), "Load_Cache_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_For_Cache", "tbl_DM_Loai_San_Pham", new[] { "Auto_ID", "Ma_LSP", "Ten_LSP", "Ghi_Chu" }, "Ma_LSP" };
-            yield return new object[] { "CCache_San_Pham", typeof(CDM_San_Pham), typeof(CDM_San_Pham_Controller), "Load_Cache_San_Pham", "F2018_sp_sel_List_San_Pham_For_Cache", "tbl_DM_San_Pham", new[] { "Auto_ID", "Ma_San_Pham", "Ten_San_Pham", "Loai_San_Pham_ID", "Don_Vi_Tinh_ID", "Ghi_Chu" }, "Ma_San_Pham" };
-            yield return new object[] { "CCache_NCC", typeof(CDM_NCC), typeof(CDM_NCC_Controller), "Load_Cache_NCC", "F2019_sp_sel_List_NCC_For_Cache", "tbl_DM_NCC", new[] { "Auto_ID", "Ma_NCC", "Ten_NCC", "Ghi_Chu" }, "Ma_NCC" };
+            yield return new object[] { "CCache_Kho", typeof(CDM_Kho), typeof(CDM_Kho_Controller), "Load_Cache_Kho", "F2009_sp_sel_List_Kho_For_Cache", "view_DM_Kho", new[] { "Auto_ID", "Ten_Kho", "Ghi_Chu" }, "Ten_Kho" };
+            yield return new object[] { "CCache_Don_Vi_Tinh", typeof(CDM_Don_Vi_Tinh), typeof(CDM_Don_Vi_Tinh_Controller), "Load_Cache_Don_Vi_Tinh", "F2016_sp_sel_List_Don_Vi_Tinh_For_Cache", "view_DM_Don_Vi_Tinh", new[] { "Auto_ID", "Ten_Don_Vi_Tinh", "Ghi_Chu" }, "Ten_Don_Vi_Tinh" };
+            yield return new object[] { "CCache_Loai_San_Pham", typeof(CDM_Loai_San_Pham), typeof(CDM_Loai_San_Pham_Controller), "Load_Cache_Loai_San_Pham", "F2017_sp_sel_List_Loai_San_Pham_For_Cache", "view_DM_Loai_San_Pham", new[] { "Auto_ID", "Ma_LSP", "Ten_LSP", "Ghi_Chu" }, "Ma_LSP" };
+            yield return new object[] { "CCache_San_Pham", typeof(CDM_San_Pham), typeof(CDM_San_Pham_Controller), "Load_Cache_San_Pham", "F2018_sp_sel_List_San_Pham_For_Cache", "view_DM_San_Pham", new[] { "Auto_ID", "Ma_San_Pham", "Ten_San_Pham", "Loai_San_Pham_ID", "Don_Vi_Tinh_ID", "Ghi_Chu" }, "Ma_San_Pham" };
+            yield return new object[] { "CCache_NCC", typeof(CDM_NCC), typeof(CDM_NCC_Controller), "Load_Cache_NCC", "F2019_sp_sel_List_NCC_For_Cache", "view_DM_NCC", new[] { "Auto_ID", "Ma_NCC", "Ten_NCC", "Ghi_Chu" }, "Ma_NCC" };
         }
     }
 

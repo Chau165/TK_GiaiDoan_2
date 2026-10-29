@@ -1,0 +1,856 @@
+"Object_Name","object_id","type_desc","definition"
+"dbo.F2009_sp_del_Kho","417592726","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2009_sp_del_Kho @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+
+    BEGIN TRY
+        /* Warehouse/product identity changes can alter future scope
+           derivation.  Treat all master deletes as root-exclusive
+           maintenance, even when the selected entity is not inventory data. */
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        UPDATE dbo.tbl_DM_Kho SET deleted=1, Last_Updated=SYSUTCDATETIME(), Last_Updated_By=@Last_Updated_By, Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2009_sp_ins_Kho","49591415","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2009_sp_ins_Kho
+    @Auto_ID BIGINT OUTPUT, @Ten_Kho NVARCHAR(255), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ten_Kho=LTRIM(RTRIM(ISNULL(@Ten_Kho,N'')));
+        IF @Ten_Kho=N'' THROW 51040,N'Tên kho không được để trống.',1; IF EXISTS(SELECT 1 FROM dbo.view_DM_Kho WHERE Ten_Kho=@Ten_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51041,N'Tên kho đã tồn tại.',1;
+        INSERT dbo.tbl_DM_Kho(Ten_Kho,Ghi_Chu,deleted,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Kho,@Ghi_Chu,0,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2009_sp_upd_Kho","65591472","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2009_sp_upd_Kho
+    @Auto_ID BIGINT OUTPUT, @Ten_Kho NVARCHAR(255), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ten_Kho=LTRIM(RTRIM(ISNULL(@Ten_Kho,N'')));
+        IF @Ten_Kho=N'' THROW 51040,N'Tên kho không được để trống.',1; IF EXISTS(SELECT 1 FROM dbo.view_DM_Kho WHERE Ten_Kho=@Ten_Kho AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51041,N'Tên kho đã tồn tại.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Kho WHERE Auto_ID=@Auto_ID) THROW 51042,N'Kho không tồn tại hoặc đã bị xóa.',1;
+        UPDATE dbo.tbl_DM_Kho SET Ten_Kho=@Ten_Kho,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+ SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2016_sp_del_Don_Vi_Tinh","433592783","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2016_sp_del_Don_Vi_Tinh @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+
+    BEGIN TRY
+        /* Warehouse/product identity changes can alter future scope
+           derivation.  Treat all master deletes as root-exclusive
+           maintenance, even when the selected entity is not inventory data. */
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        UPDATE dbo.tbl_DM_Don_Vi_Tinh SET deleted=1, Last_Updated=SYSUTCDATETIME(), Last_Updated_By=@Last_Updated_By, Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2016_sp_ins_Don_Vi_Tinh","17591301","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2016_sp_ins_Don_Vi_Tinh
+    @Auto_ID BIGINT OUTPUT, @Ten_Don_Vi_Tinh NVARCHAR(200), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
+        IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS=@Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
+        INSERT dbo.tbl_DM_Don_Vi_Tinh(Ten_Don_Vi_Tinh,Ghi_Chu,deleted,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ten_Don_Vi_Tinh,@Ghi_Chu,0,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        SET @Auto_ID=SCOPE_IDENTITY();
+        SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2016_sp_upd_Don_Vi_Tinh","33591358","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2016_sp_upd_Don_Vi_Tinh
+    @Auto_ID BIGINT OUTPUT, @Ten_Don_Vi_Tinh NVARCHAR(200), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ten_Don_Vi_Tinh=LTRIM(RTRIM(ISNULL(@Ten_Don_Vi_Tinh,N'')));
+        IF @Ten_Don_Vi_Tinh=N'' THROW 51001,N'Tên đơn vị tính không được để trống.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Don_Vi_Tinh WHERE Auto_ID=@Auto_ID) THROW 51003,N'Đơn vị tính không tồn tại hoặc đã bị xóa.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_Don_Vi_Tinh WHERE Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS=@Ten_Don_Vi_Tinh COLLATE SQL_Latin1_General_CP1_CI_AS AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51002,N'Tên đơn vị tính đã tồn tại.',1;
+        UPDATE dbo.tbl_DM_Don_Vi_Tinh SET Ten_Don_Vi_Tinh=@Ten_Don_Vi_Tinh,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2017_sp_del_Loai_San_Pham","449592840","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2017_sp_del_Loai_San_Pham @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+
+    BEGIN TRY
+        /* Warehouse/product identity changes can alter future scope
+           derivation.  Treat all master deletes as root-exclusive
+           maintenance, even when the selected entity is not inventory data. */
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        UPDATE dbo.tbl_DM_Loai_San_Pham SET deleted=1, Last_Updated=SYSUTCDATETIME(), Last_Updated_By=@Last_Updated_By, Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2017_sp_ins_Loai_San_Pham","81591529","SQL_STORED_PROCEDURE","CREATE   PROCEDURE dbo.F2017_sp_ins_Loai_San_Pham
+    @Auto_ID BIGINT OUTPUT, @Ma_LSP NVARCHAR(100), @Ten_LSP NVARCHAR(200), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_LSP=LTRIM(RTRIM(ISNULL(@Ma_LSP,N''))); SET @Ten_LSP=LTRIM(RTRIM(ISNULL(@Ten_LSP,N'')));
+        IF @Ma_LSP=N'' THROW 51010,N'Mã loại sản phẩm không được để trống.',1;
+        IF @Ten_LSP=N'' THROW 51012,N'Tên loại sản phẩm không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_Loai_San_Pham WHERE (Ma_LSP=@Ma_LSP OR Ten_LSP=@Ten_LSP) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51011,N'Mã hoặc tên loại sản phẩm đã tồn tại.',1;
+        INSERT dbo.tbl_DM_Loai_San_Pham(Ma_LSP,Ten_LSP,Ghi_Chu,deleted,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_LSP,@Ten_LSP,@Ghi_Chu,0,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2017_sp_upd_Loai_San_Pham","97591586","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2017_sp_upd_Loai_San_Pham
+    @Auto_ID BIGINT OUTPUT, @Ma_LSP NVARCHAR(100), @Ten_LSP NVARCHAR(200), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_LSP=LTRIM(RTRIM(ISNULL(@Ma_LSP,N''))); SET @Ten_LSP=LTRIM(RTRIM(ISNULL(@Ten_LSP,N'')));
+        IF @Ma_LSP=N'' THROW 51010,N'Mã loại sản phẩm không được để trống.',1;
+        IF @Ten_LSP=N'' THROW 51012,N'Tên loại sản phẩm không được để trống.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Loai_San_Pham WHERE Auto_ID=@Auto_ID) THROW 51013,N'Loại sản phẩm không tồn tại hoặc đã bị xóa.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_Loai_San_Pham WHERE (Ma_LSP=@Ma_LSP OR Ten_LSP=@Ten_LSP) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51011,N'Mã hoặc tên loại sản phẩm đã tồn tại.',1;
+        UPDATE dbo.tbl_DM_Loai_San_Pham SET Ma_LSP=@Ma_LSP,Ten_LSP=@Ten_LSP,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+ SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2018_sp_del_San_Pham","465592897","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2018_sp_del_San_Pham @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+
+    BEGIN TRY
+        /* Warehouse/product identity changes can alter future scope
+           derivation.  Treat all master deletes as root-exclusive
+           maintenance, even when the selected entity is not inventory data. */
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        UPDATE dbo.tbl_DM_San_Pham SET deleted=1, Last_Updated=SYSUTCDATETIME(), Last_Updated_By=@Last_Updated_By, Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2018_sp_ins_San_Pham","113591643","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2018_sp_ins_San_Pham
+    @Auto_ID BIGINT OUTPUT, @Ma_San_Pham NVARCHAR(100), @Ten_San_Pham NVARCHAR(255), @Loai_San_Pham_ID BIGINT, @Don_Vi_Tinh_ID BIGINT, @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_San_Pham=LTRIM(RTRIM(ISNULL(@Ma_San_Pham,N''))); SET @Ten_San_Pham=LTRIM(RTRIM(ISNULL(@Ten_San_Pham,N'')));
+        IF @Ma_San_Pham=N'' THROW 51020,N'Mã sản phẩm không được để trống.',1; IF @Ten_San_Pham=N'' THROW 51022,N'Tên sản phẩm không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_San_Pham WHERE Ma_San_Pham=@Ma_San_Pham AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51021,N'Mã sản phẩm đã tồn tại.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Loai_San_Pham WHERE Auto_ID=@Loai_San_Pham_ID) THROW 51023,N'Loại sản phẩm không hợp lệ.',1; IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Don_Vi_Tinh WHERE Auto_ID=@Don_Vi_Tinh_ID) THROW 51024,N'Đơn vị tính không hợp lệ.',1;
+        INSERT dbo.tbl_DM_San_Pham(Ma_San_Pham,Ten_San_Pham,Loai_San_Pham_ID,Don_Vi_Tinh_ID,Ghi_Chu,deleted,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_San_Pham,@Ten_San_Pham,@Loai_San_Pham_ID,@Don_Vi_Tinh_ID,@Ghi_Chu,0,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2018_sp_upd_San_Pham","129591700","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2018_sp_upd_San_Pham
+    @Auto_ID BIGINT OUTPUT, @Ma_San_Pham NVARCHAR(100), @Ten_San_Pham NVARCHAR(255), @Loai_San_Pham_ID BIGINT, @Don_Vi_Tinh_ID BIGINT, @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_San_Pham=LTRIM(RTRIM(ISNULL(@Ma_San_Pham,N''))); SET @Ten_San_Pham=LTRIM(RTRIM(ISNULL(@Ten_San_Pham,N'')));
+        IF @Ma_San_Pham=N'' THROW 51020,N'Mã sản phẩm không được để trống.',1; IF @Ten_San_Pham=N'' THROW 51022,N'Tên sản phẩm không được để trống.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_San_Pham WHERE Auto_ID=@Auto_ID) THROW 51025,N'Sản phẩm không tồn tại hoặc đã bị xóa.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_San_Pham WHERE Ma_San_Pham=@Ma_San_Pham AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51021,N'Mã sản phẩm đã tồn tại.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Loai_San_Pham WHERE Auto_ID=@Loai_San_Pham_ID) THROW 51023,N'Loại sản phẩm không hợp lệ.',1; IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_Don_Vi_Tinh WHERE Auto_ID=@Don_Vi_Tinh_ID) THROW 51024,N'Đơn vị tính không hợp lệ.',1;
+        UPDATE dbo.tbl_DM_San_Pham SET Ma_San_Pham=@Ma_San_Pham,Ten_San_Pham=@Ten_San_Pham,Loai_San_Pham_ID=@Loai_San_Pham_ID,Don_Vi_Tinh_ID=@Don_Vi_Tinh_ID,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+ SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2019_sp_del_NCC","481592954","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.F2019_sp_del_NCC @Auto_ID BIGINT, @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+
+    BEGIN TRY
+        /* Warehouse/product identity changes can alter future scope
+           derivation.  Treat all master deletes as root-exclusive
+           maintenance, even when the selected entity is not inventory data. */
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+
+        UPDATE dbo.tbl_DM_NCC SET deleted=1, Last_Updated=SYSUTCDATETIME(), Last_Updated_By=@Last_Updated_By, Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2019_sp_ins_NCC","145591757","SQL_STORED_PROCEDURE","CREATE   PROCEDURE dbo.F2019_sp_ins_NCC
+    @Auto_ID BIGINT OUTPUT, @Ma_NCC NVARCHAR(100), @Ten_NCC NVARCHAR(255), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_NCC=LTRIM(RTRIM(ISNULL(@Ma_NCC,N''))); SET @Ten_NCC=LTRIM(RTRIM(ISNULL(@Ten_NCC,N'')));
+        IF @Ma_NCC=N'' THROW 51030,N'Mã nhà cung cấp không được để trống.',1; IF @Ten_NCC=N'' THROW 51032,N'Tên nhà cung cấp không được để trống.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_NCC WHERE (Ma_NCC=@Ma_NCC OR Ten_NCC=@Ten_NCC) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51031,N'Mã hoặc tên nhà cung cấp đã tồn tại.',1;
+        INSERT dbo.tbl_DM_NCC(Ma_NCC,Ten_NCC,Ghi_Chu,deleted,Created_By,Created_By_Function,Last_Updated_By,Last_Updated_By_Function) VALUES(@Ma_NCC,@Ten_NCC,@Ghi_Chu,0,COALESCE(@Created_By,@Last_Updated_By),COALESCE(@Created_By_Function,@Last_Updated_By_Function),@Last_Updated_By,@Last_Updated_By_Function);
+        SET @Auto_ID=SCOPE_IDENTITY(); SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.F2019_sp_upd_NCC","161591814","SQL_STORED_PROCEDURE","CREATE   PROCEDURE dbo.F2019_sp_upd_NCC
+    @Auto_ID BIGINT OUTPUT, @Ma_NCC NVARCHAR(100), @Ten_NCC NVARCHAR(255), @Ghi_Chu NVARCHAR(1000)=NULL,
+    @Created_By NVARCHAR(100)=NULL, @Created_By_Function NVARCHAR(100)=NULL,
+    @Last_Updated_By NVARCHAR(100)=NULL, @Last_Updated_By_Function NVARCHAR(100)=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @OwnTransaction BIT = 0;
+    IF @@TRANCOUNT = 0
+    BEGIN
+        BEGIN TRANSACTION;
+        SET @OwnTransaction = 1;
+    END;
+    BEGIN TRY
+        EXEC dbo.sp_Inventory_Fence_Acquire_Root @Mode = N'Exclusive';
+        SET @Ma_NCC=LTRIM(RTRIM(ISNULL(@Ma_NCC,N''))); SET @Ten_NCC=LTRIM(RTRIM(ISNULL(@Ten_NCC,N'')));
+        IF @Ma_NCC=N'' THROW 51030,N'Mã nhà cung cấp không được để trống.',1; IF @Ten_NCC=N'' THROW 51032,N'Tên nhà cung cấp không được để trống.',1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.view_DM_NCC WHERE Auto_ID=@Auto_ID) THROW 51033,N'Nhà cung cấp không tồn tại hoặc đã bị xóa.',1;
+        IF EXISTS(SELECT 1 FROM dbo.view_DM_NCC WHERE (Ma_NCC=@Ma_NCC OR Ten_NCC=@Ten_NCC) AND Auto_ID<>ISNULL(@Auto_ID,0)) THROW 51031,N'Mã hoặc tên nhà cung cấp đã tồn tại.',1;
+        UPDATE dbo.tbl_DM_NCC SET Ma_NCC=@Ma_NCC,Ten_NCC=@Ten_NCC,Ghi_Chu=@Ghi_Chu,Last_Updated=SYSUTCDATETIME(),Last_Updated_By=@Last_Updated_By,Last_Updated_By_Function=@Last_Updated_By_Function WHERE Auto_ID=@Auto_ID;
+        SELECT @Auto_ID AS Auto_ID;
+        IF @OwnTransaction = 1 COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @OwnTransaction = 1 AND XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+"
+"dbo.FQ_104_CH_sp_del_Delete_By_ID","1522976652","SQL_STORED_PROCEDURE","
+
+
+CREATE PROCEDURE [dbo].[FQ_104_CH_sp_del_Delete_By_ID]
+	@Auto_ID bigint,
+	@Last_Updated_By nvarchar(50),
+	@Last_Updated_By_Function nvarchar(50)
+	with recompile
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+	UPDATE tbl_DM_Chu_Hang SET
+		deleted = 1,
+		Last_Updated = getdate(),
+		Last_Updated_By = @Last_Updated_By,
+		Last_Updated_By_Function = @Last_Updated_By_Function
+	WHERE
+		Auto_ID = @Auto_ID
+END
+"
+"dbo.FQ_104_CH_sp_ins_Insert","1538976709","SQL_STORED_PROCEDURE","
+
+
+CREATE PROCEDURE [dbo].[FQ_104_CH_sp_ins_Insert]
+	@Ma_Chu_Hang nvarchar(50),
+	@Ten_Viet_Tat nvarchar(200),
+	@Ten_Chu_Hang nvarchar(200),
+	@Dia_Chi nvarchar(200),
+	@Dien_Thoai nvarchar(200),
+	@Email nvarchar(200),
+	@MST nvarchar(50),
+	@Header_Title nvarchar(50),
+	@Ghi_Chu nvarchar(200),
+	@Image_URL_Thumb nvarchar(200),
+	@Image_URL nvarchar(200),
+	@Last_Updated_By nvarchar(50),
+	@Last_Updated_By_Function nvarchar(50)
+	with recompile
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+	set @Ma_Chu_Hang = LTRIM(RTRIM(@Ma_Chu_Hang))
+	set @Ten_Viet_Tat = LTRIM(RTRIM(@Ten_Viet_Tat))
+	set @Ten_Chu_Hang = LTRIM(RTRIM(@Ten_Chu_Hang))
+	set @Dia_Chi = LTRIM(RTRIM(@Dia_Chi))
+	set @Dien_Thoai = LTRIM(RTRIM(@Dien_Thoai))
+	set @Email = LTRIM(RTRIM(@Email))
+	set @MST = LTRIM(RTRIM(@MST))
+	set @Header_Title = LTRIM(RTRIM(@Header_Title))
+	set @Ghi_Chu = LTRIM(RTRIM(@Ghi_Chu))
+	set @Image_URL_Thumb = LTRIM(RTRIM(@Image_URL_Thumb))
+	set @Image_URL = LTRIM(RTRIM(@Image_URL))
+
+	if (isnull(@Ma_Chu_Hang, '') = '')
+	begin
+		RAISERROR(N'Vui lòng nhập Mã chủ hàng.', 11, 1)
+		return
+	end
+
+	if (isnull(@Ten_Viet_Tat, '') = '')
+	begin
+		RAISERROR(N'Vui lòng nhập Tên viết tắt.', 11, 1)
+		return
+	end
+
+	if (isnull(@Ten_Chu_Hang, '') = '')
+	begin
+		RAISERROR(N'Vui lòng nhập Tên chủ hàng.', 11, 1)
+		return
+	end
+
+	declare @Check_ID_1 bigint = (select top 1 Auto_ID from view_DM_Chu_Hang with (nolock) where Ma_Chu_Hang = @Ma_Chu_Hang)
+	if(isnull(@Check_ID_1, 0) > 0)
+	begin
+		RAISERROR(N'Mã chủ hàng đã tồn tại.', 11, 1)
+		return
+	end
+
+	declare @Check_ID_2 bigint = (select top 1 Auto_ID from view_DM_Chu_Hang with (nolock) where Ten_Viet_Tat = @Ten_Viet_Tat)
+	if(isnull(@Check_ID_2, 0) > 0)
+	begin
+		RAISERROR(N'Tên viết tắt đã tồn tại.', 11, 1)
+		return
+	end
+
+	declare @Check_ID_3 bigint = (select top 1 Auto_ID from view_DM_Chu_Hang with (nolock) where Ten_Chu_Hang = @Ten_Chu_Hang)
+	if(isnull(@Check_ID_3, 0) > 0)
+	begin
+		RAISERROR(N'Tên chủ hàng đã tồn tại.', 11, 1)
+		return
+	end
+
+	if (isnull(@MST, '') <> '')
+	begin
+		declare @Auto_ID_Exits int
+		set @Auto_ID_Exits = (select Auto_ID from view_DM_Chu_Hang  where MST = @MST)
+
+		if(isnull(@Auto_ID_Exits, 0) > 0)
+		begin
+			RAISERROR(N'MST đã tồn tại, xin vui lòng nhập lại tên khác.', 11, 1)
+			return
+		end 
+	end
+
+	declare @Auto_ID bigint
+	set @Auto_ID = (next value for dbo.Seq_ID)
+
+	INSERT INTO tbl_DM_Chu_Hang
+	(
+		Auto_ID,
+		Ma_Chu_Hang,
+		Ten_Viet_Tat,
+		Ten_Chu_Hang,
+		Dia_Chi,
+		Dien_Thoai,
+		Email,
+		MST,
+		Header_Title,
+		Ghi_Chu,
+		Image_URL_Thumb,
+		Image_URL,
+		deleted,
+		Created,
+		Created_By,
+		Created_By_Function,
+		Last_Updated,
+		Last_Updated_By,
+		Last_Updated_By_Function
+	)
+	VALUES
+	(
+		@Auto_ID,
+		@Ma_Chu_Hang,
+		@Ten_Viet_Tat,
+		@Ten_Chu_Hang,
+		@Dia_Chi,
+		@Dien_Thoai,
+		@Email,
+		@MST,
+		@Header_Title,
+		@Ghi_Chu,
+		@Image_URL_Thumb,
+		@Image_URL,
+		0,
+		getdate(),
+		@Last_Updated_By,
+		@Last_Updated_By_Function,
+		getdate(),
+		@Last_Updated_By,
+		@Last_Updated_By_Function
+	)
+
+	SELECT @Auto_ID
+END
+"
+"dbo.FQ_104_CH_sp_upd_Update","1602976937","SQL_STORED_PROCEDURE","
+
+
+CREATE PROCEDURE [dbo].[FQ_104_CH_sp_upd_Update]
+	@Auto_ID bigint,
+	@Ma_Chu_Hang nvarchar(50),
+	@Ten_Viet_Tat nvarchar(200),
+	@Ten_Chu_Hang nvarchar(200),
+	@Dia_Chi nvarchar(200),
+	@Dien_Thoai nvarchar(200),
+	@Email nvarchar(200),
+	@MST nvarchar(50),
+	@Header_Title nvarchar(50),
+	@Ghi_Chu nvarchar(200),
+	@Image_URL_Thumb nvarchar(200),
+	@Image_URL nvarchar(200),
+	@Last_Updated_By nvarchar(50),
+	@Last_Updated_By_Function nvarchar(50)
+	with recompile
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+	set @Ma_Chu_Hang = LTRIM(RTRIM(@Ma_Chu_Hang))
+	set @Ten_Viet_Tat = LTRIM(RTRIM(@Ten_Viet_Tat))
+	set @Ten_Chu_Hang = LTRIM(RTRIM(@Ten_Chu_Hang))
+	set @Dia_Chi = LTRIM(RTRIM(@Dia_Chi))
+	set @Dien_Thoai = LTRIM(RTRIM(@Dien_Thoai))
+	set @Email = LTRIM(RTRIM(@Email))
+	set @MST = LTRIM(RTRIM(@MST))
+	set @Header_Title = LTRIM(RTRIM(@Header_Title))
+	set @Ghi_Chu = LTRIM(RTRIM(@Ghi_Chu))
+	set @Image_URL_Thumb = LTRIM(RTRIM(@Image_URL_Thumb))
+	set @Image_URL = LTRIM(RTRIM(@Image_URL))
+
+	if (isnull(@Ma_Chu_Hang, '') = '')
+	begin
+		RAISERROR(N'Vui lòng nhập Mã chủ hàng.', 11, 1)
+		return
+	end
+
+	if (isnull(@Ten_Viet_Tat, '') = '')
+	begin
+		RAISERROR(N'Vui lòng nhập Tên viết tắt.', 11, 1)
+		return
+	end
+
+	if (isnull(@Ten_Chu_Hang, '') = '')
+	begin
+		RAISERROR(N'Vui lòng nhập Tên chủ hàng.', 11, 1)
+		return
+	end
+
+	declare @Check_ID_1 bigint = (select top 1 Auto_ID from view_DM_Chu_Hang with (nolock) where Ma_Chu_Hang = @Ma_Chu_Hang and Auto_ID <> @Auto_ID)
+	if(isnull(@Check_ID_1, 0) > 0)
+	begin
+		RAISERROR(N'Mã chủ hàng đã tồn tại.', 11, 1)
+		return
+	end
+
+	declare @Check_ID_2 bigint = (select top 1 Auto_ID from view_DM_Chu_Hang with (nolock) where Ten_Viet_Tat = @Ten_Viet_Tat and Auto_ID <> @Auto_ID)
+	if(isnull(@Check_ID_2, 0) > 0)
+	begin
+		RAISERROR(N'Tên viết tắt đã tồn tại.', 11, 1)
+		return
+	end
+
+	declare @Check_ID_3 bigint = (select top 1 Auto_ID from view_DM_Chu_Hang with (nolock) where Ten_Chu_Hang = @Ten_Chu_Hang and Auto_ID <> @Auto_ID)
+	if(isnull(@Check_ID_3, 0) > 0)
+	begin
+		RAISERROR(N'Tên chủ hàng đã tồn tại.', 11, 1)
+		return
+	end
+
+	if (isnull(@MST, '') <> '')
+	begin
+		declare @Auto_ID_Exits int
+		set @Auto_ID_Exits = (select Auto_ID from view_DM_Chu_Hang  where MST = @MST and Auto_ID <> @Auto_ID)
+
+		if(isnull(@Auto_ID_Exits, 0) > 0)
+		begin
+			RAISERROR(N'MST đã tồn tại, xin vui lòng nhập lại tên khác.', 11, 1)
+			return
+		end 
+	end
+	UPDATE tbl_DM_Chu_Hang SET
+		Ma_Chu_Hang = @Ma_Chu_Hang,
+		Ten_Viet_Tat = @Ten_Viet_Tat,
+		Ten_Chu_Hang = @Ten_Chu_Hang,
+		Dia_Chi = @Dia_Chi,
+		Dien_Thoai = @Dien_Thoai,
+		Email = @Email,
+		MST = @MST,
+		Header_Title = @Header_Title,
+		Ghi_Chu = @Ghi_Chu,
+		Image_URL_Thumb = @Image_URL_Thumb,
+		Image_URL = @Image_URL,
+		Last_Updated = getdate(),
+		Last_Updated_By = @Last_Updated_By,
+		Last_Updated_By_Function = @Last_Updated_By_Function
+	WHERE
+		Auto_ID = @Auto_ID
+END
+
+"
+"dbo.sp_Inventory_Fence_Acquire_Root","1525072669","SQL_STORED_PROCEDURE","
+CREATE   PROCEDURE dbo.sp_Inventory_Fence_Acquire_Root
+    @Mode NVARCHAR(12)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    EXEC dbo.sp_Inventory_Fence_Require_Transaction;
+
+    IF @Mode IS NULL
+       OR @Mode COLLATE Latin1_General_100_BIN2 NOT IN (N'Shared', N'Exclusive')
+        THROW 51402, N'Inventory fence mode must be exactly Shared or Exclusive.', 1;
+
+    DECLARE @Resource NVARCHAR(255) = dbo.fn_Inventory_Fence_Root_Resource();
+    DECLARE @ActualMode NVARCHAR(32) = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @LockResult INT;
+
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = @Resource,
+            @LockMode = @Mode,
+            @LockOwner = N'Transaction',
+            @LockTimeout = 0,
+            @DbPrincipal = N'public';
+
+        IF @LockResult < 0
+        BEGIN
+            DECLARE @AcquireError NVARCHAR(2048) =
+                N'Inventory fence Root acquisition failed. Resource='
+                + @Resource
+                + N'; Result='
+                + CONVERT(NVARCHAR(20), @LockResult);
+            THROW 51403, @AcquireError, 1;
+        END;
+    END;
+
+    SET @ActualMode = APPLOCK_MODE(N'public', @Resource, N'Transaction');
+
+    IF dbo.fn_Inventory_Fence_Mode_Satisfies(@ActualMode, @Mode) = 0
+    BEGIN
+        DECLARE @VerifyError NVARCHAR(2048) =
+            N'Inventory fence Root verification failed. Resource='
+            + @Resource
+            + N'; EffectiveMode='
+            + ISNULL(@ActualMode, N'NULL')
+            + N'; RequiredMode='
+            + @Mode;
+        THROW 51404, @VerifyError, 1;
+    END;
+END;
+"
+"dbo.view_DM_Don_Vi_Tinh","190115918","VIEW","
+CREATE   VIEW dbo.view_DM_Don_Vi_Tinh
+AS
+SELECT
+    A.Auto_ID,
+    A.Ten_Don_Vi_Tinh,
+    A.Ghi_Chu,
+    A.deleted,
+    A.Created,
+    A.Created_By,
+    A.Created_By_Function,
+    A.Last_Updated,
+    A.Last_Updated_By,
+    A.Last_Updated_By_Function
+FROM dbo.tbl_DM_Don_Vi_Tinh AS A
+WHERE (A.deleted = 0);
+"
+"dbo.view_DM_Kho","206115975","VIEW","
+CREATE   VIEW dbo.view_DM_Kho
+AS
+SELECT
+    A.Auto_ID,
+    A.Ten_Kho,
+    A.Ghi_Chu,
+    A.deleted,
+    A.Created,
+    A.Created_By,
+    A.Created_By_Function,
+    A.Last_Updated,
+    A.Last_Updated_By,
+    A.Last_Updated_By_Function
+FROM dbo.tbl_DM_Kho AS A
+WHERE (A.deleted = 0);
+"
+"dbo.view_DM_Loai_San_Pham","238116089","VIEW","
+CREATE   VIEW dbo.view_DM_Loai_San_Pham
+AS
+SELECT
+    A.Auto_ID,
+    A.Ma_LSP,
+    A.Ten_LSP,
+    A.Ghi_Chu,
+    A.deleted,
+    A.Created,
+    A.Created_By,
+    A.Created_By_Function,
+    A.Last_Updated,
+    A.Last_Updated_By,
+    A.Last_Updated_By_Function
+FROM dbo.tbl_DM_Loai_San_Pham AS A
+WHERE (A.deleted = 0);
+"
+"dbo.view_DM_NCC","222116032","VIEW","
+CREATE   VIEW dbo.view_DM_NCC
+AS
+SELECT
+    A.Auto_ID,
+    A.Ma_NCC,
+    A.Ten_NCC,
+    A.Ghi_Chu,
+    A.deleted,
+    A.Created,
+    A.Created_By,
+    A.Created_By_Function,
+    A.Last_Updated,
+    A.Last_Updated_By,
+    A.Last_Updated_By_Function
+FROM dbo.tbl_DM_NCC AS A
+WHERE (A.deleted = 0);
+"
+"dbo.view_DM_San_Pham","254116146","VIEW","
+CREATE   VIEW dbo.view_DM_San_Pham
+AS
+SELECT
+    A.Auto_ID,
+    A.Ma_San_Pham,
+    A.Ten_San_Pham,
+    A.Loai_San_Pham_ID,
+    A.Don_Vi_Tinh_ID,
+    A.Ghi_Chu,
+    A.deleted,
+    A.Created,
+    A.Created_By,
+    A.Created_By_Function,
+    A.Last_Updated,
+    A.Last_Updated_By,
+    A.Last_Updated_By_Function
+FROM dbo.tbl_DM_San_Pham AS A
+WHERE (A.deleted = 0);
+"
