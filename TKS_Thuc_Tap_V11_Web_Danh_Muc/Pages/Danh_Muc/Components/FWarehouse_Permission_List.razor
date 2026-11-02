@@ -4,8 +4,19 @@
 @using TKS_Thuc_Tap_V11_Data_Access.Utility
 @inherits FBase
 
+<div class="d-flex justify-content-end align-items-center mb-3" role="toolbar" aria-label="Công cụ phân quyền kho">
+    @Layout_Tool_Button(m_grdPermission)
+</div>
 <div class="card">
-    <div class="card-header"><h5 class="mb-0">Phân quyền kho - user</h5></div>
+    @if (r_objChuc_Nang.Is_Have_Add_Permission)
+    {
+        <div class="card-header">
+            <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="New_Master">
+                <i class="ri-add-circle-fill align-bottom me-1"></i>
+                @Get_Language_Data_Field("Thêm")
+            </button>
+        </div>
+    }
     <div class="card-body">
         @((MarkupString)r_strError)
         @if (!String.IsNullOrWhiteSpace(m_strSuccess))
@@ -16,16 +27,6 @@
         {
             <div class="alert alert-warning">@m_strAuditWarning</div>
         }
-        <div class="d-flex justify-content-between align-items-end gap-3">
-            <div class="d-flex gap-2 ms-auto">
-                @if (r_objChuc_Nang.Is_Have_Add_Permission)
-                {
-                    <button type="button" class="btn btn-primary" @onclick="New_Master">@Get_Language_Data_Field("Thêm")</button>
-                }
-                @Layout_Tool_Button(m_grdPermission)
-            </div>
-        </div>
-        <h5 class="mt-3">@Get_Language_Data_Field("Danh sách") @Get_Language_Data_Field("Phân quyền kho - user")</h5>
 <TelerikGrid TItem="CWarehousePermission" Height="calc(100vh - 310px)" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Kho_User_Async" @ref="m_grdPermission">
                     <GridExport><GridExcelExport FileName="Warehouse_Master_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" /><GridCsvExport FileName="Warehouse_Master_Export" AllPages="true" /></GridExport>
                     <GridColumns>

@@ -32,7 +32,7 @@
 
             @if (Is_Current_Inventory_Report)
             {
-                <FWarehouse_Filter_Toolbar Localize="@Get_Language_Data_Field" ToolButtons="@Layout_Tool_Button(m_grdInventory)" />
+                <FWarehouse_Filter_Toolbar OnSearch="Load_Report_Async" SearchLabel="Xem báo cáo" Localize="@Get_Language_Data_Field" ToolButtons="@Layout_Tool_Button(m_grdInventory)" />
             }
             else if (m_strReport_Type is "Inventory")
             {
@@ -135,6 +135,7 @@
     private readonly CDM_Kho_User_Controller m_objPermissionController = new CDM_Kho_User_Controller();
     private string m_strReport_Type = "Receipt", m_strSuccess = "", m_strAuditWarning = "";
     private bool m_bRouteParametersApplied;
+    private bool m_bReportReady;
     private List<CWarehouseDetailReport> m_arrDetailReport = new List<CWarehouseDetailReport>();
     private List<CWarehouseInventoryReport> m_arrInventoryReport = new List<CWarehouseInventoryReport>();
     private DateTime m_dtmFrom = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
@@ -161,6 +162,13 @@
     protected override void Load_Data()
     {
         Clear_Message();
+    }
+
+    protected override Task Load_Data_Async()
+    {
+        // FBase calls this after loading the session and checking view permission.
+        m_bReportReady = true;
+        return Load_Report_Async();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -233,6 +241,13 @@
 
     private Task Read_Report_Detail_Async(GridReadEventArgs p_objArgs)
     {
+        if (!m_bReportReady)
+        {
+            p_objArgs.Data = new List<CWarehouseDetailReport>();
+            p_objArgs.Total = 0;
+            return Task.CompletedTask;
+        }
+
         try
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(p_objArgs.Request, r_bIs_Excel_OnRead_Export))
@@ -284,6 +299,13 @@
 
     private Task Read_Inventory_Async(GridReadEventArgs p_objArgs)
     {
+        if (!m_bReportReady)
+        {
+            p_objArgs.Data = new List<CWarehouseInventoryReport>();
+            p_objArgs.Total = 0;
+            return Task.CompletedTask;
+        }
+
         try
         {
             if (CGrid_DataSource_Utility.Requires_Full_Source(p_objArgs.Request, r_bIs_Excel_OnRead_Export))

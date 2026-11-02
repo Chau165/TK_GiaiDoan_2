@@ -21,7 +21,7 @@
             {
                 <div class="col-lg-4">
                     <div class="hstack flex-wrap gap-2 mb-3 mb-lg-0">
-                        <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="OnSearch">@Localize("Tìm kiếm")</button>
+                        <button type="button" class="btn rounded-pill btn-primary waves-effect waves-light" @onclick="OnSearch">@Localize(SearchLabel)</button>
                     </div>
                 </div>
             }
@@ -59,6 +59,7 @@
     [Parameter] public DateTime DateTo { get; set; }
     [Parameter] public EventCallback<DateTime> DateToChanged { get; set; }
     [Parameter] public EventCallback OnSearch { get; set; }
+    [Parameter] public string SearchLabel { get; set; } = "Tìm kiếm";
     [Parameter] public EventCallback OnAdd { get; set; }
     [Parameter] public EventCallback OnImport { get; set; }
     [Parameter] public bool CanAdd { get; set; }

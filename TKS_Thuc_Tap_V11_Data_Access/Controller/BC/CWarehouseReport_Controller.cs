@@ -194,7 +194,7 @@ public class CWarehouseReport_Controller
         };
         foreach (DataRow v_row in p_ds.Tables[1].Rows)
         {
-            T v_objItem = CUtility.Map_Row_To_Entity<T>(v_row);
+            T v_objItem = CWMS_Utility.Map_Warehouse_Row<T>(v_row);
             v_objRes.Items.Add(v_objItem);
         }
 

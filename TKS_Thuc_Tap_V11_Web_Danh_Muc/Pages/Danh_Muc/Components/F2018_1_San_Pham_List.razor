@@ -4,31 +4,32 @@
 
 <div class="row" style="padding-top: 10px;">
     <div class="col-lg-12">
-        <TelerikGrid Data="@v_arrData" Height="calc(100vh - 190px)" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" @ref="@grdData">
+        <TelerikGrid Data="@v_arrData" Height="calc(100vh - 170px)" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" @ref="@grdData">
             <GridExport>
                 <GridExcelExport FileName="San_Pham_Export" AllPages="true" OnBeforeExport="@Prepare_Excel_Export" />
                 <GridCsvExport FileName="San_Pham_Export" AllPages="true" />
             </GridExport>
             <GridColumns>
                 <GridCheckboxColumn SelectAll="true" CheckBoxOnlySelection="true" Width="30px" />
-                <GridColumn Width="70px">
+                <GridColumn Width="60px">
                     <Template>
                         <button class="btn btn-link" title='@Get_Language_Data_Field("Xem")' @onclick="@(() => Open_Info((context as CProductGridRow).Auto_ID))">
                             <i class="mdi mdi-eye" style="color: purple;"></i>
                         </button>
                         @if (r_objChuc_Nang.Is_Have_Edit_Permission || r_objChuc_Nang.Is_Have_Delete_Permission)
                         {
+                            <span>&nbsp;</span>
                             <button class="btn btn-link" data-bs-toggle="dropdown" aria-expanded="false" title='@Get_Language_Data_Field("Thao tác")'>
                                 <i class="mdi mdi-cog-outline" style="color: purple;"></i>
                             </button>
                             <ul class="dropdown-menu">
                                 @if (r_objChuc_Nang.Is_Have_Edit_Permission)
                                 {
-                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Open_Product_Edit((context as CProductGridRow).Auto_ID))"><i class="ri-edit-2-line align-bottom me-1"></i>@Get_Language_Data_Field("Hiệu chỉnh")</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Open_Product_Edit((context as CProductGridRow).Auto_ID))"><i class="ri-edit-2-line align-bottom me-1"></i> &nbsp; @Get_Language_Data_Field("Hiệu chỉnh")</button></li>
                                 }
                                 @if (r_objChuc_Nang.Is_Have_Delete_Permission)
                                 {
-                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Product_Async((context as CProductGridRow).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i>@Get_Language_Data_Field("Xóa")</button></li>
+                                    <li><button class="dropdown-item" type="button" @onclick="@(() => Delete_Product_Async((context as CProductGridRow).Auto_ID))"><i class="ri-delete-bin-line align-bottom me-1"></i> &nbsp; @Get_Language_Data_Field("Xóa")</button></li>
                                 }
                             </ul>
                         }
@@ -45,6 +46,7 @@
                     <GridColumn Field="Ten_LSP" Title='@Get_Language_Data_Field("Loại sản phẩm")' Width="200px" />
                     <GridColumn Field="Ten_Don_Vi_Tinh" Title='@Get_Language_Data_Field("Đơn vị tính")' Width="160px" />
                     <GridColumn Field="Ghi_Chu" Title='@Get_Language_Data_Field("Ghi chú")' />
+                    <GridColumn Field="" Title=""></GridColumn>
                 }
             </GridColumns>
         </TelerikGrid>
