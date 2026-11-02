@@ -1,0 +1,15 @@
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage">
+        <Configuration>
+          <Format>Cobertura</Format>
+          <CodeCoverage>
+            <ModulePaths><Include><ModulePath>.*TKS_Thuc_Tap_V11_Data_Access.dll$</ModulePath></Include></ModulePaths>
+            <Functions><Include><Function>.*CXNK_Document_Controller.*</Function></Include></Functions>
+          </CodeCoverage>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

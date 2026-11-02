@@ -4,6 +4,10 @@ namespace TKS_Thuc_Tap_V11_Data_Access.Entity.Warehouse;
 
 public class CWarehouseDocument
 {
+    public Guid Request_ID { get; set; } = Guid.NewGuid();
+    public long Document_Version { get; set; }
+    public string State_Token { get; set; } = "";
+    public List<CWarehouseDocumentDetail> Details { get; set; } = new();
     public long Auto_ID { get; set; }
     public bool Is_Receipt { get; set; }
     [Required, StringLength(100)]
@@ -16,6 +20,7 @@ public class CWarehouseDocument
     public DateTime Ngay_Chung_Tu { get; set; } = DateTime.Today;
     public bool Is_Posted { get; set; }
     public DateTime? Posted_At { get; set; }
+    [StringLength(1000)]
     public string Ghi_Chu { get; set; } = "";
     public DateTime? Created { get; set; }
     public string Created_By { get; set; } = "";

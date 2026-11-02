@@ -1982,12 +1982,18 @@
         return ColumnTemplate;
     }
 
-    public RenderFragment General_Col_Grid(string p_strUser, string p_strMa_Chuc_Nang, string p_strTen_Grid)
+    public RenderFragment General_Col_Grid(string p_strUser, string p_strMa_Chuc_Nang, string p_strTen_Grid, string p_strExclude_Field_Name = "")
     {
         //mức ưu tiên level 2 cấu hình col grd (của gobal dành cho triển khai support)
         List<CSys_Grid_UI_Global> v_arrCol_Global = CCache_Grid_UI_Global.List_Data_By_Code(p_strMa_Chuc_Nang, p_strTen_Grid);
 
         List<CSys_Grid_Field> v_arrCol_Res = AssingGrid_UI(v_arrCol_Global);
+        if (!string.IsNullOrWhiteSpace(p_strExclude_Field_Name))
+        {
+            v_arrCol_Res = v_arrCol_Res
+                .Where(v_objField => !string.Equals(v_objField.Field_Name, p_strExclude_Field_Name, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
 
         RenderFragment v_objTemp = __builder =>
              {

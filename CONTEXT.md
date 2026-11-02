@@ -5,19 +5,19 @@ Warehouse Inventory records goods movements by receipt and issue documents. It s
 ## Language
 
 **Document (Phiếu)**:
-The business document consisting of one header and zero or more product details; it is either a receipt or an issue and follows the Draft → Posted lifecycle.
+The business document consisting of one header and its product details. The 3001/3002 editor and Excel import save at least one detail and Post the complete document in one transaction. Existing Draft documents remain readable and are only Posted when explicitly saved through this flow.
 _Avoid_: treating a header or detail row as the whole document.
 
 **Draft (Nháp)**:
-A saved header or detail that is still editable and does not contribute a stock movement.
+An existing document created by the legacy header/detail APIs that does not contribute a stock movement. Those APIs remain available for compatibility; the current 3001/3002 editor and import do not create persistent Drafts.
 _Avoid_: calling a saved detail a movement before Post.
 
 **Posted (Đã Post)**:
-The irreversible confirmation of a complete document. It makes every detail an effective movement and updates current stock atomically.
-_Avoid_: using “saved” and “posted” interchangeably.
+The confirmation of a complete document. It makes every detail an effective movement and updates current stock atomically. Direct CRUD stays blocked after Post. Controlled correction through `sp_XNK_Document_Save_Posted` preserves before/after revisions, validates the expected version and database snapshot, applies the inventory delta, and invalidates projections in the same transaction. Warehouse and document date stay fixed after the first save.
+_Avoid_: unposting and reposting an existing Posted document, or bypassing guards through ordinary CRUD.
 
 **Movement Ledger**:
-The receipt and issue header/detail tables that are authoritative for stock history and period reports.
+The receipt and issue header/detail tables that are authoritative for effective stock history and period reports. `XNK_Document_Revision` retains the old and new effective states of each controlled correction for audit; revisions are not additional stock movements.
 _Avoid_: Current balance, cache.
 
 **Current Inventory Balance**:
@@ -45,7 +45,7 @@ A unique assignment that connects an existing login identity `Ma_Dang_Nhap` to o
 _Avoid_: calling `Ma_Dang_Nhap` a new permission code; it identifies the User and is not itself authorization.
 
 **On Hand (Tồn thực tế)**:
-The quantity physically available in a warehouse after posted receipt and issue movements; it changes only when a document is Posted.
+The quantity physically available in a warehouse after posted receipt and issue movements; it changes when a document is Posted or a controlled Posted correction applies a delta.
 _Avoid_: treating a Draft issue as a physical movement.
 
 **Reserved (Đang giữ)**:

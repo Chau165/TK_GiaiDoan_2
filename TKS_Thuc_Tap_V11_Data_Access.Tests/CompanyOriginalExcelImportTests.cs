@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Data;
 using System.Globalization;
 using System.Reflection;
@@ -58,7 +58,7 @@ public sealed class CompanyOriginalExcelImportTests
     [InlineData("wrong-sheet")]
     public void Ambiguous_structure_is_rejected_before_any_persistence(string p_strCase)
     {
-        WithWorkbook(true, v_objPackage =>
+        Action<ExcelPackage> v_funcArrange = v_objPackage =>
         {
             var v_header = v_objPackage.Workbook.Worksheets[0];
             var v_detail = v_objPackage.Workbook.Worksheets[1];
@@ -75,12 +75,18 @@ public sealed class CompanyOriginalExcelImportTests
                 case "extra-detail-column": v_detail.Cells[1, 100].Value = "LOT"; break;
                 case "wrong-sheet": v_detail.Name = "Không đúng sheet"; break;
             }
-        }, v_objExcel =>
+        };
+        if (p_strCase is "wrong-detail-header" or "extra-detail-column" or "wrong-sheet")
         {
-            Exception v_objError = Assert.Throws<TargetInvocationException>(() => ReadDocuments(true, v_objExcel)).InnerException!;
-            Assert.NotNull(v_objError);
-            if (p_strCase == "orphan" || p_strCase == "duplicate-header" || p_strCase == "empty-detail-key")
-                Assert.Contains("4", v_objError.Message);
+            Assert.Throws<InvalidDataException>(() => WithWorkbook(true, v_funcArrange, _ => { }, p_bValidateHeaders: true));
+            return;
+        }
+        WithWorkbook(true, v_funcArrange, v_objExcel =>
+        {
+            ReadDocuments(true, v_objExcel, out string v_strErrors);
+            Assert.NotEmpty(v_strErrors);
+            if (p_strCase is "orphan" or "duplicate-header" or "empty-detail-key")
+                Assert.Contains("4", v_strErrors);
         });
     }
 
@@ -184,12 +190,11 @@ public sealed class CompanyOriginalExcelImportTests
         Assert.Contains("m_grdDocument.Rebind()", v_strList);
         Assert.Contains("F2018_sp_sel_List_San_Pham()", v_strImport);
         Assert.DoesNotContain("F2018_sp_sel_List_San_Pham_Lookup()", v_strImport);
-        Assert.Contains("F3001_sp_ins_Nhap_Kho_Header(v_conn, v_trans", v_strImport);
-        Assert.Contains("F3001_sp_ins_Nhap_Kho_Detail(v_conn, v_trans", v_strImport);
-        Assert.Contains("F3002_sp_ins_Xuat_Kho_Header(v_conn, v_trans", v_strImport);
-        Assert.Contains("F3002_sp_ins_Xuat_Kho_Detail(v_conn, v_trans", v_strImport);
-        Assert.True(v_strImport.IndexOf("v_trans.Commit()", StringComparison.Ordinal) < v_strImport.IndexOf("p_iCount_Success++", StringComparison.Ordinal));
-        Assert.DoesNotContain("Post_", v_strImport);
+        Assert.Contains("v_objDocument.Details = v_arrDetails", v_strImport);
+        Assert.Contains("sp_XNK_Document_Save_Posted(v_objDocument, r_strActive_User_Name)", v_strImport);
+        Assert.Contains("sp_XNK_Document_Save_Posted", v_strList);
+        Assert.True(v_strImport.IndexOf("sp_XNK_Document_Save_Posted", StringComparison.Ordinal) < v_strImport.IndexOf("p_iCount_Success++", StringComparison.Ordinal));
+        Assert.DoesNotContain("v_trans.Commit()", v_strImport);
         Assert.Contains("FCommon_Insert_Action_History(v_objDocument.Auto_ID", v_strImport);
     }
 
@@ -207,15 +212,24 @@ public sealed class CompanyOriginalExcelImportTests
         (T)p_objValue.GetType().GetProperty(p_strProperty)!.GetValue(p_objValue)!;
     private static object? InvokeStatic(string p_strMethod, params object[] p_arrArgs) =>
         typeof(FWarehouse_Transaction_List).GetMethod(p_strMethod, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, p_arrArgs);
-    private static IList ReadDocuments(bool p_bReceipt, CExcel_Controller p_objExcel)
+    private static IList ReadDocuments(bool p_bReceipt, CExcel_Controller p_objExcel) => ReadDocuments(p_bReceipt, p_objExcel, out _);
+
+    private static IList ReadDocuments(bool p_bReceipt, CExcel_Controller p_objExcel, out string p_strErrors)
     {
         var v_objComponent = new FWarehouse_Transaction_List();
         typeof(FWarehouse_Transaction_List).GetProperty("m_bIs_Receipt")!.SetValue(v_objComponent, p_bReceipt);
-        return (IList)typeof(FWarehouse_Transaction_List).GetMethod("Read_Import_Documents", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(v_objComponent, new object[] { p_objExcel })!;
+        var v_sbErrors = new System.Text.StringBuilder();
+        object[] v_arrArgs = { p_objExcel, v_sbErrors, 0 };
+        var v_arrResult = (IList)typeof(FWarehouse_Transaction_List).GetMethod("Read_Import_Documents", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(v_objComponent, v_arrArgs)!;
+        foreach (object v_objRows in v_arrResult)
+            foreach (string v_strError in Property<List<string>>(v_objRows, "Errors"))
+                v_sbErrors.AppendLine(v_strError);
+        p_strErrors = v_sbErrors.ToString();
+        return v_arrResult;
     }
 
-    private static void WithWorkbook(bool p_bReceipt, Action<ExcelPackage> p_funcArrange, Action<CExcel_Controller> p_funcAssert)
+    private static void WithWorkbook(bool p_bReceipt, Action<ExcelPackage> p_funcArrange, Action<CExcel_Controller> p_funcAssert, bool p_bValidateHeaders = false)
     {
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         string v_strPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".xlsx");
@@ -226,6 +240,8 @@ public sealed class CompanyOriginalExcelImportTests
                 p_funcArrange(v_objPackage);
                 v_objPackage.SaveAs(new FileInfo(v_strPath));
             }
+            if (p_bValidateHeaders)
+                CWMS_Excel_Utility.Validate_Header_Matches(new FileInfo(v_strPath), new FileInfo(RepositoryFile("TKS_Thuc_Tap_V11_Web", "wwwroot", "FileManagement", "Template", p_bReceipt ? "Nhap_Kho_Import_Template.xlsx" : "Xuat_Kho_Import_Template.xlsx")));
             var v_objExcel = new CExcel_Controller(new FileInfo(v_strPath));
             try { p_funcAssert(v_objExcel); }
             finally { v_objExcel.Close(); }

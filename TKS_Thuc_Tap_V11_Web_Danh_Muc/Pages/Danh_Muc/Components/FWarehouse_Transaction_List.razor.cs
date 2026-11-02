@@ -198,70 +198,8 @@ public partial class FWarehouse_Transaction_List
                         continue;
                     }
 
-                    using (SqlConnection v_conn = CSqlHelper.CreateConnection(CConfig.TKS_Thuc_Tap_V11_Conn_String))
-                    {
-                        v_conn.Open();
-                        using SqlTransaction v_trans = v_conn.BeginTransaction();
-                        try
-                        {
-                            v_iCurrentRow = v_objRows.Row;
-                            if (m_bIs_Receipt)
-                            {
-                                v_strCurrentSheet = "Phiếu nhập";
-                            }
-                            else
-                            {
-                                v_strCurrentSheet = "Phiếu xuất";
-                            }
-
-                            if (m_bIs_Receipt)
-                            {
-                                v_objDocument.Auto_ID = m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_conn, v_trans, To_Nhap_Kho(v_objDocument));
-                            }
-                            else
-                            {
-                                v_objDocument.Auto_ID = m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_conn, v_trans, To_Xuat_Kho(v_objDocument));
-                            }
-
-                            for (int v_i = 0; v_i < v_arrDetails.Count; v_i++)
-                            {
-                                v_iCurrentRow = v_objRows.Details[v_i].Row;
-                                if (m_bIs_Receipt)
-                                {
-                                    v_strCurrentSheet = "Chi tiết nhập";
-                                }
-                                else
-                                {
-                                    v_strCurrentSheet = "Chi tiết xuất";
-                                }
-
-                                var v_objDetail = v_arrDetails[v_i];
-                                v_objDetail.Document_ID = v_objDocument.Auto_ID;
-                                if (m_bIs_Receipt)
-                                {
-                                    m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_conn, v_trans, To_Nhap_Kho_Detail(v_objDetail));
-                                }
-                                else
-                                {
-                                    m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_conn, v_trans, To_Xuat_Kho_Detail(v_objDetail));
-                                }
-                            }
-
-                            v_trans.Commit();
-                        }
-                        catch
-                        {
-                            try
-                            {
-                                v_trans.Rollback();
-                            }
-                            catch
-                            {
-                            }
-
-                            throw;
-                        }
-                    }
+                    v_objDocument.Details = v_arrDetails;
+                    m_objAggregateController.sp_XNK_Document_Save_Posted(v_objDocument, r_strActive_User_Name);
 
                     p_iCount_Success++;
                     try

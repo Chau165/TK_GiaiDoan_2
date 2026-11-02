@@ -35,24 +35,24 @@ public sealed class WarehouseUiWorkflowTests
         var v_InfoSource = File.ReadAllText(FindWarehouseComponent("FWarehouse_2_Warehouse_Info.razor"));
 
         Assert.Contains("@if (m_bDocumentEditing)", v_Source);
-        Assert.Contains("@if (m_bDetailEditing)", v_Source);
+        Assert.DoesNotContain("@if (m_bDetailEditing)", v_Source);
         Assert.Contains("if (m_objDocument != null)", v_InfoSource);
-        Assert.Contains("Thêm sản phẩm", v_InfoSource);
+        Assert.DoesNotContain("OnAdd_Detail", v_InfoSource);
         Assert.Contains("m_grdDocument.Rebind()", v_Source);
-        Assert.Contains("Select_Document_Async(p_objData)", v_Source);
-        Assert.Contains("p_objData.Document_ID = m_objSelectedDocument.Auto_ID;", v_Source);
+        Assert.Contains("Select_Document_Async(v_objDocument)", v_Source);
+        Assert.Contains("p_objData.Details = m_arrEditDetail;", v_Source);
     }
 
     [Fact]
-    public void Warehouse_document_header_uses_owner_style_modal_and_keeps_detail_editor_separate()
+    public void Warehouse_document_uses_owner_style_modal_with_header_and_in_memory_details()
     {
         var v_Transaction = File.ReadAllText(FindWarehouseComponent("FWarehouse_Transaction_List.razor"));
         var v_Edit = File.ReadAllText(FindWarehouseComponent("FWarehouse_3_Warehouse_Edit.razor"));
 
-        Assert.Contains("m_strEditor_Type == \"Master\" || m_strEditor_Type == \"Document\" ? \"\" : \"card border mt-3\"", v_Edit);
-        Assert.Contains("if (m_strEditor_Type == \"Document\")", v_Edit);
+        Assert.Contains("m_arrDetail", v_Edit);
+        Assert.Contains("Add_Detail", v_Edit);
         Assert.Contains("modal fade show", v_Edit);
-        Assert.Contains("modal-dialog modal-lg", v_Edit);
+        Assert.Contains("modal-dialog modal-xl", v_Edit);
         Assert.Contains("modal-header bg-light", v_Edit);
         Assert.Contains("modal-body", v_Edit);
         Assert.Contains("modal-footer", v_Edit);
@@ -62,9 +62,9 @@ public sealed class WarehouseUiWorkflowTests
         Assert.Contains("m_strError_Message=\"@r_strError\"", v_Transaction);
         Assert.Contains("OnSave_Document=\"Save_Document_Async\"", v_Transaction);
         Assert.Contains("OnCancel=\"Cancel_Document\"", v_Transaction);
-        Assert.Contains("m_strEditor_Type=\"Detail\"", v_Transaction);
-        Assert.Contains("else if (m_strEditor_Type == \"Detail\")", v_Edit);
-        Assert.Contains("card border mt-3", v_Edit);
+        Assert.DoesNotContain("m_strEditor_Type=\"Detail\"", v_Transaction);
+        Assert.DoesNotContain("Post_Document_Async", v_Transaction);
+        Assert.Contains("sp_XNK_Document_Save_Posted", v_Transaction);
     }
 
     [Fact]

@@ -2,78 +2,54 @@
 
 @if (m_objDocument != null)
 {
-    <div id="warehouse-print" class="card border mt-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5>
-                    @if (m_bIs_Receipt)
-                    {
-                        <text>PHIẾU NHẬP KHO</text>
-                    }
-                    else
-                    {
-                        <text>PHIẾU XUẤT KHO</text>
-                    }
-                    - @m_objDocument.So_Phieu
-                </h5>
-                <div class="d-flex gap-2 no-print">
-                    @if (m_bCan_Add && !m_objDocument.Is_Posted)
-                    {
-                        <button type="button" class="btn btn-primary" @onclick="OnAdd_Detail">Thêm sản phẩm</button>
-                    }
-                    @if (m_bCan_Export)
-                    {
-                        <button type="button" class="btn btn-primary" @onclick="OnPrint">In phiếu</button>
-                    }
+    <div class="modal fade show" tabindex="-1" role="dialog" aria-modal="true" aria-label='@Get_Language_Data_Field("Thông tin phiếu")' style="display: block; background-color: rgba(10, 10, 10, .8);">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <ul class="nav nav-pills card-header-pills" role="tablist">
+                        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#warehouse-information" role="tab">@Get_Language_Data_Field("Thông tin")</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#warehouse-history" role="tab">@Get_Language_Data_Field("Lịch sử xử lý")</a></li>
+                    </ul>
+                    <button type="button" class="btn-close" aria-label='@Get_Language_Data_Field("Đóng")' @onclick="OnCancel"></button>
+                </div>
+                <div class="modal-body">
+                    @((MarkupString)r_strError)
+                    <div class="tab-content">
+                        <div class="tab-pane active show" id="warehouse-information" role="tabpanel">
+                            <h5>@Get_Language_Data_Field(m_bIs_Receipt ? "Phiếu nhập kho" : "Phiếu xuất kho") — @m_objDocument.So_Phieu</h5>
+                            <div class="row mb-3">
+                                <div class="col-lg-4"><label class="form-label-info">@Get_Language_Data_Field("Kho")</label><p>@m_objDocument.Ten_Kho</p></div>
+                                <div class="col-lg-4"><label class="form-label-info">@Get_Language_Data_Field("Ngày chứng từ")</label><p>@m_objDocument.Ngay_Chung_Tu.ToString(CConfig.Date_Format_String)</p></div>
+                                @if (m_bIs_Receipt) { <div class="col-lg-4"><label class="form-label-info">@Get_Language_Data_Field("Nhà cung cấp")</label><p>@m_objDocument.Ten_NCC</p></div> }
+                                <div class="col-12"><label class="form-label-info">@Get_Language_Data_Field("Ghi chú")</label><p>@m_objDocument.Ghi_Chu</p></div>
+                            </div>
+                            <TelerikGrid Data="@m_arrDetail" Height="320px" Resizable="true" Reorderable="true" @ref="m_grdDetail">
+                                <GridExport><GridExcelExport FileName="Warehouse_Detail_Export" AllPages="true" /><GridCsvExport FileName="Warehouse_Detail_Export" AllPages="true" /></GridExport>
+                                <GridColumns>
+                                    <GridColumn Field="Ma_San_Pham" Title='@Get_Language_Data_Field("Mã sản phẩm")' />
+                                    <GridColumn Field="Ten_San_Pham" Title='@Get_Language_Data_Field("Tên sản phẩm")' />
+                                    <GridColumn Field="Ten_Don_Vi_Tinh" Title='@Get_Language_Data_Field("Đơn vị tính")' />
+                                    <GridColumn Field="So_Luong" Title='@Get_Language_Data_Field("Số lượng")'><Template Context="v_objContext">@CWMS_Utility.Format_So_Luong(((CWarehouseDocumentDetail)v_objContext).So_Luong)</Template></GridColumn>
+                                    <GridColumn Field="Don_Gia" Title='@Get_Language_Data_Field("Đơn giá")'><Template Context="v_objContext">@CWMS_Utility.Format_So_Tien(((CWarehouseDocumentDetail)v_objContext).Don_Gia)</Template></GridColumn>
+                                    <GridColumn Field="Tri_Gia" Title='@Get_Language_Data_Field("Trị giá")'><Template Context="v_objContext">@CWMS_Utility.Format_So_Tien(((CWarehouseDocumentDetail)v_objContext).Tri_Gia)</Template></GridColumn>
+                                </GridColumns>
+                            </TelerikGrid>
+                            <div class="text-end fw-bold mt-2">@Get_Language_Data_Field("Tổng số lượng"): @CWMS_Utility.Format_So_Luong(m_arrDetail.Sum(p_objLine => p_objLine.So_Luong)) — @Get_Language_Data_Field("Tổng trị giá"): @CWMS_Utility.Format_So_Tien(m_arrDetail.Sum(p_objLine => p_objLine.Tri_Gia))</div>
+                            <div class="row mt-3">
+                                <div class="col-lg-6"><label class="form-label-info">@Get_Language_Data_Field("Ngày giờ tạo / Người tạo / Chức năng tạo")</label><p>@m_objDocument.Created — @m_objDocument.Created_By — @m_objDocument.Created_By_Function</p></div>
+                                <div class="col-lg-6"><label class="form-label-info">@Get_Language_Data_Field("Cập nhật sau cùng / Người cập nhật / Chức năng cập nhật")</label><p>@m_objDocument.Last_Updated — @m_objDocument.Last_Updated_By — @m_objDocument.Last_Updated_By_Function</p></div>
+                            </div>
+                        </div>
+                        <div class="tab-pane" id="warehouse-history" role="tabpanel"><FCommon_Record_Action_History_List v_arrData="@m_arrRAH" /></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    @if (m_bCan_Export) { <button type="button" class="btn btn-primary" @onclick="OnPrint">@Get_Language_Data_Field("In phiếu")</button> }
+                    <button type="button" class="btn btn-light" @onclick="OnCancel">@Get_Language_Data_Field("Đóng")</button>
                 </div>
             </div>
-            <p>Ngày: @m_objDocument.Ngay_Chung_Tu.ToString("dd/MM/yyyy") | Kho: @m_objDocument.Ten_Kho @if (m_bIs_Receipt) { <text>| NCC: @m_objDocument.Ten_NCC</text> }</p>
-
-            <TelerikGrid Data="@m_arrDetail" Height="320px" Resizable="true" Reorderable="true" @ref="m_grdDetail">
-                <GridExport>
-                    <GridExcelExport FileName="Warehouse_Detail_Export" AllPages="true" />
-                    <GridCsvExport FileName="Warehouse_Detail_Export" AllPages="true" />
-                </GridExport>
-                <GridColumns>
-                    <GridColumn Field="Ma_San_Pham" Title="Mã" />
-                    <GridColumn Field="Ten_San_Pham" Title="Tên sản phẩm" />
-                    <GridColumn Field="So_Luong" Title="SL">
-                        <Template Context="v_objContext">
-                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @(CWMS_Utility.Format_So_Luong(v_objDetail!.So_Luong)) (@v_objDetail.Ten_Don_Vi_Tinh)
-                        </Template>
-                    </GridColumn>
-                    <GridColumn Field="Don_Gia" Title="Đơn giá">
-                        <Template Context="v_objContext">
-                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @(CWMS_Utility.Format_So_Tien(v_objDetail!.Don_Gia))
-                        </Template>
-                    </GridColumn>
-                    <GridColumn Field="Tri_Gia" Title="Trị giá">
-                        <Template Context="v_objContext">
-                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @(CWMS_Utility.Format_So_Tien(v_objDetail!.Tri_Gia))
-                        </Template>
-                    </GridColumn>
-                    <GridColumn Title="">
-                        <Template Context="v_objContext">
-                            @{ var v_objDetail = v_objContext as CWarehouseDocumentDetail; }
-                            @if (m_bCan_Edit && !m_objDocument.Is_Posted)
-                            {
-                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => OnEdit_Detail.InvokeAsync(v_objDetail!))">Sửa</button>
-                            }
-                            @if (m_bCan_Delete && !m_objDocument.Is_Posted)
-                            {
-                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => OnDelete_Detail.InvokeAsync(v_objDetail!.Auto_ID))">Xóa</button>
-                            }
-                        </Template>
-                    </GridColumn>
-                </GridColumns>
-            </TelerikGrid>
-            <div class="text-end fw-bold mt-2">Tổng trị giá: @(CWMS_Utility.Format_So_Tien(m_arrDetail.Sum(x => x.Tri_Gia)))</div>
         </div>
     </div>
-
     <section class="warehouse-print-document">
         <header class="warehouse-print-header">
             <div>
@@ -211,14 +187,24 @@ else {
     [Parameter] public CWarehouseDocument? m_objDocument { get; set; }
     [Parameter] public List<CWarehouseDocumentDetail> m_arrDetail { get; set; } = new();
     [Parameter] public bool m_bIs_Receipt { get; set; }
-    [Parameter] public bool m_bCan_Add { get; set; }
-    [Parameter] public bool m_bCan_Edit { get; set; }
-    [Parameter] public bool m_bCan_Delete { get; set; }
     [Parameter] public bool m_bCan_Export { get; set; }
-    [Parameter] public EventCallback OnAdd_Detail { get; set; }
-    [Parameter] public EventCallback<CWarehouseDocumentDetail> OnEdit_Detail { get; set; }
-    [Parameter] public EventCallback<long> OnDelete_Detail { get; set; }
     [Parameter] public EventCallback OnPrint { get; set; }
-
+    [Parameter] public EventCallback OnCancel { get; set; }
     private TelerikGrid<CWarehouseDocumentDetail> m_grdDetail = new();
+    private List<CLog_Record_Action_History> m_arrRAH = new();
+    private long m_iLoaded_ID;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (m_objDocument == null || m_iLoaded_ID == m_objDocument.Auto_ID) return;
+        m_iLoaded_ID = m_objDocument.Auto_ID;
+        try
+        {
+            m_arrRAH = new CLog_Record_Action_History_Controller().FCommon_Sys_sp_sel_List_Log_Record_Action_History(m_iLoaded_ID)
+                .FindAll(p_objHistory => p_objHistory.Ma_Chuc_Nang == (m_bIs_Receipt ? "3001" : "3002"));
+            Format_Grid(m_grdDetail);
+        }
+        catch (Exception v_objException) { r_strError = CCommonFunction.Set_Error_MessageBox(v_objException.Message); }
+    }
 }

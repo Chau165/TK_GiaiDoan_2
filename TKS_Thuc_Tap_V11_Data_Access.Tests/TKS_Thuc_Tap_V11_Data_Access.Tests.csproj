@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="XnkSavePosted\**\*.cs" />
     <None Update="Fixtures\ProductXlsxCompatibility\*.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\docs\test-data\customer-import\*.xlsx" Link="Fixtures\CustomerImport\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

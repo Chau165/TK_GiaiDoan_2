@@ -9,6 +9,9 @@
 	[Parameter]
 	public string m_strTen_Grid { get; set; } = "";
 
+	[Parameter]
+	public string m_strExclude_Field_Name { get; set; } = "";
+
 	RenderFragment m_objRender_Col { get; set; }
 
 
@@ -28,7 +31,7 @@
 		if (firstRender)
 		{
 			string v_strActive_User_Name = await CSession.Get_Active_User_Name(g_objSession_Storage);
-			m_objRender_Col = General_Col_Grid(v_strActive_User_Name, m_strFCode, m_strTen_Grid);
+			m_objRender_Col = General_Col_Grid(v_strActive_User_Name, m_strFCode, m_strTen_Grid, m_strExclude_Field_Name);
 		}
 
 		await base.OnAfterRenderAsync(firstRender);

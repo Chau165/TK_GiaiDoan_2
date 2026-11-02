@@ -1,0 +1,8 @@
+Connecting to database 'TKS_Thuc_Tap_V11_GiaiDoan2' on server 'DESKTOP-NHQ7QPL\MSSQLSERVER19'.
+Extracting schema
+Extracting schema from database
+Resolving references in schema model
+Validating schema model for data package
+Validating schema
+Successfully extracted database and saved it to file 'P:\Giao đoạn 2 TK\Giao đoạn 2 TK\TKS_Thuc_Tap_11\work\xnk-save-posted-baseline-20261102\schema.dacpac'.
+Time elapsed 0:00:15.00

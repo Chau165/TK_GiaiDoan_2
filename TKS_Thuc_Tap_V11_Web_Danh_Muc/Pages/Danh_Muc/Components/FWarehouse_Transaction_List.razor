@@ -36,22 +36,49 @@
         {
             @if (m_bIs_Receipt)
             {
-                <F3001_3_Nhap_Kho_Edit m_strEditor_Type="Document" m_objDocument="@m_objDocument" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" m_strError_Message="@r_strError" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
+                <F3001_3_Nhap_Kho_Edit m_arrProduct="@m_arrProduct" m_objDocument="@m_objDocument" m_arrDetail="@m_arrEditDetail" m_bSaving="@m_bSaving" m_arrSupplier="@m_arrSupplier" m_arrWarehouse="@m_arrWarehouse" m_strError_Message="@r_strError" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
             }
             else
             {
-                <F3002_3_Xuat_Kho_Edit m_strEditor_Type="Document" m_objDocument="@m_objDocument" m_arrProduct="@m_arrProduct" m_arrWarehouse="@m_arrWarehouse" m_strError_Message="@r_strError" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
+                <F3002_3_Xuat_Kho_Edit m_objDocument="@m_objDocument" m_arrDetail="@m_arrEditDetail" m_bSaving="@m_bSaving" m_arrProduct="@m_arrProduct" m_arrWarehouse="@m_arrWarehouse" m_strError_Message="@r_strError" OnSave_Document="Save_Document_Async" OnCancel="Cancel_Document" />
             }
         }
 
         <div class="row" style="padding-top: 10px;">
             <div class="col-lg-12">
-                <TelerikGrid TItem="CWarehouseDocument" Height="calc(100vh - 310px)" FilterMode="GridFilterMode.FilterRow" Resizable="true" Reorderable="true" Pageable="true" PageSize="10" OnRead="Read_Document_Async" @ref="m_grdDocument">
+                <TelerikGrid TItem="CWarehouseDocument" Height="calc(100vh - 310px)" FilterMode="GridFilterMode.FilterRow" Resizable="true" Reorderable="true" Pageable="true" Sortable="true" PageSize="10" OnRead="Read_Document_Async" @ref="m_grdDocument">
                     <GridExport>
                         <GridExcelExport FileName="Warehouse_Document_Export" AllPages="true" OnBeforeExport="Prepare_Excel_Export" />
                         <GridCsvExport FileName="Warehouse_Document_Export" AllPages="true" />
                     </GridExport>
                     <GridColumns>
+                        <GridCheckboxColumn SelectAll="true" CheckBoxOnlySelection="true" Width="30px"></GridCheckboxColumn>
+                        <GridColumn Width="60px" Title="">
+                            <Template Context="v_objContext">
+                                @{ var v_objDocument = (CWarehouseDocument)v_objContext; }
+                                <button type="button" class="btn btn-link me-2" aria-label='@Get_Language_Data_Field("Thông tin")' @onclick="@(() => Select_Document_Async(v_objDocument))"><i class="mdi mdi-eye" style="color: purple;"></i></button>
+                                @if (r_objChuc_Nang.Is_Have_Edit_Permission || (r_objChuc_Nang.Is_Have_Delete_Permission && !v_objDocument.Is_Posted))
+                                {
+                                    <button type="button" class="btn btn-link" aria-label='@Get_Language_Data_Field("Thao tác")' data-bs-toggle="dropdown" aria-expanded="false"><i class="mdi mdi-cog-outline" style="color: purple;"></i></button>
+                                    <ul class="dropdown-menu">
+                                        @if (r_objChuc_Nang.Is_Have_Edit_Permission)
+                                        {
+                                            <li><button type="button" class="dropdown-item" @onclick="@(() => Edit_Document(v_objDocument))"><i class="ri-edit-2-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Hiệu chỉnh")</button></li>
+                                        }
+                                        @if (r_objChuc_Nang.Is_Have_Delete_Permission && !v_objDocument.Is_Posted)
+                                        {
+                                            <li><button type="button" class="dropdown-item" @onclick="@(() => Delete_Document_Async(v_objDocument))"><i class="ri-delete-bin-line align-bottom me-1"></i>&nbsp; @Get_Language_Data_Field("Xóa")</button></li>
+                                        }
+                                    </ul>
+                                }
+                            </Template>
+                        </GridColumn>
+                        @if (CCache_Grid_UI_Global.List_Data_By_Code(r_strActive_Function_Code, "grdData").Count > 0)
+                        {
+                            <FCommon_General_Col_Grid m_strFCode="@r_strActive_Function_Code" m_strTen_Grid="grdData" m_strExclude_Field_Name="Is_Posted" />
+                        }
+                        else
+                        {
                         <GridColumn Field="Ngay_Chung_Tu" Title="Ngày" Width="120px" />
                         <GridColumn Field="So_Phieu" Title="Số phiếu" Width="160px" />
                         <GridColumn Field="Ten_Kho" Title="Kho" Width="180px" />
@@ -59,60 +86,27 @@
                         {
                             <GridColumn Field="Ten_NCC" Title="NCC" Width="180px" />
                         }
-                        <GridColumn Field="Is_Posted" Title="Trạng thái" Width="100px">
-                            <Template Context="v_objContext">
-                                @if (((CWarehouseDocument)v_objContext).Is_Posted)
-                                {
-                                    <text>Đã Post</text>
-                                }
-                                else
-                                {
-                                    <text>Nháp</text>
-                                }
-                            </Template>
-                        </GridColumn>
                         <GridColumn Field="Ghi_Chu" Title="Ghi chú" />
-                        <GridColumn Title="">
-                            <Template Context="v_objContext">
-                                @{ var v_objDocument = (CWarehouseDocument)v_objContext; }
-                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => Select_Document_Async(v_objDocument))">Chi tiết</button>
-                                @if (!v_objDocument.Is_Posted && r_objChuc_Nang.Is_Have_Edit_Permission)
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="@(() => Edit_Document(v_objDocument))">Sửa</button>
-                                    <button type="button" class="btn btn-sm btn-success me-1" @onclick="@(() => Post_Document_Async(v_objDocument))">Post</button>
-                                }
-                                @if (!v_objDocument.Is_Posted && r_objChuc_Nang.Is_Have_Delete_Permission)
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => Delete_Document_Async(v_objDocument.Auto_ID))">Xóa</button>
-                                }
-                            </Template>
-                        </GridColumn>
+                        <GridColumn Field="" Title="" />
+                        }
                     </GridColumns>
                 </TelerikGrid>
             </div>
         </div>
 
-        @if (m_bDetailEditing)
-        {
-            @if (m_bIs_Receipt)
-            {
-                <F3001_3_Nhap_Kho_Edit m_strEditor_Type="Detail" m_objDetail="@m_objDetail" m_arrProduct="@m_arrProduct" OnSave_Detail="Save_Detail_Async" OnCancel="Cancel_Detail" />
-            }
-            else
-            {
-                <F3002_3_Xuat_Kho_Edit m_strEditor_Type="Detail" m_objDetail="@m_objDetail" m_arrProduct="@m_arrProduct" OnSave_Detail="Save_Detail_Async" OnCancel="Cancel_Detail" />
-            }
-        }
     </div>
 </div>
 
-@if (m_bIs_Receipt)
+@if (r_bIs_Show_Info)
 {
-    <F3001_2_Nhap_Kho_Info m_objDocument="@m_objSelectedDocument" m_arrDetail="@m_arrDetail" m_bCan_Add="@r_objChuc_Nang.Is_Have_Add_Permission" m_bCan_Edit="@r_objChuc_Nang.Is_Have_Edit_Permission" m_bCan_Delete="@r_objChuc_Nang.Is_Have_Delete_Permission" m_bCan_Export="@r_objChuc_Nang.Is_Have_Export_Permission" OnAdd_Detail="New_Detail" OnEdit_Detail="Edit_Detail" OnDelete_Detail="Delete_Detail_Async" OnPrint="Print_Async" />
-}
-else
-{
-    <F3002_2_Xuat_Kho_Info m_objDocument="@m_objSelectedDocument" m_arrDetail="@m_arrDetail" m_bCan_Add="@r_objChuc_Nang.Is_Have_Add_Permission" m_bCan_Edit="@r_objChuc_Nang.Is_Have_Edit_Permission" m_bCan_Delete="@r_objChuc_Nang.Is_Have_Delete_Permission" m_bCan_Export="@r_objChuc_Nang.Is_Have_Export_Permission" OnAdd_Detail="New_Detail" OnEdit_Detail="Edit_Detail" OnDelete_Detail="Delete_Detail_Async" OnPrint="Print_Async" />
+    @if (m_bIs_Receipt)
+    {
+        <F3001_2_Nhap_Kho_Info m_objDocument="@m_objSelectedDocument" m_arrDetail="@m_arrDetail" m_bCan_Export="@r_objChuc_Nang.Is_Have_Export_Permission" OnPrint="Print_Async" OnCancel="Close_Document_Info" />
+    }
+    else
+    {
+        <F3002_2_Xuat_Kho_Info m_objDocument="@m_objSelectedDocument" m_arrDetail="@m_arrDetail" m_bCan_Export="@r_objChuc_Nang.Is_Have_Export_Permission" OnPrint="Print_Async" OnCancel="Close_Document_Info" />
+    }
 }
 
 @if (r_bIs_Show_Import_Excel)
@@ -123,7 +117,7 @@ else
 {
     <FCommon_Message_Info r_strMessage_Header="@r_strMessage_Header" r_strMessage_Info="@r_strMessage_Info" OnClose="@Close_Message_Info" />
 }
-else if (!string.IsNullOrWhiteSpace(r_strError))
+else if (!m_bDocumentEditing && !string.IsNullOrWhiteSpace(r_strError))
 {
     <FCommon_Message_Info r_strMessage_Header='@Get_Language_Data_Field("Thông báo")' r_strMessage_Info="@r_strError" OnClose="@Clear_List_Error" />
 }
@@ -140,14 +134,14 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
     private readonly CDM_Kho_User_Controller m_objPermissionController = new();
     private readonly CXNK_Nhap_Kho_Controller m_objNhapKhoController = new();
     private readonly CXNK_Xuat_Kho_Controller m_objXuatKhoController = new();
-    private readonly CWarehouseDocumentSupport_Controller m_objDocumentSupportController = new();
     private string m_strSuccess = "";
     private string m_strAuditWarning = "";
     private bool m_bDocumentEditing;
-    private bool m_bDetailEditing;
+    private bool m_bSaving;
+    private List<CWarehouseDocumentDetail> m_arrEditDetail = new();
+    private readonly CXNK_Document_Controller m_objAggregateController = new();
     private CWarehouseDocument m_objDocument = new();
     private CWarehouseDocument? m_objSelectedDocument;
-    private CWarehouseDocumentDetail m_objDetail = new();
     private List<CWarehouseDocument> m_arrDocument = new();
     private List<CWarehouseDocumentDetail> m_arrDetail = new();
     private List<CWarehouseLookup> m_arrUnit = new();
@@ -161,7 +155,6 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
     protected override void Init_Data()
     {
         m_bDocumentEditing = false;
-        m_bDetailEditing = false;
     }
 
     protected override void Load_Data()
@@ -213,7 +206,7 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
             {
                 v_strDisplay_Name = $"{v_objProduct.Ten_San_Pham} ({v_strUnit_Name})";
             }
-            m_arrProduct.Add(new CWarehouseLookup { Auto_ID = v_objProduct.Auto_ID, Code = v_objProduct.Ma_San_Pham, Name = v_strDisplay_Name });
+            m_arrProduct.Add(new CWarehouseLookup { Auto_ID = v_objProduct.Auto_ID, Code = v_objProduct.Ma_San_Pham, Name = v_objProduct.Ma_San_Pham + " — " + v_strDisplay_Name });
         }
         m_arrSupplier = new List<CWarehouseLookup>();
         foreach (CDM_NCC v_objSupplier in new CDM_NCC_Controller().F2019_sp_sel_List_NCC_Lookup())
@@ -225,12 +218,15 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
 
     private Task New_Document_Async()
     {
+        if (!r_objChuc_Nang.Is_Have_Add_Permission) return Task.CompletedTask;
         m_objDocument = New_Document_Model();
+        m_arrEditDetail = m_objDocument.Details;
+        r_iAuto_ID = 0;
+        r_bIs_Show_Edit = true;
+        r_bIs_Show_Info = false;
         m_objSelectedDocument = null;
         m_arrDetail.Clear();
-        m_objDetail = new();
         m_bDocumentEditing = true;
-        m_bDetailEditing = false;
         Clear_Message();
         return Task.CompletedTask;
     }
@@ -289,272 +285,136 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
 
     private void Cancel_Document()
     {
+        if (m_bSaving) return;
         m_bDocumentEditing = false;
+        r_bIs_Show_Edit = false;
+        m_arrEditDetail = new();
         m_objDocument = New_Document_Model();
         Clear_Message();
     }
 
     private void Edit_Document(CWarehouseDocument p_objData)
     {
-        m_objDocument = Clone_Document(p_objData);
-        m_objSelectedDocument = null;
-        m_arrDetail.Clear();
-        m_bDocumentEditing = true;
-        m_bDetailEditing = false;
-        Clear_Message();
+        if (!r_objChuc_Nang.Is_Have_Edit_Permission) return;
+        try
+        {
+            m_objDocument = m_objAggregateController.sp_XNK_Document_Edit_Get(m_bIs_Receipt, p_objData.Auto_ID, r_strActive_User_Name);
+            m_arrEditDetail = m_objDocument.Details;
+            r_iAuto_ID = m_objDocument.Auto_ID;
+            r_objSource = Clone_Document(m_objDocument);
+            r_bIs_Show_Info = false;
+            r_bIs_Show_Edit = true;
+            m_bDocumentEditing = true;
+            Clear_Message();
+        }
+        catch (Exception v_objException) { Set_Error(v_objException); }
+    }
+
+    private async Task Delete_Document_Async(CWarehouseDocument p_objData)
+    {
+        if (m_bSaving || !r_objChuc_Nang.Is_Have_Delete_Permission || p_objData.Is_Posted) return;
+
+        bool v_bConfirmed;
+        try
+        {
+            v_bConfirmed = await g_jsRuntime.InvokeAsync<bool>("confirm", Get_Language_Data_Field("Bạn chắc chắn muốn xóa dòng dữ liệu này?"));
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+            return;
+        }
+
+        if (!v_bConfirmed) return;
+
+        await Task.Delay(1);
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
+        try
+        {
+            v_iQueue_ID = Process_Queue("Warehouse Document Delete");
+            if (m_bIs_Receipt)
+            {
+                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Header(p_objData.Auto_ID, r_strActive_User_Name);
+            }
+            else
+            {
+                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Header(p_objData.Auto_ID, r_strActive_User_Name);
+            }
+
+            Try_Record_Action_History(p_objData.Auto_ID, Get_Language_Data_Field("Xóa"), "Key: " + p_objData.So_Phieu);
+            m_grdDocument.Rebind();
+            Set_Success(Get_Language_Data_Field("Đã xóa phiếu."));
+        }
+        catch (Exception v_objException)
+        {
+            Set_Error(v_objException);
+        }
+        finally
+        {
+            if (v_iQueue_ID > 0)
+            {
+                End_Queue(v_iQueue_ID);
+            }
+
+            r_objLayout.Stop_Loading();
+        }
     }
 
     private async Task Save_Document_Async(CWarehouseDocument p_objData)
     {
+        if (m_bSaving) return;
+        bool v_bNew = p_objData.Auto_ID == 0;
+        if (v_bNew ? !r_objChuc_Nang.Is_Have_Add_Permission : !r_objChuc_Nang.Is_Have_Edit_Permission) return;
+        m_bSaving = true;
+        long v_iQueue_ID = 0;
+        r_objLayout.Start_Loading();
         try
         {
-            var v_iAuto_ID = p_objData.Auto_ID;
-        string v_strAction = "Hiệu chỉnh";
-        if (v_iAuto_ID == 0) { v_strAction = "Thêm mới"; }
-
-            if (v_iAuto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || v_iAuto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
+            await Task.Yield();
+            v_iQueue_ID = Process_Queue("Warehouse Document Save Posted");
             p_objData.Is_Receipt = m_bIs_Receipt;
-            p_objData.Last_Updated_By = r_strActive_User_Name;
-            p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
-            if (v_iAuto_ID == 0)
-            {
-                p_objData.Created_By = r_strActive_User_Name;
-                p_objData.Created_By_Function = r_strActive_Function_Code;
-            }
-
-            if (m_bIs_Receipt)
-            {
-                var v_objReceipt = To_Nhap_Kho(p_objData);
-                if (v_iAuto_ID == 0)
-                {
-                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Header(v_objReceipt);
-                }
-                else
-                {
-                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Header(v_objReceipt);
-                }
-            }
-            else
-            {
-                var v_objIssue = To_Xuat_Kho(p_objData);
-                if (v_iAuto_ID == 0)
-                {
-                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Header(v_objIssue);
-                }
-                else
-                {
-                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Header(v_objIssue);
-                }
-            }
-
-            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse document " + p_objData.So_Phieu);
-            m_grdDocument.Rebind();
-            await Select_Document_Async(p_objData);
-            Set_Success("Đã lưu phiếu.");
-        }
-        catch (Exception v_objException)
-        {
-            Set_Error(v_objException);
-        }
-    }
-
-    private async Task Delete_Document_Async(long p_iAuto_ID)
-    {
-        try
-        {
-            if (m_bIs_Receipt)
-            {
-                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
-            }
-            else
-            {
-                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Header(p_iAuto_ID, r_strActive_User_Name);
-            }
-
-            Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse document");
-            Cancel_Document();
-            m_objSelectedDocument = null;
-            m_arrDetail.Clear();
-            await Load_Documents_Async();
-            Set_Success("Đã xóa phiếu.");
-        }
-        catch (Exception v_objException)
-        {
-            Set_Error(v_objException);
-        }
-    }
-
-    private async Task Post_Document_Async(CWarehouseDocument p_objData)
-    {
-        try
-        {
-            if (p_objData.Is_Posted || !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
-            m_objDocumentSupportController.sp_XNK_Document_Post(m_bIs_Receipt, p_objData.Auto_ID, r_strActive_User_Name, r_strActive_User_Name, r_strActive_Function_Code);
-            p_objData.Is_Posted = true;
-            Try_Record_Action_History(p_objData.Auto_ID, "Post", "Warehouse document " + p_objData.So_Phieu);
-            m_grdDocument.Rebind();
-            await Select_Document_Async(p_objData);
-            Set_Success("Đã Post phiếu; tồn kho đã được cập nhật.");
-        }
-        catch (Exception v_objException)
-        {
-            Set_Error(v_objException);
-        }
-    }
-
-    private async Task Select_Document_Async(CWarehouseDocument p_objData)
-    {
-        try
-        {
-            m_objSelectedDocument = p_objData;
-            m_objDocument = Clone_Document(p_objData);
-            m_arrDetail = Load_Document_Details(p_objData.Auto_ID);
-
-            m_objDetail = new()
-            {
-                Document_ID = p_objData.Auto_ID
-            };
+            p_objData.Details = m_arrEditDetail;
+            m_objAggregateController.sp_XNK_Document_Save_Posted(p_objData, r_strActive_User_Name);
+            r_iAuto_ID = p_objData.Auto_ID;
+            r_strAdd_Key = p_objData.So_Phieu;
+            r_objDes = Clone_Document(p_objData);
+            string v_strLog = v_bNew ? "Key: " + r_strAdd_Key : CUtility.Compare_Entity(r_objSource, r_objDes);
+            v_strLog += " | Revision: " + p_objData.Document_Version;
+            Try_Record_Action_History(p_objData.Auto_ID, Get_Language_Data_Field(v_bNew ? "Thêm mới" : "Hiệu chỉnh"), v_strLog);
             m_bDocumentEditing = false;
-            m_bDetailEditing = false;
+            r_bIs_Show_Edit = false;
+            m_grdDocument.Rebind();
+            Set_Success(Get_Language_Data_Field("Đã lưu phiếu; tồn kho đã được cập nhật."));
         }
-        catch (Exception v_objException)
+        catch (Exception v_objException) { Set_Error(v_objException); }
+        finally
         {
-            Set_Error(v_objException);
+            End_Queue(v_iQueue_ID);
+            r_objLayout.Stop_Loading();
+            m_bSaving = false;
         }
     }
 
-    private void New_Detail()
-    {
-        if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Add_Permission)
-        {
-            return;
-        }
-
-        m_objDetail = new()
-        {
-            Document_ID = m_objSelectedDocument.Auto_ID
-        };
-        m_bDetailEditing = true;
-        Clear_Message();
-    }
-
-    private void Cancel_Detail()
-    {
-        if (m_objSelectedDocument == null)
-        {
-            return;
-        }
-
-        m_objDetail = new()
-        {
-            Document_ID = m_objSelectedDocument.Auto_ID
-        };
-        m_bDetailEditing = false;
-    }
-
-    private void Edit_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        if (!r_objChuc_Nang.Is_Have_Edit_Permission)
-        {
-            return;
-        }
-
-        m_objDetail = Clone_Detail(p_objData);
-        m_bDetailEditing = true;
-        Clear_Message();
-    }
-
-    private async Task Save_Detail_Async(CWarehouseDocumentDetail p_objData)
+    private Task Select_Document_Async(CWarehouseDocument p_objData)
     {
         try
         {
-            if (m_objSelectedDocument == null || p_objData.Auto_ID == 0 && !r_objChuc_Nang.Is_Have_Add_Permission || p_objData.Auto_ID != 0 && !r_objChuc_Nang.Is_Have_Edit_Permission)
-            {
-                return;
-            }
-
-            p_objData.Document_ID = m_objSelectedDocument.Auto_ID;
-            var v_iAuto_ID = p_objData.Auto_ID;
-        string v_strAction = "Hiệu chỉnh";
-        if (v_iAuto_ID == 0) { v_strAction = "Thêm mới"; }
-
-            p_objData.Last_Updated_By = r_strActive_User_Name;
-            p_objData.Last_Updated_By_Function = r_strActive_Function_Code;
-            if (v_iAuto_ID == 0)
-            {
-                p_objData.Created_By = r_strActive_User_Name;
-                p_objData.Created_By_Function = r_strActive_Function_Code;
-            }
-
-            if (m_bIs_Receipt)
-            {
-                var v_objReceiptDetail = To_Nhap_Kho_Detail(p_objData);
-                if (v_iAuto_ID == 0)
-                {
-                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_ins_Nhap_Kho_Detail(v_objReceiptDetail);
-                }
-                else
-                {
-                    p_objData.Auto_ID = m_objNhapKhoController.F3001_sp_upd_Nhap_Kho_Detail(v_objReceiptDetail);
-                }
-            }
-            else
-            {
-                var v_objIssueDetail = To_Xuat_Kho_Detail(p_objData);
-                if (v_iAuto_ID == 0)
-                {
-                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_ins_Xuat_Kho_Detail(v_objIssueDetail);
-                }
-                else
-                {
-                    p_objData.Auto_ID = m_objXuatKhoController.F3002_sp_upd_Xuat_Kho_Detail(v_objIssueDetail);
-                }
-            }
-
-            Try_Record_Action_History(p_objData.Auto_ID, v_strAction, "Warehouse detail");
-            await Select_Document_Async(m_objSelectedDocument);
-            Set_Success("Đã lưu chi tiết.");
+            m_objSelectedDocument = m_objAggregateController.sp_XNK_Document_Edit_Get(m_bIs_Receipt, p_objData.Auto_ID, r_strActive_User_Name);
+            m_arrDetail = m_objSelectedDocument.Details;
+            r_iAuto_ID = p_objData.Auto_ID;
+            r_bIs_Show_Info = true;
+            r_bIs_Show_Edit = false;
+            m_bDocumentEditing = false;
         }
-        catch (Exception v_objException)
-        {
-            Set_Error(v_objException);
-        }
+        catch (Exception v_objException) { Set_Error(v_objException); }
+        return Task.CompletedTask;
     }
 
-    private async Task Delete_Detail_Async(long p_iAuto_ID)
+    private void Close_Document_Info()
     {
-        try
-        {
-            if (m_objSelectedDocument == null || !r_objChuc_Nang.Is_Have_Delete_Permission)
-            {
-                return;
-            }
-
-            if (m_bIs_Receipt)
-            {
-                m_objNhapKhoController.F3001_sp_del_Nhap_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
-            }
-            else
-            {
-                m_objXuatKhoController.F3002_sp_del_Xuat_Kho_Detail(p_iAuto_ID, r_strActive_User_Name);
-            }
-
-            Try_Record_Action_History(p_iAuto_ID, "Xóa", "Warehouse detail");
-            await Select_Document_Async(m_objSelectedDocument);
-            Set_Success("Đã xóa chi tiết.");
-        }
-        catch (Exception v_objException)
-        {
-            Set_Error(v_objException);
-        }
+        r_bIs_Show_Info = false;
+        m_objSelectedDocument = null;
     }
 
     private async Task Export_Document_Excel_Async()
@@ -685,89 +545,7 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
 
     private static CWarehouseDocument Clone_Document(CWarehouseDocument p_objData)
     {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Is_Receipt = p_objData.Is_Receipt,
-            So_Phieu = p_objData.So_Phieu,
-            Kho_ID = p_objData.Kho_ID,
-            NCC_ID = p_objData.NCC_ID,
-            Ten_Kho = p_objData.Ten_Kho,
-            Ten_NCC = p_objData.Ten_NCC,
-            Ngay_Chung_Tu = p_objData.Ngay_Chung_Tu,
-            Is_Posted = p_objData.Is_Posted,
-            Posted_At = p_objData.Posted_At,
-            Ghi_Chu = p_objData.Ghi_Chu
-        };
-    }
-
-    private static CXNK_Nhap_Kho To_Nhap_Kho(CWarehouseDocument p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            So_Phieu_Nhap_Kho = p_objData.So_Phieu,
-            Kho_ID = p_objData.Kho_ID,
-            NCC_ID = p_objData.NCC_ID,
-            Ngay_Nhap_Kho = p_objData.Ngay_Chung_Tu,
-            Ghi_Chu = p_objData.Ghi_Chu,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CXNK_Xuat_Kho To_Xuat_Kho(CWarehouseDocument p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            So_Phieu_Xuat_Kho = p_objData.So_Phieu,
-            Kho_ID = p_objData.Kho_ID,
-            Ngay_Xuat_Kho = p_objData.Ngay_Chung_Tu,
-            Ghi_Chu = p_objData.Ghi_Chu,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CXNK_Nhap_Kho_Detail To_Nhap_Kho_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Nhap_Kho_ID = p_objData.Document_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            SL_Nhap = p_objData.So_Luong,
-            Don_Gia_Nhap = p_objData.Don_Gia,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CXNK_Xuat_Kho_Detail To_Xuat_Kho_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Xuat_Kho_ID = p_objData.Document_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            SL_Xuat = p_objData.So_Luong,
-            Don_Gia_Xuat = p_objData.Don_Gia,
-            Ma_Dang_Nhap = p_objData.Last_Updated_By,
-            Created_By = p_objData.Created_By,
-            Created_By_Function = p_objData.Created_By_Function,
-            Last_Updated_By = p_objData.Last_Updated_By,
-            Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
+        return System.Text.Json.JsonSerializer.Deserialize<CWarehouseDocument>(System.Text.Json.JsonSerializer.Serialize(p_objData))!;
     }
 
     private static CWarehouseDocument To_Warehouse_Document(CXNK_Nhap_Kho p_objData)
@@ -857,20 +635,6 @@ else if (!string.IsNullOrWhiteSpace(r_strError))
             Last_Updated = p_objData.Last_Updated,
             Last_Updated_By = p_objData.Last_Updated_By,
             Last_Updated_By_Function = p_objData.Last_Updated_By_Function
-        };
-    }
-
-    private static CWarehouseDocumentDetail Clone_Detail(CWarehouseDocumentDetail p_objData)
-    {
-        return new()
-        {
-            Auto_ID = p_objData.Auto_ID,
-            Document_ID = p_objData.Document_ID,
-            San_Pham_ID = p_objData.San_Pham_ID,
-            So_Luong = p_objData.So_Luong,
-            Don_Gia = p_objData.Don_Gia,
-            Ma_San_Pham = p_objData.Ma_San_Pham,
-            Ten_San_Pham = p_objData.Ten_San_Pham
         };
     }
 
